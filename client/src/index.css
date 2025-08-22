@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AlumniAccel Design System - Professional education platform with warm community feel */
+
+@layer base {
+  :root {
+    /* Base colors - Clean and professional */
+    --background: 0 0% 100%;
+    --foreground: 215 28% 17%;
+
+    /* Card system */
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 17%;
+
+    /* Popover system */
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 17%;
+
+    /* Primary - Educational blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 217 91% 70%;
+    --primary-dark: 217 91% 50%;
+
+    /* Secondary - Professional gray-blue */
+    --secondary: 215 16% 47%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Success - Educational green */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 46%;
+
+    /* Warning - Academic gold */
+    --warning: 43 96% 56%;
+    --warning-foreground: 215 28% 17%;
+
+    /* Muted tones */
+    --muted: 215 13% 94%;
+    --muted-foreground: 215 13% 65%;
+
+    /* Accent - Alumni purple */
+    --accent: 270 95% 75%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 215 13% 91%;
+    --input: 215 13% 91%;
+    --ring: 217 91% 60%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(270 95% 75%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(270 95% 75%) 50%, hsl(43 96% 56%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(215 13% 98%));
+
+    /* Shadows */
+    --shadow-soft: 0 2px 8px hsl(215 13% 65% / 0.1);
+    --shadow-medium: 0 4px 16px hsl(215 13% 65% / 0.15);
+    --shadow-strong: 0 8px 32px hsl(215 13% 65% / 0.2);
+    --shadow-primary: 0 4px 16px hsl(217 91% 60% / 0.3);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Base colors - Dark theme */
+    --background: 215 28% 9%;
+    --foreground: 0 0% 95%;
+
+    /* Card system */
+    --card: 215 28% 11%;
+    --card-foreground: 0 0% 95%;
+
+    /* Popover system */
+    --popover: 215 28% 11%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Primary - Educational blue (slightly brighter for dark mode) */
+    --primary: 217 91% 70%;
+    --primary-foreground: 215 28% 9%;
+    --primary-light: 217 91% 80%;
+    --primary-dark: 217 91% 60%;
+
+    /* Secondary - Professional gray-blue */
+    --secondary: 215 16% 20%;
+    --secondary-foreground: 0 0% 95%;
+
+    /* Success - Educational green */
+    --success: 142 76% 46%;
+    --success-foreground: 215 28% 9%;
+    --success-light: 142 76% 56%;
+
+    /* Warning - Academic gold */
+    --warning: 43 96% 66%;
+    --warning-foreground: 215 28% 9%;
+
+    /* Muted tones */
+    --muted: 215 13% 15%;
+    --muted-foreground: 215 13% 65%;
+
+    /* Accent - Alumni purple */
+    --accent: 270 95% 80%;
+    --accent-foreground: 215 28% 9%;
+
+    /* Destructive */
+    --destructive: 0 84% 70%;
+    --destructive-foreground: 215 28% 9%;
+
+    /* Borders and inputs */
+    --border: 215 13% 20%;
+    --input: 215 13% 20%;
+    --ring: 217 91% 70%;
+
+    /* Gradients - Adjusted for dark mode */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 70%), hsl(270 95% 80%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 46%), hsl(142 76% 56%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 70%) 0%, hsl(270 95% 80%) 50%, hsl(43 96% 66%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(215 28% 11%), hsl(215 13% 13%));
+
+    /* Sidebar */
+    --sidebar-background: 215 28% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 217 91% 70%;
+    --sidebar-primary-foreground: 215 28% 9%;
+    --sidebar-accent: 215 13% 15%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 215 13% 20%;
+    --sidebar-ring: 217 91% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

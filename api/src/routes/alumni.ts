@@ -1,0 +1,49 @@
+import express from 'express';
+import alumniController from '@/controllers/alumniController';
+import { validateAlumniProfile, validateId } from '@/middleware/validation';
+import { authenticateToken, requireAlumni } from '@/middleware/auth';
+import { asyncHandler } from '@/middleware/errorHandler';
+
+const router = express.Router();
+
+// @route   GET /api/v1/alumni
+// @desc    Get all alumni profiles
+// @access  Private
+router.get('/', authenticateToken, asyncHandler(alumniController.getAllAlumni));
+
+// @route   GET /api/v1/alumni/:id
+// @desc    Get alumni profile by ID
+// @access  Private
+router.get('/:id', authenticateToken, validateId, asyncHandler(alumniController.getAlumniById));
+
+// @route   POST /api/v1/alumni/profile
+// @desc    Create alumni profile
+// @access  Private/Alumni
+router.post('/profile', authenticateToken, requireAlumni, validateAlumniProfile, asyncHandler(alumniController.createProfile));
+
+// @route   PUT /api/v1/alumni/profile
+// @desc    Update alumni profile
+// @access  Private/Alumni
+router.put('/profile', authenticateToken, requireAlumni, validateAlumniProfile, asyncHandler(alumniController.updateProfile));
+
+// @route   GET /api/v1/alumni/search
+// @desc    Search alumni
+// @access  Private
+router.get('/search', authenticateToken, asyncHandler(alumniController.searchAlumni));
+
+// @route   GET /api/v1/alumni/batch/:year
+// @desc    Get alumni by batch year
+// @access  Private
+router.get('/batch/:year', authenticateToken, asyncHandler(alumniController.getAlumniByBatch));
+
+// @route   GET /api/v1/alumni/hiring
+// @desc    Get alumni who are hiring
+// @access  Private
+router.get('/hiring', authenticateToken, asyncHandler(alumniController.getHiringAlumni));
+
+// @route   GET /api/v1/alumni/mentors
+// @desc    Get alumni mentors
+// @access  Private
+router.get('/mentors', authenticateToken, asyncHandler(alumniController.getMentors));
+
+export default router; 

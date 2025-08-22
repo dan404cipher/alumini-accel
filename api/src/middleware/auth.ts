@@ -1,0 +1,247 @@
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { AuthenticatedRequest, UserRole, UserStatus } from '@/types';
+import User from '@/models/User';
+import AlumniProfile from '@/models/AlumniProfile';
+import { logger } from '@/utils/logger';
+import { redisClient } from '@/config/redis';
+
+// Extend Express Request interface
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+      alumniProfile?: any;
+    }
+  }
+}
+
+// JWT Token verification middleware
+export const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token is required'
+      });
+    }
+
+    // Check if token is blacklisted
+    const isBlacklisted = await redisClient.get(`blacklist:${token}`);
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has been invalidated'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    
+    // Find user and check if still exists and is active
+    const user = await User.findById(decoded.userId).select('-password');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.VERIFIED) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is not active'
+      });
+    }
+
+    req.user = user;
+
+    // If user is alumni, also fetch alumni profile
+    if (user.role === UserRole.ALUMNI) {
+      const alumniProfile = await AlumniProfile.findOne({ userId: user._id });
+      req.alumniProfile = alumniProfile;
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Authentication error:', error);
+    
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Authentication failed'
+    });
+  }
+};
+
+// Role-based authorization middleware
+export const authorize = (...roles: UserRole[]) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions'
+      });
+    }
+
+    next();
+  };
+};
+
+// Specific role authorization helpers
+export const requireSuperAdmin = authorize(UserRole.SUPER_ADMIN);
+export const requireAdmin = authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN);
+export const requireCoordinator = authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COORDINATOR);
+export const requireAlumni = authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ALUMNI);
+export const requireStudent = authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ALUMNI, UserRole.STUDENT);
+
+// Optional authentication middleware (doesn't fail if no token)
+export const optionalAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return next(); // Continue without authentication
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (user && (user.status === UserStatus.ACTIVE || user.status === UserStatus.VERIFIED)) {
+      req.user = user;
+      
+      if (user.role === UserRole.ALUMNI) {
+        const alumniProfile = await AlumniProfile.findOne({ userId: user._id });
+        req.alumniProfile = alumniProfile;
+      }
+    }
+
+    next();
+  } catch (error) {
+    // Continue without authentication on error
+    next();
+  }
+};
+
+// Rate limiting middleware
+export const rateLimit = (maxRequests: number = 100, windowMs: number = 900000) => {
+  const requests = new Map();
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowStart = now - windowMs;
+
+    // Clean old entries
+    if (requests.has(ip)) {
+      const userRequests = requests.get(ip).filter((timestamp: number) => timestamp > windowStart);
+      requests.set(ip, userRequests);
+    } else {
+      requests.set(ip, []);
+    }
+
+    const userRequests = requests.get(ip);
+    
+    if (userRequests.length >= maxRequests) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many requests, please try again later'
+      });
+    }
+
+    userRequests.push(now);
+    next();
+  };
+};
+
+// Logout middleware (blacklist token)
+export const logout = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+      // Add token to blacklist with expiration
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      const exp = decoded.exp * 1000; // Convert to milliseconds
+      const ttl = Math.floor((exp - Date.now()) / 1000); // TTL in seconds
+      
+      if (ttl > 0) {
+        await redisClient.set(`blacklist:${token}`, 'true', ttl);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    logger.error('Logout error:', error);
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  }
+};
+
+// Generate JWT token
+export const generateToken = (userId: string, role: UserRole): string => {
+  return jwt.sign(
+    { userId, role },
+    process.env.JWT_SECRET!,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+};
+
+// Generate refresh token
+export const generateRefreshToken = (userId: string): string => {
+  return jwt.sign(
+    { userId, type: 'refresh' },
+    process.env.JWT_REFRESH_SECRET!,
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
+  );
+};
+
+// Verify refresh token
+export const verifyRefreshToken = (token: string): any => {
+  return jwt.verify(token, process.env.JWT_REFRESH_SECRET!);
+};
+
+export default {
+  authenticateToken,
+  authorize,
+  requireSuperAdmin,
+  requireAdmin,
+  requireCoordinator,
+  requireAlumni,
+  requireStudent,
+  optionalAuth,
+  rateLimit,
+  logout,
+  generateToken,
+  generateRefreshToken,
+  verifyRefreshToken
+}; 

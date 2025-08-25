@@ -1,5 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { useNavigate } from "react-router-dom";
+import login from "@/pages/Login";
+
+
 import { 
   Users, 
   Briefcase, 
@@ -18,6 +23,7 @@ interface NavigationProps {
 }
 
 const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
+   const navigate = useNavigate();
   const navItems = [
     { id: "dashboard", name: "Dashboard", icon: BarChart3, count: null },
     { id: "alumni", name: "Alumni", icon: Users, count: "2.8K" },
@@ -25,7 +31,13 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     { id: "events", name: "Events", icon: Calendar, count: "8" },
     { id: "recognition", name: "Recognition", icon: Award, count: null },
   ];
+const handleLogout = () => {
+    // Clear user state if AuthContext exists
+    
 
+    // Navigate to login page
+    navigate("/login");
+  };
   return (
     <nav className="bg-background border-b border-border shadow-soft">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,9 +108,21 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             </Button>
 
             {/* Profile */}
-            <Button variant="ghost" size="icon">
-              <User className="w-5 h-5" />
-            </Button>
+            <Popover>
+  <PopoverTrigger asChild>
+    <Button variant="ghost" size="icon">
+      <User className="w-5 h-5" />
+    </Button>
+  </PopoverTrigger>
+
+  <PopoverContent className="w-32 p-2">
+    <div className="flex flex-col gap-2">
+      <Button variant="ghost" className="justify-start" onClick={()=>("#")}>Profile</Button>
+      <Button variant="ghost" className="justify-start" onClick={handleLogout}>Logout</Button>
+    </div>
+  </PopoverContent>
+</Popover>
+
           </div>
         </div>
       </div>

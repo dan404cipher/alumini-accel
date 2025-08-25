@@ -1,68 +1,69 @@
-import { Request } from 'express';
-import { Document } from 'mongoose';
+import { Request } from "express";
+import { Document } from "mongoose";
 
 // User Roles
 export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
-  ADMIN = 'admin',
-  COORDINATOR = 'coordinator',
-  ALUMNI = 'alumni',
-  STUDENT = 'student',
-  BATCH_REP = 'batch_rep'
+  SUPER_ADMIN = "super_admin",
+  ADMIN = "admin",
+  COORDINATOR = "coordinator",
+  ALUMNI = "alumni",
+  STUDENT = "student",
+  BATCH_REP = "batch_rep",
 }
 
 // User Status
 export enum UserStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  PENDING = 'pending',
-  SUSPENDED = 'suspended',
-  VERIFIED = 'verified'
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  PENDING = "pending",
+  SUSPENDED = "suspended",
+  VERIFIED = "verified",
 }
 
 // Event Types
 export enum EventType {
-  REUNION = 'reunion',
-  WORKSHOP = 'workshop',
-  WEBINAR = 'webinar',
-  MEETUP = 'meetup',
-  CONFERENCE = 'conference',
-  CAREER_FAIR = 'career_fair'
+  REUNION = "reunion",
+  WORKSHOP = "workshop",
+  WEBINAR = "webinar",
+  MEETUP = "meetup",
+  CONFERENCE = "conference",
+  CAREER_FAIR = "career_fair",
 }
 
 // Job Post Status
 export enum JobPostStatus {
-  ACTIVE = 'active',
-  CLOSED = 'closed',
-  DRAFT = 'draft',
-  PENDING = 'pending'
+  ACTIVE = "active",
+  CLOSED = "closed",
+  DRAFT = "draft",
+  PENDING = "pending",
 }
 
 // Mentorship Status
 export enum MentorshipStatus {
-  PENDING = 'pending',
-  ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  ACTIVE = "active",
+  REJECTED = "rejected",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
 }
 
 // Donation Status
 export enum DonationStatus {
-  PENDING = 'pending',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled'
+  PENDING = "pending",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
 }
 
 // Badge Types
 export enum BadgeType {
-  MENTOR = 'mentor',
-  SPEAKER = 'speaker',
-  DONOR = 'donor',
-  CHAMPION = 'champion',
-  STAR_ALUMNI = 'star_alumni',
-  RECRUITER = 'recruiter'
+  MENTOR = "mentor",
+  SPEAKER = "speaker",
+  DONOR = "donor",
+  CHAMPION = "champion",
+  STAR_ALUMNI = "star_alumni",
+  RECRUITER = "recruiter",
 }
 
 // Base User Interface
@@ -77,7 +78,7 @@ export interface IUser extends Document {
   phone?: string;
   profilePicture?: string;
   dateOfBirth?: Date;
-  gender?: 'male' | 'female' | 'other';
+  gender?: "male" | "female" | "other";
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
@@ -99,6 +100,10 @@ export interface IUser extends Document {
     pushNotifications: boolean;
     newsletterSubscription: boolean;
   };
+
+  // Instance methods
+  comparePassword(candidatePassword: string): Promise<boolean>;
+  getFullName(): string;
 }
 
 // Alumni Profile Interface
@@ -164,7 +169,7 @@ export interface IJobPost extends Document {
   company: string;
   position: string;
   location: string;
-  type: 'full-time' | 'part-time' | 'internship' | 'contract';
+  type: "full-time" | "part-time" | "internship" | "contract";
   remote: boolean;
   salary?: {
     min: number;
@@ -178,7 +183,7 @@ export interface IJobPost extends Document {
   applications: Array<{
     applicantId: string;
     appliedAt: Date;
-    status: 'pending' | 'shortlisted' | 'rejected' | 'hired';
+    status: "pending" | "shortlisted" | "rejected" | "hired";
     resume?: string;
     coverLetter?: string;
   }>;
@@ -198,10 +203,15 @@ export interface IEvent extends Document {
   endDate: Date;
   location: string;
   isOnline: boolean;
+  onlineUrl?: string;
   meetingLink?: string;
   maxAttendees?: number;
   currentAttendees: number;
   organizer: string;
+  tags?: string[];
+  image?: string;
+  price?: number;
+  organizerNotes?: string;
   speakers: Array<{
     name: string;
     title: string;
@@ -218,17 +228,19 @@ export interface IEvent extends Document {
   registrationDeadline?: Date;
   attendees: Array<{
     userId: string;
+    user: string;
     registeredAt: Date;
-    status: 'registered' | 'attended' | 'cancelled';
+    status: "registered" | "attended" | "cancelled";
   }>;
   photos: string[];
   feedback: Array<{
     userId: string;
+    user: string;
     rating: number;
     comment?: string;
     date: Date;
   }>;
-  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  status: "upcoming" | "ongoing" | "completed" | "cancelled";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -244,15 +256,23 @@ export interface IMentorship extends Document {
   goals: string[];
   startDate: Date;
   endDate?: Date;
+  acceptedAt?: Date;
+  rejectedAt?: Date;
+  rejectionReason?: string;
+  completedAt?: Date;
   sessions: Array<{
+    _id?: string;
     date: Date;
     duration: number;
+    topic?: string;
     notes?: string;
     meetingLink?: string;
-    status: 'scheduled' | 'completed' | 'cancelled';
+    status: "scheduled" | "completed" | "cancelled";
   }>;
   feedback: Array<{
-    from: 'mentor' | 'mentee';
+    from: "mentor" | "mentee";
+    user: string;
+    type: "mentor" | "mentee";
     rating: number;
     comment?: string;
     date: Date;
@@ -300,7 +320,7 @@ export interface INewsletter extends Document {
   sentBy: string;
   recipients: string[];
   sentAt?: Date;
-  status: 'draft' | 'scheduled' | 'sent' | 'failed';
+  status: "draft" | "scheduled" | "sent" | "failed";
   scheduledAt?: Date;
   openRate?: number;
   clickRate?: number;
@@ -354,7 +374,7 @@ export interface PaginationQuery {
   page?: number;
   limit?: number;
   sort?: string;
-  order?: 'asc' | 'desc';
+  order?: "asc" | "desc";
 }
 
 // Search Interface
@@ -389,7 +409,7 @@ export interface INotification extends Document {
   userId: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: "info" | "success" | "warning" | "error";
   isRead: boolean;
   actionUrl?: string;
   metadata?: Record<string, any>;
@@ -400,10 +420,10 @@ export interface INotification extends Document {
 // Analytics Interface
 export interface IAnalytics extends Document {
   _id: string;
-  type: 'user' | 'event' | 'job' | 'donation' | 'engagement';
+  type: "user" | "event" | "job" | "donation" | "engagement";
   metrics: Record<string, number>;
   date: Date;
-  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  period: "daily" | "weekly" | "monthly" | "yearly";
   metadata?: Record<string, any>;
   createdAt: Date;
 }
@@ -422,5 +442,3 @@ export interface IAuditLog extends Document {
   timestamp: Date;
   metadata?: Record<string, any>;
 }
-
- 

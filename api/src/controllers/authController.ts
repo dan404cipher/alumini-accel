@@ -1,18 +1,18 @@
-import { Request, Response } from 'express';
-import crypto from 'crypto';
-import User from '@/models/User';
-import AlumniProfile from '@/models/AlumniProfile';
-import { logger } from '@/utils/logger';
-import { 
-  generateToken, 
-  generateRefreshToken, 
+import { Request, Response } from "express";
+import crypto from "crypto";
+import User from "@/models/User";
+import AlumniProfile from "@/models/AlumniProfile";
+import { logger } from "@/utils/logger";
+import {
+  generateToken,
+  generateRefreshToken,
   verifyRefreshToken,
-  authenticateToken 
-} from '@/middleware/auth';
-import { UserRole, UserStatus } from '@/types';
-import { sendEmail } from '@/utils/email';
-import { sendSMS } from '@/utils/sms';
-import { AppError } from '@/middleware/errorHandler';
+  authenticateToken,
+} from "@/middleware/auth";
+import { UserRole, UserStatus } from "@/types";
+import { sendEmail } from "@/utils/email";
+import { sendSMS } from "@/utils/sms";
+import { AppError } from "@/middleware/errorHandler";
 
 // Register new user
 export const register = async (req: Request, res: Response) => {
@@ -24,7 +24,7 @@ export const register = async (req: Request, res: Response) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists'
+        message: "User with this email already exists",
       });
     }
 
@@ -36,11 +36,11 @@ export const register = async (req: Request, res: Response) => {
       lastName,
       role: role || UserRole.STUDENT,
       phone,
-      status: UserStatus.PENDING
+      status: UserStatus.PENDING,
     });
 
     // Generate email verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
     user.emailVerificationToken = emailVerificationToken;
 
     await user.save();
@@ -49,7 +49,7 @@ export const register = async (req: Request, res: Response) => {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${emailVerificationToken}`;
     await sendEmail({
       to: user.email,
-      subject: 'Welcome to AlumniAccel - Verify Your Email',
+      subject: "Welcome to AlumniAccel - Verify Your Email",
       html: `
         <h1>Welcome to AlumniAccel!</h1>
         <p>Hi ${user.firstName},</p>
@@ -59,16 +59,17 @@ export const register = async (req: Request, res: Response) => {
         </a>
         <p>If you didn't create this account, please ignore this email.</p>
         <p>Best regards,<br>The AlumniAccel Team</p>
-      `
+      `,
     });
 
     // Generate tokens
     const token = generateToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'User registered successfully. Please check your email to verify your account.',
+      message:
+        "User registered successfully. Please check your email to verify your account.",
       data: {
         user: {
           id: user._id,
@@ -76,17 +77,17 @@ export const register = async (req: Request, res: Response) => {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          status: user.status
+          status: user.status,
         },
         token,
-        refreshToken
-      }
+        refreshToken,
+      },
     });
   } catch (error) {
-    logger.error('Registration error:', error);
-    res.status(500).json({
+    logger.error("Registration error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Registration failed'
+      message: "Registration failed",
     });
   }
 };
@@ -97,11 +98,13 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     // Find user
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      "+password"
+    );
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: "Invalid credentials",
       });
     }
 
@@ -110,15 +113,18 @@ export const login = async (req: Request, res: Response) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: "Invalid credentials",
       });
     }
 
     // Check if account is active
-    if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.VERIFIED) {
+    if (
+      user.status !== UserStatus.ACTIVE &&
+      user.status !== UserStatus.VERIFIED
+    ) {
       return res.status(401).json({
         success: false,
-        message: 'Account is not active. Please verify your email first.'
+        message: "Account is not active. Please verify your email first.",
       });
     }
 
@@ -130,9 +136,9 @@ export const login = async (req: Request, res: Response) => {
     const token = generateToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Login successful',
+      message: "Login successful",
       data: {
         user: {
           id: user._id,
@@ -142,17 +148,17 @@ export const login = async (req: Request, res: Response) => {
           role: user.role,
           status: user.status,
           isEmailVerified: user.isEmailVerified,
-          isPhoneVerified: user.isPhoneVerified
+          isPhoneVerified: user.isPhoneVerified,
         },
         token,
-        refreshToken
-      }
+        refreshToken,
+      },
     });
   } catch (error) {
-    logger.error('Login error:', error);
-    res.status(500).json({
+    logger.error("Login error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Login failed'
+      message: "Login failed",
     });
   }
 };
@@ -166,7 +172,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid verification token'
+        message: "Invalid verification token",
       });
     }
 
@@ -175,15 +181,15 @@ export const verifyEmail = async (req: Request, res: Response) => {
     user.emailVerificationToken = undefined;
     await user.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Email verified successfully'
+      message: "Email verified successfully",
     });
   } catch (error) {
-    logger.error('Email verification error:', error);
-    res.status(500).json({
+    logger.error("Email verification error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Email verification failed'
+      message: "Email verification failed",
     });
   }
 };
@@ -197,12 +203,12 @@ export const forgotPassword = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     await user.save();
@@ -211,7 +217,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     await sendEmail({
       to: user.email,
-      subject: 'Password Reset Request - AlumniAccel',
+      subject: "Password Reset Request - AlumniAccel",
       html: `
         <h1>Password Reset Request</h1>
         <p>Hi ${user.firstName},</p>
@@ -222,18 +228,18 @@ export const forgotPassword = async (req: Request, res: Response) => {
         <p>This link will expire in 10 minutes.</p>
         <p>If you didn't request this, please ignore this email.</p>
         <p>Best regards,<br>The AlumniAccel Team</p>
-      `
+      `,
     });
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Password reset email sent'
+      message: "Password reset email sent",
     });
   } catch (error) {
-    logger.error('Forgot password error:', error);
-    res.status(500).json({
+    logger.error("Forgot password error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to send password reset email'
+      message: "Failed to send password reset email",
     });
   }
 };
@@ -245,13 +251,13 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     const user = await User.findOne({
       passwordResetToken: token,
-      passwordResetExpires: { $gt: Date.now() }
+      passwordResetExpires: { $gt: Date.now() },
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset token'
+        message: "Invalid or expired reset token",
       });
     }
 
@@ -260,15 +266,15 @@ export const resetPassword = async (req: Request, res: Response) => {
     user.passwordResetExpires = undefined;
     await user.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Password reset successful'
+      message: "Password reset successful",
     });
   } catch (error) {
-    logger.error('Reset password error:', error);
-    res.status(500).json({
+    logger.error("Reset password error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Password reset failed'
+      message: "Password reset failed",
     });
   }
 };
@@ -281,7 +287,7 @@ export const refreshToken = async (req: Request, res: Response) => {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token is required'
+        message: "Refresh token is required",
       });
     }
 
@@ -291,25 +297,25 @@ export const refreshToken = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid refresh token'
+        message: "Invalid refresh token",
       });
     }
 
     const newToken = generateToken(user._id, user.role);
     const newRefreshToken = generateRefreshToken(user._id);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         token: newToken,
-        refreshToken: newRefreshToken
-      }
+        refreshToken: newRefreshToken,
+      },
     });
   } catch (error) {
-    logger.error('Refresh token error:', error);
-    res.status(401).json({
+    logger.error("Refresh token error:", error);
+    return res.status(401).json({
       success: false,
-      message: 'Invalid refresh token'
+      message: "Invalid refresh token",
     });
   }
 };
@@ -321,7 +327,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -331,7 +337,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       alumniProfile = await AlumniProfile.findOne({ userId: user._id });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         user: {
@@ -353,16 +359,16 @@ export const getCurrentUser = async (req: Request, res: Response) => {
           isPhoneVerified: user.isPhoneVerified,
           preferences: user.preferences,
           createdAt: user.createdAt,
-          lastLoginAt: user.lastLoginAt
+          lastLoginAt: user.lastLoginAt,
         },
-        alumniProfile
-      }
+        alumniProfile,
+      },
     });
   } catch (error) {
-    logger.error('Get current user error:', error);
-    res.status(500).json({
+    logger.error("Get current user error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to get user information'
+      message: "Failed to get user information",
     });
   }
 };
@@ -371,15 +377,15 @@ export const getCurrentUser = async (req: Request, res: Response) => {
 export const logout = async (req: Request, res: Response) => {
   try {
     // Token blacklisting is handled in middleware
-    res.json({
+    return res.json({
       success: true,
-      message: 'Logged out successfully'
+      message: "Logged out successfully",
     });
   } catch (error) {
-    logger.error('Logout error:', error);
-    res.status(500).json({
+    logger.error("Logout error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Logout failed'
+      message: "Logout failed",
     });
   }
 };
@@ -389,11 +395,11 @@ export const changePassword = async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    const user = await User.findById(req.user.id).select('+password');
+    const user = await User.findById(req.user.id).select("+password");
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -402,7 +408,7 @@ export const changePassword = async (req: Request, res: Response) => {
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
-        message: 'Current password is incorrect'
+        message: "Current password is incorrect",
       });
     }
 
@@ -410,15 +416,15 @@ export const changePassword = async (req: Request, res: Response) => {
     user.password = newPassword;
     await user.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Password changed successfully'
+      message: "Password changed successfully",
     });
   } catch (error) {
-    logger.error('Change password error:', error);
-    res.status(500).json({
+    logger.error("Change password error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to change password'
+      message: "Failed to change password",
     });
   }
 };
@@ -432,19 +438,19 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     if (user.isEmailVerified) {
       return res.status(400).json({
         success: false,
-        message: 'Email is already verified'
+        message: "Email is already verified",
       });
     }
 
     // Generate new verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
     user.emailVerificationToken = emailVerificationToken;
     await user.save();
 
@@ -452,7 +458,7 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${emailVerificationToken}`;
     await sendEmail({
       to: user.email,
-      subject: 'Verify Your Email - AlumniAccel',
+      subject: "Verify Your Email - AlumniAccel",
       html: `
         <h1>Email Verification</h1>
         <p>Hi ${user.firstName},</p>
@@ -462,18 +468,18 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
         </a>
         <p>If you didn't create this account, please ignore this email.</p>
         <p>Best regards,<br>The AlumniAccel Team</p>
-      `
+      `,
     });
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Verification email sent'
+      message: "Verification email sent",
     });
   } catch (error) {
-    logger.error('Resend verification email error:', error);
-    res.status(500).json({
+    logger.error("Resend verification email error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to send verification email'
+      message: "Failed to send verification email",
     });
   }
 };
@@ -488,5 +494,5 @@ export default {
   getCurrentUser,
   logout,
   changePassword,
-  resendVerificationEmail
-}; 
+  resendVerificationEmail,
+};

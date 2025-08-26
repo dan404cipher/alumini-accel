@@ -14,6 +14,7 @@ import JobBoard from "./components/JobBoard";
 import EventsMeetups from "./components/EventsMeetups";
 import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";
+import Home from "./pages/Homepage";
 import { LogOut } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/home" element={<Home />} />
             
             
             {/* Protected routes */}

@@ -6,7 +6,7 @@ import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import Recognition from "./Recognition";
 
-const Layout = () => {
+const Layout = (Children) => {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   const renderContent = () => {

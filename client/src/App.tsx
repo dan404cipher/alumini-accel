@@ -17,6 +17,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Homepage";
 import Newspage from "./components/News/Newspage";
 import Directormsg from "./components/Directormsg";
+import StoryPage from "./components/SuccessStory/story";
 import { LogOut } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,8 @@ const App = () => (
             <Route path="/news" element={<Newspage />} />
         <Route path="/news/:id" element={<Newspage />} />
         <Route path="/directormsg" element={<Directormsg />} />
+        <Route path="/successstory" element={<StoryPage />} />
+        
             
             
             {/* Protected routes */}

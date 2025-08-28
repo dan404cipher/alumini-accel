@@ -3,8 +3,38 @@ import image1 from "../assets/image1.jpg.jpg"
 import image2 from "../assets/image2.jpg.jpg"
 import image3 from "../assets/image3.jpg.jpg"
 import image4 from "../assets/image4.jpg"
+import { useNavigate } from "react-router-dom";
 
 const Home :React.FC = () => {
+  const navigate = useNavigate();
+
+  const newsData = [
+    {
+      id: 1,
+      title: "Alumni Meetup 2025 Announced",
+      content:
+        "It’s the perfect opportunity to reconnect with fellow alumni, meet industry leaders, and share ideas. The event will feature keynote sessions..."
+    },
+    {
+      id: 2,
+      title: "Alumni Spotlight",
+      content:
+        "Our alumni have made remarkable contributions across industries—whether it's leading successful startups, excelling in research..."
+    },
+    {
+      id: 3,
+      title: "Job Portal Update",
+      content:
+        "We are excited to welcome several leading organizations to our growing network of recruiters. These companies bring a range of opportunities..."
+    }
+  ];
+
+  const handleNewsClick = (id: number) => {
+  navigate(`/news/${id}`);
+};
+
+const Directormsg = () => {
+  navigate('/directormsg');};
     return(
         <div>
        <section  className="relative text-center w-full   py-20 bg-cover bg-center text-white"
@@ -41,8 +71,9 @@ const Home :React.FC = () => {
     <div className="grid md:grid-cols-3 gap-8">
       
       {/* Director's Message */}
-      <div className="bg-white p-6 rounded-xl shadow-lg text-center">
-        <h3 className="text-xl font-semibold mb-4">Director's Message</h3>
+      <div className="bg-white p-6 rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors"
+      onClick={Directormsg} >
+        <h3 className="text-xl font-semibold mb-4  ">Director's Message</h3>
         <p>
           "Our alumni are the cornerstone of our institution. We are proud to see them
           excel in various fields and contribute positively to society."
@@ -50,7 +81,7 @@ const Home :React.FC = () => {
       </div>
 
       {/* Success Story */}
-      <div className="bg-white p-6 rounded-xl shadow-lg text-center">
+      <div className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors">
         <h3 className="text-xl font-semibold mb-4">Success Story</h3>
         <p>
           Meet Jane Doe, who turned her startup idea into a thriving business and
@@ -59,7 +90,7 @@ const Home :React.FC = () => {
       </div>
 
       {/* Mentorship Program */}
-      <div className="bg-white p-6 rounded-xl shadow-lg text-center">
+      <div className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors">
         <h3 className="text-xl font-semibold mb-4">Mentorship Program</h3>
         <p>
           Our mentorship program connects students and young alumni with experienced
@@ -71,12 +102,12 @@ const Home :React.FC = () => {
   </div>
 </section>
 
-<section className="py-12 px-6 bg-white "  >
+{/* <section className="py-12 px-6 bg-white "   >
     <h2 className="text-3xl font-bold text-center mb-8">Latest Updates</h2>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
             <h3 className="text-2xl font-bold mb-4 text-blue-700">News</h3>
-            <ul className="space-y-4 cursor-pointer">
+            <ul className="space-y-4 cursor-pointer" onClick={handleSubmit}>
               <li className="border-4 pb-2 p-4 rounded-lg ">
                 <strong>Alumni Meetup 2025 Announced</strong> - It’s the perfect opportunity to reconnect 
                 with fellow alumni, meet industry leaders, and share ideas. The event will feature keynote 
@@ -100,6 +131,25 @@ const Home :React.FC = () => {
                  This expansion means more job postings, internships, and career pathways for our alumni and students. Stay tuned to explore these openings and connect with top employers looking for talented
                  individuals like you.
               </li>
+            </ul>
+
+          </div> */}
+
+           <section className="py-12 px-6 bg-white">
+        <h2 className="text-3xl font-bold text-center mb-8">Latest Updates</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <h3 className="text-2xl font-bold mb-4 text-blue-700">News</h3>
+            <ul className="space-y-4 cursor-pointer">
+             {newsData.map((item) => (
+<li
+      key={item.id}
+      onClick={() => handleNewsClick(item.id)}
+      className="border-4 pb-2 p-4 rounded-lg hover:bg-gray-100"
+    >
+      <strong>{item.title}</strong> - {item.content.substring(0, 100)}...
+    </li>
+))}
             </ul>
           </div>
 

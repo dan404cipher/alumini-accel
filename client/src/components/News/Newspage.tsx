@@ -2,6 +2,8 @@
 import React,{ useState, useEffect } from "react";
 import image1 from "../../assets/image1.jpg.jpg"
 import image2 from "../../assets/image2.jpg.jpg"
+import image3 from "../../assets/image3.jpg.jpg"
+import image4 from "../../assets/image4.jpg";
 import { format } from "date-fns";
 import { useParams,useNavigate } from "react-router-dom";
 
@@ -29,6 +31,20 @@ const newsData:News[]=[{
     description:"Jane Doe, a 2010 graduate, has successfully launched her own tech startup that focuses on sustainable solutions. Her journey from a student to a successful entrepreneur is an inspiration to many current students and alumni. She recently spoke at our annual alumni meet, sharing insights and advice for aspiring entrepreneurs. ",
     imageUrl:image2,
     date:"2023-09-10"
+},{
+    id:3,
+    title:"New Job Portal Launched",
+    subtitle:"Connecting Alumni with Opportunities",
+    description:"We are excited to announce the launch of our new job portal, designed to connect alumni with job opportunities across various industries. The portal features job listings from top companies, resume building tools, and career resources. Alumni can now easily find and apply for jobs, as well as connect with recruiters looking for talented graduates.",
+    imageUrl:image3,
+    date:"2023-10-05"
+},{
+    id:4,
+    title:"Alumni Charity Event",
+    subtitle:"Giving Back to the Community",
+    description:"Our alumni recently organized a charity event to support local communities in need. The event included a fundraising gala, silent auction, and volunteer activities. Thanks to the generosity of our alumni, we were able to raise significant funds to support various charitable causes, including education, healthcare, and disaster relief.",
+    imageUrl:image4,
+    date:"2023-11-20"
 }];
 
 const Newspage:React.FC=()=>{
@@ -43,8 +59,11 @@ const Newspage:React.FC=()=>{
   );
 
   useEffect(() => {
+  const currentIdInUrl = Number(id);
+  if (newsData[currentIndex].id !== currentIdInUrl) {
     navigate(`/news/${newsData[currentIndex].id}`, { replace: true });
-  }, [currentIndex, navigate]);
+  }
+}, [currentIndex, id, navigate]);
 
   const currentNews = newsData[currentIndex];
   if (!currentNews) return <p>News not found</p>;

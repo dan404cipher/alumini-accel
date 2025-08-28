@@ -3,8 +3,8 @@ import image1 from "../../assets/image1.jpg.jpg";
 import image2 from "../../assets/image2.jpg.jpg";
 import image3 from "../../assets/image3.jpg.jpg";
 import image4 from "../../assets/image4.jpg";
-
-const storiesLeft = [
+import { useNavigate } from "react-router-dom";
+const newsData = [
   {
     id: 1,
     title: "Alumni Startup Success",
@@ -75,6 +75,11 @@ const storiesRight = [
 ];
 
 const StoryPage: React.FC = () => {
+     const navigate = useNavigate();
+
+  const handleReadMore = (id: number) => {
+    navigate(`/news/${id}`);
+  };
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-6">
         <header className="text-center mb-10">
@@ -85,7 +90,7 @@ const StoryPage: React.FC = () => {
       <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8">
         {/* Left Side */}
         <div className="space-y-6">
-          {storiesLeft.map((story) => (
+          {newsData.map((story) => (
             <div
               key={story.id}
               className="bg-white shadow-lg rounded-xl overflow-hidden hover:shadow-2xl transition-shadow flex"
@@ -106,7 +111,8 @@ const StoryPage: React.FC = () => {
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">{story.date}</span>
-                  <button className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-blue-700 transition">
+                  <button className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-blue-700 transition"
+                  onClick={() => handleReadMore(story.id)}>
                     Read More
                   </button>
                 </div>

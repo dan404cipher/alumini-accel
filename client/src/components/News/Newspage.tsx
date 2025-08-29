@@ -71,12 +71,20 @@ const Newspage:React.FC=()=>{
   const formattedDate = format(new Date(currentNews.date), "MMMM dd, yyyy");
 
   const handlePrevious = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : newsData.length - 1));
-  };
+  setCurrentIndex((prev) => {
+    const newIndex = prev > 0 ? prev - 1 : newsData.length - 1;
+    navigate(`/news/${newsData[newIndex].id}`);
+    return newIndex;
+  });
+};
 
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev < newsData.length - 1 ? prev + 1 : 0));
-  };
+const handleNext = () => {
+  setCurrentIndex((prev) => {
+    const newIndex = prev < newsData.length - 1 ? prev + 1 : 0;
+    navigate(`/news/${newsData[newIndex].id}`);
+    return newIndex;
+  });
+};
 
 
 

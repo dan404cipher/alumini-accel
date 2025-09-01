@@ -26,6 +26,17 @@ const Home :React.FC = () => {
       title: "Job Portal Update",
       content:
         "We are excited to welcome several leading organizations to our growing network of recruiters. These companies bring a range of opportunities..."
+    },{
+
+      id: 4,
+      title: "Alumni Charity Event",
+      content:
+        "Our alumni recently organized a charity event to support local communities in need. The event included a fundraising gala, silent auction, and volunteer activities..."
+    },{
+      id: 5,
+      title: "New Mentorship Program Launched",
+      content:
+        "We are thrilled to announce the launch of our new mentorship program, designed to connect students and young alumni with experienced professionals in their fields..."
     }
   ];
 
@@ -35,12 +46,18 @@ const Home :React.FC = () => {
 
 const Directormsg = () => {
   navigate('/directormsg');};
+
+
+const SuccessStory = () => {
+  navigate('/successstory');};
+
     return(
         <div>
        <section  className="relative text-center w-full   py-20 bg-cover bg-center text-white"
         style={{ backgroundImage: `url(${image4})`,
     height:'600px' }}
       >
+
         {/* Overlay for better text visibility */}
         <div className="absolute inset-0 bg-yellow opacity-90">
 
@@ -81,7 +98,8 @@ const Directormsg = () => {
       </div>
 
       {/* Success Story */}
-      <div className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors">
+      <div className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors"
+      onClick={SuccessStory}>
         <h3 className="text-xl font-semibold mb-4">Success Story</h3>
         <p>
           Meet Jane Doe, who turned her startup idea into a thriving business and

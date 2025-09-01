@@ -78,7 +78,7 @@ const StoryPage: React.FC = () => {
      const navigate = useNavigate();
 
   const handleReadMore = (id: number) => {
-    navigate(`/news/${id}`);
+    navigate(`/story/${id}`);
   };
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-6">
@@ -144,7 +144,8 @@ const StoryPage: React.FC = () => {
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">{story.date}</span>
-                  <button className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-blue-700 transition">
+                  <button className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-blue-700 transition"
+                  onClick={() => handleReadMore(story.id)}>
                     Read More
                   </button>
                 </div>

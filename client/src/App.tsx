@@ -19,6 +19,7 @@ import Newspage from "./components/News/Newspage";
 import Directormsg from "./components/Directormsg";
 import StoryPage from "./components/SuccessStory/story";
 import { LogOut } from "lucide-react";
+import StoryDetails from "./components/SuccessStory/Storydetails";
 
 const queryClient = new QueryClient();
 
@@ -37,8 +38,9 @@ const App = () => (
             <Route path="/news" element={<Newspage />} />
         <Route path="/news/:id" element={<Newspage />} />
         <Route path="/directormsg" element={<Directormsg />} />
-        <Route path="/successstory" element={<StoryPage />} />
         
+        <Route path="/successstory" element={<StoryPage />} />
+        <Route path="/story/:id" element={<StoryDetails />} />
             
             
             {/* Protected routes */}

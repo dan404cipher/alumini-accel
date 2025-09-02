@@ -4,6 +4,8 @@ import image2 from "../assets/image2.jpg.jpg"
 import image3 from "../assets/image3.jpg.jpg"
 import image4 from "../assets/image4.jpg"
 import { useNavigate } from "react-router-dom";
+import { LogIn } from "lucide-react";
+
 
 const Home :React.FC = () => {
   const navigate = useNavigate();
@@ -52,7 +54,58 @@ const SuccessStory = () => {
   navigate('/successstory');};
 
     return(
-        <div>
+<div className="px-[5%]">
+      {/* ✅ Navbar */}
+      <nav className=" flex items-center justify-between py-4 px-6 bg-white shadow-md fixed top-0 left-0 right-0 z-50">
+  {/* Left: Logo */}
+  <h1
+    className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent cursor-pointer"
+   
+  >
+    Alumni Accel
+  </h1>
+
+  {/* Center: Nav Links */}
+  <div className="absolute left-1/2 transform -translate-x-1/2 flex space-x-10 text-gray-700 font-medium">
+    <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate("/directormsg")}>
+      About Us
+    </span>
+    <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate("/events")}>
+      Events
+    </span>
+    <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate("/gallery")}>
+      Gallery
+    </span>
+    <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate("/newsroom")}>
+      Newsroom
+    </span>
+    <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate("/reflections")}>
+      Reflections
+    </span>
+    <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate("/fundraising")}>
+      Fund Raising
+    </span>
+    <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate("/more")}>
+      More
+    </span>
+  </div>
+
+  {/* Right: Login Button */}
+  <div className="ml-auto">
+    <div
+      className="flex items-center space-x-2 cursor-pointer px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+      onClick={() => navigate("/login")}
+    >
+      <LogIn size={20} />
+      <span>Login</span>
+    </div>
+  </div>
+</nav>
+
+
+      
+      
+        <div  className=" pt-20">
        <section  className="relative text-center w-full   py-20 bg-cover bg-center text-white"
         style={{ backgroundImage: `url(${image4})`,
     height:'600px' }}
@@ -71,26 +124,26 @@ const SuccessStory = () => {
         </div>
 </section>
 
-<section className="py-12 px-6">
-    <h2 className="text-3xl font-bold text-center mb-8">Our Alumini Moments</h2>
-    <div className="grid grid-cols-3 gap-6">
-    <img src={image1} alt="Alumni Event 1" className="w-full h-auto rounded-lg" />
-    <img src={image2}alt="Alumni Event 2" className="w-full h-auto rounded-lg"/>
-    <img src={image3} alt="Alumni Event 3" className="w-full h-auto rounded-lg"/>
-</div>
-</section>
 
 
-<section className="py-20 px-6 bg-background">
-  <div className="max-w-7xl mx-auto">
+
+<section className="py-20 px-3 bg-background">
+  <div className="max-w-7xl ml-12">
     <h2 className="text-3xl font-bold mb-12 text-center">Our Highlights</h2>
 
-    <div className="grid md:grid-cols-3 gap-8">
+    <div className="grid md:grid-cols-3 gap-10">
       
       {/* Director's Message */}
-      <div className="bg-white p-6 rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors"
-      onClick={Directormsg} >
-        <h3 className="text-xl font-semibold mb-4  ">Director's Message</h3>
+      <div
+        className="bg-white p-6 rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors"
+        onClick={Directormsg}
+      >
+        <img
+          src={image1}
+          alt="Director"
+          className="w-25 h-30 mx-auto mb-4 object-cover rounded-lg"
+        />
+        <h3 className="text-xl font-semibold mb-4">Director's Message</h3>
         <p>
           "Our alumni are the cornerstone of our institution. We are proud to see them
           excel in various fields and contribute positively to society."
@@ -98,8 +151,15 @@ const SuccessStory = () => {
       </div>
 
       {/* Success Story */}
-      <div className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors"
-      onClick={SuccessStory}>
+      <div
+        className="bg-white p-6 rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors"
+        onClick={SuccessStory}
+      >
+        <img
+          src={image3}
+          alt="Success Story"
+          className="w-25 h-30 mx-auto mb-4 object-cover rounded-lg"
+        />
         <h3 className="text-xl font-semibold mb-4">Success Story</h3>
         <p>
           Meet Jane Doe, who turned her startup idea into a thriving business and
@@ -108,7 +168,14 @@ const SuccessStory = () => {
       </div>
 
       {/* Mentorship Program */}
-      <div className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors">
+      <div
+        className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors"
+      >
+        <img
+          src={image4}
+          alt="Mentorship"
+          className="w-25 h-30 mx-auto mb-4 object-cover rounded-lg"
+        />
         <h3 className="text-xl font-semibold mb-4">Mentorship Program</h3>
         <p>
           Our mentorship program connects students and young alumni with experienced
@@ -119,6 +186,7 @@ const SuccessStory = () => {
     </div>
   </div>
 </section>
+
 
 {/* <section className="py-12 px-6 bg-white "   >
     <h2 className="text-3xl font-bold text-center mb-8">Latest Updates</h2>
@@ -152,6 +220,14 @@ const SuccessStory = () => {
             </ul>
 
           </div> */}
+          <section className="py-12 px-6">
+    <h2 className="text-3xl font-bold text-center mb-8">Our Alumini Moments</h2>
+    <div className="grid grid-cols-3 gap-6">
+    <img src={image1} alt="Alumni Event 1" className="w-full h-auto rounded-lg" />
+    <img src={image2}alt="Alumni Event 2" className="w-full h-auto rounded-lg"/>
+    <img src={image3} alt="Alumni Event 3" className="w-full h-auto rounded-lg"/>
+</div>
+</section>
 
            <section className="py-12 px-6 bg-white">
         <h2 className="text-3xl font-bold text-center mb-8">Latest Updates</h2>
@@ -194,7 +270,7 @@ const SuccessStory = () => {
 
 
         </div>
-       
+       </div>
 
     )
 }

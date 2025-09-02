@@ -32,7 +32,7 @@ const Login = () => {
         title: "Login successful",
         description: "Welcome back!",
       });
-      navigate("/dashboard");
+      navigate("/home");
     } else {
       toast({
         title: "Login failed",

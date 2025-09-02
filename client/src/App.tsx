@@ -20,6 +20,7 @@ import Directormsg from "./components/Directormsg";
 import StoryPage from "./components/SuccessStory/story";
 import { LogOut } from "lucide-react";
 import StoryDetails from "./components/SuccessStory/Storydetails";
+import Gallery from "./components/Gallery";
 
 const queryClient = new QueryClient();
 
@@ -32,15 +33,16 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/index" element={<Index />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/home" element={<Home />} />
             <Route path="/news" element={<Newspage />} />
         <Route path="/news/:id" element={<Newspage />} />
         <Route path="/directormsg" element={<Directormsg />} />
         
         <Route path="/successstory" element={<StoryPage />} />
         <Route path="/story/:id" element={<StoryDetails />} />
+        <Route path="/gallery" element={<Gallery />} />
             
             
             {/* Protected routes */}

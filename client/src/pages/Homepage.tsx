@@ -623,16 +623,7 @@ const Home: React.FC = () => {
           </div>
         </section>
 
-        <section className="py-12 px-6 cursor-pointer"
-        onClick={() => navigate('/gallery')} >
-          <h2 className="text-3xl font-bold text-center mb-8">Our Alumni Moments</h2>
-          <div className="grid grid-cols-3 gap-6 " >
-            <img src={image1} alt="Alumni Event 1" className="w-full h-auto rounded-lg shadow-lg" />
-            <img src={image2} alt="Alumni Event 2" className="w-full h-auto rounded-lg shadow-lg"/>
-            <img src={image3} alt="Alumni Event 3" className="w-full h-auto rounded-lg shadow-lg"/>
-          </div>
-        </section>
-
+       
         <section className="py-12 px-6 bg-white ">
           <h2 className="text-3xl font-bold text-center mb-8">Latest Updates</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 " >
@@ -756,6 +747,17 @@ const Home: React.FC = () => {
             </div>
           </div>
         </section>
+
+         <section className="py-12 px-6 cursor-pointer"
+        onClick={() => navigate('/gallery')} >
+          <h2 className="text-3xl font-bold text-center mb-8">Our Alumni Moments</h2>
+          <div className="grid grid-cols-3 gap-6 " >
+            <img src={image1} alt="Alumni Event 1" className="w-full h-auto rounded-lg shadow-lg" />
+            <img src={image2} alt="Alumni Event 2" className="w-full h-auto rounded-lg shadow-lg"/>
+            <img src={image3} alt="Alumni Event 3" className="w-full h-auto rounded-lg shadow-lg"/>
+          </div>
+        </section>
+
 
       </div>
     </div>

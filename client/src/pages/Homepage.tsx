@@ -626,44 +626,133 @@ const Home: React.FC = () => {
         <section className="py-12 px-6 cursor-pointer"
         onClick={() => navigate('/gallery')} >
           <h2 className="text-3xl font-bold text-center mb-8">Our Alumni Moments</h2>
-          <div className="grid grid-cols-3 gap-6">
-            <img src={image1} alt="Alumni Event 1" className="w-full h-auto rounded-lg" />
-            <img src={image2} alt="Alumni Event 2" className="w-full h-auto rounded-lg"/>
-            <img src={image3} alt="Alumni Event 3" className="w-full h-auto rounded-lg"/>
+          <div className="grid grid-cols-3 gap-6 " >
+            <img src={image1} alt="Alumni Event 1" className="w-full h-auto rounded-lg shadow-lg" />
+            <img src={image2} alt="Alumni Event 2" className="w-full h-auto rounded-lg shadow-lg"/>
+            <img src={image3} alt="Alumni Event 3" className="w-full h-auto rounded-lg shadow-lg"/>
           </div>
         </section>
 
-        <section className="py-12 px-6 bg-white">
+        <section className="py-12 px-6 bg-white ">
           <h2 className="text-3xl font-bold text-center mb-8">Latest Updates</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 " >
+            <div >
               <h3 className="text-2xl font-bold mb-4 text-blue-700">News</h3>
-              <ul className="space-y-4 cursor-pointer">
+
+              <ul className="space-y-4 cursor-pointer   p-4">
+                 
                 {newsData.map((item) => (
                   <li
                     key={item.id}
                     onClick={() => handleNewsClick(item.id)}
-                    className="border-4 pb-2 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                    className=" pb-6 p-6  transition-colors duration-200 my-2 border-b border-gray-300  "
                   >
                     <strong>{item.title}</strong> - {item.content.substring(0, 100)}...
+                    
+                    
                   </li>
+                  
                 ))}
+               
               </ul>
+              
+
             </div>
 
-            <div>
-              <h3 className="text-2xl font-bold mb-4 text-blue-700">Upcoming Events</h3>
-              <ul className="space-y-4 cursor-pointer">
-                <li className="border-b pb-2 hover:text-blue-600 transition-colors duration-200">
-                  <strong>Webinar on Entrepreneurship</strong> - Sept 15, 2025
-                </li>
-                <li className="border-b pb-2 hover:text-blue-600 transition-colors duration-200">
-                  <strong>Annual Alumni Meet</strong> - Dec 10, 2025
-                </li>
-                <li className="border-b pb-2 hover:text-blue-600 transition-colors duration-200">
-                  <strong>Career Fair</strong> - Jan 20, 2026
-                </li>
-              </ul>
+           <div className="mt-8 lg:mt-0 bg-white p-8 rounded-lg  shadow-[-1px_0_rgba(0,0,0,0.1)] ">
+  <h3 className="text-2xl font-bold mb-6 text-blue-700">Upcoming Events</h3>
+  <ul className="space-y-4">
+    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">
+      {/* Date Section */}
+      <div className="flex-shrink-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-center">
+        <div>Sept</div>
+        <div className="text-lg">15</div>
+        <div className="text-sm">2025</div>
+      </div>
+
+      {/* Content Section */}
+      <div className="ml-4">
+        <strong className="text-gray-800 text-lg">Webinar on Entrepreneurship</strong>
+        <p className="text-gray-600">Join us for an interactive webinar on entrepreneurship and innovation.</p>
+      </div>
+    </li>
+
+    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">
+      <div className="flex-shrink-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-center">
+        <div>Dec</div>
+        <div className="text-lg">10</div>
+        <div className="text-sm">2025</div>
+      </div>
+      <div className="ml-4">
+        <strong className="text-gray-800 text-lg">Annual Alumni Meet</strong>
+        <p className="text-gray-600">Celebrate with alumni from around the world at our annual meet.</p>
+      </div>
+    </li>
+
+    {/* <li className="flex items-center bg-gray-50 hover:bg-gray-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer">
+      <div className="flex-shrink-0 bg-purple-600 text-white font-semibold px-2 py-2 rounded-lg text-center">
+        <div>Jan</div>
+        <div className="text-lg">20</div>
+        <div className="text-sm">2026</div>
+      </div>
+      <div className="ml-4">
+        <strong className="text-gray-800 text-lg">Career Fair</strong>
+        <p className="text-gray-600">Explore new career opportunities and meet top employers.</p>
+      </div>
+    </li> */}
+
+    {/* <li className="flex items-center bg-gray-50 hover:bg-gray-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer">
+      <div className="flex-shrink-0 bg-red-600 text-white font-semibold px-2 py-2 rounded-lg text-center">
+        <div>Feb</div>
+        <div className="text-lg">15</div>
+        <div className="text-sm">2026</div>
+      </div>
+      <div className="ml-4">
+        <strong className="text-gray-800 text-lg">Hackathon 2026</strong>
+        <p className="text-gray-600">A two-day event to showcase coding and innovation skills.</p>
+      </div>
+    </li> */}
+
+    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">
+      <div className="flex-shrink-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-center">
+        <div>Mar</div>
+        <div className="text-lg">5</div>
+        <div className="text-sm">2026</div>
+      </div>
+      <div className="ml-4">
+        <strong className="text-gray-800 text-lg">Alumni Leadership Summit</strong>
+        <p className="text-gray-600">Engage with thought leaders and alumni driving change.</p>
+      </div>
+    </li>
+  </ul>
+
+
+            
+          
+            <div className="mt-8 lg:mt-0">
+  <h3 className="text-2xl font-bold mb-6 text-blue-700">Events</h3>
+  <ul className="space-y-4">
+    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm">
+      <span className="font-semibold text-gray-700">Alumni Charity Event</span>
+      <span className="bg-gray-700 text-white text-sm font-medium px-3 py-1 rounded-full">
+        Nov 25, 2025
+      </span>
+    </li>
+    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm">
+      <span className="font-semibold text-gray-700">New Mentorship Program Launched</span>
+      <span className="bg-gray-700 text-white text-sm font-medium px-3 py-1 rounded-full">
+        Oct 10, 2025
+      </span>
+    </li>
+    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm">
+      <span className="font-semibold text-gray-700">Networking Night</span>
+      <span className="bg-gray-700 text-white text-sm font-medium px-3 py-1 rounded-full">
+        Dec 5, 2025
+      </span>
+    </li>
+  </ul>
+</div>
+
             </div>
           </div>
         </section>

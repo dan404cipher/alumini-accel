@@ -548,12 +548,12 @@ const Home: React.FC = () => {
         <section className="relative text-center w-full py-20 bg-cover bg-center text-white"
           style={{ 
             backgroundImage: `url(${image4})`,
-            height: '600px' 
+            height: '800px' 
           }}
         >
           {/* Overlay for better text visibility */}
           <div className="absolute inset-0 bg-yellow opacity-90">
-            <div className="relative z-10 flex flex-col justify-center items-center h-full text-center px-6">
+            <div className="relative z-10 flex flex-col justify-center items-center h-full text-center px-6 pb-8">
               <h1 className="text-5xl font-bold mb-4">Welcome to AlumniAccel</h1>
               <p className="text-lg max-w-2xl mx-auto">
                 Connecting alumni, fostering career opportunities, and celebrating achievements. 
@@ -564,20 +564,20 @@ const Home: React.FC = () => {
         </section>
 
         <section className="py-20 px-3 bg-background">
-          <div className="max-w-7xl ml-12">
+          <div className="max-w-10xl ml-12">
             <h2 className="text-3xl font-bold mb-12 text-center">Our Highlights</h2>
 
-            <div className="grid md:grid-cols-3 gap-10">
+            <div className="grid md:grid-cols-3 gap-20">
               
               {/* Director's Message */}
               <div
-                className="bg-white p-6 rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors duration-200"
+                className="bg-white  rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors duration-200"
                 onClick={Directormsg}
               >
                 <img
                   src={image1}
                   alt="Director"
-                  className="w-25 h-30 mx-auto mb-4 object-cover rounded-lg"
+                  className="w-30 h-30 mx-auto mb-4 object-cover rounded-lg"
                 />
                 <h3 className="text-xl font-semibold mb-4">Director's Message</h3>
                 <p>
@@ -588,16 +588,16 @@ const Home: React.FC = () => {
 
               {/* Success Story */}
               <div
-                className="bg-white p-6 rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors duration-200"
+                className="bg-white  rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors duration-200"
                 onClick={SuccessStory}
               >
                 <img
                   src={image3}
                   alt="Success Story"
-                  className="w-25 h-30 mx-auto mb-4 object-cover rounded-lg"
+                  className="w-30 h-30 mx-auto mb-4 object-cover rounded-lg"
                 />
-                <h3 className="text-xl font-semibold mb-4">Success Story</h3>
-                <p>
+                <h3 className="text-xl font-semibold  mb-4">Success Story</h3>
+                <p className="p-4 text-bold">
                   Meet Jane Doe, who turned her startup idea into a thriving business and
                   now mentors upcoming graduates to achieve their dreams.
                 </p>
@@ -605,12 +605,12 @@ const Home: React.FC = () => {
 
               {/* Mentorship Program */}
               <div
-                className="bg-white p-6 rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors duration-200"
+                className="bg-white rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors duration-200"
               >
                 <img
                   src={image4}
                   alt="Mentorship"
-                  className="w-25 h-30 mx-auto mb-4 object-cover rounded-lg"
+                  className="w-30 h-30 mx-auto mb-4 object-cover rounded-lg"
                 />
                 <h3 className="text-xl font-semibold mb-4">Mentorship Program</h3>
                 <p>
@@ -624,7 +624,7 @@ const Home: React.FC = () => {
         </section>
 
        
-        <section className="py-12 px-6 bg-white ">
+        <section className="py-12 px-6 bg-white shadow-md">
           <h2 className="text-3xl font-bold text-center mb-8">Latest Updates</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 " >
             <div >
@@ -636,7 +636,7 @@ const Home: React.FC = () => {
                   <li
                     key={item.id}
                     onClick={() => handleNewsClick(item.id)}
-                    className=" pb-6 p-6  transition-colors duration-200 my-2 border-b border-gray-300  "
+                    className=" pb-6 p-6  transition-colors duration-200 my-2 border-b border-gray-300  hover:text-blue-500 "
                   >
                     <strong>{item.title}</strong> - {item.content.substring(0, 100)}...
                     
@@ -650,7 +650,7 @@ const Home: React.FC = () => {
 
             </div>
 
-           <div className="mt-8 lg:mt-0 bg-white p-8 rounded-lg  shadow-[-1px_0_rgba(0,0,0,0.1)] ">
+           <div className="mt-8 lg:mt-0 bg-white p-8 rounded-lg   ">
   <h3 className="text-2xl font-bold mb-6 text-blue-700">Upcoming Events</h3>
   <ul className="space-y-4">
     <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">

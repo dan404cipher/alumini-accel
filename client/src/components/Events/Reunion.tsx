@@ -14,6 +14,7 @@ const events = [
     content: "Annual alumni gathering with dinner & cultural programs.",
     image: eventImg,
     upcoming: true,
+    type: "reunion",
   },
   {
     id: 2,
@@ -24,6 +25,7 @@ const events = [
     content: "Celebrating 25 years of our alumni journey.",
     image: eventImg,
     upcoming: true,
+    type: "reunion",
   },{
     id:5,
     title:"batch 2015 ",
@@ -33,6 +35,7 @@ const events = [
     content:"Catch-up evening for the 2015 batch alumni.",
     image:eventImg,
     upcoming:true,
+    type: "reunion",
 
   },
   {
@@ -44,6 +47,7 @@ const events = [
     content: "Honoring 50 years of alumni legacy.",
     image: eventImg,
     upcoming: false,
+    type: "reunion",
   },
   {
     id: 4,
@@ -54,13 +58,14 @@ const events = [
     content: "Catch-up evening for the 2000 batch alumni.",
     image: eventImg,
     upcoming:true,
+    type: "reunion",
   },
 ];
 
 const Reunion: React.FC = () => {
     const navigate = useNavigate();
-  const upcomingEvents = events.filter((e) => e.upcoming);
-  const pastEvents = events.filter((e) => !e.upcoming);
+  const upcomingEvents = events.filter((e) => e.upcoming && e.type === "reunion");
+  const pastEvents = events.filter((e) => !e.upcoming && e.type === "reunion");
   return (
     <div className="p-6 space-y-12">
          <div>
@@ -75,7 +80,7 @@ const Reunion: React.FC = () => {
           {upcomingEvents.map((event) => (
             <div
               key={event.id}
-              onClick={() => navigate(`/events/${event.id}`)}
+              onClick={() => navigate(`/events/${event.id}?type=reunion`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}
@@ -125,7 +130,7 @@ const Reunion: React.FC = () => {
           {pastEvents.map((event) => (
             <div
               key={event.id}
-              onClick={() => navigate(`/events/${event.id}`)}
+             onClick={() => navigate(`/events/${event.id}?type=reunion`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}

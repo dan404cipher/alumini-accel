@@ -14,6 +14,7 @@ const events = [
     content: "An expert session on how AI is shaping the job market.",
     image: eventImg,
     upcoming: true,
+    type:"webinar",
   },
   {
     id: 2,
@@ -24,6 +25,7 @@ const events = [
     content: "Keynote on building leadership skills for the future.",
     image: eventImg,
     upcoming: false,
+    type:"webinar",
   },
   {
     id: 3,
@@ -34,6 +36,7 @@ const events = [
     content: "Exploring the latest trends in technology for businesses.",
     image: eventImg,
     upcoming: true,
+    type:"webinar",
   },{
     id: 6,
     title: "Data Science Workshop",
@@ -43,6 +46,7 @@ const events = [
     content: "Hands-on workshop on data analysis and visualization techniques.",
     image: eventImg,
     upcoming: true,
+    type:"webinar",
   },
 ];
 
@@ -71,8 +75,8 @@ const pastWebinars = [
 
 const Webinar: React.FC = () => {
     const navigate = useNavigate();
-  const upcomingEvents = events.filter((e) => e.upcoming);
-  const pastEvents = events.filter((e) => !e.upcoming);
+  const upcomingEvents = events.filter((e) => e.upcoming && e.type==="webinar");
+  const pastEvents = events.filter((e) => !e.upcoming && e.type==="webinar");
   return (
     
     <div className="p-6 space-y-12">
@@ -89,7 +93,7 @@ const Webinar: React.FC = () => {
           {upcomingEvents.map((event) => (
             <div
               key={event.id}
-              onClick={() => navigate(`/events/${event.id}`)}
+onClick={() => navigate(`/events/${event.id}?type=webinar`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}
@@ -139,7 +143,7 @@ const Webinar: React.FC = () => {
           {pastEvents.map((event) => (
             <div
               key={event.id}
-              onClick={() => navigate(`/events/${event.id}`)}
+            onClick={() => navigate(`/events/${event.id}?type=webinar`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}

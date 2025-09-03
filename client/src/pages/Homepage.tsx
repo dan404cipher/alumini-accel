@@ -680,30 +680,6 @@ const Home: React.FC = () => {
       </div>
     </li>
 
-    {/* <li className="flex items-center bg-gray-50 hover:bg-gray-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer">
-      <div className="flex-shrink-0 bg-purple-600 text-white font-semibold px-2 py-2 rounded-lg text-center">
-        <div>Jan</div>
-        <div className="text-lg">20</div>
-        <div className="text-sm">2026</div>
-      </div>
-      <div className="ml-4">
-        <strong className="text-gray-800 text-lg">Career Fair</strong>
-        <p className="text-gray-600">Explore new career opportunities and meet top employers.</p>
-      </div>
-    </li> */}
-
-    {/* <li className="flex items-center bg-gray-50 hover:bg-gray-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer">
-      <div className="flex-shrink-0 bg-red-600 text-white font-semibold px-2 py-2 rounded-lg text-center">
-        <div>Feb</div>
-        <div className="text-lg">15</div>
-        <div className="text-sm">2026</div>
-      </div>
-      <div className="ml-4">
-        <strong className="text-gray-800 text-lg">Hackathon 2026</strong>
-        <p className="text-gray-600">A two-day event to showcase coding and innovation skills.</p>
-      </div>
-    </li> */}
-
     <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">
       <div className="flex-shrink-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-center">
         <div>Mar</div>

@@ -1,13 +1,22 @@
 import React from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate ,useSearchParams} from "react-router-dom";
 import image1 from "../../assets/image1.jpg.jpg";
 import image2 from "../../assets/image2.jpg.jpg";
 import image3 from "../../assets/image3.jpg.jpg";
+ 
+export interface EventType {
+  id: number;
+  title: string;
+  type: "webinar" | "reunion";
+  date: string;
+  image: string;
+  content: string;
+}
 
-const eventsData = [
+const eventsData :EventType[]= [
   {
     id: 1,
-    title: "Alumni Reunion 2025",
+    title: "Alumni Reunion 2021",
     type: "reunion",
     date: "2025-12-15",
     image: image1,
@@ -18,7 +27,7 @@ const eventsData = [
   },
   {
     id: 2,
-    title: "AI Webinar 2025",
+    title: "AI Webinar 2022",
     type: "webinar",
     date: "2025-09-10",
     image: image2,
@@ -29,7 +38,7 @@ const eventsData = [
   },
   {
     id: 3,
-    title: "Alumni Meetup 2024",
+    title: "Alumni Meetup 2023",
     type: "reunion",
     date: "2024-08-20",
     image: image3,
@@ -39,7 +48,7 @@ const eventsData = [
       ),
   },{
     id: 4,
-    title: "Tech Symposium 2024",
+    title: "Tech Symposium 2024 ",
     type: "reunion",
     date: "2024-11-05",
     image: image1,
@@ -49,7 +58,7 @@ const eventsData = [
       ),
     },{ 
     id: 5,
-    title: "Cultural Fest 2023",
+    title: "Cultural Fest 2025",
     type: "webinar",    
 
     date: "2023-10-12",
@@ -61,7 +70,7 @@ const eventsData = [
 
 },{
     id: 6,
-    title: "Startup Webinar 2024",
+    title: "Startup Webinar 2026",
     type: "webinar",
     date: "2024-06-18",
     image: image3,      
@@ -74,10 +83,12 @@ const eventsData = [
 
 const EventDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const type = searchParams.get("type");
 
   // Find the clicked event
-  const event = eventsData.find((e) => e.id === Number(id));
+  const event = eventsData.find((e) => e.id === Number(id) && e.type === type);
 
   if (!event) {
     return <h1 className="p-6 text-red-500 text-center">Event not found</h1>;
@@ -93,10 +104,10 @@ const EventDetails: React.FC = () => {
       {/* Back Button */}
       <div className="flex justify-end mb-6">
         <button
-          onClick={() => navigate("/events")}
+          onClick={() =>  navigate(type === "webinar" ? "/webinar" : "/reunion")}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
         >
-          ← Back to All Events
+          ← Back to {type === "webinar" ? "Webinars" : "Reunions"}
         </button>
       </div>
 

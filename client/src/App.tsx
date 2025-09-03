@@ -55,7 +55,7 @@ const App = () => (
         <Route path="/reunion" element={<Reunion />} />
         <Route path="/webinar" element={<Webinar />} />
         <Route path="/events/:id" element={<EventDetails />} />
-        
+      
         
             
             {/* Protected routes */}

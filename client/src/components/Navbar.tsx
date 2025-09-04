@@ -24,7 +24,7 @@ const Navbar: React.FC = () => {
     <nav className="flex items-center justify-between py-4 px-6 bg-white shadow-md fixed top-0 left-0 right-0 z-50">
       {/* Left: Logo */}
       <h1
-        className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent cursor-pointer"
+        className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent cursor-pointer pl-20"
         onClick={() => navigate("/")}
       >
         Alumni Accel
@@ -58,7 +58,7 @@ const Navbar: React.FC = () => {
 
       {/* Right: Login */}
       <div
-        className="flex items-center space-x-2 cursor-pointer px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        className="flex items-center space-x-2 cursor-pointer px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 "
         onClick={() => navigate("/login")}
       >
         <LogIn size={20} />

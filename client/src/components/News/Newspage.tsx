@@ -21,9 +21,13 @@ const newsData: News[] = [
   {
     id: 1,
     title: "Alumni Meet 2025",
-    subtitle: "Reconnecting and Celebrating",
+    subtitle: "Reconnecting and Celebrating Success Together bringing together graduates from various batches to reconnect, share experiences, and celebrate their achievements.as well as networking opportunities. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society.",
     description:
-      "The annual alumni meet was held on 15th August 2023, bringing together graduates from various batches to reconnect, share experiences, and celebrate their achievements...",
+      `The annual alumni meet was held on 15th August 2023, bringing together graduates from various batches to reconnect, share experiences, and celebrate their achievements.as well as networking opportunities. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society.may the spirit of camaraderie and lifelong connections thrive within our alumni community.social media platforms to stay connected and updated on future events and initiatives.it was a memorable event filled with joy, laughter, and a sense of belonging. as always, 
+      our alumni continue to make us proud with their accomplishments and contributions to society . it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society.image it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. 
+      As always, our alumni continue to make us proud with their accomplishments and contributions to society.memory event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society.
+      The annual alumni meet was held on 15th August 2023, bringing together graduates from various batches to reconnect, share experiences, and celebrate their achievements.as well as networking opportunities. 
+      It was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society. it was a memorable event filled with joy, laughter, and a sense of belonging. as always, our alumni continue to make us proud with their accomplishments and contributions to society.may the spirit of camaraderie and lifelong connections thrive within our alumni community.social media platforms to stay connected and updated on future events and initiatives.it was a memorable event filled with joy, laughter, and a sense of belonging. as always,`,
     imageUrl: image1,
     date: "2023-08-15",
     type: "news",
@@ -167,7 +171,7 @@ const Newspage: React.FC = () => {
 
   return (
   <div className="min-h-screen bg-gray-100 flex justify-center items-start py-12 px-4">
-      <div className="max-w-5xl w-full bg-white rounded-2xl shadow-lg p-10 h-auto min-h-[750px]">
+      <div className="max-w-7xl w-full bg-white rounded-2xl shadow-lg p-10 h-auto min-h-[750px]">
 {/* Navigation */}
          <div className="flex justify-between items-center mb-6">
           <button
@@ -176,6 +180,17 @@ const Newspage: React.FC = () => {
           >
             <ArrowLeft size={18} /> Previous
           </button>
+          {/* Title */}
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-4 text-center "
+        style={{ fontFamily: 'safari' }}>
+          {currentNews.title}
+        </h1>
+      
+
+        <span className="text-sm text-gray-400 block mb-6 text-center">
+          {formattedDate}
+        </span>
+
           <button
             className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition"
             onClick={handleNext}
@@ -183,31 +198,24 @@ const Newspage: React.FC = () => {
             Next <ArrowRight size={18} />
           </button>
         </div>
+         <div className="text-left">
+  <p className="text-lg text-black mb-2 pt-2" style={{ fontFamily: "TimesNewRoman" }}>
+    {currentNews.subtitle}
+  </p>
+</div>
         
-        {/* Title */}
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-4 text-center"
-        style={{ fontFamily: 'safari' }}>
-          {currentNews.title}
-        </h1>
-        <p className="text-lg text-black mb-2 text-center"
-        style={{ fontFamily: 'TimesNewRoman' }}>
-          {currentNews.subtitle}
-        </p>
-        <span className="text-sm text-gray-400 block mb-6 text-center">
-          {formattedDate}
-        </span>
 
         {/* Image */}
-        <div className="mb-6 flex justify-center">
+        <div className="mb-6 flex justify-center ">
           <img
             src={currentNews.imageUrl}
             alt={currentNews.title}
-            className="w-full max-w-4xl h-[420px] object-cover rounded-xl"
+            className="w-full max-w-5xl h-[full] object-cover rounded-xl"
           />
         </div>
 
         {/* Description */}
-        <div className="text-gray-700 text-lg leading-relaxed space-y-4 px-2"
+        <div className="text-black text-lg leading-relaxed space-y-4 px-2"
         style={{ fontFamily: 'TimesNewRoman' }}>
           {currentNews.description.split("\n").map((para, index) => (
             <p key={index}>{para}</p>

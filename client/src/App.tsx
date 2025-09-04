@@ -43,7 +43,7 @@ const AppContent = () => {
     <>
       {!hideNavbar && <NavbarHome />}
 
-      <div className={!hideNavbar ? "pt-20" : ""}>
+      <div className={!hideNavbar ? "pt-10" : ""}>
         <Routes>
           {/* Public routes */}
           <Route path="/navbarhome" element={<NavbarHome />} />

@@ -94,7 +94,7 @@ const ReunionDetails: React.FC = () => {
     <div className="p-6">
       <Navbar />
 
-      <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-6 relative">
+      <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 relative">
         {/* Back button */}
         <button
           onClick={() => navigate("/reunion")}
@@ -110,7 +110,7 @@ const ReunionDetails: React.FC = () => {
         <img
           src={event.image}
           alt={event.title}
-          className="w-full h-96 object-cover rounded-lg mb-6"
+          className="w-full h-full object-cover rounded-lg mb-6"
         />
 
         {/* Upcoming / Past tag */}

@@ -3,6 +3,7 @@ import image1 from "../../assets/image1.jpg.jpg";
 import image2 from "../../assets/image2.jpg.jpg";
 import image3 from "../../assets/image3.jpg.jpg";
 import image4 from "../../assets/image4.jpg";
+import { useNavigate } from "react-router-dom";
 
 // Dummy Album Data
 const albums = [
@@ -10,7 +11,7 @@ const albums = [
     id: 1,
     title: "Alumni Meetup",
     date: "Jan 2023",
-    cover: image1, // ✅ just reference the imported image
+    cover: image1,
     photos: [image1, image2, image3],
   },
   {
@@ -18,7 +19,7 @@ const albums = [
     title: "Cultural Fest",
     date: "Aug 2023",
     cover: image2,
-    photos: [image2, image3, image4,image2, image3, image4, image2, image3, image4, image2, image3, image4],
+    photos: [image2, image3, image4, image2, image3, image4],
   },
   {
     id: 3,
@@ -26,29 +27,20 @@ const albums = [
     date: "Dec 2024",
     cover: image3,
     photos: [image3, image4, image1],
-  },{
-    id: 4,
-    title: "Tech Symposium",
-    date: "Mar 2024",
-    cover: image4,
-    photos: [image4, image1, image2, image4, image1, image2, image4, image1, image2],
-  },{
-    id: 5,
-    title: "Annual Gala",
-    date: "Nov 2023",
-    cover: image1,
-    photos: [image1, image3, image4],
-  },{
-    id: 6,
-    title: "Networking Event",
-    date: "Feb 2024",
-    cover: image2,
-    photos: [image2,image1, image4, image1,image4],},
+  },
 ];
 
 const Gallery: React.FC = () => {
   const [selectedAlbum, setSelectedAlbum] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [active, setActive] = useState<"photo" | "video">("photo");
+
+  const navigate = useNavigate();
+
+  const handleClick = (type: "photo" | "video") => {
+    setActive(type);
+    navigate(type === "photo" ? "/gallery" : "/video"); // ✅ now it navigates
+  };
 
   const handleNext = () => {
     if (selectedAlbum !== null && selectedIndex !== null) {
@@ -79,6 +71,34 @@ const Gallery: React.FC = () => {
         Our Alumni Moments
       </h1>
 
+      {/* Toggle Buttons */}
+      <div className="flex justify-center mb-6">
+        <div className="bg-gray-100 rounded-full p-1 flex shadow-md">
+          <button
+            onClick={() => handleClick("photo")}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 
+              ${
+                active === "photo"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "text-gray-600 hover:text-blue-600"
+              }`}
+          >
+             Photos
+          </button>
+          <button
+            onClick={() => handleClick("video")}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 
+              ${
+                active === "video"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "text-gray-600 hover:text-blue-600"
+              }`}
+          >
+             Videos
+          </button>
+        </div>
+      </div>
+
       {/* Card View for Albums */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {albums.map((album, index) => (
@@ -88,10 +108,10 @@ const Gallery: React.FC = () => {
               setSelectedAlbum(index);
               setSelectedIndex(0);
             }}
-            className="cursor-pointer bg-white  shadow-md rounded-lg overflow-hidden hover:shadow-lg transition"
+            className="cursor-pointer bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition"
           >
             <img
-              src={album.cover} 
+              src={album.cover}
               alt={album.title}
               className="w-full h-48 object-cover"
             />
@@ -105,81 +125,66 @@ const Gallery: React.FC = () => {
 
       {/* Modal / Lightbox */}
       {selectedAlbum !== null && selectedIndex !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-          <div className="relative bg-white p-4 rounded-lg shadow-lg max-w-4xl w-full text-center">
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+          <div className="relative w-full h-full flex flex-col items-center justify-center p-6 overflow-y-auto">
             {/* Close Button */}
             <button
               onClick={() => {
                 setSelectedAlbum(null);
                 setSelectedIndex(null);
               }}
-              className="absolute top-2 right-4 text-red-700 text-xl font-bold hover:text-red-500"
+              className="absolute top-6 right-8 text-white text-3xl font-bold hover:text-red-500 z-50"
             >
               ✕
             </button>
-            
 
             {/* Prev Button */}
             <button
               onClick={handlePrev}
-              className="absolute -left-12 top-1/2 -translate-y-1/2 bg-gray-700 text-white px-3 py-2 rounded-full hover:bg-gray-600"
+              className="absolute left-6 top-1/2 -translate-y-1/2 bg-gray-800 bg-opacity-70 text-white text-2xl px-4 py-2 rounded-full hover:bg-gray-600"
             >
               ⟨
             </button>
 
-            {/* Selected Photo */}
-            <div>
-  {/* Title */}
-  <h2 className="text-2xl font-semibold mb-4">
-    {albums[selectedAlbum].title}
-  </h2>
-
-  {/* Big Preview */}
-  <img
-    src={albums[selectedAlbum].photos[selectedIndex]}
-    alt="Selected"
-    className="mx-auto max-h-[400px]  rounded-lg shadow"
-  />
-  <p className="text-gray-500 mt-2 text-center">
-    {selectedIndex + 1} / {albums[selectedAlbum].photos.length}
-  </p>
-</div>
-
-{/* Thumbnails - Horizontal Scroll */}
-<div className="mt-6 overflow-x-auto">
-  <div className="flex space-x-4 pb-2">
-    {albums[selectedAlbum].photos.map((photo, idx) => (
-      <img
-        key={idx}
-        src={photo}
-        alt={`Photo ${idx + 1}`}
-        className={`h-24 w-32 object-cover rounded-lg cursor-pointer shadow 
-          ${idx === selectedIndex ? "ring-4 ring-blue-500" : ""}`}
-        onClick={() => setSelectedIndex(idx)}
-      />
-    ))}
-  </div>
-</div>
-
+            {/* Fullscreen Image */}
+            <img
+              src={albums[selectedAlbum].photos[selectedIndex]}
+              alt="Selected"
+              className="max-h-[80vh] max-w-[90vw] object-contain rounded-lg shadow-xl mb-6"
+            />
 
             {/* Next Button */}
             <button
               onClick={handleNext}
-              className="absolute -right-12 top-1/2 -translate-y-1/2 bg-gray-700 text-white px-3 py-2 rounded-full hover:bg-gray-600"
+              className="absolute right-6 top-1/2 -translate-y-1/2 bg-gray-800 bg-opacity-70 text-white text-2xl px-4 py-2 rounded-full hover:bg-gray-600"
             >
               ⟩
             </button>
+
+            {/* Thumbnails */}
+            <div className="mt-4 w-full overflow-x-auto">
+              <div className="flex justify-center space-x-4 pb-4 px-6">
+                {albums[selectedAlbum].photos.map((photo, idx) => (
+                  <img
+                    key={idx}
+                    src={photo}
+                    alt={`Photo ${idx + 1}`}
+                    className={`h-24 w-32 object-cover rounded-lg cursor-pointer shadow transition 
+                      ${
+                        idx === selectedIndex
+                          ? "ring-4 ring-blue-500 scale-105"
+                          : "hover:scale-105"
+                      }`}
+                    onClick={() => setSelectedIndex(idx)}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-
-
-          
         </div>
-
-        
       )}
     </div>
   );
 };
 
 export default Gallery;
-

@@ -21,6 +21,7 @@ import StoryPage from "./components/SuccessStory/story";
 import { LogOut } from "lucide-react";
 import StoryDetails from "./components/SuccessStory/Storydetails";
 import Gallery from "./components/Gallery/Gallery";
+import VideoGallery from "./components/Gallery/Video";
 import Events from "./components/Events/Event";
 import Reunion from "./components/Events/Reunion";
 import ReunionDetails from "./components/Events/Reuniondetail";
@@ -50,6 +51,7 @@ const App = () => (
         <Route path="/successstory" element={<StoryPage />} />
         <Route path="/story/:id" element={<StoryDetails />} />
         <Route path="/gallery" element={<Gallery />} />
+        <Route path="/video" element={<VideoGallery />} />
         <Route path="/navbar" element={<Navbar />} />
 
        

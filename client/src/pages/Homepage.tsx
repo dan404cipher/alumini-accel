@@ -652,23 +652,26 @@ const Home: React.FC = () => {
 
            <div className="mt-8 lg:mt-0 bg-white p-8 rounded-lg   ">
   <h3 className="text-2xl font-bold mb-6 text-blue-700">Upcoming Events</h3>
-  <ul className="space-y-4">
-    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">
+  <ul className="space-y-4 "
+  >
+    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm"
+    onClick={() => navigate(`reunion/1?type=reunion`)}>
       {/* Date Section */}
       <div className="flex-shrink-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-center">
         <div>Sept</div>
         <div className="text-lg">15</div>
-        <div className="text-sm">2025</div>
+        <div className="text-sm">2025 </div>
       </div>
 
       {/* Content Section */}
       <div className="ml-4">
-        <strong className="text-gray-800 text-lg">Webinar on Entrepreneurship</strong>
+        <strong className="text-gray-800 text-lg">Webinar on Entrepreneurship-reunion</strong>
         <p className="text-gray-600">Join us for an interactive webinar on entrepreneurship and innovation.</p>
       </div>
     </li>
 
-    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">
+    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm"
+     onClick={() => navigate(`webinar/1?type=webinar`)}>
       <div className="flex-shrink-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-center">
         <div>Dec</div>
         <div className="text-lg">10</div>
@@ -680,7 +683,8 @@ const Home: React.FC = () => {
       </div>
     </li>
 
-    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm">
+    <li className="flex items-center bg-white hover:bg-blue-100 rounded-lg p-2 transition-colors duration-200 cursor-pointer shadow-sm"
+     onClick={() => navigate(`reunion/2?type=reunion`)}>
       <div className="flex-shrink-0 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-center">
         <div>Mar</div>
         <div className="text-lg">5</div>
@@ -696,25 +700,28 @@ const Home: React.FC = () => {
 
             
           
-            <div className="mt-8 lg:mt-0">
+            <div className="mt-8 lg:mt-0" >
   <h3 className="text-2xl font-bold mb-6 text-blue-700">Events</h3>
-  <ul className="space-y-4">
-    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm">
+  <ul className="space-y-4" >
+    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm"
+    onClick={() => navigate(`/reunion/3?type=past`)}>
       <span className="font-semibold text-gray-700">Alumni Charity Event</span>
       <span className="bg-gray-700 text-white text-sm font-medium px-3 py-1 rounded-full">
-        Nov 25, 2025
+        Nov 25, 2025-reunion
       </span>
     </li>
-    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm">
+    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm"
+     onClick={() => navigate(`/webinar/4?type=past`)}>
       <span className="font-semibold text-gray-700">New Mentorship Program Launched</span>
       <span className="bg-gray-700 text-white text-sm font-medium px-3 py-1 rounded-full">
-        Oct 10, 2025
+        Oct 10, 2025-webinar
       </span>
     </li>
-    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm">
+    <li className="flex justify-between items-center bg-white hover:bg-blue-100 rounded-full px-6 py-3 transition-colors duration-200 cursor-pointer shadow-sm"
+    onClick={() => navigate(`/reunion/4?type=past`)}>
       <span className="font-semibold text-gray-700">Networking Night</span>
       <span className="bg-gray-700 text-white text-sm font-medium px-3 py-1 rounded-full">
-        Dec 5, 2025
+        Dec 5, 2025-reunion
       </span>
     </li>
   </ul>

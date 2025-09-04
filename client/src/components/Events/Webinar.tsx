@@ -24,7 +24,7 @@ const events = [
     location: "Virtual Event",
     content: "Keynote on building leadership skills for the future.",
     image: eventImg,
-    upcoming: false,
+    upcoming: true,
     type:"webinar",
   },
   {
@@ -38,16 +38,28 @@ const events = [
     upcoming: true,
     type:"webinar",
   },{
-    id: 6,
+    id: 4,
     title: "Data Science Workshop",
     date: "Jun 18, 2025",
     time: "3:00 PM",
     location: "Virtual Event",
     content: "Hands-on workshop on data analysis and visualization techniques.",
     image: eventImg,
-    upcoming: true,
+    upcoming: false,
     type:"webinar",
   },
+{
+    id: 5,
+    title: "Blockchain & Finance",
+    date: "Nov 12, 2024", 
+    time: "3:00 PM",
+    location: "Virtual Event",
+    content: "Deep dive into blockchain’s impact on banking and finance.",
+    image: eventImg,
+    upcoming:false,
+    type:"webinar",
+  },
+
 ];
 
 const pastWebinars = [
@@ -93,7 +105,7 @@ const Webinar: React.FC = () => {
           {upcomingEvents.map((event) => (
             <div
               key={event.id}
-onClick={() => navigate(`/events/${event.id}?type=webinar`)}
+onClick={() => navigate(`/webinar/${event.id}?type=webinar`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}
@@ -143,7 +155,7 @@ onClick={() => navigate(`/events/${event.id}?type=webinar`)}
           {pastEvents.map((event) => (
             <div
               key={event.id}
-            onClick={() => navigate(`/events/${event.id}?type=webinar`)}
+          onClick={() => navigate(`/webinar/${event.id}?type=webinar`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}

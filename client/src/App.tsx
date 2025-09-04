@@ -23,9 +23,11 @@ import StoryDetails from "./components/SuccessStory/Storydetails";
 import Gallery from "./components/Gallery/Gallery";
 import Events from "./components/Events/Event";
 import Reunion from "./components/Events/Reunion";
+import ReunionDetails from "./components/Events/Reuniondetail";
 import Webinar from "./components/Events/Webinar";
+import WebinarDetails from "./components/Events/Webinardetail";
 import Navbar from "./components/Events/Navbar";
-import EventDetails from "./components/Events/Eventsdetail";
+
 
 const queryClient = new QueryClient();
 
@@ -53,8 +55,11 @@ const App = () => (
        
         <Route path="/events" element={<Events />} />
         <Route path="/reunion" element={<Reunion />} />
+        <Route path="/reunion/:id" element={<ReunionDetails />} />
         <Route path="/webinar" element={<Webinar />} />
-        <Route path="/events/:id" element={<EventDetails />} />
+        <Route path="/webinar/:id" element={<WebinarDetails />} />
+        
+        
       
         
             

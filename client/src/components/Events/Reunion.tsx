@@ -4,6 +4,7 @@ import { Calendar, Clock, MapPin } from "lucide-react";
 import Navbar from "./Navbar";
 import { useNavigate } from "react-router-dom";
 
+
 const events = [
   {
     id: 1,
@@ -80,7 +81,7 @@ const Reunion: React.FC = () => {
           {upcomingEvents.map((event) => (
             <div
               key={event.id}
-              onClick={() => navigate(`/events/${event.id}?type=reunion`)}
+              onClick={() => navigate(`/reunion/${event.id}?type=reunion`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}
@@ -130,7 +131,7 @@ const Reunion: React.FC = () => {
           {pastEvents.map((event) => (
             <div
               key={event.id}
-             onClick={() => navigate(`/events/${event.id}?type=reunion`)}
+           onClick={() => navigate(`/reunion/${event.id}?type=reunion`)}
               className="flex bg-white rounded-lg shadow-md hover:shadow-lg transition overflow-hidden h-28"
             >
               {/* Left: Image */}

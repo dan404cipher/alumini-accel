@@ -1,10 +1,13 @@
+import React from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+// Pages & Components
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -18,7 +21,6 @@ import Home from "./pages/Homepage";
 import Newspage from "./components/News/Newspage";
 import Directormsg from "./components/Directormsg";
 import StoryPage from "./components/SuccessStory/story";
-import { LogOut } from "lucide-react";
 import StoryDetails from "./components/SuccessStory/Storydetails";
 import Gallery from "./components/Gallery/Gallery";
 import VideoGallery from "./components/Gallery/Video";
@@ -27,26 +29,27 @@ import Reunion from "./components/Events/Reunion";
 import ReunionDetails from "./components/Events/Reuniondetail";
 import Webinar from "./components/Events/Webinar";
 import WebinarDetails from "./components/Events/Webinardetail";
-import Navbar from "./components/Events/Navbar";
 import NavbarHome from "./components/Navbar";
+import Footer from "./pages/Footerpage";
+import NotableDetailPage from "./components/Notablealumini/Notabledetail";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const location = useLocation();
 
-  // Hide NavbarHome only on /index and /login
-  const hideNavbar =
-    location.pathname === "/index" || location.pathname === "/login";
+  // Hide Navbar only on /index and /login
+  const hideNavbar = location.pathname === "/index" || location.pathname === "/login";
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
+      {/* Conditional Navbar */}
       {!hideNavbar && <NavbarHome />}
 
-      <div className={!hideNavbar ? "pt-10" : ""}>
+      {/* Main content */}
+      <main className={!hideNavbar ? "pt-10 flex-grow" : "flex-grow"}>
         <Routes>
-          {/* Public routes */}
-          <Route path="/navbarhome" element={<NavbarHome />} />
+          {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/index" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -57,15 +60,14 @@ const AppContent = () => {
           <Route path="/story/:id" element={<StoryDetails />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/video" element={<VideoGallery />} />
-          <Route path="/navbar" element={<Navbar />} />
-
           <Route path="/events" element={<Events />} />
           <Route path="/reunion" element={<Reunion />} />
           <Route path="/reunion/:id" element={<ReunionDetails />} />
           <Route path="/webinar" element={<Webinar />} />
           <Route path="/webinar/:id" element={<WebinarDetails />} />
+          <Route path="/notable" element={<NotableDetailPage />} />
 
-          {/* Protected routes */}
+          {/* Protected Routes */}
           <Route
             path="/dashboard"
             element={
@@ -76,7 +78,6 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/alumni"
             element={
@@ -87,7 +88,6 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/jobs"
             element={
@@ -98,9 +98,8 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-
           <Route
-            path="/events"
+            path="/eventsmeetups"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -109,7 +108,6 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/recognition"
             element={
@@ -124,8 +122,11 @@ const AppContent = () => {
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </div>
-    </>
+      </main>
+
+      {/* Footer always visible */}
+      <Footer />
+    </div>
   );
 };
 

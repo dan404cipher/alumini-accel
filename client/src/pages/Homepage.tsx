@@ -4,6 +4,8 @@ import image2 from "../assets/image2.jpg.jpg";
 import image3 from "../assets/image3.jpg.jpg";
 import image4 from "../assets/image4.jpg";
 import { useNavigate } from "react-router-dom";
+import notableImg from "../assets/Notableimage.jpg";
+import NotableDetailPage from "@/components/Notablealumini/Notabledetail";
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +56,8 @@ const Home: React.FC = () => {
     navigate("/successstory");
   };
 
+  // Notable alumini images array
+  const images = Array(12).fill(notableImg); // Array of 12 identical images
   return (
     <div className="px-[5%] ">
       
@@ -248,7 +252,7 @@ const Home: React.FC = () => {
 
         {/*  Alumni Moments */}
         <section className="py-12 px-6 cursor-pointer" onClick={() => navigate("/gallery")}>
-          <h2 className="text-3xl font-bold text-center mb-8">Our Alumni Moments</h2>
+          <h2 className="text-3xl font-bold text-center mb-8">Our Alumni Moments Gallery</h2>
           <div className="grid grid-cols-3 gap-6">
             <img
               src={image1}
@@ -267,7 +271,26 @@ const Home: React.FC = () => {
             />
           </div>
         </section>
+
+        <section className="py-12 bg-white shadow-sm">
+  <h1 className="text-3xl font-bold text-center mb-8">Notable Alumini</h1>
+
+  <div className="flex flex-wrap justify-center gap-4">
+    {images.map((i, index) => (
+      <img
+        key={index}
+        src={notableImg}
+        alt="notable alumini"
+        className="w-48 h-60 object-cover rounded shadow-md hover:scale-105 transition-transform cursor-pointer"
+        onClick={() => navigate(`/notable`)} // navigate on click
+      />
+    ))}
+  </div>
+</section>
       </div>
+
+
+
     </div>
   );
 };

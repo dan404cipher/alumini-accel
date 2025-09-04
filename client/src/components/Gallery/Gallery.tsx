@@ -68,7 +68,7 @@ const Gallery: React.FC = () => {
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold text-center mb-8">
-        Our Alumni Moments
+        Our Alumni Moments-gallery
       </h1>
 
       {/* Toggle Buttons */}

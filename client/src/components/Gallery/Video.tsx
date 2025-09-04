@@ -67,8 +67,9 @@ const VideoGallery: React.FC = () => {
 
   return (
     <div className="p-6 bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen">
-      <h1 className="text-4xl font-bold text-center mb-10 text-blue-700">
-        🎥 Our Alumni Videos
+      <h1 className="text-4xl font-bold text-center mb-10 text-blue-700"
+      style={{ fontFamily: "TimesNewRoman" }}>
+     Our Alumni Videos
       </h1>
 
       {/* Thumbnails */}

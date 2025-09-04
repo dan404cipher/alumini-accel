@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -28,9 +28,106 @@ import ReunionDetails from "./components/Events/Reuniondetail";
 import Webinar from "./components/Events/Webinar";
 import WebinarDetails from "./components/Events/Webinardetail";
 import Navbar from "./components/Events/Navbar";
-
+import NavbarHome from "./components/Navbar";
 
 const queryClient = new QueryClient();
+
+const AppContent = () => {
+  const location = useLocation();
+
+  // Hide NavbarHome only on /index and /login
+  const hideNavbar =
+    location.pathname === "/index" || location.pathname === "/login";
+
+  return (
+    <>
+      {!hideNavbar && <NavbarHome />}
+
+      <div className={!hideNavbar ? "pt-20" : ""}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/navbarhome" element={<NavbarHome />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/index" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/news" element={<Newspage />} />
+          <Route path="/news/:id" element={<Newspage />} />
+          <Route path="/directormsg" element={<Directormsg />} />
+          <Route path="/successstory" element={<StoryPage />} />
+          <Route path="/story/:id" element={<StoryDetails />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/video" element={<VideoGallery />} />
+          <Route path="/navbar" element={<Navbar />} />
+
+          <Route path="/events" element={<Events />} />
+          <Route path="/reunion" element={<Reunion />} />
+          <Route path="/reunion/:id" element={<ReunionDetails />} />
+          <Route path="/webinar" element={<Webinar />} />
+          <Route path="/webinar/:id" element={<WebinarDetails />} />
+
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/alumni"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AlumniDirectory />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/jobs"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <JobBoard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/events"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <EventsMeetups />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/recognition"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Recognition />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    </>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -39,76 +136,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/index" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/news" element={<Newspage />} />
-        <Route path="/news/:id" element={<Newspage />} />
-        <Route path="/directormsg" element={<Directormsg />} />
-        
-        <Route path="/successstory" element={<StoryPage />} />
-        <Route path="/story/:id" element={<StoryDetails />} />
-        <Route path="/gallery" element={<Gallery />} />
-        <Route path="/video" element={<VideoGallery />} />
-        <Route path="/navbar" element={<Navbar />} />
-
-       
-        <Route path="/events" element={<Events />} />
-        <Route path="/reunion" element={<Reunion />} />
-        <Route path="/reunion/:id" element={<ReunionDetails />} />
-        <Route path="/webinar" element={<Webinar />} />
-        <Route path="/webinar/:id" element={<WebinarDetails />} />
-        
-        
-      
-        
-            
-            {/* Protected routes */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/alumni" element={
-              <ProtectedRoute>
-                <Layout>
-                  <AlumniDirectory />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/jobs" element={
-              <ProtectedRoute>
-                <Layout>
-                  <JobBoard />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/events" element={
-              <ProtectedRoute>
-                <Layout>
-                  <EventsMeetups />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/recognition" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Recognition />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppContent />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

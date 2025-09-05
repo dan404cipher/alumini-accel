@@ -22,8 +22,8 @@ const HelpDesk: React.FC = () => {
       case 'contact':
         navigate('/contact', { state: { institution } });
         break;
-      case 'id_card':
-        navigate('/alumni-id-card');
+      case 'requirt':
+        navigate('/requirt');
         break;
       case 'verification':
         navigate('/degree-verification');
@@ -87,7 +87,7 @@ const HelpDesk: React.FC = () => {
           >
             <option value="">Select Service</option>
             <option value="contact">Contact</option>
-            <option value="id_card">Alumni ID Card</option>
+            <option value="requirt">Requirt</option>
             <option value="verification">Degree Verification</option>
             <option value="events">Event Registration</option>
             <option value="donation">Make a Donation</option>

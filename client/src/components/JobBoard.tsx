@@ -40,8 +40,10 @@ import {
   Gift,
   Tag,
   Mail,
+  Edit,
 } from "lucide-react";
 import { PostJobDialog } from "./dialogs/PostJobDialog";
+import { EditJobDialog } from "./dialogs/EditJobDialog";
 import { jobAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -79,6 +81,8 @@ interface Job {
 const JobBoard = () => {
   const { user, loading: authLoading } = useAuth();
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
+  const [isEditJobOpen, setIsEditJobOpen] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +101,10 @@ const JobBoard = () => {
   const [showSavedJobs, setShowSavedJobs] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
   const fetchJobsRef = useRef<typeof fetchJobs>();
+
+  // Check if user can edit jobs
+  const canEditJobs =
+    user?.role === "super_admin" || user?.role === "coordinator";
 
   // Debounce search query
   useEffect(() => {
@@ -323,6 +331,18 @@ const JobBoard = () => {
     console.log("Application URL:", job.applicationUrl);
     console.log("Contact Email:", job.contactEmail);
     setSelectedJob(job);
+  }, []);
+
+  // Handle edit job
+  const handleEditJob = useCallback((job: Job) => {
+    setEditingJob(job);
+    setIsEditJobOpen(true);
+  }, []);
+
+  // Handle job updated
+  const handleJobUpdated = useCallback(() => {
+    // Refresh the jobs list
+    fetchJobsRef.current?.(1, false);
   }, []);
 
   // Get saved jobs from the current jobs list
@@ -638,6 +658,16 @@ const JobBoard = () => {
                                 >
                                   <Bookmark className="w-4 h-4 fill-current" />
                                 </Button>
+                                {canEditJobs && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditJob(job)}
+                                    className="text-blue-600 hover:text-blue-700"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -882,6 +912,16 @@ const JobBoard = () => {
                                 }`}
                               />
                             </Button>
+                            {canEditJobs && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditJob(job)}
+                                className="text-blue-600 hover:text-blue-700"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1155,6 +1195,19 @@ const JobBoard = () => {
                   />
                   {savedJobs.has(selectedJob._id) ? "Saved" : "Save Job"}
                 </Button>
+                {canEditJobs && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedJob(null);
+                      handleEditJob(selectedJob);
+                    }}
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Job
+                  </Button>
+                )}
                 <Button
                   onClick={() => {
                     if (selectedJob.applicationUrl) {
@@ -1177,6 +1230,14 @@ const JobBoard = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Job Dialog */}
+      <EditJobDialog
+        open={isEditJobOpen}
+        onOpenChange={setIsEditJobOpen}
+        job={editingJob}
+        onJobUpdated={handleJobUpdated}
+      />
     </div>
   );
 };

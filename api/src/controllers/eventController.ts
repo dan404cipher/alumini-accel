@@ -82,6 +82,8 @@ export const getEventById = async (req: Request, res: Response) => {
 // Create event
 export const createEvent = async (req: Request, res: Response) => {
   try {
+    console.log("Received event data:", req.body);
+
     const {
       title,
       description,
@@ -91,6 +93,7 @@ export const createEvent = async (req: Request, res: Response) => {
       location,
       isOnline,
       onlineUrl,
+      meetingLink,
       maxAttendees,
       registrationDeadline,
       speakers,
@@ -109,7 +112,7 @@ export const createEvent = async (req: Request, res: Response) => {
       endDate: new Date(endDate),
       location,
       isOnline: isOnline || false,
-      onlineUrl,
+      meetingLink: meetingLink || onlineUrl, // Use meetingLink if provided, fallback to onlineUrl
       maxAttendees: maxAttendees || 0,
       registrationDeadline: registrationDeadline
         ? new Date(registrationDeadline)
@@ -124,6 +127,22 @@ export const createEvent = async (req: Request, res: Response) => {
     });
 
     await event.save();
+
+    console.log("Event saved to database:", {
+      id: event._id,
+      title: event.title,
+      type: event.type,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      location: event.location,
+      isOnline: event.isOnline,
+      meetingLink: event.meetingLink,
+      maxAttendees: event.maxAttendees,
+      tags: event.tags,
+      image: event.image,
+      price: event.price,
+      organizer: event.organizer,
+    });
 
     return res.status(201).json({
       success: true,

@@ -22,15 +22,30 @@ import {
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { eventAPI } from "@/lib/api";
 
 const EventsMeetups = () => {
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { user } = useAuth();
 
   // Check if user can create events
   const canCreateEvents =
     user?.role === "super_admin" || user?.role === "coordinator";
-  const events = [
+
+  // Fetch events from API
+  const {
+    data: eventsResponse,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["events", refreshKey],
+    queryFn: () => eventAPI.getAllEvents(),
+  });
+
+  // Hardcoded sample events
+  const hardcodedEvents = [
     {
       id: 1,
       title: "Tech Alumni Meetup 2024",
@@ -53,75 +68,92 @@ const EventsMeetups = () => {
       id: 2,
       title: "Alumni Startup Pitch Night",
       description:
-        "Watch our alumni entrepreneurs pitch their latest ventures. Great for networking and learning about innovation.",
-      date: "March 22, 2024",
-      time: "7:00 PM - 9:30 PM",
+        "Watch innovative startups founded by our alumni present their ideas to investors and the community.",
+      date: "April 22, 2024",
+      time: "7:00 PM - 10:00 PM",
       location: "Virtual Event",
       type: "Virtual",
-      organizer: "Alex Kumar",
+      organizer: "Michael Rodriguez",
       attendees: 89,
       maxAttendees: 150,
       image:
-        "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=400&h=200&fit=crop",
-      tags: ["Entrepreneurship", "Startups", "Innovation"],
-      featured: false,
-      price: "$10",
+        "https://images.unsplash.com/photo-1511578314322-379afb4d4f5d?w=400&h=200&fit=crop",
+      tags: ["Startup", "Pitch", "Investment"],
+      featured: true,
+      price: "$25",
     },
     {
       id: 3,
-      title: "Career Mentorship Workshop",
+      title: "Career Development Workshop",
       description:
-        "Interactive workshop covering resume building, interview skills, and career advancement strategies.",
-      date: "March 28, 2024",
+        "Learn essential skills for career advancement including resume building, interview techniques, and networking strategies.",
+      date: "May 10, 2024",
       time: "2:00 PM - 5:00 PM",
-      location: "University Campus - Hall A",
-      type: "Hybrid",
-      organizer: "Maria Rodriguez",
+      location: "University Campus",
+      type: "In-Person",
+      organizer: "Dr. Jennifer Liu",
       attendees: 45,
-      maxAttendees: 100,
+      maxAttendees: 60,
       image:
-        "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=200&fit=crop",
-      tags: ["Career", "Mentorship", "Professional Development"],
-      featured: true,
+        "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=400&h=200&fit=crop",
+      tags: ["Career", "Workshop", "Skills"],
+      featured: false,
       price: "Free",
     },
     {
       id: 4,
-      title: "Global Alumni Reunion",
+      title: "Alumni Reunion 2024",
       description:
-        "Connect with alumni from around the world in our annual reunion celebration with dinner and entertainment.",
-      date: "April 5, 2024",
-      time: "6:00 PM - 11:00 PM",
+        "Celebrate our annual alumni reunion with food, drinks, music, and reconnecting with old friends.",
+      date: "June 8, 2024",
+      time: "5:00 PM - 11:00 PM",
       location: "Grand Hotel Ballroom",
       type: "In-Person",
-      organizer: "David Park",
+      organizer: "Alumni Association",
       attendees: 234,
       maxAttendees: 300,
       image:
         "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=400&h=200&fit=crop",
       tags: ["Reunion", "Social", "Celebration"],
-      featured: true,
-      price: "$75",
-    },
-    {
-      id: 5,
-      title: "Women in Tech Panel",
-      description:
-        "Inspiring panel discussion featuring successful women alumni in technology leadership roles.",
-      date: "April 12, 2024",
-      time: "1:00 PM - 3:00 PM",
-      location: "Virtual Event",
-      type: "Virtual",
-      organizer: "Emily Johnson",
-      attendees: 67,
-      maxAttendees: 200,
-      image:
-        "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=400&h=200&fit=crop",
-      tags: ["Women in Tech", "Leadership", "Panel"],
       featured: false,
-      price: "Free",
+      price: "$50",
     },
   ];
+
+  // Map API events to component format
+  const apiEvents = eventsResponse?.data?.events || [];
+  const mappedEvents = apiEvents.map((event: any) => ({
+    id: event._id,
+    title: event.title,
+    description: event.description,
+    date: new Date(event.startDate).toLocaleDateString(),
+    time: new Date(event.startDate).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    location: event.location,
+    type: event.type,
+    organizer: event.organizer?.firstName
+      ? `${event.organizer.firstName} ${event.organizer.lastName}`
+      : "Unknown",
+    attendees: event.currentAttendees || 0,
+    maxAttendees: event.maxAttendees || 0,
+    image:
+      event.image ||
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop",
+    tags: event.tags || [],
+    featured: false,
+    price: event.price ? `$${event.price}` : "Free",
+  }));
+
+  const events = error
+    ? hardcodedEvents
+    : [...mappedEvents, ...hardcodedEvents];
+
+  // Function to refresh events
+  const handleEventCreated = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
 
   const getEventTypeIcon = (type: string) => {
     switch (type) {
@@ -166,6 +198,22 @@ const EventsMeetups = () => {
           </Button>
         )}
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="text-center py-8">
+          <div className="text-muted-foreground">Loading events...</div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="text-center py-8">
+          <div className="text-destructive">
+            Failed to load events. Showing sample events.
+          </div>
+        </div>
+      )}
 
       {/* Featured Events */}
       <div className="space-y-4">
@@ -366,6 +414,7 @@ const EventsMeetups = () => {
       <CreateEventDialog
         open={isCreateEventOpen}
         onOpenChange={setIsCreateEventOpen}
+        onEventCreated={handleEventCreated}
       />
     </div>
   );

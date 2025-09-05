@@ -1,62 +1,436 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, MapPin, Clock } from "lucide-react";
+import { eventAPI } from "@/lib/api";
 
 interface CreateEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEventCreated?: () => void;
 }
 
-export const CreateEventDialog = ({ open, onOpenChange }: CreateEventDialogProps) => {
+export const CreateEventDialog = ({
+  open,
+  onOpenChange,
+  onEventCreated,
+}: CreateEventDialogProps) => {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     date: "",
-    time: "",
+    startTime: "",
+    endTime: "",
     location: "",
     type: "",
     maxAttendees: "",
     price: "",
+    priceType: "free", // "free" or "paid"
     tags: "",
+    image: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = () => {
+    const errors: string[] = [];
+
+    // Trim all string fields
+    const trimmedTitle = formData.title.trim();
+    const trimmedDescription = formData.description.trim();
+    const trimmedLocation = formData.location.trim();
+    const trimmedTags = formData.tags.trim();
+    const trimmedImage = formData.image.trim();
+
+    // Required field validation
+    if (!trimmedTitle) errors.push("Event title is required");
+    if (!trimmedDescription) errors.push("Event description is required");
+    if (!formData.date) errors.push("Event date is required");
+    if (!formData.startTime) errors.push("Start time is required");
+    if (!formData.endTime) errors.push("End time is required");
+    if (!trimmedLocation) errors.push("Event location is required");
+    if (!formData.type) errors.push("Event type is required");
+
+    // Length validation
+    if (
+      trimmedTitle &&
+      (trimmedTitle.length < 5 || trimmedTitle.length > 200)
+    ) {
+      errors.push(
+        `Title must be between 5 and 200 characters (current: ${trimmedTitle.length})`
+      );
+    }
+
+    if (
+      trimmedDescription &&
+      (trimmedDescription.length < 10 || trimmedDescription.length > 2000)
+    ) {
+      errors.push(
+        `Description must be between 10 and 2000 characters (current: ${trimmedDescription.length})`
+      );
+    }
+
+    if (
+      trimmedLocation &&
+      (trimmedLocation.length < 2 || trimmedLocation.length > 200)
+    ) {
+      errors.push(
+        `Location must be between 2 and 200 characters (current: ${trimmedLocation.length})`
+      );
+    }
+
+    // Date validation
+    if (formData.date && formData.startTime && formData.endTime) {
+      const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+      const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
+      const now = new Date();
+
+      if (startDateTime <= now) {
+        errors.push("Event start time must be in the future");
+      }
+
+      if (endDateTime <= startDateTime) {
+        errors.push("End time must be after start time");
+      }
+    }
+
+    // Numeric validation
+    if (
+      formData.maxAttendees &&
+      (isNaN(Number(formData.maxAttendees)) ||
+        Number(formData.maxAttendees) < 1)
+    ) {
+      errors.push("Maximum attendees must be a positive number");
+    }
+
+    if (formData.priceType === "paid") {
+      if (!formData.price) {
+        errors.push("Price is required for paid events");
+      } else if (isNaN(Number(formData.price)) || Number(formData.price) < 0) {
+        errors.push("Price must be a non-negative number");
+      }
+    }
+
+    // URL validation for image
+    if (trimmedImage && !isValidUrl(trimmedImage)) {
+      errors.push("Event image must be a valid URL");
+    }
+
+    // Tags validation
+    if (trimmedTags) {
+      const tagsArray = trimmedTags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+      if (tagsArray.some((tag) => tag.length > 50)) {
+        errors.push("Each tag must be 50 characters or less");
+      }
+    }
+
+    return errors;
+  };
+
+  const isValidUrl = (string: string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const validateField = (fieldName: string, value: string) => {
+    const errors: string[] = [];
+
+    switch (fieldName) {
+      case "title":
+        const trimmedTitle = value.trim();
+        if (!trimmedTitle) {
+          errors.push("Title is required");
+        } else if (trimmedTitle.length < 5 || trimmedTitle.length > 200) {
+          errors.push(
+            `Title must be between 5 and 200 characters (current: ${trimmedTitle.length})`
+          );
+        }
+        break;
+
+      case "description":
+        const trimmedDesc = value.trim();
+        if (!trimmedDesc) {
+          errors.push("Description is required");
+        } else if (trimmedDesc.length < 10 || trimmedDesc.length > 2000) {
+          errors.push(
+            `Description must be between 10 and 2000 characters (current: ${trimmedDesc.length})`
+          );
+        }
+        break;
+
+      case "location":
+        const trimmedLoc = value.trim();
+        if (!trimmedLoc) {
+          errors.push("Location is required");
+        } else if (trimmedLoc.length < 2 || trimmedLoc.length > 200) {
+          errors.push(
+            `Location must be between 2 and 200 characters (current: ${trimmedLoc.length})`
+          );
+        }
+        break;
+
+      case "image":
+        const trimmedImg = value.trim();
+        if (trimmedImg && !isValidUrl(trimmedImg)) {
+          errors.push("Image must be a valid URL");
+        }
+        break;
+
+      case "maxAttendees":
+        if (value && (isNaN(Number(value)) || Number(value) < 1)) {
+          errors.push("Maximum attendees must be a positive number");
+        }
+        break;
+
+      case "price":
+        if (formData.priceType === "paid") {
+          if (!value) {
+            errors.push("Price is required for paid events");
+          } else if (isNaN(Number(value)) || Number(value) < 0) {
+            errors.push("Price must be a non-negative number");
+          }
+        }
+        break;
+
+      case "tags":
+        if (value) {
+          const tagsArray = value
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0);
+          if (tagsArray.some((tag) => tag.length > 50)) {
+            errors.push("Each tag must be 50 characters or less");
+          }
+        }
+        break;
+    }
+
+    return errors[0] || null; // Return first error or null
+  };
+
+  const handleFieldChange = (fieldName: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [fieldName]: value }));
+
+    // Clear previous error for this field
+    setFieldErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[fieldName];
+      return newErrors;
+    });
+
+    // Validate field if it has content
+    if (value.trim()) {
+      const error = validateField(fieldName, value);
+      if (error) {
+        setFieldErrors((prev) => ({ ...prev, [fieldName]: error }));
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Event Created Successfully",
-      description: `${formData.title} has been scheduled and invitations will be sent out.`,
-    });
-    setFormData({
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      location: "",
-      type: "",
-      maxAttendees: "",
-      price: "",
-      tags: "",
-    });
-    onOpenChange(false);
+
+    // Validate form using comprehensive validation
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      // Show validation errors in form fields instead of toast
+      const fieldErrorMap: { [key: string]: string } = {};
+
+      // Map validation errors to specific fields
+      validationErrors.forEach((error) => {
+        if (error.includes("Title")) {
+          fieldErrorMap.title = error;
+        } else if (error.includes("Description")) {
+          fieldErrorMap.description = error;
+        } else if (error.includes("Location")) {
+          fieldErrorMap.location = error;
+        } else if (error.includes("Event start time")) {
+          fieldErrorMap.startTime = error;
+        } else if (error.includes("End time must be after")) {
+          fieldErrorMap.endTime = error;
+        } else if (error.includes("Maximum attendees")) {
+          fieldErrorMap.maxAttendees = error;
+        } else if (error.includes("Price")) {
+          fieldErrorMap.price = error;
+        } else if (error.includes("Image")) {
+          fieldErrorMap.image = error;
+        } else if (error.includes("tag")) {
+          fieldErrorMap.tags = error;
+        } else if (error.includes("required")) {
+          // For required field errors, show on the first empty field
+          if (!formData.title.trim()) fieldErrorMap.title = error;
+          else if (!formData.description.trim())
+            fieldErrorMap.description = error;
+          else if (!formData.location.trim()) fieldErrorMap.location = error;
+          else if (!formData.date) fieldErrorMap.date = error;
+          else if (!formData.startTime) fieldErrorMap.startTime = error;
+          else if (!formData.endTime) fieldErrorMap.endTime = error;
+          else if (!formData.type) fieldErrorMap.type = error;
+        }
+      });
+
+      // Handle specific field requirements
+      if (!formData.title.trim())
+        fieldErrorMap.title = "Event title is required";
+      if (!formData.description.trim())
+        fieldErrorMap.description = "Event description is required";
+      if (!formData.location.trim())
+        fieldErrorMap.location = "Event location is required";
+      if (!formData.date) fieldErrorMap.date = "Event date is required";
+      if (!formData.startTime)
+        fieldErrorMap.startTime = "Start time is required";
+      if (!formData.endTime) fieldErrorMap.endTime = "End time is required";
+      if (!formData.type) fieldErrorMap.type = "Event type is required";
+
+      setFieldErrors(fieldErrorMap);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Prepare event data for API
+      const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
+      const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
+
+      const trimmedTitle = formData.title.trim();
+      const trimmedDescription = formData.description.trim();
+      const trimmedLocation = formData.location.trim();
+      const trimmedImage = formData.image.trim();
+      const trimmedTags = formData.tags.trim();
+
+      const eventData: any = {
+        title: trimmedTitle,
+        description: trimmedDescription,
+        type: formData.type,
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime.toISOString(),
+        location: trimmedLocation,
+        isOnline: formData.type === "webinar" ? true : false, // Only webinar is online
+        // Only add meetingLink for webinars and if it's a valid URL
+        ...(formData.type === "webinar" && trimmedLocation.startsWith("http")
+          ? { meetingLink: trimmedLocation }
+          : {}),
+      };
+
+      // Only add optional fields if they have values
+      if (formData.maxAttendees) {
+        eventData.maxAttendees = parseInt(formData.maxAttendees);
+      }
+      if (formData.priceType === "paid" && formData.price) {
+        eventData.price = parseFloat(formData.price);
+      } else if (formData.priceType === "free") {
+        eventData.price = 0;
+      }
+      if (trimmedTags) {
+        eventData.tags = trimmedTags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0);
+      }
+      if (trimmedImage) {
+        eventData.image = trimmedImage;
+      }
+
+      console.log("Event data being sent:", eventData);
+      const response = await eventAPI.createEvent(eventData);
+      console.log("API response:", response);
+      console.log("Validation errors:", response.errors);
+
+      if (response.success) {
+        toast({
+          title: "Event Created Successfully",
+          description: `${formData.title} has been scheduled and invitations will be sent out.`,
+        });
+
+        // Reset form
+        setFormData({
+          title: "",
+          description: "",
+          date: "",
+          startTime: "",
+          endTime: "",
+          location: "",
+          type: "",
+          maxAttendees: "",
+          price: "",
+          priceType: "free",
+          tags: "",
+          image: "",
+        });
+        onOpenChange(false);
+
+        // Notify parent component to refresh events
+        if (onEventCreated) {
+          onEventCreated();
+        }
+      } else {
+        // Handle API error response
+        let errorMessage = response.message || "Failed to create event";
+        if (response.errors) {
+          if (Array.isArray(response.errors)) {
+            errorMessage = response.errors.join(", ");
+          } else {
+            errorMessage = response.errors;
+          }
+        }
+
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return; // Don't throw error, just show toast
+      }
+    } catch (error: any) {
+      console.error("Unexpected error creating event:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Calendar className="w-5 h-5 mr-2" />
             Create Event
           </DialogTitle>
           <DialogDescription>
-            Create a new event for the alumni community. All registered alumni will be notified.
+            Create a new event for the alumni community. All registered alumni
+            will be notified.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,42 +439,115 @@ export const CreateEventDialog = ({ open, onOpenChange }: CreateEventDialogProps
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => handleFieldChange("title", e.target.value)}
               placeholder="Tech Alumni Meetup 2024"
               required
+              className={fieldErrors.title ? "border-red-500" : ""}
             />
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-gray-500">
+                {formData.title.length}/200 characters (minimum 5)
+              </p>
+              {fieldErrors.title && (
+                <p className="text-xs text-red-500">{fieldErrors.title}</p>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => handleFieldChange("description", e.target.value)}
               placeholder="Describe the event, activities, and what attendees can expect..."
-              className="min-h-[100px]"
+              className={`min-h-[100px] ${
+                fieldErrors.description ? "border-red-500" : ""
+              }`}
               required
             />
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-gray-500">
+                {formData.description.length}/2000 characters (minimum 10)
+              </p>
+              {fieldErrors.description && (
+                <p className="text-xs text-red-500">
+                  {fieldErrors.description}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="date">Date *</Label>
               <Input
                 id="date"
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, date: e.target.value });
+                  // Clear date error when user selects a date
+                  if (fieldErrors.date) {
+                    setFieldErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.date;
+                      return newErrors;
+                    });
+                  }
+                }}
                 required
+                className={fieldErrors.date ? "border-red-500" : ""}
               />
+              {fieldErrors.date && (
+                <p className="text-xs text-red-500">{fieldErrors.date}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="time">Time *</Label>
+              <Label htmlFor="startTime">Start Time *</Label>
               <Input
-                id="time"
+                id="startTime"
                 type="time"
-                value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                value={formData.startTime}
+                onChange={(e) => {
+                  setFormData({ ...formData, startTime: e.target.value });
+                  // Clear start time error when user selects a time
+                  if (fieldErrors.startTime) {
+                    setFieldErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.startTime;
+                      return newErrors;
+                    });
+                  }
+                }}
                 required
+                className={fieldErrors.startTime ? "border-red-500" : ""}
               />
+              {fieldErrors.startTime && (
+                <p className="text-xs text-red-500">{fieldErrors.startTime}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endTime">End Time *</Label>
+              <Input
+                id="endTime"
+                type="time"
+                value={formData.endTime}
+                onChange={(e) => {
+                  setFormData({ ...formData, endTime: e.target.value });
+                  // Clear end time error when user selects a time
+                  if (fieldErrors.endTime) {
+                    setFieldErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.endTime;
+                      return newErrors;
+                    });
+                  }
+                }}
+                required
+                className={fieldErrors.endTime ? "border-red-500" : ""}
+              />
+              {fieldErrors.endTime && (
+                <p className="text-xs text-red-500">{fieldErrors.endTime}</p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -109,23 +556,53 @@ export const CreateEventDialog = ({ open, onOpenChange }: CreateEventDialogProps
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={(e) => handleFieldChange("location", e.target.value)}
                 placeholder="University Campus or Virtual"
                 required
+                className={fieldErrors.location ? "border-red-500" : ""}
               />
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-gray-500">
+                  {formData.location.length}/200 characters (minimum 2)
+                </p>
+                {fieldErrors.location && (
+                  <p className="text-xs text-red-500">{fieldErrors.location}</p>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="type">Event Type *</Label>
-              <Select onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                <SelectTrigger>
+              <Select
+                value={formData.type}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, type: value });
+                  // Clear type error when user selects a type
+                  if (fieldErrors.type) {
+                    setFieldErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.type;
+                      return newErrors;
+                    });
+                  }
+                }}
+              >
+                <SelectTrigger
+                  className={fieldErrors.type ? "border-red-500" : ""}
+                >
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="in-person">In-Person</SelectItem>
-                  <SelectItem value="virtual">Virtual</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                  <SelectItem value="meetup">Meetup</SelectItem>
+                  <SelectItem value="workshop">Workshop</SelectItem>
+                  <SelectItem value="webinar">Webinar</SelectItem>
+                  <SelectItem value="conference">Conference</SelectItem>
+                  <SelectItem value="career_fair">Career Fair</SelectItem>
+                  <SelectItem value="reunion">Reunion</SelectItem>
                 </SelectContent>
               </Select>
+              {fieldErrors.type && (
+                <p className="text-xs text-red-500">{fieldErrors.type}</p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -135,18 +612,113 @@ export const CreateEventDialog = ({ open, onOpenChange }: CreateEventDialogProps
                 id="maxAttendees"
                 type="number"
                 value={formData.maxAttendees}
-                onChange={(e) => setFormData({ ...formData, maxAttendees: e.target.value })}
+                onChange={(e) =>
+                  handleFieldChange("maxAttendees", e.target.value)
+                }
                 placeholder="100"
+                className={fieldErrors.maxAttendees ? "border-red-500" : ""}
               />
+              {fieldErrors.maxAttendees && (
+                <p className="text-xs text-red-500">
+                  {fieldErrors.maxAttendees}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="price">Price</Label>
-              <Input
-                id="price"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                placeholder="Free or $25"
-              />
+              <Label>Event Pricing</Label>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="free"
+                      name="priceType"
+                      value="free"
+                      checked={formData.priceType === "free"}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          priceType: e.target.value,
+                          price: "",
+                        });
+                        // Clear price error when switching to free
+                        if (fieldErrors.price) {
+                          setFieldErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.price;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                    />
+                    <Label htmlFor="free" className="text-sm font-normal">
+                      Free Event
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="paid"
+                      name="priceType"
+                      value="paid"
+                      checked={formData.priceType === "paid"}
+                      onChange={(e) =>
+                        setFormData({ ...formData, priceType: e.target.value })
+                      }
+                    />
+                    <Label htmlFor="paid" className="text-sm font-normal">
+                      Paid Event
+                    </Label>
+                  </div>
+                </div>
+                {formData.priceType === "paid" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price (USD) *</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                        $
+                      </span>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.price}
+                        onChange={(e) =>
+                          handleFieldChange("price", e.target.value)
+                        }
+                        placeholder="25.00"
+                        className={`pl-8 ${
+                          fieldErrors.price ? "border-red-500" : ""
+                        }`}
+                      />
+                    </div>
+                    {fieldErrors.price && (
+                      <p className="text-xs text-red-500">
+                        {fieldErrors.price}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="image">Event Image URL</Label>
+            <Input
+              id="image"
+              value={formData.image}
+              onChange={(e) => handleFieldChange("image", e.target.value)}
+              placeholder="https://example.com/event-image.jpg"
+              className={fieldErrors.image ? "border-red-500" : ""}
+            />
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-muted-foreground">
+                Optional: Add an image URL to make your event more attractive
+              </p>
+              {fieldErrors.image && (
+                <p className="text-xs text-red-500">{fieldErrors.image}</p>
+              )}
             </div>
           </div>
           <div className="space-y-2">
@@ -154,16 +726,24 @@ export const CreateEventDialog = ({ open, onOpenChange }: CreateEventDialogProps
             <Input
               id="tags"
               value={formData.tags}
-              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+              onChange={(e) => handleFieldChange("tags", e.target.value)}
               placeholder="Networking, Technology, Career (comma separated)"
+              className={fieldErrors.tags ? "border-red-500" : ""}
             />
+            {fieldErrors.tags && (
+              <p className="text-xs text-red-500">{fieldErrors.tags}</p>
+            )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="gradient">
-              Create Event
+            <Button type="submit" variant="gradient" disabled={isLoading}>
+              {isLoading ? "Creating Event..." : "Create Event"}
             </Button>
           </DialogFooter>
         </form>

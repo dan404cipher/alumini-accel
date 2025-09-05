@@ -8,9 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Share2,
   Copy,
@@ -65,12 +64,8 @@ export const ShareJobDialog = ({
   job,
 }: ShareJobDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
-  const [emailData, setEmailData] = useState({
-    recipient: "",
-    subject: "",
-    message: "",
-  });
 
   if (!job) return null;
 
@@ -81,27 +76,78 @@ export const ShareJobDialog = ({
   const shareText = `Check out this job opportunity: ${job.position} at ${job.company} in ${job.location}. ${jobUrl}`;
 
   // Generate email content
-  const emailSubject = `Job Opportunity: ${job.position} at ${job.company}`;
-  const emailBody = `Hi,
+  const emailSubject = `🚀 Job Opportunity: ${job.position} at ${job.company}`;
 
-I found this interesting job opportunity that might be relevant to you:
+  const getRequirementsText = () => {
+    if (!job.requirements || job.requirements.length === 0) return "";
+    const reqs = job.requirements
+      .slice(0, 3)
+      .map((req) => `• ${req}`)
+      .join("\n");
+    const moreText =
+      job.requirements.length > 3
+        ? `• And ${job.requirements.length - 3} more...`
+        : "";
+    return `\n🎯 **Key Requirements:**\n${reqs}${
+      moreText ? "\n" + moreText : ""
+    }\n`;
+  };
 
-${job.position} at ${job.company}
-📍 ${job.location} | ${job.type} | ${job.remote ? "Remote" : "On-site"}
-💰 ${
+  const getBenefitsText = () => {
+    if (!job.benefits || job.benefits.length === 0) return "";
+    const benefits = job.benefits
+      .slice(0, 3)
+      .map((benefit) => `• ${benefit}`)
+      .join("\n");
+    const moreText =
+      job.benefits.length > 3
+        ? `• And ${job.benefits.length - 3} more benefits...`
+        : "";
+    return `\n✨ **Benefits:**\n${benefits}${
+      moreText ? "\n" + moreText : ""
+    }\n`;
+  };
+
+  const getDeadlineText = () => {
+    return job.deadline
+      ? `\n⏰ **Application Deadline:** ${new Date(
+          job.deadline
+        ).toLocaleDateString()}\n`
+      : "";
+  };
+
+  const getApplicationText = () => {
+    return job.applicationUrl
+      ? `\n🔗 **Apply directly:** ${job.applicationUrl}`
+      : "";
+  };
+
+  const emailBody = `Hi there! 👋
+
+I came across an exciting job opportunity that I thought might interest you:
+
+🏢 **${job.position}** at **${job.company}**
+📍 **Location:** ${job.location} | ${job.type} | ${
+    job.remote ? "🌍 Remote" : "🏢 On-site"
+  }
+💰 **Salary:** ${
     job.salary
       ? `${
           job.salary.currency === "USD" ? "$" : job.salary.currency
         } ${job.salary.min.toLocaleString()} - ${job.salary.max.toLocaleString()}`
-      : "Salary not specified"
+      : "Competitive salary"
   }
 
-${job.description.substring(0, 150)}${job.description.length > 150 ? "..." : ""}
+📝 **About the Role:**
+${job.description.substring(0, 200)}${
+    job.description.length > 200 ? "..." : ""
+  }${getRequirementsText()}${getBenefitsText()}${getDeadlineText()}${getApplicationText()}
+🔗 **View full details:** ${jobUrl}
 
-${job.applicationUrl ? `🔗 Apply: ${job.applicationUrl}` : ""}
-🔗 View details: ${jobUrl}
+Let me know if you'd like to discuss this opportunity further!
 
-Best regards`;
+Best regards,
+${user?.firstName || "Your colleague"}`;
 
   // Copy job link to clipboard
   const handleCopyLink = async () => {
@@ -163,40 +209,32 @@ Best regards`;
     if (navigator.share) {
       navigator
         .share({
-          title: emailData.subject || emailSubject,
-          text: emailData.message || emailBody,
+          title: emailSubject,
+          text: emailBody,
           url: jobUrl,
         })
         .catch((error) => {
           console.log("Error sharing:", error);
           // Fallback to mailto
-          const mailtoUrl = `mailto:${
-            emailData.recipient
-          }?subject=${encodeURIComponent(
-            emailData.subject || emailSubject
-          )}&body=${encodeURIComponent(emailData.message || emailBody)}`;
+          const mailtoUrl = `mailto:?subject=${encodeURIComponent(
+            emailSubject
+          )}&body=${encodeURIComponent(emailBody)}`;
           window.open(mailtoUrl);
         });
     } else {
       // For desktop, use a cleaner approach
-      const recipient = emailData.recipient || "";
-      const subject = emailData.subject || emailSubject;
-      const body = emailData.message || emailBody;
-
-      // Create a shorter, more readable mailto URL
-      const mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(
-        subject
-      )}&body=${encodeURIComponent(body)}`;
+      const mailtoUrl = `mailto:?subject=${encodeURIComponent(
+        emailSubject
+      )}&body=${encodeURIComponent(emailBody)}`;
       window.open(mailtoUrl);
     }
   };
 
   // Copy email content
   const handleCopyEmail = async () => {
-    const emailContent = `To: ${emailData.recipient || "recipient@example.com"}
-Subject: ${emailData.subject || emailSubject}
+    const emailContent = `Subject: ${emailSubject}
 
-${emailData.message || emailBody}`;
+${emailBody}`;
 
     try {
       await navigator.clipboard.writeText(emailContent);
@@ -245,7 +283,7 @@ ${emailData.message || emailBody}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Share2 className="w-5 h-5 mr-2" />
@@ -337,68 +375,36 @@ ${emailData.message || emailBody}`;
             </div>
           </div>
 
-          {/* Email Sharing */}
+          {/* Email Sharing - Enhanced */}
           <div className="space-y-4">
-            <h4 className="font-semibold">Email Share</h4>
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="recipient">Recipient Email</Label>
-                <Input
-                  id="recipient"
-                  type="email"
-                  value={emailData.recipient}
-                  onChange={(e) =>
-                    setEmailData({ ...emailData, recipient: e.target.value })
-                  }
-                  placeholder="friend@example.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="subject">Subject (Optional)</Label>
-                <Input
-                  id="subject"
-                  value={emailData.subject}
-                  onChange={(e) =>
-                    setEmailData({ ...emailData, subject: e.target.value })
-                  }
-                  placeholder={emailSubject}
-                />
-              </div>
-              <div>
-                <Label htmlFor="message">Message (Optional)</Label>
-                <Textarea
-                  id="message"
-                  value={emailData.message}
-                  onChange={(e) =>
-                    setEmailData({ ...emailData, message: e.target.value })
-                  }
-                  placeholder="Add a personal message..."
-                  className="min-h-[80px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleEmailShare}
-                    className="flex-1"
-                    disabled={!emailData.recipient}
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Send Email
-                  </Button>
-                  <Button variant="outline" onClick={handleCopyEmail}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy
-                  </Button>
-                </div>
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold flex items-center">
+                <Mail className="w-5 h-5 mr-2 text-blue-600" />
+                Email Share
+              </h4>
+              <Badge variant="secondary" className="text-xs">
+                Recommended
+              </Badge>
+            </div>
+
+            {/* Quick Email Share - Prominent */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="font-medium text-blue-900">Quick Email Share</h5>
                 <Button
                   onClick={handleQuickEmailShare}
-                  variant="secondary"
-                  className="w-full"
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Mail className="w-4 h-4 mr-2" />
-                  Quick Email Share (No Form)
+                  Send Now
                 </Button>
+              </div>
+              <p className="text-sm text-blue-700 mb-2">
+                Send a pre-formatted email with job details instantly
+              </p>
+              <div className="text-xs text-blue-600 bg-white rounded p-2 border">
+                <strong>Subject:</strong> {emailSubject}
               </div>
             </div>
           </div>

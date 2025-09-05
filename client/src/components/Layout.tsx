@@ -1,19 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Navigation from "./Navigation";
 import Dashboard from "./Dashboard";
 import AlumniDirectory from "./AlumniDirectory";
+import AlumniManagement from "./AlumniManagement";
 import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import Recognition from "./Recognition";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Layout = () => {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const { user } = useAuth();
+
+  // Update active tab based on current route
+  useEffect(() => {
+    const path = location.pathname.substring(1); // Remove leading slash
+    if (path && path !== "dashboard") {
+      setActiveTab(path);
+    } else {
+      setActiveTab("dashboard");
+    }
+  }, [location]);
 
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
         return <Dashboard />;
       case "alumni":
+        // Show management interface for coordinators/admins, directory for others
+        if (user?.role === "super_admin" || user?.role === "coordinator") {
+          return <AlumniManagement />;
+        }
         return <AlumniDirectory />;
       case "jobs":
         return <JobBoard />;
@@ -31,9 +50,7 @@ const Layout = () => {
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Content */}
-        <div className="animate-fade-in-up">
-          {renderContent()}
-        </div>
+        <div className="animate-fade-in-up">{renderContent()}</div>
       </main>
     </div>
   );

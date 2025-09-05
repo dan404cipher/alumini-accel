@@ -1,35 +1,47 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Users, 
-  UserCheck, 
-  Briefcase, 
-  Calendar, 
-  TrendingUp, 
+import {
+  Users,
+  UserCheck,
+  Briefcase,
+  Calendar,
+  TrendingUp,
   Star,
   MapPin,
   Building,
   Plus,
-  ArrowUpRight
+  ArrowUpRight,
 } from "lucide-react";
 import heroImage from "@/assets/hero-alumni-network.jpg";
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard = () => {
   const [isAddAlumniOpen, setIsAddAlumniOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const { user } = useAuth();
+
+  // Check if user can create content
+  const canCreateContent =
+    user?.role === "super_admin" || user?.role === "coordinator";
   return (
     <div className="space-y-8">
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-lg bg-gradient-hero">
         <div className="absolute inset-0">
-          <img 
-            src={heroImage} 
-            alt="Alumni Network" 
+          <img
+            src={heroImage}
+            alt="Alumni Network"
             className="w-full h-full object-cover opacity-20"
           />
         </div>
@@ -39,26 +51,29 @@ const Dashboard = () => {
               Welcome to AlumniAccel
             </h1>
             <p className="text-xl text-primary-foreground/90 mb-6 max-w-2xl">
-              Connect, engage, and empower your alumni community. Build lasting relationships that drive institutional growth and student success.
+              Connect, engage, and empower your alumni community. Build lasting
+              relationships that drive institutional growth and student success.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Button 
-                variant="secondary" 
-                size="lg"
-                onClick={() => setIsAddAlumniOpen(true)}
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Add Alumni
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
-                onClick={() => setIsCreateEventOpen(true)}
-              >
-                Create Event
-              </Button>
-            </div>
+            {canCreateContent && (
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => setIsAddAlumniOpen(true)}
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Add Alumni
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
+                  onClick={() => setIsCreateEventOpen(true)}
+                >
+                  Create Event
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -73,7 +88,8 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold text-primary">2,847</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-success font-medium">+12%</span> from last month
+              <span className="text-success font-medium">+12%</span> from last
+              month
             </p>
           </CardContent>
         </Card>
@@ -86,7 +102,8 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold text-success">1,943</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-success font-medium">+8%</span> engagement rate
+              <span className="text-success font-medium">+8%</span> engagement
+              rate
             </p>
           </CardContent>
         </Card>
@@ -99,14 +116,17 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold text-warning">47</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-success font-medium">+23%</span> this quarter
+              <span className="text-success font-medium">+23%</span> this
+              quarter
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-card border-0 shadow-medium">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Upcoming Events
+            </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -127,7 +147,9 @@ const Dashboard = () => {
               <TrendingUp className="w-5 h-5 mr-2 text-primary" />
               Recent Activities
             </CardTitle>
-            <CardDescription>Latest alumni engagement and updates</CardDescription>
+            <CardDescription>
+              Latest alumni engagement and updates
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-start space-x-4 p-4 rounded-lg bg-muted/50">
@@ -135,9 +157,15 @@ const Dashboard = () => {
                 <Star className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium">Sarah Chen promoted to Senior Manager</p>
-                <p className="text-xs text-muted-foreground">2024 Graduate • Google Inc.</p>
-                <Badge variant="secondary" className="text-xs">Career Update</Badge>
+                <p className="text-sm font-medium">
+                  Sarah Chen promoted to Senior Manager
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  2024 Graduate • Google Inc.
+                </p>
+                <Badge variant="secondary" className="text-xs">
+                  Career Update
+                </Badge>
               </div>
             </div>
 
@@ -146,9 +174,15 @@ const Dashboard = () => {
                 <Briefcase className="w-5 h-5 text-success" />
               </div>
               <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium">New job posting: Software Engineer</p>
-                <p className="text-xs text-muted-foreground">Posted by Alex Kumar • Microsoft</p>
-                <Badge variant="secondary" className="text-xs">Job Opportunity</Badge>
+                <p className="text-sm font-medium">
+                  New job posting: Software Engineer
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Posted by Alex Kumar • Microsoft
+                </p>
+                <Badge variant="secondary" className="text-xs">
+                  Job Opportunity
+                </Badge>
               </div>
             </div>
 
@@ -157,9 +191,15 @@ const Dashboard = () => {
                 <Calendar className="w-5 h-5 text-accent" />
               </div>
               <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium">Tech Alumni Meetup - 50 registrations</p>
-                <p className="text-xs text-muted-foreground">March 15, 2024 • San Francisco</p>
-                <Badge variant="secondary" className="text-xs">Event</Badge>
+                <p className="text-sm font-medium">
+                  Tech Alumni Meetup - 50 registrations
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  March 15, 2024 • San Francisco
+                </p>
+                <Badge variant="secondary" className="text-xs">
+                  Event
+                </Badge>
               </div>
             </div>
           </CardContent>
@@ -172,18 +212,28 @@ const Dashboard = () => {
               <CardTitle className="text-lg">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <Users className="w-4 h-4 mr-2" />
-                Invite Alumni
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Calendar className="w-4 h-4 mr-2" />
-                Schedule Event
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Briefcase className="w-4 h-4 mr-2" />
-                Post Job
-              </Button>
+              {canCreateContent ? (
+                <>
+                  <Button className="w-full justify-start" variant="outline">
+                    <Users className="w-4 h-4 mr-2" />
+                    Invite Alumni
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Schedule Event
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline">
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    Post Job
+                  </Button>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    Contact your coordinator to create content
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -223,8 +273,14 @@ const Dashboard = () => {
       </div>
 
       {/* Dialogs */}
-      <AddAlumniDialog open={isAddAlumniOpen} onOpenChange={setIsAddAlumniOpen} />
-      <CreateEventDialog open={isCreateEventOpen} onOpenChange={setIsCreateEventOpen} />
+      <AddAlumniDialog
+        open={isAddAlumniOpen}
+        onOpenChange={setIsAddAlumniOpen}
+      />
+      <CreateEventDialog
+        open={isCreateEventOpen}
+        onOpenChange={setIsCreateEventOpen}
+      />
     </div>
   );
 };

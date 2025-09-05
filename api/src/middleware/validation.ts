@@ -159,6 +159,18 @@ export const validateJobPost = [
     .optional()
     .isISO8601()
     .withMessage("Deadline must be a valid date"),
+  body("companyWebsite")
+    .optional()
+    .isURL()
+    .withMessage("Company website must be a valid URL"),
+  body("applicationUrl")
+    .optional()
+    .isURL()
+    .withMessage("Application URL must be a valid URL"),
+  body("contactEmail")
+    .optional()
+    .isEmail()
+    .withMessage("Contact email must be a valid email address"),
   handleValidationErrors,
 ];
 
@@ -335,6 +347,46 @@ export const validateProfileUpdate = [
     .isURL()
     .withMessage("GitHub profile must be a valid URL"),
   body("website").optional().isURL().withMessage("Website must be a valid URL"),
+  handleValidationErrors,
+];
+
+// Invitation validation
+export const validateInvitation = [
+  body("name")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Name must be between 2 and 100 characters"),
+  body("email")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Please provide a valid email address"),
+  body("graduationYear")
+    .isInt({ min: 1950, max: new Date().getFullYear() + 5 })
+    .withMessage("Graduation year must be a valid year"),
+  body("degree")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Degree must be less than 100 characters"),
+  body("currentRole")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Current role must be less than 100 characters"),
+  body("company")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Company must be less than 100 characters"),
+  body("location")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Location must be less than 100 characters"),
+  body("linkedinProfile")
+    .optional()
+    .isURL()
+    .withMessage("LinkedIn profile must be a valid URL"),
   handleValidationErrors,
 ];
 

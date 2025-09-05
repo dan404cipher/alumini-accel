@@ -11,7 +11,9 @@ export const getAllJobs = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const filter: any = { status: JobPostStatus.ACTIVE };
+    const filter: any = {
+      status: { $in: [JobPostStatus.ACTIVE, JobPostStatus.PENDING] },
+    };
 
     // Apply filters
     if (req.query.company)
@@ -93,6 +95,9 @@ export const createJob = async (req: Request, res: Response) => {
       benefits,
       tags,
       deadline,
+      contactEmail,
+      companyWebsite,
+      applicationUrl,
     } = req.body;
 
     const job = new JobPost({
@@ -108,6 +113,9 @@ export const createJob = async (req: Request, res: Response) => {
       benefits: benefits || [],
       tags: tags || [],
       deadline: deadline ? new Date(deadline) : undefined,
+      contactEmail,
+      companyWebsite,
+      applicationUrl,
       status: JobPostStatus.PENDING,
     });
 

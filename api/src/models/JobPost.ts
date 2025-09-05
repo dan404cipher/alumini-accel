@@ -115,6 +115,21 @@ const jobPostSchema = new Schema<IJobPost>(
     deadline: {
       type: Date,
     },
+    companyWebsite: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Company website cannot exceed 500 characters"],
+    },
+    applicationUrl: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Application URL cannot exceed 500 characters"],
+    },
+    contactEmail: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Contact email cannot exceed 100 characters"],
+    },
   },
   {
     timestamps: true,

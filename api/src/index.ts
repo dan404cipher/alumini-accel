@@ -25,6 +25,7 @@ import jobRoutes from "@/routes/jobs";
 import eventRoutes from "@/routes/events";
 import mentorshipRoutes from "@/routes/mentorship";
 import donationRoutes from "@/routes/donations";
+import invitationRoutes from "@/routes/invitations";
 import docsRoutes from "@/routes/docs";
 
 // Load environment variables
@@ -127,6 +128,7 @@ app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/mentorship", mentorshipRoutes);
 app.use("/api/v1/donations", donationRoutes);
+app.use("/api/v1/invitations", invitationRoutes);
 app.use("/api/v1/docs", docsRoutes);
 
 // Serve static files

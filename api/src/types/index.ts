@@ -189,6 +189,9 @@ export interface IJobPost extends Document {
   }>;
   tags: string[];
   deadline?: Date;
+  companyWebsite?: string;
+  applicationUrl?: string;
+  contactEmail?: string;
   createdAt: Date;
   updatedAt: Date;
 }

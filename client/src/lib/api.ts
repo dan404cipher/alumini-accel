@@ -1,21 +1,22 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
 // API base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config: AxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -40,15 +41,18 @@ api.interceptors.response.use(
 
       try {
         // Try to refresh token
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = localStorage.getItem("refreshToken");
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
-            refreshToken,
-          });
+          const response = await axios.post(
+            `${API_BASE_URL}/auth/refresh-token`,
+            {
+              refreshToken,
+            }
+          );
 
           const { token, refreshToken: newRefreshToken } = response.data.data;
-          localStorage.setItem('token', token);
-          localStorage.setItem('refreshToken', newRefreshToken);
+          localStorage.setItem("token", token);
+          localStorage.setItem("refreshToken", newRefreshToken);
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -56,10 +60,10 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         // Refresh failed, redirect to login
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }
@@ -102,7 +106,7 @@ export const apiRequest = async <T>(
     }
     return {
       success: false,
-      message: error.message || 'An error occurred',
+      message: error.message || "An error occurred",
     };
   }
 };
@@ -119,8 +123,8 @@ export const authAPI = {
     phone?: string;
   }) => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/register',
+      method: "POST",
+      url: "/auth/register",
       data: userData,
     });
   },
@@ -128,8 +132,8 @@ export const authAPI = {
   // Login user
   login: async (credentials: { email: string; password: string }) => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/login',
+      method: "POST",
+      url: "/auth/login",
       data: credentials,
     });
   },
@@ -137,24 +141,24 @@ export const authAPI = {
   // Get current user
   getCurrentUser: async () => {
     return apiRequest({
-      method: 'GET',
-      url: '/auth/me',
+      method: "GET",
+      url: "/auth/me",
     });
   },
 
   // Logout user
   logout: async () => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/logout',
+      method: "POST",
+      url: "/auth/logout",
     });
   },
 
   // Forgot password
   forgotPassword: async (email: string) => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/forgot-password',
+      method: "POST",
+      url: "/auth/forgot-password",
       data: { email },
     });
   },
@@ -162,8 +166,8 @@ export const authAPI = {
   // Reset password
   resetPassword: async (token: string, password: string) => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/reset-password',
+      method: "POST",
+      url: "/auth/reset-password",
       data: { token, password },
     });
   },
@@ -171,8 +175,8 @@ export const authAPI = {
   // Change password
   changePassword: async (currentPassword: string, newPassword: string) => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/change-password',
+      method: "POST",
+      url: "/auth/change-password",
       data: { currentPassword, newPassword },
     });
   },
@@ -180,8 +184,8 @@ export const authAPI = {
   // Verify email
   verifyEmail: async (token: string) => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/verify-email',
+      method: "POST",
+      url: "/auth/verify-email",
       data: { token },
     });
   },
@@ -189,8 +193,8 @@ export const authAPI = {
   // Resend verification email
   resendVerificationEmail: async (email: string) => {
     return apiRequest({
-      method: 'POST',
-      url: '/auth/resend-verification',
+      method: "POST",
+      url: "/auth/resend-verification",
       data: { email },
     });
   },
@@ -207,8 +211,8 @@ export const userAPI = {
     search?: string;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/users',
+      method: "GET",
+      url: "/users",
       params,
     });
   },
@@ -216,7 +220,7 @@ export const userAPI = {
   // Get user by ID
   getUserById: async (id: string) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/users/${id}`,
     });
   },
@@ -235,8 +239,8 @@ export const userAPI = {
     preferences?: any;
   }) => {
     return apiRequest({
-      method: 'PUT',
-      url: '/users/profile',
+      method: "PUT",
+      url: "/users/profile",
       data: profileData,
     });
   },
@@ -250,8 +254,8 @@ export const userAPI = {
     limit?: number;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/users/search',
+      method: "GET",
+      url: "/users/search",
       params,
     });
   },
@@ -270,8 +274,8 @@ export const alumniAPI = {
     location?: string;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/alumni',
+      method: "GET",
+      url: "/alumni",
       params,
     });
   },
@@ -279,7 +283,7 @@ export const alumniAPI = {
   // Get alumni by ID
   getAlumniById: async (id: string) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/alumni/${id}`,
     });
   },
@@ -287,8 +291,8 @@ export const alumniAPI = {
   // Create alumni profile
   createProfile: async (profileData: any) => {
     return apiRequest({
-      method: 'POST',
-      url: '/alumni/profile',
+      method: "POST",
+      url: "/alumni/profile",
       data: profileData,
     });
   },
@@ -296,8 +300,8 @@ export const alumniAPI = {
   // Update alumni profile
   updateProfile: async (profileData: any) => {
     return apiRequest({
-      method: 'PUT',
-      url: '/alumni/profile',
+      method: "PUT",
+      url: "/alumni/profile",
       data: profileData,
     });
   },
@@ -315,44 +319,41 @@ export const alumniAPI = {
     limit?: number;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/alumni/search',
+      method: "GET",
+      url: "/alumni/search",
       params,
     });
   },
 
   // Get alumni by batch year
-  getAlumniByBatch: async (year: number, params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getAlumniByBatch: async (
+    year: number,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/alumni/batch/${year}`,
       params,
     });
   },
 
   // Get hiring alumni
-  getHiringAlumni: async (params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getHiringAlumni: async (params?: { page?: number; limit?: number }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/alumni/hiring',
+      method: "GET",
+      url: "/alumni/hiring",
       params,
     });
   },
 
   // Get mentors
-  getMentors: async (params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getMentors: async (params?: { page?: number; limit?: number }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/alumni/mentors',
+      method: "GET",
+      url: "/alumni/mentors",
       params,
     });
   },
@@ -370,8 +371,8 @@ export const jobAPI = {
     remote?: boolean;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/jobs',
+      method: "GET",
+      url: "/jobs",
       params,
     });
   },
@@ -379,7 +380,7 @@ export const jobAPI = {
   // Get job by ID
   getJobById: async (id: string) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/jobs/${id}`,
     });
   },
@@ -401,10 +402,13 @@ export const jobAPI = {
     benefits?: string[];
     tags?: string[];
     deadline?: string;
+    companyWebsite?: string;
+    applicationUrl?: string;
+    contactEmail?: string;
   }) => {
     return apiRequest({
-      method: 'POST',
-      url: '/jobs',
+      method: "POST",
+      url: "/jobs",
       data: jobData,
     });
   },
@@ -412,7 +416,7 @@ export const jobAPI = {
   // Update job post
   updateJob: async (id: string, jobData: any) => {
     return apiRequest({
-      method: 'PUT',
+      method: "PUT",
       url: `/jobs/${id}`,
       data: jobData,
     });
@@ -421,18 +425,21 @@ export const jobAPI = {
   // Delete job post
   deleteJob: async (id: string) => {
     return apiRequest({
-      method: 'DELETE',
+      method: "DELETE",
       url: `/jobs/${id}`,
     });
   },
 
   // Apply for job
-  applyForJob: async (id: string, applicationData: {
-    resume?: string;
-    coverLetter?: string;
-  }) => {
+  applyForJob: async (
+    id: string,
+    applicationData: {
+      resume?: string;
+      coverLetter?: string;
+    }
+  ) => {
     return apiRequest({
-      method: 'POST',
+      method: "POST",
       url: `/jobs/${id}/apply`,
       data: applicationData,
     });
@@ -449,56 +456,62 @@ export const jobAPI = {
     limit?: number;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/jobs/search',
+      method: "GET",
+      url: "/jobs/search",
       params,
     });
   },
 
   // Get jobs by company
-  getJobsByCompany: async (company: string, params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getJobsByCompany: async (
+    company: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/jobs/company/${company}`,
       params,
     });
   },
 
   // Get jobs by location
-  getJobsByLocation: async (location: string, params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getJobsByLocation: async (
+    location: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/jobs/location/${location}`,
       params,
     });
   },
 
   // Get jobs by type
-  getJobsByType: async (type: string, params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getJobsByType: async (
+    type: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/jobs/type/${type}`,
       params,
     });
   },
 
   // Get my job posts
-  getMyJobPosts: async (params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getMyJobPosts: async (params?: { page?: number; limit?: number }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/jobs/my-posts',
+      method: "GET",
+      url: "/jobs/my-posts",
       params,
     });
   },
@@ -514,8 +527,8 @@ export const eventAPI = {
     location?: string;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/events',
+      method: "GET",
+      url: "/events",
       params,
     });
   },
@@ -523,7 +536,7 @@ export const eventAPI = {
   // Get event by ID
   getEventById: async (id: string) => {
     return apiRequest({
-      method: 'GET',
+      method: "GET",
       url: `/events/${id}`,
     });
   },
@@ -531,8 +544,8 @@ export const eventAPI = {
   // Create event
   createEvent: async (eventData: any) => {
     return apiRequest({
-      method: 'POST',
-      url: '/events',
+      method: "POST",
+      url: "/events",
       data: eventData,
     });
   },
@@ -540,7 +553,7 @@ export const eventAPI = {
   // Update event
   updateEvent: async (id: string, eventData: any) => {
     return apiRequest({
-      method: 'PUT',
+      method: "PUT",
       url: `/events/${id}`,
       data: eventData,
     });
@@ -549,7 +562,7 @@ export const eventAPI = {
   // Delete event
   deleteEvent: async (id: string) => {
     return apiRequest({
-      method: 'DELETE',
+      method: "DELETE",
       url: `/events/${id}`,
     });
   },
@@ -557,7 +570,7 @@ export const eventAPI = {
   // Register for event
   registerForEvent: async (id: string) => {
     return apiRequest({
-      method: 'POST',
+      method: "POST",
       url: `/events/${id}/register`,
     });
   },
@@ -565,31 +578,31 @@ export const eventAPI = {
   // Unregister from event
   unregisterFromEvent: async (id: string) => {
     return apiRequest({
-      method: 'DELETE',
+      method: "DELETE",
       url: `/events/${id}/unregister`,
     });
   },
 
   // Submit event feedback
-  submitFeedback: async (id: string, feedbackData: {
-    rating: number;
-    comment?: string;
-  }) => {
+  submitFeedback: async (
+    id: string,
+    feedbackData: {
+      rating: number;
+      comment?: string;
+    }
+  ) => {
     return apiRequest({
-      method: 'POST',
+      method: "POST",
       url: `/events/${id}/feedback`,
       data: feedbackData,
     });
   },
 
   // Get upcoming events
-  getUpcomingEvents: async (params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getUpcomingEvents: async (params?: { page?: number; limit?: number }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/events/upcoming',
+      method: "GET",
+      url: "/events/upcoming",
       params,
     });
   },
@@ -603,12 +616,70 @@ export const eventAPI = {
     limit?: number;
   }) => {
     return apiRequest({
-      method: 'GET',
-      url: '/events/search',
+      method: "GET",
+      url: "/events/search",
       params,
     });
   },
 };
 
+// Invitation API functions
+export const invitationAPI = {
+  // Send alumni invitation
+  sendInvitation: async (invitationData: {
+    name: string;
+    email: string;
+    graduationYear: number;
+    degree?: string;
+    currentRole?: string;
+    company?: string;
+    location?: string;
+    linkedinProfile?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/invitations",
+      data: invitationData,
+    });
+  },
+
+  // Get invitation by token
+  getInvitationByToken: async (token: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/invitations/${token}`,
+    });
+  },
+
+  // Accept invitation
+  acceptInvitation: async (token: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/invitations/${token}/accept`,
+    });
+  },
+
+  // Get user's invitations
+  getInvitations: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/invitations",
+      params,
+    });
+  },
+
+  // Check if invitation exists for email
+  checkInvitationExists: async (email: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/invitations/check/${encodeURIComponent(email)}`,
+    });
+  },
+};
+
 // Export the API instance and functions
-export default api; 
+export default api;

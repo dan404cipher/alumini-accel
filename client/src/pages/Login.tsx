@@ -4,7 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
@@ -15,7 +21,7 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   const { login, error, clearError } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -26,7 +32,7 @@ const Login = () => {
     clearError();
 
     const success = await login(formData.email, formData.password);
-    
+
     if (success) {
       toast({
         title: "Login successful",
@@ -40,7 +46,7 @@ const Login = () => {
         variant: "destructive",
       });
     }
-    
+
     setLoading(false);
   };
 
@@ -80,7 +86,7 @@ const Login = () => {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -111,26 +117,21 @@ const Login = () => {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
 
           <div className="mt-4 text-center text-sm">
-            <p className="text-muted-foreground">
-              Don't have an account?{" "}
-              <Button
-                variant="link"
-                className="p-0 h-auto font-semibold"
-                onClick={() => navigate("/register")}
-              >
-                Sign up
-              </Button>
-            </p>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground mb-2">
+                <strong>Need access?</strong>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Alumni accounts are created by administrators. Contact your
+                coordinator or admin to get access to the platform.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -138,4 +139,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

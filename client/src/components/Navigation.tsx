@@ -1,16 +1,27 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  Briefcase, 
-  Calendar, 
-  Award, 
-  BarChart3, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Users,
+  Briefcase,
+  Calendar,
+  Award,
+  BarChart3,
   Settings,
   Bell,
-  Search,
-  User
+  User,
+  LogOut,
+  UserCircle,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface NavigationProps {
   activeTab: string;
@@ -18,13 +29,29 @@ interface NavigationProps {
 }
 
 const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
   const navItems = [
     { id: "dashboard", name: "Dashboard", icon: BarChart3, count: null },
-    { id: "alumni", name: "Alumni", icon: Users, count: "2.8K" },
+    {
+      id: "alumni",
+      name:
+        user?.role === "super_admin" || user?.role === "coordinator"
+          ? "Manage Alumni"
+          : "Alumni",
+      icon: Users,
+      count: "2.8K",
+    },
     { id: "jobs", name: "Jobs", icon: Briefcase, count: "47" },
     { id: "events", name: "Events", icon: Calendar, count: "8" },
     { id: "recognition", name: "Recognition", icon: Award, count: null },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <nav className="bg-background border-b border-border shadow-soft">
@@ -37,7 +64,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 AlumniAccel
               </h1>
             </div>
-            
+
             {/* Navigation Links */}
             <div className="hidden md:block ml-10">
               <div className="flex items-baseline space-x-4">
@@ -47,7 +74,10 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => onTabChange(item.id)}
+                      onClick={() => {
+                        onTabChange(item.id);
+                        navigate(`/${item.id}`);
+                      }}
                       className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-smooth ${
                         isActive
                           ? "text-primary bg-primary/10"
@@ -70,18 +100,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
           {/* Right side */}
           <div className="flex items-center space-x-4">
-            {/* Search */}
-            <div className="hidden md:block">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search alumni..."
-                  className="pl-10 pr-4 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            </div>
-
             {/* Notifications */}
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="w-5 h-5" />
@@ -95,10 +113,52 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               <Settings className="w-5 h-5" />
             </Button>
 
-            {/* Profile */}
-            <Button variant="ghost" size="icon">
-              <User className="w-5 h-5" />
-            </Button>
+            {/* Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <User className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {user ? `${user.firstName} ${user.lastName}` : "Guest"}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email || "Not logged in"}
+                    </p>
+                    {user?.role && (
+                      <Badge variant="secondary" className="w-fit text-xs">
+                        {user.role}
+                      </Badge>
+                    )}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {user ? (
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => navigate("/login")}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Log in</span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

@@ -8,6 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import Dashboard from "./components/Dashboard";
 import AlumniDirectory from "./components/AlumniDirectory";
 import JobBoard from "./components/JobBoard";
@@ -28,48 +30,70 @@ const App = () => (
             {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
-            
+
             {/* Protected routes */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/alumni" element={
-              <ProtectedRoute>
-                <Layout>
-                  <AlumniDirectory />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/jobs" element={
-              <ProtectedRoute>
-                <Layout>
-                  <JobBoard />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/events" element={
-              <ProtectedRoute>
-                <Layout>
-                  <EventsMeetups />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/recognition" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Recognition />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/alumni"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/jobs"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/events"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/recognition"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>

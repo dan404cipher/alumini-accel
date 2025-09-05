@@ -68,6 +68,15 @@ const App = () => (
             />
 
             <Route
+              path="/jobs/:id"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/jobs"
               element={
                 <ProtectedRoute>

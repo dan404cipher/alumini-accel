@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -41,9 +42,11 @@ import {
   Tag,
   Mail,
   Edit,
+  Share2,
 } from "lucide-react";
 import { PostJobDialog } from "./dialogs/PostJobDialog";
 import { EditJobDialog } from "./dialogs/EditJobDialog";
+import { ShareJobDialog } from "./dialogs/ShareJobDialog";
 import { jobAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -80,9 +83,12 @@ interface Job {
 
 const JobBoard = () => {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
   const [isEditJobOpen, setIsEditJobOpen] = useState(false);
+  const [isShareJobOpen, setIsShareJobOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [sharingJob, setSharingJob] = useState<Job | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,9 +102,9 @@ const JobBoard = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [isFetching, setIsFetching] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [showSavedJobs, setShowSavedJobs] = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
   const fetchJobsRef = useRef<typeof fetchJobs>();
 
@@ -203,18 +209,19 @@ const JobBoard = () => {
           err instanceof Error ? err.message : "Failed to fetch jobs";
 
         // Handle 429 (Too Many Requests) with exponential backoff
-        if (
-          err instanceof Error &&
-          err.message.includes("429") &&
-          retryCount < 3
-        ) {
-          const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        if (err instanceof Error && err.message.includes("429")) {
+          setIsRateLimited(true);
+          setHasMore(false); // Stop infinite scroll when rate limited
+
+          // Set a cooldown period before allowing new requests
           setTimeout(() => {
-            setRetryCount((prev) => prev + 1);
-            if (fetchJobsRef.current) {
-              fetchJobsRef.current(pageNum, append);
-            }
-          }, delay);
+            setIsRateLimited(false);
+            setRetryCount(0);
+          }, 30000); // 30 second cooldown
+
+          setError(
+            "Too many requests. Please wait a moment before trying again."
+          );
           return;
         }
 
@@ -253,27 +260,20 @@ const JobBoard = () => {
 
   // Load more jobs when scrolling
   const loadMore = useCallback(() => {
-    console.log("loadMore called:", {
-      hasMore,
-      loadingMore,
-      loading,
-      isFetching,
-      page,
-    });
     if (
       hasMore &&
       !loadingMore &&
       !loading &&
       !isFetching &&
+      !isRateLimited &&
       fetchJobsRef.current &&
-      page < 100
+      page < 50 // Reduced from 100 to prevent excessive requests
     ) {
       const nextPage = page + 1;
-      console.log("Loading page:", nextPage);
       setPage(nextPage);
       fetchJobsRef.current(nextPage, true);
     }
-  }, [hasMore, loadingMore, loading, isFetching, page]);
+  }, [hasMore, loadingMore, loading, isFetching, isRateLimited, page]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -283,7 +283,8 @@ const JobBoard = () => {
           entries[0].isIntersecting &&
           hasMore &&
           !loadingMore &&
-          !isFetching
+          !isFetching &&
+          !isRateLimited
         ) {
           loadMore();
         }
@@ -301,7 +302,7 @@ const JobBoard = () => {
         observer.unobserve(currentRef);
       }
     };
-  }, [loadMore, hasMore, loadingMore, isFetching]);
+  }, [loadMore, hasMore, loadingMore, isFetching, isRateLimited]);
 
   // Refresh jobs after creating a new one
   const handleJobCreated = useCallback(() => {
@@ -324,14 +325,13 @@ const JobBoard = () => {
     });
   }, []);
 
-  // Handle view job details
-  const handleViewJob = useCallback((job: Job) => {
-    console.log("Selected job data:", job);
-    console.log("Company Website:", job.companyWebsite);
-    console.log("Application URL:", job.applicationUrl);
-    console.log("Contact Email:", job.contactEmail);
-    setSelectedJob(job);
-  }, []);
+  // Handle view job details - navigate to job detail page
+  const handleViewJob = useCallback(
+    (job: Job) => {
+      navigate(`/jobs/${job._id}`);
+    },
+    [navigate]
+  );
 
   // Handle edit job
   const handleEditJob = useCallback((job: Job) => {
@@ -343,6 +343,12 @@ const JobBoard = () => {
   const handleJobUpdated = useCallback(() => {
     // Refresh the jobs list
     fetchJobsRef.current?.(1, false);
+  }, []);
+
+  // Handle share job
+  const handleShareJob = useCallback((job: Job) => {
+    setSharingJob(job);
+    setIsShareJobOpen(true);
   }, []);
 
   // Get saved jobs from the current jobs list
@@ -669,6 +675,14 @@ const JobBoard = () => {
                                   </Button>
                                 )}
                                 <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleShareJob(job)}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <Share2 className="w-4 h-4" />
+                                </Button>
+                                <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleViewJob(job)}
@@ -726,6 +740,23 @@ const JobBoard = () => {
                 >
                   Go to Login
                 </Button>
+              ) : error.includes("Too many requests") ? (
+                <div className="space-y-2">
+                  <p className="text-muted-foreground text-sm">
+                    Please wait 30 seconds before trying again.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setIsRateLimited(false);
+                      setError(null);
+                      fetchJobsRef.current?.(1, false);
+                    }}
+                    variant="outline"
+                    disabled={isRateLimited}
+                  >
+                    {isRateLimited ? "Please wait..." : "Try Again"}
+                  </Button>
+                </div>
               ) : (
                 <Button
                   onClick={() => fetchJobsRef.current?.(1, false)}
@@ -923,6 +954,14 @@ const JobBoard = () => {
                               </Button>
                             )}
                             <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleShareJob(job)}
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </Button>
+                            <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleViewJob(job)}
@@ -971,7 +1010,17 @@ const JobBoard = () => {
               </span>
             </div>
           )}
-          {!hasMore && jobs.length > 0 && (
+          {isRateLimited && (
+            <div className="text-center py-4">
+              <p className="text-orange-600 mb-2">
+                ⚠️ Too many requests. Please wait before loading more jobs.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                This helps prevent server overload.
+              </p>
+            </div>
+          )}
+          {!hasMore && jobs.length > 0 && !isRateLimited && (
             <p className="text-muted-foreground">No more jobs to load</p>
           )}
         </div>
@@ -984,259 +1033,19 @@ const JobBoard = () => {
         onJobCreated={handleJobCreated}
       />
 
-      {/* Job Details Dialog */}
-      <Dialog open={!!selectedJob} onOpenChange={() => setSelectedJob(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">
-              {selectedJob?.position}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedJob && (
-            <div className="space-y-6">
-              {/* Company Info */}
-              <div className="flex items-start space-x-4">
-                <img
-                  src={getCompanyLogo(selectedJob.company)}
-                  alt={selectedJob.company}
-                  className="w-16 h-16 rounded-lg object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = createFallbackLogo(
-                      selectedJob.company
-                    );
-                  }}
-                />
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold">
-                    {selectedJob.company}
-                  </h3>
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                    <div className="flex items-center">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      {selectedJob.location}
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {formatDate(selectedJob.createdAt)}
-                    </div>
-                    {selectedJob.deadline && (
-                      <div className="flex items-center text-orange-600">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        Deadline:{" "}
-                        {new Date(selectedJob.deadline).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Job Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold mb-2">Job Type</h4>
-                  <Badge variant="outline">{selectedJob.type}</Badge>
-                  {selectedJob.remote && (
-                    <Badge variant="secondary" className="ml-2">
-                      Remote
-                    </Badge>
-                  )}
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Salary</h4>
-                  <div className="flex items-center text-success font-semibold">
-                    <DollarSign className="w-4 h-4 mr-1" />
-                    {formatSalary(selectedJob.salary)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <h4 className="font-semibold mb-2">Description</h4>
-                <p className="text-muted-foreground whitespace-pre-wrap">
-                  {selectedJob.description}
-                </p>
-              </div>
-
-              {/* Requirements */}
-              <div>
-                <h4 className="font-semibold mb-2">Requirements</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedJob.requirements.map((requirement, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {requirement}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* Benefits */}
-              {selectedJob.benefits && selectedJob.benefits.length > 0 && (
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center">
-                    <Gift className="w-4 h-4 mr-2" />
-                    Benefits
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedJob.benefits.map((benefit, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="text-xs bg-green-50 text-green-700 border-green-200"
-                      >
-                        {benefit}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Tags */}
-              {selectedJob.tags && selectedJob.tags.length > 0 && (
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center">
-                    <Tag className="w-4 h-4 mr-2" />
-                    Tags
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedJob.tags.map((tag, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                      >
-                        #{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Company Website */}
-              {selectedJob.companyWebsite && (
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center">
-                    <Globe className="w-4 h-4 mr-2" />
-                    Company Website
-                  </h4>
-                  <a
-                    href={selectedJob.companyWebsite}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    {selectedJob.companyWebsite}
-                  </a>
-                </div>
-              )}
-
-              {/* Application URL */}
-              {selectedJob.applicationUrl && (
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Application URL
-                  </h4>
-                  <a
-                    href={selectedJob.applicationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    {selectedJob.applicationUrl}
-                  </a>
-                </div>
-              )}
-
-              {/* Contact Email */}
-              {selectedJob.contactEmail && (
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center">
-                    <Mail className="w-4 h-4 mr-2" />
-                    Contact Email
-                  </h4>
-                  <a
-                    href={`mailto:${selectedJob.contactEmail}`}
-                    className="text-primary hover:underline"
-                  >
-                    {selectedJob.contactEmail}
-                  </a>
-                </div>
-              )}
-
-              {/* Posted By */}
-              <div className="pt-4 border-t">
-                <p className="text-sm text-muted-foreground">
-                  Posted by{" "}
-                  <span className="text-primary font-medium">
-                    {selectedJob.postedBy.firstName}{" "}
-                    {selectedJob.postedBy.lastName}
-                  </span>
-                </p>
-                <div className="flex items-center text-sm text-muted-foreground mt-1">
-                  <Users className="w-4 h-4 mr-1" />
-                  {selectedJob.applicants || 0} applicants
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => handleSaveJob(selectedJob._id)}
-                  className={
-                    savedJobs.has(selectedJob._id) ? "text-yellow-600" : ""
-                  }
-                >
-                  <Bookmark
-                    className={`w-4 h-4 mr-2 ${
-                      savedJobs.has(selectedJob._id) ? "fill-current" : ""
-                    }`}
-                  />
-                  {savedJobs.has(selectedJob._id) ? "Saved" : "Save Job"}
-                </Button>
-                {canEditJobs && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedJob(null);
-                      handleEditJob(selectedJob);
-                    }}
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Job
-                  </Button>
-                )}
-                <Button
-                  onClick={() => {
-                    if (selectedJob.applicationUrl) {
-                      window.open(selectedJob.applicationUrl, "_blank");
-                    } else {
-                      // Show contact information or open email
-                      const email = "contact@company.com";
-                      window.open(
-                        `mailto:${email}?subject=Application for ${selectedJob.position}`,
-                        "_blank"
-                      );
-                    }
-                  }}
-                  className="flex-1"
-                >
-                  Apply Now
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Edit Job Dialog */}
       <EditJobDialog
         open={isEditJobOpen}
         onOpenChange={setIsEditJobOpen}
         job={editingJob}
         onJobUpdated={handleJobUpdated}
+      />
+
+      {/* Share Job Dialog */}
+      <ShareJobDialog
+        open={isShareJobOpen}
+        onOpenChange={setIsShareJobOpen}
+        job={sharingJob}
       />
     </div>
   );

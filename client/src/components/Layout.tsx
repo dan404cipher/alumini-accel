@@ -7,10 +7,12 @@ import AlumniManagement from "./AlumniManagement";
 import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import Recognition from "./Recognition";
+import JobDetail from "../pages/JobDetail";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Layout = () => {
   const location = useLocation();
+
   const [activeTab, setActiveTab] = useState("dashboard");
   const { user } = useAuth();
 
@@ -18,13 +20,23 @@ const Layout = () => {
   useEffect(() => {
     const path = location.pathname.substring(1); // Remove leading slash
     if (path && path !== "dashboard") {
-      setActiveTab(path);
+      // Handle nested routes like jobs/123 -> jobs
+      const basePath = path.split("/")[0];
+      setActiveTab(basePath);
     } else {
       setActiveTab("dashboard");
     }
   }, [location]);
 
   const renderContent = () => {
+    // Handle job detail pages
+    if (
+      location.pathname.startsWith("/jobs/") &&
+      location.pathname !== "/jobs"
+    ) {
+      return <JobDetail />;
+    }
+
     switch (activeTab) {
       case "dashboard":
         return <Dashboard />;

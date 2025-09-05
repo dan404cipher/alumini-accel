@@ -32,6 +32,7 @@ import WebinarDetails from "./components/Events/Webinardetail";
 import NavbarHome from "./components/Navbar";
 import Footer from "./pages/Footerpage";
 import NotableDetailPage from "./components/Notablealumini/Notabledetail";
+import HelpDesk from "./components/dialogs/HelpdeskAlumini/Helpdeskpage";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const AppContent = () => {
           <Route path="/webinar" element={<Webinar />} />
           <Route path="/webinar/:id" element={<WebinarDetails />} />
           <Route path="/notable" element={<NotableDetailPage />} />
+          <Route path="/helpdesk" element={<HelpDesk/>}/>
 
           {/* Protected Routes */}
           <Route

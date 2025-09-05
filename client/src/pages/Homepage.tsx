@@ -56,6 +56,10 @@ const Home: React.FC = () => {
     navigate("/successstory");
   };
 
+  const MentorshipProgram =() =>{
+    navigate("/helpdesk");
+  }
+
   // Notable alumini images array
   const images = Array(12).fill(notableImg); // Array of 12 identical images
   return (
@@ -103,7 +107,7 @@ const Home: React.FC = () => {
               </div>
 
               <div
-                className="bg-white rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors duration-200"
+                className="bg-white rounded-xl shadow-lg text-center cursor-pointer hover:bg-blue-700 hover:text-white transition-colors duration-200 "
                 onClick={SuccessStory}
               >
                 <img
@@ -112,20 +116,22 @@ const Home: React.FC = () => {
                   className="w-30 h-30 mx-auto mb-4 object-cover rounded-lg"
                 />
                 <h3 className="text-xl font-semibold mb-4">Success Story</h3>
-                <p className="p-4 text-bold">
+                <p className="p-4 text-bold cursor-pointer">
                   Meet Jane Doe, who turned her startup idea into a thriving business and now mentors
                   upcoming graduates to achieve their dreams.
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors duration-200">
+              <div className="bg-white rounded-xl shadow-lg text-center hover:bg-blue-700 hover:text-white transition-colors duration-200"
+              onClick = {MentorshipProgram}
+              >
                 <img
                   src={image4}
                   alt="Mentorship"
                   className="w-30 h-30 mx-auto mb-4 object-cover rounded-lg"
                 />
                 <h3 className="text-xl font-semibold mb-4">Mentorship Program</h3>
-                <p>
+                <p className="cursor-pointer">
                   Our mentorship program connects students and young alumni with experienced
                   professionals to guide them in career and personal developments
                 </p>

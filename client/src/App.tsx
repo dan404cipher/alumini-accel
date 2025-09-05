@@ -33,6 +33,7 @@ import NavbarHome from "./components/Navbar";
 import Footer from "./pages/Footerpage";
 import NotableDetailPage from "./components/Notablealumini/Notabledetail";
 import HelpDesk from "./components/dialogs/HelpdeskAlumini/Helpdeskpage";
+import ContactRegister from"./components/dialogs/HelpdeskAlumini/ContactRegister";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const AppContent = () => {
           <Route path="/webinar/:id" element={<WebinarDetails />} />
           <Route path="/notable" element={<NotableDetailPage />} />
           <Route path="/helpdesk" element={<HelpDesk/>}/>
+          <Route path="/contact" element ={<ContactRegister/>}/>
 
           {/* Protected Routes */}
           <Route

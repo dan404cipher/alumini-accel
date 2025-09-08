@@ -3,7 +3,7 @@ import { logger } from '@/utils/logger';
 
 const connectDB = async (): Promise<void> => {
   try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/alumni_accel';
+    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://vaccel:PlHUbhJ3iUnbMOHU@v-accel-suites.rqyglx.mongodb.net/aluminiaccel?retryWrites=true&w=majority&appName=v-accel-suites';
     
     await mongoose.connect(mongoURI, {
       maxPoolSize: 10,

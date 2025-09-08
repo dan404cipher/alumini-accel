@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -8,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
   MapPin,
@@ -19,19 +21,38 @@ import {
   Share,
   Bookmark,
   ExternalLink,
+  Edit,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
+import { EditEventDialog } from "./dialogs/EditEventDialog";
+import { DeleteEventDialog } from "./dialogs/DeleteEventDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { eventAPI } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const EventsMeetups = () => {
+  const navigate = useNavigate();
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [isEditEventOpen, setIsEditEventOpen] = useState(false);
+  const [isDeleteEventOpen, setIsDeleteEventOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const { user } = useAuth();
 
   // Check if user can create events
   const canCreateEvents =
+    user?.role === "super_admin" || user?.role === "coordinator";
+
+  // Check if user can edit/delete events
+  const canManageEvents =
     user?.role === "super_admin" || user?.role === "coordinator";
 
   // Fetch events from API
@@ -41,118 +62,322 @@ const EventsMeetups = () => {
     error,
   } = useQuery({
     queryKey: ["events", refreshKey],
-    queryFn: () => eventAPI.getAllEvents(),
+    queryFn: () => eventAPI.getAllEvents({ limit: 100 }), // Fetch up to 100 events
   });
-
-  // Hardcoded sample events
-  const hardcodedEvents = [
-    {
-      id: 1,
-      title: "Tech Alumni Meetup 2024",
-      description:
-        "Join our annual tech alumni gathering featuring networking, panel discussions, and startup showcases.",
-      date: "March 15, 2024",
-      time: "6:00 PM - 9:00 PM",
-      location: "San Francisco Convention Center",
-      type: "In-Person",
-      organizer: "Sarah Chen",
-      attendees: 127,
-      maxAttendees: 200,
-      image:
-        "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop",
-      tags: ["Technology", "Networking", "Career"],
-      featured: true,
-      price: "Free",
-    },
-    {
-      id: 2,
-      title: "Alumni Startup Pitch Night",
-      description:
-        "Watch innovative startups founded by our alumni present their ideas to investors and the community.",
-      date: "April 22, 2024",
-      time: "7:00 PM - 10:00 PM",
-      location: "Virtual Event",
-      type: "Virtual",
-      organizer: "Michael Rodriguez",
-      attendees: 89,
-      maxAttendees: 150,
-      image:
-        "https://images.unsplash.com/photo-1511578314322-379afb4d4f5d?w=400&h=200&fit=crop",
-      tags: ["Startup", "Pitch", "Investment"],
-      featured: true,
-      price: "$25",
-    },
-    {
-      id: 3,
-      title: "Career Development Workshop",
-      description:
-        "Learn essential skills for career advancement including resume building, interview techniques, and networking strategies.",
-      date: "May 10, 2024",
-      time: "2:00 PM - 5:00 PM",
-      location: "University Campus",
-      type: "In-Person",
-      organizer: "Dr. Jennifer Liu",
-      attendees: 45,
-      maxAttendees: 60,
-      image:
-        "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=400&h=200&fit=crop",
-      tags: ["Career", "Workshop", "Skills"],
-      featured: false,
-      price: "Free",
-    },
-    {
-      id: 4,
-      title: "Alumni Reunion 2024",
-      description:
-        "Celebrate our annual alumni reunion with food, drinks, music, and reconnecting with old friends.",
-      date: "June 8, 2024",
-      time: "5:00 PM - 11:00 PM",
-      location: "Grand Hotel Ballroom",
-      type: "In-Person",
-      organizer: "Alumni Association",
-      attendees: 234,
-      maxAttendees: 300,
-      image:
-        "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=400&h=200&fit=crop",
-      tags: ["Reunion", "Social", "Celebration"],
-      featured: false,
-      price: "$50",
-    },
-  ];
 
   // Map API events to component format
   const apiEvents = eventsResponse?.data?.events || [];
-  const mappedEvents = apiEvents.map((event: any) => ({
-    id: event._id,
-    title: event.title,
-    description: event.description,
-    date: new Date(event.startDate).toLocaleDateString(),
-    time: new Date(event.startDate).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    location: event.location,
-    type: event.type,
-    organizer: event.organizer?.firstName
-      ? `${event.organizer.firstName} ${event.organizer.lastName}`
-      : "Unknown",
-    attendees: event.currentAttendees || 0,
-    maxAttendees: event.maxAttendees || 0,
-    image:
-      event.image ||
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop",
-    tags: event.tags || [],
-    featured: false,
-    price: event.price ? `$${event.price}` : "Free",
-  }));
+  const mappedEvents = apiEvents.map((event: any) => {
+    console.log("Event from API:", {
+      id: event._id,
+      title: event.title,
+      image: event.image,
+    });
+    return {
+      id: event._id,
+      title: event.title,
+      description: event.description,
+      date: new Date(event.startDate).toLocaleDateString(),
+      startDate: event.startDate, // Keep original startDate for filtering
+      time: new Date(event.startDate).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      location: event.location,
+      type: event.type,
+      organizer: event.organizer?.firstName
+        ? `${event.organizer.firstName} ${event.organizer.lastName}`
+        : "Unknown",
+      attendees: event.currentAttendees || 0,
+      maxAttendees: event.maxAttendees || 0,
+      image: event.image,
+      tags: event.tags || [],
+      featured: false,
+      price: event.price ? `$${event.price}` : "Free",
+    };
+  });
 
-  const events = error
-    ? hardcodedEvents
-    : [...mappedEvents, ...hardcodedEvents];
+  // Filter events by time periods
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const upcomingEvents = mappedEvents.filter((event) => {
+    const eventDate = new Date(event.startDate);
+    return eventDate >= tomorrow;
+  });
+
+  const todayEvents = mappedEvents.filter((event) => {
+    const eventDate = new Date(event.startDate);
+    return eventDate >= today && eventDate < tomorrow;
+  });
+
+  const pastEvents = mappedEvents.filter((event) => {
+    const eventDate = new Date(event.startDate);
+    return eventDate < today;
+  });
+
+  // Debug: Log the number of events in each category
+  console.log(`Total events: ${mappedEvents.length}`);
+  console.log(`Upcoming events: ${upcomingEvents.length}`);
+  console.log(`Today events: ${todayEvents.length}`);
+  console.log(`Past events: ${pastEvents.length}`);
+
+  const events = mappedEvents;
 
   // Function to refresh events
   const handleEventCreated = () => {
     setRefreshKey((prev) => prev + 1);
+  };
+
+  // Helper function to check if event is in the past
+  const isEventPast = (eventDate: string) => {
+    const eventDateObj = new Date(eventDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return eventDateObj < today;
+  };
+
+  // Helper function to check if event is today
+  const isEventToday = (eventDate: string) => {
+    const eventDateObj = new Date(eventDate);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return eventDateObj >= today && eventDateObj < tomorrow;
+  };
+
+  // Helper function to get image URL
+  const getImageUrl = (image: string | undefined) => {
+    if (!image) return null;
+
+    // If it's a full URL, return as is
+    if (image.startsWith("http://") || image.startsWith("https://")) {
+      return image;
+    }
+
+    // If it's a relative path (uploaded image), construct full URL
+    if (image.startsWith("/") || image.startsWith("uploads/")) {
+      // Remove /api/v1 from the base URL for static file serving
+      const baseUrl = (
+        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+      ).replace("/api/v1", "");
+      const fullUrl = `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
+      console.log("Image URL constructed:", {
+        original: image,
+        baseUrl,
+        fullUrl,
+      });
+      return fullUrl;
+    }
+
+    return image;
+  };
+
+  // Helper function to render event grid
+  const renderEventGrid = (eventsList: any[], emptyMessage: string) => {
+    if (eventsList.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">{emptyMessage}</h3>
+          <p className="text-muted-foreground">
+            {emptyMessage === "No Events Found"
+              ? "There are no events scheduled at the moment."
+              : `No ${emptyMessage.toLowerCase()} at the moment.`}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {eventsList.map((event) => (
+          <Card
+            key={event.id}
+            className="group hover:shadow-medium transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0 h-full flex flex-col"
+          >
+            <div className="relative">
+              {getImageUrl(event.image) ? (
+                <img
+                  src={getImageUrl(event.image)!}
+                  alt={event.title}
+                  className={`w-full h-48 object-cover rounded-t-lg ${
+                    isEventPast(event.date) ? "opacity-75" : ""
+                  }`}
+                  onLoad={() =>
+                    console.log(
+                      "Image loaded successfully:",
+                      getImageUrl(event.image)
+                    )
+                  }
+                  onError={(e) => {
+                    console.log(
+                      "Image failed to load:",
+                      getImageUrl(event.image)
+                    );
+                    // Hide image if it fails to load
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div
+                  className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+                    isEventPast(event.date) ? "opacity-75" : ""
+                  }`}
+                >
+                  <div className="text-center">
+                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500 font-medium">
+                      No Image
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="absolute top-4 right-4 flex flex-col gap-2">
+                <Badge
+                  variant={getEventTypeBadge(event.type)}
+                  className="flex items-center"
+                >
+                  {getEventTypeIcon(event.type)}
+                  <span className="ml-1">{event.type}</span>
+                </Badge>
+                {isEventPast(event.date) && (
+                  <Badge variant="secondary" className="bg-gray-500 text-white">
+                    Past Event
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <CardContent className="p-6 flex-1 flex flex-col">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold mb-2 line-clamp-2">
+                  {event.title}
+                </h3>
+                <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+                  {event.description}
+                </p>
+
+                <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                  <div className="flex items-center">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    <span>{event.date}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-2" />
+                    <span>{event.time}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    <span className="truncate">{event.location}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Users className="w-4 h-4 mr-2" />
+                    <span>{event.attendees} attending</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {event.tags.slice(0, 3).map((tag, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-lg font-bold text-success">
+                    {event.price}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {event.attendees}/{event.maxAttendees} spots
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewEvent(event)}
+                    className="flex-1"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    View Details
+                  </Button>
+                  {isEventPast(event.date) ? (
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      disabled
+                      variant="outline"
+                    >
+                      Event Ended
+                    </Button>
+                  ) : (
+                    <Button size="sm" className="flex-1">
+                      Register
+                    </Button>
+                  )}
+                  {canManageEvents && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleEditEvent(event)}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Event
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteEvent(event)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Event
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
+  const handleEventUpdated = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  const handleEventDeleted = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  // Handle edit event
+  const handleEditEvent = (event: any) => {
+    setSelectedEvent(event);
+    setIsEditEventOpen(true);
+  };
+
+  // Handle delete event
+  const handleDeleteEvent = (event: any) => {
+    setSelectedEvent(event);
+    setIsDeleteEventOpen(true);
+  };
+
+  // Handle view event details
+  const handleViewEvent = (event: any) => {
+    navigate(`/events/${event.id}`);
   };
 
   const getEventTypeIcon = (type: string) => {
@@ -210,211 +435,74 @@ const EventsMeetups = () => {
       {error && (
         <div className="text-center py-8">
           <div className="text-destructive">
-            Failed to load events. Showing sample events.
+            Failed to load events. Please try again later.
           </div>
         </div>
       )}
 
-      {/* Featured Events */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Featured Events</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {events
-            .filter((event) => event.featured)
-            .map((event) => (
-              <Card
-                key={event.id}
-                className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0 overflow-hidden"
-              >
-                <div className="relative">
-                  <img
-                    src={event.image}
-                    alt={event.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="absolute top-4 left-4">
-                    <Badge variant="success" className="flex items-center">
-                      <Star className="w-3 h-3 mr-1" />
-                      Featured
-                    </Badge>
-                  </div>
-                  <div className="absolute top-4 right-4">
-                    <Badge
-                      variant={getEventTypeBadge(event.type)}
-                      className="flex items-center"
-                    >
-                      {getEventTypeIcon(event.type)}
-                      <span className="ml-1">{event.type}</span>
-                    </Badge>
-                  </div>
-                </div>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-2">
-                        {event.title}
-                      </h3>
-                      <p className="text-muted-foreground text-sm line-clamp-2">
-                        {event.description}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center text-muted-foreground">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        {event.date}
-                      </div>
-                      <div className="flex items-center text-muted-foreground">
-                        <Clock className="w-4 h-4 mr-2" />
-                        {event.time}
-                      </div>
-                      <div className="flex items-center text-muted-foreground">
-                        <MapPin className="w-4 h-4 mr-2" />
-                        {event.location}
-                      </div>
-                      <div className="flex items-center text-muted-foreground">
-                        <Users className="w-4 h-4 mr-2" />
-                        {event.attendees}/{event.maxAttendees}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      {event.tags.map((tag, index) => (
-                        <Badge
-                          key={index}
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-border">
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">
-                          Organized by{" "}
-                        </span>
-                        <span className="text-primary font-medium">
-                          {event.organizer}
-                        </span>
-                      </div>
-                      <div className="text-lg font-bold text-success">
-                        {event.price}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button className="flex-1">Register Now</Button>
-                      <Button variant="ghost" size="icon">
-                        <Bookmark className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Share className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+      {/* Events Tabs */}
+      {events.length === 0 && !isLoading && !error ? (
+        <div className="text-center py-12">
+          <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No Events Found</h3>
+          <p className="text-muted-foreground mb-4">
+            There are no events scheduled at the moment.
+          </p>
+          {canCreateEvents && (
+            <Button onClick={() => setIsCreateEventOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create First Event
+            </Button>
+          )}
         </div>
-      </div>
+      ) : (
+        <Tabs defaultValue="upcoming" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="upcoming" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Upcoming ({upcomingEvents.length})
+            </TabsTrigger>
+            <TabsTrigger value="today" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Today ({todayEvents.length})
+            </TabsTrigger>
+            <TabsTrigger value="past" className="flex items-center gap-2">
+              <Star className="w-4 h-4" />
+              Past ({pastEvents.length})
+            </TabsTrigger>
+          </TabsList>
 
-      {/* All Events */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">All Upcoming Events</h2>
-        <div className="space-y-4">
-          {events
-            .filter((event) => !event.featured)
-            .map((event) => (
-              <Card
-                key={event.id}
-                className="group hover:shadow-medium transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-4">
-                    <img
-                      src={event.image}
-                      alt={event.title}
-                      className="w-24 h-16 rounded-lg object-cover"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold mb-1">
-                            {event.title}
-                          </h3>
-                          <p className="text-muted-foreground text-sm mb-2 line-clamp-1">
-                            {event.description}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={getEventTypeBadge(event.type)}
-                          className="flex items-center ml-4"
-                        >
-                          {getEventTypeIcon(event.type)}
-                          <span className="ml-1">{event.type}</span>
-                        </Badge>
-                      </div>
+          <TabsContent value="upcoming" className="mt-6">
+            {renderEventGrid(upcomingEvents, "No Upcoming Events")}
+          </TabsContent>
 
-                      <div className="flex items-center space-x-6 text-sm text-muted-foreground mb-3">
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          {event.date}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="w-4 h-4 mr-1" />
-                          {event.time}
-                        </div>
-                        <div className="flex items-center">
-                          <Users className="w-4 h-4 mr-1" />
-                          {event.attendees} attending
-                        </div>
-                      </div>
+          <TabsContent value="today" className="mt-6">
+            {renderEventGrid(todayEvents, "No Events Today")}
+          </TabsContent>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-wrap gap-1">
-                          {event.tags.slice(0, 2).map((tag, index) => (
-                            <Badge
-                              key={index}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-bold text-success">
-                            {event.price}
-                          </span>
-                          <Button variant="outline" size="sm">
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                          <Button size="sm">Register</Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-        </div>
-      </div>
-
-      {/* Load More */}
-      <div className="text-center">
-        <Button variant="outline" size="lg">
-          Load More Events
-        </Button>
-      </div>
+          <TabsContent value="past" className="mt-6">
+            {renderEventGrid(pastEvents, "No Past Events")}
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* Dialogs */}
       <CreateEventDialog
         open={isCreateEventOpen}
         onOpenChange={setIsCreateEventOpen}
         onEventCreated={handleEventCreated}
+      />
+      <EditEventDialog
+        open={isEditEventOpen}
+        onOpenChange={setIsEditEventOpen}
+        event={selectedEvent}
+        onEventUpdated={handleEventUpdated}
+      />
+      <DeleteEventDialog
+        open={isDeleteEventOpen}
+        onOpenChange={setIsDeleteEventOpen}
+        event={selectedEvent}
+        onEventDeleted={handleEventDeleted}
       />
     </div>
   );

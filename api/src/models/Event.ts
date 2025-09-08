@@ -138,6 +138,10 @@ const eventSchema = new Schema<IEvent>(
         },
       },
     ],
+    image: {
+      type: String,
+      trim: true,
+    },
     photos: [
       {
         type: String,

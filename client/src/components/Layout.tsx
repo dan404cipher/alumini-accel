@@ -8,6 +8,7 @@ import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import Recognition from "./Recognition";
 import JobDetail from "../pages/JobDetail";
+import EventDetail from "../pages/EventDetail";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Layout = () => {
@@ -35,6 +36,14 @@ const Layout = () => {
       location.pathname !== "/jobs"
     ) {
       return <JobDetail />;
+    }
+
+    // Handle event detail pages
+    if (
+      location.pathname.startsWith("/events/") &&
+      location.pathname !== "/events"
+    ) {
+      return <EventDetail />;
     }
 
     switch (activeTab) {

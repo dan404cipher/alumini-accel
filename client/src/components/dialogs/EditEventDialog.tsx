@@ -22,17 +22,40 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar, MapPin, Clock } from "lucide-react";
 import { eventAPI } from "@/lib/api";
 
-interface CreateEventDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onEventCreated?: () => void;
+interface Event {
+  _id: string;
+  title: string;
+  description: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  isOnline: boolean;
+  maxAttendees: number;
+  currentAttendees: number;
+  price: number;
+  tags: string[];
+  image?: string;
+  organizer: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
 }
 
-export const CreateEventDialog = ({
+interface EditEventDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  event: Event | null;
+  onEventUpdated?: () => void;
+}
+
+export const EditEventDialog = ({
   open,
   onOpenChange,
-  onEventCreated,
-}: CreateEventDialogProps) => {
+  event,
+  onEventUpdated,
+}: EditEventDialogProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
@@ -49,37 +72,32 @@ export const CreateEventDialog = ({
     price: "",
     priceType: "free", // "free" or "paid"
     tags: "",
-    registrationDeadline: "",
-    imageFile: null as File | null,
+    image: "",
   });
 
-  // Reset form when dialog opens/closes
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      startDate: "",
-      startTime: "",
-      endDate: "",
-      endTime: "",
-      location: "",
-      type: "",
-      maxAttendees: "",
-      price: "",
-      priceType: "free",
-      tags: "",
-      registrationDeadline: "",
-      imageFile: null,
-    });
-    setFieldErrors({});
-  };
-
-  // Reset form when dialog opens
+  // Populate form data when event changes
   useEffect(() => {
-    if (open) {
-      resetForm();
+    if (event) {
+      const startDate = new Date(event.startDate);
+      const endDate = new Date(event.endDate);
+
+      setFormData({
+        title: event.title || "",
+        description: event.description || "",
+        startDate: startDate.toISOString().split("T")[0],
+        startTime: startDate.toTimeString().slice(0, 5),
+        endDate: endDate.toISOString().split("T")[0],
+        endTime: endDate.toTimeString().slice(0, 5),
+        location: event.location || "",
+        type: event.type || "",
+        maxAttendees: event.maxAttendees?.toString() || "",
+        price: event.price?.toString() || "",
+        priceType: event.price > 0 ? "paid" : "free",
+        tags: event.tags?.join(", ") || "",
+        image: event.image || "",
+      });
     }
-  }, [open]);
+  }, [event]);
 
   const validateForm = () => {
     const errors: string[] = [];
@@ -89,6 +107,7 @@ export const CreateEventDialog = ({
     const trimmedDescription = formData.description.trim();
     const trimmedLocation = formData.location.trim();
     const trimmedTags = formData.tags.trim();
+    const trimmedImage = formData.image.trim();
 
     // Required field validation
     if (!trimmedTitle) errors.push("Event title is required");
@@ -170,18 +189,9 @@ export const CreateEventDialog = ({
       }
     }
 
-    // Registration deadline validation
-    if (formData.registrationDeadline) {
-      const deadlineDate = new Date(formData.registrationDeadline);
-      const startDateTime = new Date(
-        `${formData.startDate}T${formData.startTime}`
-      );
-
-      if (deadlineDate >= startDateTime) {
-        errors.push(
-          "Registration deadline must be before the event start time"
-        );
-      }
+    // URL validation for image
+    if (trimmedImage && !isValidUrl(trimmedImage)) {
+      errors.push("Event image must be a valid URL");
     }
 
     // Tags validation
@@ -196,6 +206,15 @@ export const CreateEventDialog = ({
     }
 
     return errors;
+  };
+
+  const isValidUrl = (string: string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
   };
 
   const validateField = (fieldName: string, value: string) => {
@@ -232,6 +251,13 @@ export const CreateEventDialog = ({
           errors.push(
             `Location must be between 2 and 200 characters (current: ${trimmedLoc.length})`
           );
+        }
+        break;
+
+      case "image":
+        const trimmedImg = value.trim();
+        if (trimmedImg && !isValidUrl(trimmedImg)) {
+          errors.push("Image must be a valid URL");
         }
         break;
 
@@ -286,38 +312,10 @@ export const CreateEventDialog = ({
     }
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid File Type",
-          description: "Please select an image file (PNG, JPG, GIF, etc.)",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File Too Large",
-          description: "Please select an image smaller than 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setFormData({
-        ...formData,
-        imageFile: file,
-      });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!event) return;
 
     // Validate form using comprehensive validation
     const validationErrors = validateForm();
@@ -400,6 +398,7 @@ export const CreateEventDialog = ({
       const trimmedTitle = formData.title.trim();
       const trimmedDescription = formData.description.trim();
       const trimmedLocation = formData.location.trim();
+      const trimmedImage = formData.image.trim();
       const trimmedTags = formData.tags.trim();
 
       const eventData: any = {
@@ -409,18 +408,10 @@ export const CreateEventDialog = ({
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         location: trimmedLocation,
-        isOnline: formData.type === "webinar" ? true : false, // Only webinar is online
+        isOnline: formData.type === "webinar" ? true : false,
         // Only add meetingLink for webinars and if it's a valid URL
         ...(formData.type === "webinar" && trimmedLocation.startsWith("http")
           ? { meetingLink: trimmedLocation }
-          : {}),
-        // Add registration deadline if provided
-        ...(formData.registrationDeadline
-          ? {
-              registrationDeadline: new Date(
-                formData.registrationDeadline
-              ).toISOString(),
-            }
           : {}),
       };
 
@@ -439,47 +430,29 @@ export const CreateEventDialog = ({
           .map((tag) => tag.trim())
           .filter((tag) => tag.length > 0);
       }
-
-      console.log("Event data being sent:", eventData);
-      console.log("Image file:", formData.imageFile);
-      console.log("Has image file:", !!formData.imageFile);
-
-      // Handle image file upload
-      let response;
-      if (formData.imageFile) {
-        const formDataToSend = new FormData();
-
-        // Add all event data as JSON
-        formDataToSend.append("eventData", JSON.stringify(eventData));
-
-        // Add the image file
-        formDataToSend.append("image", formData.imageFile);
-
-        response = await eventAPI.createEventWithImage(formDataToSend);
-      } else {
-        response = await eventAPI.createEvent(eventData);
+      if (trimmedImage) {
+        eventData.image = trimmedImage;
       }
 
+      console.log("Event data being sent:", eventData);
+      const response = await eventAPI.updateEvent(event._id, eventData);
       console.log("API response:", response);
-      console.log("Validation errors:", response.errors);
 
       if (response.success) {
         toast({
-          title: "Event Created Successfully",
-          description: `${formData.title} has been scheduled and invitations will be sent out.`,
+          title: "Event Updated Successfully",
+          description: `${formData.title} has been updated successfully.`,
         });
 
-        // Reset form
-        resetForm();
         onOpenChange(false);
 
         // Notify parent component to refresh events
-        if (onEventCreated) {
-          onEventCreated();
+        if (onEventUpdated) {
+          onEventUpdated();
         }
       } else {
         // Handle API error response
-        let errorMessage = response.message || "Failed to create event";
+        let errorMessage = response.message || "Failed to update event";
         if (response.errors) {
           if (Array.isArray(response.errors)) {
             errorMessage = response.errors.join(", ");
@@ -493,10 +466,10 @@ export const CreateEventDialog = ({
           description: errorMessage,
           variant: "destructive",
         });
-        return; // Don't throw error, just show toast
+        return;
       }
     } catch (error: any) {
-      console.error("Unexpected error creating event:", error);
+      console.error("Unexpected error updating event:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -507,17 +480,19 @@ export const CreateEventDialog = ({
     }
   };
 
+  if (!event) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Calendar className="w-5 h-5 mr-2" />
-            Create Event
+            Edit Event
           </DialogTitle>
           <DialogDescription>
-            Create a new event for the alumni community. All registered alumni
-            will be notified.
+            Update the event details. All registered alumni will be notified of
+            changes.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -570,10 +545,9 @@ export const CreateEventDialog = ({
                 id="startDate"
                 type="date"
                 value={formData.startDate}
-                min={new Date().toISOString().split("T")[0]} // Set minimum date to today
+                min={new Date().toISOString().split("T")[0]}
                 onChange={(e) => {
                   setFormData({ ...formData, startDate: e.target.value });
-                  // Clear start date error when user selects a date
                   if (fieldErrors.startDate) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -597,7 +571,6 @@ export const CreateEventDialog = ({
                 value={formData.startTime}
                 onChange={(e) => {
                   setFormData({ ...formData, startTime: e.target.value });
-                  // Clear start time error when user selects a time
                   if (fieldErrors.startTime) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -623,10 +596,9 @@ export const CreateEventDialog = ({
                 value={formData.endDate}
                 min={
                   formData.startDate || new Date().toISOString().split("T")[0]
-                } // Set minimum date to start date or today
+                }
                 onChange={(e) => {
                   setFormData({ ...formData, endDate: e.target.value });
-                  // Clear end date error when user selects a date
                   if (fieldErrors.endDate) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -650,7 +622,6 @@ export const CreateEventDialog = ({
                 value={formData.endTime}
                 onChange={(e) => {
                   setFormData({ ...formData, endTime: e.target.value });
-                  // Clear end time error when user selects a time
                   if (fieldErrors.endTime) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -693,7 +664,6 @@ export const CreateEventDialog = ({
                 value={formData.type}
                 onValueChange={(value) => {
                   setFormData({ ...formData, type: value });
-                  // Clear type error when user selects a type
                   if (fieldErrors.type) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -742,44 +712,6 @@ export const CreateEventDialog = ({
                 </p>
               )}
             </div>
-
-            {/* Registration Deadline */}
-            <div className="space-y-2">
-              <Label htmlFor="registrationDeadline">
-                Registration Deadline
-              </Label>
-              <Input
-                id="registrationDeadline"
-                type="datetime-local"
-                value={formData.registrationDeadline}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    registrationDeadline: e.target.value,
-                  });
-                  // Clear registration deadline error when user selects a date
-                  if (fieldErrors.registrationDeadline) {
-                    setFieldErrors({
-                      ...fieldErrors,
-                      registrationDeadline: "",
-                    });
-                  }
-                }}
-                min={new Date().toISOString().slice(0, 16)} // Set minimum to current date/time
-                className={
-                  fieldErrors.registrationDeadline ? "border-red-500" : ""
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Optional: Set a deadline for event registration
-              </p>
-              {fieldErrors.registrationDeadline && (
-                <p className="text-xs text-red-500">
-                  {fieldErrors.registrationDeadline}
-                </p>
-              )}
-            </div>
-
             <div className="space-y-2">
               <Label>Event Pricing *</Label>
               <div className="space-y-3">
@@ -797,7 +729,6 @@ export const CreateEventDialog = ({
                           priceType: e.target.value,
                           price: "",
                         });
-                        // Clear price and priceType errors when switching
                         if (fieldErrors.price) {
                           setFieldErrors((prev) => {
                             const newErrors = { ...prev };
@@ -827,7 +758,6 @@ export const CreateEventDialog = ({
                       checked={formData.priceType === "paid"}
                       onChange={(e) => {
                         setFormData({ ...formData, priceType: e.target.value });
-                        // Clear priceType error when user selects a type
                         if (fieldErrors.priceType) {
                           setFieldErrors((prev) => {
                             const newErrors = { ...prev };
@@ -880,39 +810,20 @@ export const CreateEventDialog = ({
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Event Image</Label>
-
-            {/* Image Upload Options */}
-            <div className="space-y-3">
-              {/* File Upload */}
-              <div className="space-y-2">
-                <Label htmlFor="imageFile" className="text-sm font-medium">
-                  Upload Image File
-                </Label>
-                <Input
-                  id="imageFile"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="cursor-pointer"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Upload PNG, JPG, or GIF (max 5MB)
-                </p>
-              </div>
-
-              {/* Image Preview */}
-              {formData.imageFile && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Preview</Label>
-                  <div className="relative w-full h-32 border rounded-lg overflow-hidden">
-                    <img
-                      src={URL.createObjectURL(formData.imageFile)}
-                      alt="Event preview"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
+            <Label htmlFor="image">Event Image URL</Label>
+            <Input
+              id="image"
+              value={formData.image}
+              onChange={(e) => handleFieldChange("image", e.target.value)}
+              placeholder="https://example.com/event-image.jpg"
+              className={fieldErrors.image ? "border-red-500" : ""}
+            />
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-muted-foreground">
+                Optional: Add an image URL to make your event more attractive
+              </p>
+              {fieldErrors.image && (
+                <p className="text-xs text-red-500">{fieldErrors.image}</p>
               )}
             </div>
           </div>
@@ -938,7 +849,7 @@ export const CreateEventDialog = ({
               Cancel
             </Button>
             <Button type="submit" variant="gradient" disabled={isLoading}>
-              {isLoading ? "Creating Event..." : "Create Event"}
+              {isLoading ? "Updating Event..." : "Update Event"}
             </Button>
           </DialogFooter>
         </form>

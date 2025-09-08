@@ -153,7 +153,7 @@ const userSchema = new Schema<IUser>(
 );
 
 // Indexes for better query performance
-userSchema.index({ email: 1 });
+// Note: email index is automatically created by unique: true
 userSchema.index({ role: 1, status: 1 });
 userSchema.index({ createdAt: -1 });
 userSchema.index({ "preferences.emailNotifications": 1 });

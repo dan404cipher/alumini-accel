@@ -7,9 +7,12 @@ import { EventType } from "@/types";
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {
   try {
+    console.log("getAllEvents called");
+    console.log("Query parameters:", req.query);
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+    console.log(`Pagination: page=${page}, limit=${limit}, skip=${skip}`);
 
     const filter: any = {};
 
@@ -23,11 +26,17 @@ export const getAllEvents = async (req: Request, res: Response) => {
       filter.startDate = { $gte: new Date() };
     }
 
+    console.log("Filter:", filter);
     const events = await Event.find(filter)
       .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
+
+    console.log(`Found ${events.length} events in database`);
+    events.forEach((event) => {
+      console.log(`- ${event.title}: ${event.image || "NO IMAGE"}`);
+    });
 
     const total = await Event.countDocuments(filter);
 
@@ -57,7 +66,7 @@ export const getEventById = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id)
       .populate("organizer", "firstName lastName email profilePicture")
-      .populate("attendees.user", "firstName lastName email profilePicture");
+      .populate("attendees.userId", "firstName lastName email profilePicture");
 
     if (!event) {
       return res.status(404).json({
@@ -75,6 +84,124 @@ export const getEventById = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch event",
+    });
+  }
+};
+
+// Create event with image upload
+export const createEventWithImage = async (req: Request, res: Response) => {
+  try {
+    console.log("=== createEventWithImage called ===");
+    console.log("Request body keys:", Object.keys(req.body));
+    console.log("Request file:", req.file);
+    console.log("Request files:", req.files);
+    console.log("Content-Type header:", req.get("Content-Type"));
+    console.log("Request body:", req.body);
+
+    const { eventData } = req.body;
+    console.log("Raw eventData:", eventData);
+    const eventInfo = JSON.parse(eventData);
+    console.log("Parsed eventInfo:", eventInfo);
+    const imageFile = req.file;
+
+    const {
+      title,
+      description,
+      type,
+      startDate,
+      endDate,
+      location,
+      isOnline,
+      onlineUrl,
+      meetingLink,
+      maxAttendees,
+      registrationDeadline,
+      speakers,
+      agenda,
+      tags,
+      price,
+      organizerNotes,
+    } = eventInfo;
+
+    // Handle image upload
+    let imageUrl = "";
+    if (imageFile) {
+      // In a real application, you would upload to cloud storage (AWS S3, Cloudinary, etc.)
+      // For now, we'll just use the original filename
+      imageUrl = `/uploads/events/${imageFile.filename}`;
+      console.log("Image file found, setting imageUrl to:", imageUrl);
+    } else {
+      console.log("No image file found");
+    }
+
+    const event = new Event({
+      title,
+      description,
+      type,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      location,
+      isOnline: isOnline || false,
+      meetingLink: meetingLink || onlineUrl,
+      maxAttendees: maxAttendees || 0,
+      registrationDeadline: registrationDeadline
+        ? new Date(registrationDeadline)
+        : undefined,
+      organizer: req.user.id,
+      speakers: speakers || [],
+      agenda: agenda || [],
+      tags: tags || [],
+      image: imageUrl,
+      price: price || 0,
+      organizerNotes,
+    });
+
+    console.log("About to save event to database:", {
+      title: event.title,
+      image: event.image,
+      imageUrl: imageUrl,
+      hasImageFile: !!imageFile,
+    });
+
+    try {
+      await event.save();
+      console.log("Event with image saved to database:", {
+        id: event._id,
+        title: event.title,
+        type: event.type,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        location: event.location,
+        isOnline: event.isOnline,
+        meetingLink: event.meetingLink,
+        maxAttendees: event.maxAttendees,
+        tags: event.tags,
+        image: event.image,
+        imageUrl: imageUrl,
+        price: event.price,
+        organizer: event.organizer,
+      });
+
+      // Verify the image field was saved
+      const savedEvent = await Event.findById(event._id);
+      console.log("Verification - saved event image field:", savedEvent?.image);
+    } catch (saveError) {
+      console.error("Error saving event to database:", saveError);
+      throw saveError;
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Event created successfully",
+      data: { event },
+    });
+  } catch (error) {
+    console.error("Create event with image error:", error);
+    logger.error("Create event with image error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create event",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
@@ -309,7 +436,7 @@ export const registerForEvent = async (req: Request, res: Response) => {
 
     // Check if user is already registered
     const existingRegistration = event.attendees.find(
-      (attendee) => attendee.user.toString() === req.user.id
+      (attendee) => attendee.userId.toString() === req.user.id
     );
 
     if (existingRegistration) {
@@ -321,7 +448,6 @@ export const registerForEvent = async (req: Request, res: Response) => {
 
     event.attendees.push({
       userId: req.user.id,
-      user: req.user.id,
       registeredAt: new Date(),
       status: "registered",
     });
@@ -355,7 +481,7 @@ export const unregisterFromEvent = async (req: Request, res: Response) => {
 
     // Find and remove user from attendees
     const attendeeIndex = event.attendees.findIndex(
-      (attendee) => attendee.user.toString() === req.user.id
+      (attendee) => attendee.userId.toString() === req.user.id
     );
 
     if (attendeeIndex === -1) {
@@ -397,7 +523,7 @@ export const submitFeedback = async (req: Request, res: Response) => {
 
     // Check if user attended the event
     const attended = event.attendees.find(
-      (attendee) => attendee.user.toString() === req.user.id
+      (attendee) => attendee.userId.toString() === req.user.id
     );
 
     if (!attended) {
@@ -417,7 +543,7 @@ export const submitFeedback = async (req: Request, res: Response) => {
 
     // Check if user already submitted feedback
     const existingFeedback = event.feedback.find(
-      (feedback) => feedback.user.toString() === req.user.id
+      (feedback) => feedback.userId.toString() === req.user.id
     );
 
     if (existingFeedback) {
@@ -429,7 +555,6 @@ export const submitFeedback = async (req: Request, res: Response) => {
 
     event.feedback.push({
       userId: req.user.id,
-      user: req.user.id,
       rating,
       comment,
       date: new Date(),
@@ -583,7 +708,7 @@ export const getMyAttendingEvents = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const events = await Event.find({
-      "attendees.user": req.user.id,
+      "attendees.userId": req.user.id,
     })
       .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
@@ -591,7 +716,7 @@ export const getMyAttendingEvents = async (req: Request, res: Response) => {
       .limit(limit);
 
     const total = await Event.countDocuments({
-      "attendees.user": req.user.id,
+      "attendees.userId": req.user.id,
     });
 
     return res.json({
@@ -673,6 +798,7 @@ export default {
   getAllEvents,
   getEventById,
   createEvent,
+  createEventWithImage,
   updateEvent,
   deleteEvent,
   registerForEvent,

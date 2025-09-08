@@ -254,7 +254,7 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
 );
 
 // Indexes for better query performance
-alumniProfileSchema.index({ userId: 1 });
+// Note: userId index is automatically created by unique: true
 alumniProfileSchema.index({ batchYear: 1 });
 alumniProfileSchema.index({ graduationYear: 1 });
 alumniProfileSchema.index({ department: 1 });

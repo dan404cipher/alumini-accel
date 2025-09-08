@@ -17,6 +17,8 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config: AxiosRequestConfig) => {
     const token = localStorage.getItem("token");
+    console.log("API Request - Token:", token ? "Present" : "Missing");
+    console.log("API Request - URL:", config.url);
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -547,6 +549,18 @@ export const eventAPI = {
       method: "POST",
       url: "/events",
       data: eventData,
+    });
+  },
+
+  // Create event with image upload
+  createEventWithImage: async (formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: "/events/with-image",
+      data: formData,
+      headers: {
+        "Content-Type": undefined, // Remove Content-Type to let browser set multipart/form-data
+      },
     });
   },
 

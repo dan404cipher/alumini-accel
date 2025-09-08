@@ -107,6 +107,15 @@ const App = () => {
                 />
 
                 <Route
+                  path="/events/:id"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/recognition"
                   element={
                     <ProtectedRoute>

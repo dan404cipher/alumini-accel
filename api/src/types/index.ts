@@ -231,14 +231,12 @@ export interface IEvent extends Document {
   registrationDeadline?: Date;
   attendees: Array<{
     userId: string;
-    user: string;
     registeredAt: Date;
     status: "registered" | "attended" | "cancelled";
   }>;
   photos: string[];
   feedback: Array<{
     userId: string;
-    user: string;
     rating: number;
     comment?: string;
     date: Date;

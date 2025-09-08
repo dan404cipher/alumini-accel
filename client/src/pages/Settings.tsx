@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   Card,
   CardContent,
@@ -33,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [settings, setSettings] = useState({
     // Notification settings
@@ -54,7 +56,6 @@ const Settings = () => {
     loginAlerts: true,
 
     // Preferences
-    theme: "system", // light, dark, system
     language: "en",
     timezone: "America/Los_Angeles",
   });
@@ -358,8 +359,10 @@ const Settings = () => {
               <div className="space-y-2">
                 <Label>Theme</Label>
                 <Select
-                  value={settings.theme}
-                  onValueChange={(value) => handleSettingChange("theme", value)}
+                  value={theme}
+                  onValueChange={(value) =>
+                    setTheme(value as "light" | "dark" | "system")
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />

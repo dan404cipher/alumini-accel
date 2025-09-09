@@ -10,8 +10,8 @@ import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    email: "suba@gmail.com",
+    password: "suba@12345",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -115,12 +115,13 @@ const Login = () => {
               type="submit"
               className="w-full"
               disabled={loading}
+            
             >
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm">
+          {/* <div className="mt-4 text-center text-sm">
             <p className="text-muted-foreground">
               Don't have an account?{" "}
               <Button
@@ -131,7 +132,7 @@ const Login = () => {
                 Sign up
               </Button>
             </p>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>

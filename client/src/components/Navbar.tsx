@@ -1,103 +1,31 @@
-// import React, { useState, useRef, useEffect } from "react";
-// import { useNavigate } from "react-router-dom";
-// import { LogIn, ChevronDown } from "lucide-react";
-
-// const Navbar: React.FC = () => {
-//   const navigate = useNavigate();
-//   const [open, setOpen] = useState(false);
-//   const dropdownRef = useRef<HTMLLIElement>(null);
-
-//   // Close dropdown when clicking outside
-//   useEffect(() => {
-//     const handleClickOutside = (event: MouseEvent) => {
-//       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-//         setOpen(false);
-//       }
-//     };
-//     document.addEventListener("mousedown", handleClickOutside);
-//     return () => {
-//       document.removeEventListener("mousedown", handleClickOutside);
-//     };
-//   }, []);
-
-//   return (
-//     <nav className="flex items-center justify-between py-4 px-6 bg-white shadow-md fixed top-0 left-0 right-0 z-50">
-//       {/* Left: Logo */}
-//       <h1
-//         className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent cursor-pointer pl-20"
-//         onClick={() => navigate("/")}
-//       >
-//         Alumni Accel
-//       </h1>
-
-//       {/* Center: Nav Links */}
-//       <ul className="absolute left-1/2 transform -translate-x-1/2 flex space-x-10 text-gray-700 font-medium items-center">
-//         <li onClick={() => navigate("/directormsg")} className="cursor-pointer hover:text-blue-600">About Us</li>
-//         <li onClick={() => navigate("/events")} className="cursor-pointer hover:text-blue-600">Events</li>
-//         <li onClick={() => navigate("/gallery")} className="cursor-pointer hover:text-blue-600">Gallery</li>
-        
-//         {/* Dropdown */}
-//         <li ref={dropdownRef} className="relative">
-//           <div
-//             className="cursor-pointer flex items-center gap-1 hover:text-blue-600"
-//             onClick={() => setOpen(!open)}
-//           >
-//             Newsroom & Reflections <ChevronDown size={16} />
-//           </div>
-//           {open && (
-//             <ul className="absolute left-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50">
-//               <li onClick={() => navigate("/news")} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">News</li>
-//               <li onClick={() => navigate("/successstory")} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">Success Story</li>
-//             </ul>
-//           )}
-//         </li>
-
-//         <li onClick={() => navigate("/fundraising")} className="cursor-pointer hover:text-blue-600">Fund Raising</li>
-//         <li onClick={() => navigate("/more")} className="cursor-pointer hover:text-blue-600">More</li>
-//       </ul>
-
-//       {/* Right: Login */}
-//       <div
-//         className="flex items-center space-x-2 cursor-pointer px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 "
-//         onClick={() => navigate("/login")}
-//       >
-//         <LogIn size={20} />
-//         <span>Login</span>
-//       </div>
-//     </nav>
-//   );
-// };
-
-// export default Navbar;
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogIn, ChevronDown, Menu } from "lucide-react";
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const [openDropdown, setOpenDropdown] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string>(""); // "" = none, "news", "more"
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const dropdownRef = useRef<HTMLLIElement>(null);
 
-  // Close dropdown when clicking outside (desktop dropdown)
+  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setOpenDropdown(false);
-      }
+    const handleClickOutside = () => {
+      setOpenDropdown("");
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     };
   }, []);
 
-  // Toggle mobile submenu (inside mobile menu)
-  const toggleMobileDropdown = () => {
-    setOpenDropdown(!openDropdown);
+  // Stop click inside dropdown from closing
+  const stopPropagation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  // Toggle dropdowns
+  const toggleDropdown = (menu: string) => {
+    setOpenDropdown(openDropdown === menu ? "" : menu);
   };
 
   return (
@@ -141,20 +69,20 @@ const Navbar: React.FC = () => {
             Gallery
           </li>
 
-          {/* Dropdown desktop */}
-          <li ref={dropdownRef} className="relative">
+          {/* Dropdown: Newsroom */}
+          <li className="relative" onClick={stopPropagation}>
             <div
               className="cursor-pointer flex items-center gap-1 hover:text-blue-600 select-none"
-              onClick={() => setOpenDropdown(!openDropdown)}
+              onClick={() => toggleDropdown("news")}
             >
               Newsroom & Reflections <ChevronDown size={16} />
             </div>
-            {openDropdown && (
+            {openDropdown === "news" && (
               <ul className="absolute left-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50">
                 <li
                   onClick={() => {
                     navigate("/news");
-                    setOpenDropdown(false);
+                    setOpenDropdown("");
                   }}
                   className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                 >
@@ -163,7 +91,7 @@ const Navbar: React.FC = () => {
                 <li
                   onClick={() => {
                     navigate("/successstory");
-                    setOpenDropdown(false);
+                    setOpenDropdown("");
                   }}
                   className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                 >
@@ -179,11 +107,49 @@ const Navbar: React.FC = () => {
           >
             Fund Raising
           </li>
-          <li
-            onClick={() => navigate("/more")}
-            className="cursor-pointer hover:text-blue-600"
-          >
-            More
+
+          {/* Dropdown: More */}
+          <li className="relative" onClick={stopPropagation}>
+            <div
+              className="cursor-pointer flex items-center gap-1 hover:text-blue-600 select-none"
+              onClick={() => toggleDropdown("more")}
+            >
+              More <ChevronDown size={16} />
+            </div>
+            {openDropdown === "more" && (
+              <ul className="absolute left-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50">
+                <li>
+                  <a
+                    href="https://www.linkedin.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 hover:bg-gray-100 block"
+                  >
+                    LinkedIn
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.instagram.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 hover:bg-gray-100 block"
+                  >
+                    Instagram
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.facebook.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 hover:bg-gray-100 block"
+                  >
+                    Facebook
+                  </a>
+                </li>
+              </ul>
+            )}
           </li>
         </ul>
 
@@ -229,27 +195,29 @@ const Navbar: React.FC = () => {
               Gallery
             </li>
 
-            {/* Mobile dropdown */}
+            {/* Mobile dropdown Newsroom */}
             <li>
               <div
-                onClick={toggleMobileDropdown}
+                onClick={() =>
+                  setOpenDropdown(openDropdown === "news" ? "" : "news")
+                }
                 className="flex items-center justify-between cursor-pointer hover:text-blue-600 select-none"
               >
                 Newsroom & Reflections
                 <ChevronDown
                   size={16}
                   className={`transform transition-transform duration-300 ${
-                    openDropdown ? "rotate-180" : ""
+                    openDropdown === "news" ? "rotate-180" : ""
                   }`}
                 />
               </div>
-              {openDropdown && (
+              {openDropdown === "news" && (
                 <ul className="mt-2 pl-4 border-l border-gray-300 flex flex-col space-y-2">
                   <li
                     onClick={() => {
                       navigate("/news");
                       setMobileMenuOpen(false);
-                      setOpenDropdown(false);
+                      setOpenDropdown("");
                     }}
                     className="cursor-pointer hover:text-blue-600"
                   >
@@ -259,7 +227,7 @@ const Navbar: React.FC = () => {
                     onClick={() => {
                       navigate("/successstory");
                       setMobileMenuOpen(false);
-                      setOpenDropdown(false);
+                      setOpenDropdown("");
                     }}
                     className="cursor-pointer hover:text-blue-600"
                   >
@@ -271,21 +239,64 @@ const Navbar: React.FC = () => {
 
             <li
               onClick={() => {
-                navigate("/fundraising");
+                navigate("/funds");
                 setMobileMenuOpen(false);
               }}
               className="cursor-pointer hover:text-blue-600"
             >
               Fund Raising
             </li>
-            <li
-              onClick={() => {
-                navigate("/more");
-                setMobileMenuOpen(false);
-              }}
-              className="cursor-pointer hover:text-blue-600"
-            >
-              More
+
+            {/* Mobile dropdown More */}
+            <li>
+              <div
+                onClick={() =>
+                  setOpenDropdown(openDropdown === "more" ? "" : "more")
+                }
+                className="flex items-center justify-between cursor-pointer hover:text-blue-600 select-none"
+              >
+                More
+                <ChevronDown
+                  size={16}
+                  className={`transform transition-transform duration-300 ${
+                    openDropdown === "more" ? "rotate-180" : ""
+                  }`}
+                />
+              </div>
+              {openDropdown === "more" && (
+                <ul className="mt-2 pl-4 border-l border-gray-300 flex flex-col space-y-2">
+                  <li>
+                    <a
+                      href="https://www.linkedin.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-blue-600"
+                    >
+                      LinkedIn
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.instagram.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-blue-600"
+                    >
+                      Instagram
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.facebook.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-blue-600"
+                    >
+                      Facebook
+                    </a>
+                  </li>
+                </ul>
+              )}
             </li>
 
             {/* Login button mobile */}

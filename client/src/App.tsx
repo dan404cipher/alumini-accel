@@ -35,6 +35,9 @@ import NotableDetailPage from "./components/Notablealumini/Notabledetail";
 import HelpDesk from "./components/dialogs/HelpdeskAlumini/Helpdeskpage";
 import ContactRegister from"./components/dialogs/HelpdeskAlumini/ContactRegister";
 import RequirtRegister from "./components/dialogs/HelpdeskAlumini/RequirtRegister";
+import FundsPage from "./components/Funds/Fundspage";
+import ContributionPage from "./components/Funds/Contributepage";
+import Contributedetail from "./components/Funds/Contributedetail";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +75,10 @@ const AppContent = () => {
           <Route path="/helpdesk" element={<HelpDesk/>}/>
           <Route path="/contact" element ={<ContactRegister/>}/>
           <Route path="/requirt" element={<RequirtRegister/>}/>
+          <Route path="/funds" element={<FundsPage/>}/>
+          <Route path="/contribute/:id" element={< ContributionPage/>}/>
+          <Route path="/contributedetails/:id" element={<Contributedetail/>}/>
+
 
           {/* Protected Routes */}
           <Route

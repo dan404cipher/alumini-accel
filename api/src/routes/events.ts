@@ -89,6 +89,18 @@ router.put(
   asyncHandler(eventController.updateEvent)
 );
 
+// @route   PUT /api/v1/events/:id/with-image
+// @desc    Update event with image upload
+// @access  Private/Coordinator
+router.put(
+  "/:id/with-image",
+  upload.single("image") as any,
+  authenticateToken,
+  requireCoordinator,
+  validateId,
+  asyncHandler(eventController.updateEventWithImage)
+);
+
 // @route   DELETE /api/v1/events/:id
 // @desc    Delete event
 // @access  Private/Coordinator

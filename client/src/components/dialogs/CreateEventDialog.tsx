@@ -22,6 +22,34 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar, MapPin, Clock } from "lucide-react";
 import { eventAPI } from "@/lib/api";
 
+interface EventData extends Record<string, unknown> {
+  title: string;
+  description: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  isOnline: boolean;
+  meetingLink?: string;
+  onlineUrl?: string;
+  registrationDeadline?: string;
+  speakers?: Array<{
+    name: string;
+    title: string;
+    company: string;
+    bio: string;
+  }>;
+  agenda?: Array<{
+    title: string;
+    speaker: string;
+    description: string;
+  }>;
+  organizerNotes?: string;
+  maxAttendees?: number;
+  price?: number;
+  tags?: string[];
+}
+
 interface CreateEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,6 +79,20 @@ export const CreateEventDialog = ({
     tags: "",
     registrationDeadline: "",
     imageFile: null as File | null,
+    onlineUrl: "",
+    organizerNotes: "",
+    speakers: [] as Array<{
+      name: string;
+      title: string;
+      company: string;
+      bio: string;
+    }>,
+    agenda: [] as Array<{
+      title: string;
+      speaker: string;
+      description: string;
+    }>,
+    photos: [] as File[],
   });
 
   // Reset form when dialog opens/closes
@@ -70,6 +112,11 @@ export const CreateEventDialog = ({
       tags: "",
       registrationDeadline: "",
       imageFile: null,
+      onlineUrl: "",
+      organizerNotes: "",
+      speakers: [],
+      agenda: [],
+      photos: [],
     });
     setFieldErrors({});
   };
@@ -202,7 +249,7 @@ export const CreateEventDialog = ({
     const errors: string[] = [];
 
     switch (fieldName) {
-      case "title":
+      case "title": {
         const trimmedTitle = value.trim();
         if (!trimmedTitle) {
           errors.push("Title is required");
@@ -212,8 +259,9 @@ export const CreateEventDialog = ({
           );
         }
         break;
+      }
 
-      case "description":
+      case "description": {
         const trimmedDesc = value.trim();
         if (!trimmedDesc) {
           errors.push("Description is required");
@@ -223,8 +271,9 @@ export const CreateEventDialog = ({
           );
         }
         break;
+      }
 
-      case "location":
+      case "location": {
         const trimmedLoc = value.trim();
         if (!trimmedLoc) {
           errors.push("Location is required");
@@ -234,6 +283,7 @@ export const CreateEventDialog = ({
           );
         }
         break;
+      }
 
       case "maxAttendees":
         if (value && (isNaN(Number(value)) || Number(value) < 1)) {
@@ -402,7 +452,15 @@ export const CreateEventDialog = ({
       const trimmedLocation = formData.location.trim();
       const trimmedTags = formData.tags.trim();
 
-      const eventData: any = {
+      // Handle price first
+      let eventPrice = 0;
+      if (formData.priceType === "paid" && formData.price) {
+        eventPrice = parseFloat(formData.price);
+      } else if (formData.priceType === "free") {
+        eventPrice = 0;
+      }
+
+      const eventData: EventData = {
         title: trimmedTitle,
         description: trimmedDescription,
         type: formData.type,
@@ -410,9 +468,14 @@ export const CreateEventDialog = ({
         endDate: endDateTime.toISOString(),
         location: trimmedLocation,
         isOnline: formData.type === "webinar" ? true : false, // Only webinar is online
+        price: eventPrice, // Add price directly to eventData
         // Only add meetingLink for webinars and if it's a valid URL
         ...(formData.type === "webinar" && trimmedLocation.startsWith("http")
           ? { meetingLink: trimmedLocation }
+          : {}),
+        // Add onlineUrl for webinars if provided
+        ...(formData.type === "webinar" && formData.onlineUrl
+          ? { onlineUrl: formData.onlineUrl }
           : {}),
         // Add registration deadline if provided
         ...(formData.registrationDeadline
@@ -422,16 +485,29 @@ export const CreateEventDialog = ({
               ).toISOString(),
             }
           : {}),
+        // Add speakers if provided (filter out empty items)
+        ...(formData.speakers.length > 0
+          ? {
+              speakers: formData.speakers.filter(
+                (speaker) => speaker.name.trim() && speaker.title.trim()
+              ),
+            }
+          : {}),
+        // Add agenda if provided (filter out empty items)
+        ...(formData.agenda.length > 0
+          ? {
+              agenda: formData.agenda.filter((item) => item.title.trim()),
+            }
+          : {}),
+        // Add organizer notes if provided
+        ...(formData.organizerNotes
+          ? { organizerNotes: formData.organizerNotes }
+          : {}),
       };
 
       // Only add optional fields if they have values
       if (formData.maxAttendees) {
         eventData.maxAttendees = parseInt(formData.maxAttendees);
-      }
-      if (formData.priceType === "paid" && formData.price) {
-        eventData.price = parseFloat(formData.price);
-      } else if (formData.priceType === "free") {
-        eventData.price = 0;
       }
       if (trimmedTags) {
         eventData.tags = trimmedTags
@@ -439,10 +515,6 @@ export const CreateEventDialog = ({
           .map((tag) => tag.trim())
           .filter((tag) => tag.length > 0);
       }
-
-      console.log("Event data being sent:", eventData);
-      console.log("Image file:", formData.imageFile);
-      console.log("Has image file:", !!formData.imageFile);
 
       // Handle image file upload
       let response;
@@ -459,9 +531,6 @@ export const CreateEventDialog = ({
       } else {
         response = await eventAPI.createEvent(eventData);
       }
-
-      console.log("API response:", response);
-      console.log("Validation errors:", response.errors);
 
       if (response.success) {
         toast({
@@ -495,7 +564,7 @@ export const CreateEventDialog = ({
         });
         return; // Don't throw error, just show toast
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Unexpected error creating event:", error);
       toast({
         title: "Error",
@@ -928,6 +997,246 @@ export const CreateEventDialog = ({
             {fieldErrors.tags && (
               <p className="text-xs text-red-500">{fieldErrors.tags}</p>
             )}
+          </div>
+
+          {/* Online URL for webinars */}
+          {formData.type === "webinar" && (
+            <div className="space-y-2">
+              <Label htmlFor="onlineUrl">Online Meeting URL</Label>
+              <Input
+                id="onlineUrl"
+                value={formData.onlineUrl}
+                onChange={(e) => handleFieldChange("onlineUrl", e.target.value)}
+                placeholder="https://meet.google.com/abc-defg-hij"
+                className={fieldErrors.onlineUrl ? "border-red-500" : ""}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the meeting link for this webinar
+              </p>
+              {fieldErrors.onlineUrl && (
+                <p className="text-xs text-red-500">{fieldErrors.onlineUrl}</p>
+              )}
+            </div>
+          )}
+
+          {/* Organizer Notes */}
+          <div className="space-y-2">
+            <Label htmlFor="organizerNotes">Organizer Notes</Label>
+            <Textarea
+              id="organizerNotes"
+              value={formData.organizerNotes}
+              onChange={(e) =>
+                handleFieldChange("organizerNotes", e.target.value)
+              }
+              placeholder="Internal notes about the event (not visible to attendees)..."
+              className="min-h-[80px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              Internal notes for event management (optional)
+            </p>
+          </div>
+
+          {/* Speakers Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Speakers</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    speakers: [
+                      ...prev.speakers,
+                      { name: "", title: "", company: "", bio: "" },
+                    ],
+                  }));
+                }}
+              >
+                Add Speaker
+              </Button>
+            </div>
+
+            {formData.speakers.map((speaker, index) => (
+              <div key={index} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Speaker {index + 1}</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        speakers: prev.speakers.filter((_, i) => i !== index),
+                      }));
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor={`speaker-name-${index}`}>Name *</Label>
+                    <Input
+                      id={`speaker-name-${index}`}
+                      value={speaker.name}
+                      onChange={(e) => {
+                        const newSpeakers = [...formData.speakers];
+                        newSpeakers[index].name = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          speakers: newSpeakers,
+                        }));
+                      }}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`speaker-title-${index}`}>Title *</Label>
+                    <Input
+                      id={`speaker-title-${index}`}
+                      value={speaker.title}
+                      onChange={(e) => {
+                        const newSpeakers = [...formData.speakers];
+                        newSpeakers[index].title = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          speakers: newSpeakers,
+                        }));
+                      }}
+                      placeholder="Senior Software Engineer"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor={`speaker-company-${index}`}>Company *</Label>
+                  <Input
+                    id={`speaker-company-${index}`}
+                    value={speaker.company}
+                    onChange={(e) => {
+                      const newSpeakers = [...formData.speakers];
+                      newSpeakers[index].company = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        speakers: newSpeakers,
+                      }));
+                    }}
+                    placeholder="Google Inc."
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor={`speaker-bio-${index}`}>Bio</Label>
+                  <Textarea
+                    id={`speaker-bio-${index}`}
+                    value={speaker.bio}
+                    onChange={(e) => {
+                      const newSpeakers = [...formData.speakers];
+                      newSpeakers[index].bio = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        speakers: newSpeakers,
+                      }));
+                    }}
+                    placeholder="Brief bio about the speaker..."
+                    className="min-h-[60px]"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Agenda Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Event Agenda</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    agenda: [
+                      ...prev.agenda,
+                      { title: "", speaker: "", description: "" },
+                    ],
+                  }));
+                }}
+              >
+                Add Agenda Item
+              </Button>
+            </div>
+
+            {formData.agenda.map((item, index) => (
+              <div key={index} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Agenda Item {index + 1}</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        agenda: prev.agenda.filter((_, i) => i !== index),
+                      }));
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor={`agenda-speaker-${index}`}>Speaker</Label>
+                  <Input
+                    id={`agenda-speaker-${index}`}
+                    value={item.speaker}
+                    onChange={(e) => {
+                      const newAgenda = [...formData.agenda];
+                      newAgenda[index].speaker = e.target.value;
+                      setFormData((prev) => ({ ...prev, agenda: newAgenda }));
+                    }}
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor={`agenda-title-${index}`}>Title *</Label>
+                  <Input
+                    id={`agenda-title-${index}`}
+                    value={item.title}
+                    onChange={(e) => {
+                      const newAgenda = [...formData.agenda];
+                      newAgenda[index].title = e.target.value;
+                      setFormData((prev) => ({ ...prev, agenda: newAgenda }));
+                    }}
+                    placeholder="Welcome & Introduction"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor={`agenda-description-${index}`}>
+                    Description
+                  </Label>
+                  <Textarea
+                    id={`agenda-description-${index}`}
+                    value={item.description}
+                    onChange={(e) => {
+                      const newAgenda = [...formData.agenda];
+                      newAgenda[index].description = e.target.value;
+                      setFormData((prev) => ({ ...prev, agenda: newAgenda }));
+                    }}
+                    placeholder="Brief description of this agenda item..."
+                    className="min-h-[60px]"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
           <DialogFooter>
             <Button

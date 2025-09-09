@@ -23,6 +23,7 @@ import userRoutes from "@/routes/users";
 import alumniRoutes from "@/routes/alumni";
 import jobRoutes from "@/routes/jobs";
 import eventRoutes from "@/routes/events";
+import newsRoutes from "@/routes/news";
 import mentorshipRoutes from "@/routes/mentorship";
 import donationRoutes from "@/routes/donations";
 import invitationRoutes from "@/routes/invitations";
@@ -46,9 +47,10 @@ app.use(
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
+        imgSrc: ["'self'", "data:", "https:", "http://localhost:3000"],
       },
     },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 
@@ -58,7 +60,11 @@ app.use(
     origin:
       process.env.NODE_ENV === "production"
         ? process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:3000"]
-        : ["http://localhost:8080", "http://localhost:3000"], // Explicitly allow frontend and backend origins
+        : [
+            "http://localhost:8080",
+            "http://localhost:8081",
+            "http://localhost:3000",
+          ], // Explicitly allow frontend and backend origins
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -120,19 +126,52 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Test endpoint for static files
+app.get("/test-uploads", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Static files are accessible",
+    uploadsPath: "/uploads",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // API routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/alumni", alumniRoutes);
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/events", eventRoutes);
+app.use("/api/v1/news", newsRoutes);
 app.use("/api/v1/mentorship", mentorshipRoutes);
 app.use("/api/v1/donations", donationRoutes);
 app.use("/api/v1/invitations", invitationRoutes);
 app.use("/api/v1/docs", docsRoutes);
 
-// Serve static files
-app.use("/uploads", express.static("uploads"));
+// Serve static files with CORS headers
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    // Set CORS headers for static files
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept"
+    );
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Cross-Origin-Resource-Policy", "cross-origin");
+
+    // Handle preflight requests
+    if (req.method === "OPTIONS") {
+      res.status(200).end();
+      return;
+    }
+
+    next();
+  },
+  express.static("uploads")
+);
 
 // 404 handler
 app.use(notFound);

@@ -18,6 +18,7 @@ import JobBoard from "./components/JobBoard";
 import EventsMeetups from "./components/EventsMeetups";
 import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";
+import NewsDetail from "./pages/NewsDetail";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,24 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/news"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/news/:id"
+                  element={
+                    <ProtectedRoute>
+                      <NewsDetail />
                     </ProtectedRoute>
                   }
                 />

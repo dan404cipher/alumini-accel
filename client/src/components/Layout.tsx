@@ -6,6 +6,7 @@ import AlumniDirectory from "./AlumniDirectory";
 import AlumniManagement from "./AlumniManagement";
 import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
+import NewsRoom from "./NewsRoom";
 import Recognition from "./Recognition";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
@@ -59,6 +60,8 @@ const Layout = () => {
         return <JobBoard />;
       case "events":
         return <EventsMeetups />;
+      case "news":
+        return <NewsRoom />;
       case "recognition":
         return <Recognition />;
       default:

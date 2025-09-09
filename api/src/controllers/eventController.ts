@@ -7,12 +7,9 @@ import { EventType } from "@/types";
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {
   try {
-    console.log("getAllEvents called");
-    console.log("Query parameters:", req.query);
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
-    console.log(`Pagination: page=${page}, limit=${limit}, skip=${skip}`);
 
     const filter: any = {};
 
@@ -26,17 +23,11 @@ export const getAllEvents = async (req: Request, res: Response) => {
       filter.startDate = { $gte: new Date() };
     }
 
-    console.log("Filter:", filter);
     const events = await Event.find(filter)
       .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
-
-    console.log(`Found ${events.length} events in database`);
-    events.forEach((event) => {
-      console.log(`- ${event.title}: ${event.image || "NO IMAGE"}`);
-    });
 
     const total = await Event.countDocuments(filter);
 
@@ -91,17 +82,8 @@ export const getEventById = async (req: Request, res: Response) => {
 // Create event with image upload
 export const createEventWithImage = async (req: Request, res: Response) => {
   try {
-    console.log("=== createEventWithImage called ===");
-    console.log("Request body keys:", Object.keys(req.body));
-    console.log("Request file:", req.file);
-    console.log("Request files:", req.files);
-    console.log("Content-Type header:", req.get("Content-Type"));
-    console.log("Request body:", req.body);
-
     const { eventData } = req.body;
-    console.log("Raw eventData:", eventData);
     const eventInfo = JSON.parse(eventData);
-    console.log("Parsed eventInfo:", eventInfo);
     const imageFile = req.file;
 
     const {
@@ -129,9 +111,6 @@ export const createEventWithImage = async (req: Request, res: Response) => {
       // In a real application, you would upload to cloud storage (AWS S3, Cloudinary, etc.)
       // For now, we'll just use the original filename
       imageUrl = `/uploads/events/${imageFile.filename}`;
-      console.log("Image file found, setting imageUrl to:", imageUrl);
-    } else {
-      console.log("No image file found");
     }
 
     const event = new Event({
@@ -156,35 +135,8 @@ export const createEventWithImage = async (req: Request, res: Response) => {
       organizerNotes,
     });
 
-    console.log("About to save event to database:", {
-      title: event.title,
-      image: event.image,
-      imageUrl: imageUrl,
-      hasImageFile: !!imageFile,
-    });
-
     try {
       await event.save();
-      console.log("Event with image saved to database:", {
-        id: event._id,
-        title: event.title,
-        type: event.type,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        location: event.location,
-        isOnline: event.isOnline,
-        meetingLink: event.meetingLink,
-        maxAttendees: event.maxAttendees,
-        tags: event.tags,
-        image: event.image,
-        imageUrl: imageUrl,
-        price: event.price,
-        organizer: event.organizer,
-      });
-
-      // Verify the image field was saved
-      const savedEvent = await Event.findById(event._id);
-      console.log("Verification - saved event image field:", savedEvent?.image);
     } catch (saveError) {
       console.error("Error saving event to database:", saveError);
       throw saveError;
@@ -360,6 +312,98 @@ export const updateEvent = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update event",
+    });
+  }
+};
+
+// Update event with image upload
+export const updateEventWithImage = async (req: Request, res: Response) => {
+  try {
+    const { eventData } = req.body;
+    const eventInfo = JSON.parse(eventData);
+    const imageFile = req.file;
+
+    const {
+      title,
+      description,
+      type,
+      startDate,
+      endDate,
+      location,
+      isOnline,
+      onlineUrl,
+      meetingLink,
+      maxAttendees,
+      registrationDeadline,
+      speakers,
+      agenda,
+      tags,
+      price,
+      organizerNotes,
+    } = eventInfo;
+
+    // Find the existing event
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check if user is the organizer or admin
+    if (
+      event.organizer.toString() !== req.user.id &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this event",
+      });
+    }
+
+    // Handle image upload
+    let imageUrl = event.image; // Keep existing image by default
+    if (imageFile) {
+      // In a real application, you would upload to cloud storage (AWS S3, Cloudinary, etc.)
+      // For now, we'll just use the original filename
+      imageUrl = `/uploads/events/${imageFile.filename}`;
+    }
+
+    // Update event fields
+    if (title !== undefined) event.title = title;
+    if (description !== undefined) event.description = description;
+    if (type !== undefined) event.type = type;
+    if (startDate !== undefined) event.startDate = new Date(startDate);
+    if (endDate !== undefined) event.endDate = new Date(endDate);
+    if (location !== undefined) event.location = location;
+    if (isOnline !== undefined) event.isOnline = isOnline;
+    if (meetingLink !== undefined) event.meetingLink = meetingLink;
+    if (onlineUrl !== undefined) event.onlineUrl = onlineUrl;
+    if (maxAttendees !== undefined) event.maxAttendees = maxAttendees;
+    if (registrationDeadline !== undefined) {
+      event.registrationDeadline = new Date(registrationDeadline);
+    }
+    if (speakers !== undefined) event.speakers = speakers;
+    if (agenda !== undefined) event.agenda = agenda;
+    if (tags !== undefined) event.tags = tags;
+    if (imageUrl !== undefined) event.image = imageUrl;
+    if (price !== undefined) event.price = price;
+    if (organizerNotes !== undefined) event.organizerNotes = organizerNotes;
+
+    await event.save();
+
+    return res.json({
+      success: true,
+      message: "Event updated successfully",
+      data: { event },
+    });
+  } catch (error) {
+    logger.error("Update event with image error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update event",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
@@ -800,6 +844,7 @@ export default {
   createEvent,
   createEventWithImage,
   updateEvent,
+  updateEventWithImage,
   deleteEvent,
   registerForEvent,
   unregisterFromEvent,

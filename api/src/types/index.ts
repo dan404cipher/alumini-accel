@@ -1,5 +1,6 @@
 import { Request } from "express";
 import { Document } from "mongoose";
+import mongoose from "mongoose";
 
 // User Roles
 export enum UserRole {
@@ -223,7 +224,6 @@ export interface IEvent extends Document {
     photo?: string;
   }>;
   agenda: Array<{
-    time: string;
     title: string;
     speaker?: string;
     description?: string;
@@ -442,4 +442,16 @@ export interface IAuditLog extends Document {
   userAgent?: string;
   timestamp: Date;
   metadata?: Record<string, any>;
+}
+
+// News Interface
+export interface INews extends Document {
+  _id: string;
+  title: string;
+  summary: string;
+  image?: string;
+  isShared: boolean;
+  author: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
 }

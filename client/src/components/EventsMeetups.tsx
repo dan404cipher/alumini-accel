@@ -11,6 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Calendar,
   MapPin,
   Users,
@@ -24,6 +31,8 @@ import {
   Edit,
   Trash2,
   MoreVertical,
+  Filter,
+  X,
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { EditEventDialog } from "./dialogs/EditEventDialog";
@@ -38,13 +47,62 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface Event {
+  _id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  type: string;
+  organizer?: {
+    firstName: string;
+    lastName: string;
+  };
+  currentAttendees?: number;
+  maxAttendees?: number;
+  image?: string;
+  tags?: string[];
+  price?: number;
+  registrationDeadline?: string;
+}
+
+interface MappedEvent {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  startDate: string;
+  time: string;
+  location: string;
+  type: string;
+  organizer: string;
+  attendees: number;
+  maxAttendees: number;
+  image?: string;
+  tags: string[];
+  featured: boolean;
+  price: string;
+  registrationDeadline?: string;
+}
+
+// Type for dialog components that expect a different event structure
+type DialogEvent = Omit<MappedEvent, "price"> & {
+  _id: string;
+  endDate: string;
+  isOnline: boolean;
+  currentAttendees: number;
+  price: number;
+};
+
 const EventsMeetups = () => {
   const navigate = useNavigate();
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [isEditEventOpen, setIsEditEventOpen] = useState(false);
   const [isDeleteEventOpen, setIsDeleteEventOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedEventType, setSelectedEventType] = useState<string>("all");
   const { user } = useAuth();
 
   // Check if user can create events
@@ -54,6 +112,17 @@ const EventsMeetups = () => {
   // Check if user can edit/delete events
   const canManageEvents =
     user?.role === "super_admin" || user?.role === "coordinator";
+
+  // Event types for filtering
+  const eventTypes = [
+    { value: "all", label: "All Events" },
+    { value: "meetup", label: "Meetup" },
+    { value: "workshop", label: "Workshop" },
+    { value: "webinar", label: "Webinar" },
+    { value: "conference", label: "Conference" },
+    { value: "career_fair", label: "Career Fair" },
+    { value: "reunion", label: "Reunion" },
+  ];
 
   // Fetch events from API
   const {
@@ -66,13 +135,9 @@ const EventsMeetups = () => {
   });
 
   // Map API events to component format
-  const apiEvents = eventsResponse?.data?.events || [];
-  const mappedEvents = apiEvents.map((event: any) => {
-    console.log("Event from API:", {
-      id: event._id,
-      title: event.title,
-      image: event.image,
-    });
+  const apiEvents =
+    (eventsResponse?.data as { events: Event[] } | undefined)?.events || [];
+  const mappedEvents = apiEvents.map((event: Event): MappedEvent => {
     return {
       id: event._id,
       title: event.title,
@@ -94,35 +159,42 @@ const EventsMeetups = () => {
       tags: event.tags || [],
       featured: false,
       price: event.price ? `$${event.price}` : "Free",
+      registrationDeadline: event.registrationDeadline,
     };
   });
 
-  // Filter events by time periods
+  // Filter events by time periods and event type
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const upcomingEvents = mappedEvents.filter((event) => {
-    const eventDate = new Date(event.startDate);
-    return eventDate >= tomorrow;
-  });
+  // Helper function to filter events by type
+  const filterEventsByType = (events: MappedEvent[]) => {
+    if (selectedEventType === "all") return events;
+    return events.filter((event) => event.type === selectedEventType);
+  };
 
-  const todayEvents = mappedEvents.filter((event) => {
-    const eventDate = new Date(event.startDate);
-    return eventDate >= today && eventDate < tomorrow;
-  });
+  const upcomingEvents = filterEventsByType(
+    mappedEvents.filter((event) => {
+      const eventDate = new Date(event.startDate);
+      return eventDate >= tomorrow;
+    })
+  );
 
-  const pastEvents = mappedEvents.filter((event) => {
-    const eventDate = new Date(event.startDate);
-    return eventDate < today;
-  });
+  const todayEvents = filterEventsByType(
+    mappedEvents.filter((event) => {
+      const eventDate = new Date(event.startDate);
+      return eventDate >= today && eventDate < tomorrow;
+    })
+  );
 
-  // Debug: Log the number of events in each category
-  console.log(`Total events: ${mappedEvents.length}`);
-  console.log(`Upcoming events: ${upcomingEvents.length}`);
-  console.log(`Today events: ${todayEvents.length}`);
-  console.log(`Past events: ${pastEvents.length}`);
+  const pastEvents = filterEventsByType(
+    mappedEvents.filter((event) => {
+      const eventDate = new Date(event.startDate);
+      return eventDate < today;
+    })
+  );
 
   const events = mappedEvents;
 
@@ -134,9 +206,10 @@ const EventsMeetups = () => {
   // Helper function to check if event is in the past
   const isEventPast = (eventDate: string) => {
     const eventDateObj = new Date(eventDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return eventDateObj < today;
+    const now = new Date();
+
+    // Check if the event date is before the current date and time
+    return eventDateObj < now;
   };
 
   // Helper function to check if event is today
@@ -146,6 +219,25 @@ const EventsMeetups = () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     return eventDateObj >= today && eventDateObj < tomorrow;
+  };
+
+  // Helper function to check if registration is closed
+  const isRegistrationClosed = (event: MappedEvent) => {
+    const now = new Date();
+
+    // If event has passed, registration is closed
+    if (isEventPast(event.startDate)) {
+      return true;
+    }
+
+    // If registration deadline has passed, registration is closed
+    if (event.registrationDeadline) {
+      const deadlineDate = new Date(event.registrationDeadline);
+      return deadlineDate < now;
+    }
+
+    // If no registration deadline set, registration is open until event starts
+    return false;
   };
 
   // Helper function to get image URL
@@ -159,16 +251,18 @@ const EventsMeetups = () => {
 
     // If it's a relative path (uploaded image), construct full URL
     if (image.startsWith("/") || image.startsWith("uploads/")) {
-      // Remove /api/v1 from the base URL for static file serving
-      const baseUrl = (
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-      ).replace("/api/v1", "");
-      const fullUrl = `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
-      console.log("Image URL constructed:", {
-        original: image,
-        baseUrl,
-        fullUrl,
-      });
+      // Use the API base URL but remove /api/v1 for static file serving
+      const apiBaseUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+      const baseUrl = apiBaseUrl.replace("/api/v1", "");
+
+      // Ensure the image path starts with /uploads/
+      let imagePath = image;
+      if (image.startsWith("uploads/")) {
+        imagePath = `/${image}`;
+      }
+
+      const fullUrl = `${baseUrl}${imagePath}`;
       return fullUrl;
     }
 
@@ -176,17 +270,36 @@ const EventsMeetups = () => {
   };
 
   // Helper function to render event grid
-  const renderEventGrid = (eventsList: any[], emptyMessage: string) => {
+  const renderEventGrid = (eventsList: MappedEvent[], emptyMessage: string) => {
     if (eventsList.length === 0) {
+      const isFiltered = selectedEventType !== "all";
+      const selectedTypeLabel =
+        eventTypes.find((type) => type.value === selectedEventType)?.label ||
+        selectedEventType;
+
       return (
         <div className="text-center py-12">
           <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">{emptyMessage}</h3>
-          <p className="text-muted-foreground">
-            {emptyMessage === "No Events Found"
+          <h3 className="text-xl font-semibold mb-2">
+            {isFiltered ? `No ${selectedTypeLabel} Events Found` : emptyMessage}
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            {isFiltered
+              ? `No ${selectedTypeLabel.toLowerCase()} events found. Try selecting a different event type.`
+              : emptyMessage === "No Events Found"
               ? "There are no events scheduled at the moment."
               : `No ${emptyMessage.toLowerCase()} at the moment.`}
           </p>
+          {isFiltered && (
+            <Button
+              variant="outline"
+              onClick={() => setSelectedEventType("all")}
+              className="flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Clear Filter
+            </Button>
+          )}
         </div>
       );
     }
@@ -204,27 +317,33 @@ const EventsMeetups = () => {
                   src={getImageUrl(event.image)!}
                   alt={event.title}
                   className={`w-full h-48 object-cover rounded-t-lg ${
-                    isEventPast(event.date) ? "opacity-75" : ""
+                    isEventPast(event.startDate) ? "opacity-75" : ""
                   }`}
-                  onLoad={() =>
-                    console.log(
-                      "Image loaded successfully:",
-                      getImageUrl(event.image)
-                    )
-                  }
                   onError={(e) => {
-                    console.log(
-                      "Image failed to load:",
-                      getImageUrl(event.image)
-                    );
-                    // Hide image if it fails to load
-                    e.currentTarget.style.display = "none";
+                    // Hide image if it fails to load and show placeholder
+                    const img = e.currentTarget as HTMLImageElement;
+                    img.style.display = "none";
+
+                    // Show a placeholder div instead
+                    const placeholder = document.createElement("div");
+                    placeholder.className = `w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+                      isEventPast(event.startDate) ? "opacity-75" : ""
+                    }`;
+                    placeholder.innerHTML = `
+                      <div class="text-center">
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <p class="text-sm text-gray-500 font-medium">Image unavailable</p>
+                      </div>
+                    `;
+                    img.parentNode?.insertBefore(placeholder, img);
                   }}
                 />
               ) : (
                 <div
                   className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
-                    isEventPast(event.date) ? "opacity-75" : ""
+                    isEventPast(event.startDate) ? "opacity-75" : ""
                   }`}
                 >
                   <div className="text-center">
@@ -243,11 +362,20 @@ const EventsMeetups = () => {
                   {getEventTypeIcon(event.type)}
                   <span className="ml-1">{event.type}</span>
                 </Badge>
-                {isEventPast(event.date) && (
+                {isEventPast(event.startDate) && (
                   <Badge variant="secondary" className="bg-gray-500 text-white">
                     Past Event
                   </Badge>
                 )}
+                {!isEventPast(event.startDate) &&
+                  isRegistrationClosed(event) && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-orange-500 text-white"
+                    >
+                      Registration Closed
+                    </Badge>
+                  )}
               </div>
             </div>
 
@@ -277,6 +405,24 @@ const EventsMeetups = () => {
                     <Users className="w-4 h-4 mr-2" />
                     <span>{event.attendees} attending</span>
                   </div>
+                  {event.registrationDeadline && (
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      <span>
+                        Registration closes:{" "}
+                        {new Date(
+                          event.registrationDeadline
+                        ).toLocaleDateString()}{" "}
+                        at{" "}
+                        {new Date(
+                          event.registrationDeadline
+                        ).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-4">
@@ -308,14 +454,16 @@ const EventsMeetups = () => {
                     <ExternalLink className="w-4 h-4 mr-2" />
                     View Details
                   </Button>
-                  {isEventPast(event.date) ? (
+                  {isRegistrationClosed(event) ? (
                     <Button
                       size="sm"
                       className="flex-1"
                       disabled
                       variant="outline"
                     >
-                      Event Ended
+                      {isEventPast(event.startDate)
+                        ? "Event Ended"
+                        : "Registration Closed"}
                     </Button>
                   ) : (
                     <Button size="sm" className="flex-1">
@@ -364,19 +512,19 @@ const EventsMeetups = () => {
   };
 
   // Handle edit event
-  const handleEditEvent = (event: any) => {
+  const handleEditEvent = (event: MappedEvent) => {
     setSelectedEvent(event);
     setIsEditEventOpen(true);
   };
 
   // Handle delete event
-  const handleDeleteEvent = (event: any) => {
+  const handleDeleteEvent = (event: MappedEvent) => {
     setSelectedEvent(event);
     setIsDeleteEventOpen(true);
   };
 
   // Handle view event details
-  const handleViewEvent = (event: any) => {
+  const handleViewEvent = (event: MappedEvent) => {
     navigate(`/events/${event.id}`);
   };
 
@@ -422,6 +570,53 @@ const EventsMeetups = () => {
             Create Event
           </Button>
         )}
+      </div>
+
+      {/* Filter Section */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filter by type:</span>
+          </div>
+          <Select
+            value={selectedEventType}
+            onValueChange={setSelectedEventType}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select event type" />
+            </SelectTrigger>
+            <SelectContent>
+              {eventTypes.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Filter Status and Clear Button */}
+        <div className="flex items-center gap-3">
+          {selectedEventType !== "all" && (
+            <>
+              <div className="text-sm text-muted-foreground">
+                Showing{" "}
+                {upcomingEvents.length + todayEvents.length + pastEvents.length}{" "}
+                events
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedEventType("all")}
+                className="flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Clear Filter
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Loading State */}
@@ -495,13 +690,51 @@ const EventsMeetups = () => {
       <EditEventDialog
         open={isEditEventOpen}
         onOpenChange={setIsEditEventOpen}
-        event={selectedEvent}
+        event={
+          selectedEvent
+            ? {
+                _id: selectedEvent.id,
+                title: selectedEvent.title,
+                description: selectedEvent.description,
+                type: selectedEvent.type,
+                startDate: selectedEvent.startDate,
+                endDate: selectedEvent.startDate, // Using startDate as fallback since MappedEvent doesn't have endDate
+                location: selectedEvent.location,
+                isOnline: selectedEvent.type === "webinar",
+                maxAttendees: selectedEvent.maxAttendees,
+                currentAttendees: selectedEvent.attendees,
+                price: parseFloat(selectedEvent.price) || 0,
+                tags: selectedEvent.tags,
+                image: selectedEvent.image,
+                registrationDeadline: selectedEvent.registrationDeadline,
+                organizer: {
+                  _id: "unknown",
+                  firstName: selectedEvent.organizer.split(" ")[0] || "Unknown",
+                  lastName:
+                    selectedEvent.organizer.split(" ").slice(1).join(" ") ||
+                    "Organizer",
+                },
+              }
+            : null
+        }
         onEventUpdated={handleEventUpdated}
       />
       <DeleteEventDialog
         open={isDeleteEventOpen}
         onOpenChange={setIsDeleteEventOpen}
-        event={selectedEvent}
+        event={
+          selectedEvent
+            ? {
+                _id: selectedEvent.id,
+                title: selectedEvent.title,
+                description: selectedEvent.description,
+                startDate: selectedEvent.startDate,
+                endDate: selectedEvent.startDate, // Using startDate as fallback since MappedEvent doesn't have endDate
+                location: selectedEvent.location,
+                currentAttendees: selectedEvent.attendees,
+              }
+            : null
+        }
         onEventDeleted={handleEventDeleted}
       />
     </div>

@@ -90,15 +90,6 @@ const eventSchema = new Schema<IEvent>(
     ],
     agenda: [
       {
-        time: {
-          type: String,
-          required: true,
-          trim: true,
-          match: [
-            /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
-            "Time must be in HH:MM format",
-          ],
-        },
         title: {
           type: String,
           required: true,
@@ -141,6 +132,11 @@ const eventSchema = new Schema<IEvent>(
     image: {
       type: String,
       trim: true,
+    },
+    price: {
+      type: Number,
+      default: 0,
+      min: [0, "Price cannot be negative"],
     },
     photos: [
       {

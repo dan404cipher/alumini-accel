@@ -1,4 +1,9 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from "axios";
 
 // API base URL
 const API_BASE_URL =
@@ -15,10 +20,8 @@ const api: AxiosInstance = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem("token");
-    console.log("API Request - Token:", token ? "Present" : "Missing");
-    console.log("API Request - URL:", config.url);
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -75,7 +78,7 @@ api.interceptors.response.use(
 );
 
 // API response interface
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
@@ -102,13 +105,16 @@ export const apiRequest = async <T>(
   try {
     const response = await api(config);
     return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      return error.response.data;
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "response" in error) {
+      const axiosError = error as { response?: { data?: ApiResponse<T> } };
+      if (axiosError.response?.data) {
+        return axiosError.response.data;
+      }
     }
     return {
       success: false,
-      message: error.message || "An error occurred",
+      message: error instanceof Error ? error.message : "An error occurred",
     };
   }
 };
@@ -238,7 +244,7 @@ export const userAPI = {
     twitterHandle?: string;
     githubProfile?: string;
     website?: string;
-    preferences?: any;
+    preferences?: Record<string, unknown>;
   }) => {
     return apiRequest({
       method: "PUT",
@@ -291,7 +297,7 @@ export const alumniAPI = {
   },
 
   // Create alumni profile
-  createProfile: async (profileData: any) => {
+  createProfile: async (profileData: Record<string, unknown>) => {
     return apiRequest({
       method: "POST",
       url: "/alumni/profile",
@@ -300,7 +306,7 @@ export const alumniAPI = {
   },
 
   // Update alumni profile
-  updateProfile: async (profileData: any) => {
+  updateProfile: async (profileData: Record<string, unknown>) => {
     return apiRequest({
       method: "PUT",
       url: "/alumni/profile",
@@ -416,7 +422,7 @@ export const jobAPI = {
   },
 
   // Update job post
-  updateJob: async (id: string, jobData: any) => {
+  updateJob: async (id: string, jobData: Record<string, unknown>) => {
     return apiRequest({
       method: "PUT",
       url: `/jobs/${id}`,
@@ -544,7 +550,7 @@ export const eventAPI = {
   },
 
   // Create event
-  createEvent: async (eventData: any) => {
+  createEvent: async (eventData: Record<string, unknown>) => {
     return apiRequest({
       method: "POST",
       url: "/events",
@@ -565,11 +571,23 @@ export const eventAPI = {
   },
 
   // Update event
-  updateEvent: async (id: string, eventData: any) => {
+  updateEvent: async (id: string, eventData: Record<string, unknown>) => {
     return apiRequest({
       method: "PUT",
       url: `/events/${id}`,
       data: eventData,
+    });
+  },
+
+  // Update event with image
+  updateEventWithImage: async (id: string, formData: FormData) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/events/${id}/with-image`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
   },
 
@@ -691,6 +709,164 @@ export const invitationAPI = {
     return apiRequest({
       method: "GET",
       url: `/invitations/check/${encodeURIComponent(email)}`,
+    });
+  },
+
+  // News API
+  news: {
+    // Get all news
+    getAllNews: async (params?: Record<string, unknown>) => {
+      return apiRequest({
+        method: "GET",
+        url: "/news",
+        params,
+      });
+    },
+
+    // Get news by ID
+    getNewsById: async (id: string) => {
+      return apiRequest({
+        method: "GET",
+        url: `/news/${id}`,
+      });
+    },
+
+    // Create news
+    createNews: async (newsData: Record<string, unknown>) => {
+      return apiRequest({
+        method: "POST",
+        url: "/news",
+        data: newsData,
+      });
+    },
+
+    // Create news with image
+    createNewsWithImage: async (formData: FormData) => {
+      return apiRequest({
+        method: "POST",
+        url: "/news/with-image",
+        data: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+    },
+
+    // Update news
+    updateNews: async (id: string, newsData: Record<string, unknown>) => {
+      return apiRequest({
+        method: "PUT",
+        url: `/news/${id}`,
+        data: newsData,
+      });
+    },
+
+    // Update news with image
+    updateNewsWithImage: async (id: string, formData: FormData) => {
+      return apiRequest({
+        method: "PUT",
+        url: `/news/${id}/with-image`,
+        data: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+    },
+
+    // Delete news
+    deleteNews: async (id: string) => {
+      return apiRequest({
+        method: "DELETE",
+        url: `/news/${id}`,
+      });
+    },
+
+    // Get my news
+    getMyNews: async (params?: Record<string, unknown>) => {
+      return apiRequest({
+        method: "GET",
+        url: "/news/my/news",
+        params,
+      });
+    },
+  },
+};
+
+// News API (separate object)
+export const newsAPI = {
+  // Get all news
+  getAllNews: async (params?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "GET",
+      url: "/news",
+      params,
+    });
+  },
+
+  // Get news by ID
+  getNewsById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/news/${id}`,
+    });
+  },
+
+  // Create news
+  createNews: async (newsData: Record<string, unknown>) => {
+    return apiRequest({
+      method: "POST",
+      url: "/news",
+      data: newsData,
+    });
+  },
+
+  // Create news with image
+  createNewsWithImage: async (formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: "/news/with-image",
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Update news
+  updateNews: async (id: string, newsData: Record<string, unknown>) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/news/${id}`,
+      data: newsData,
+    });
+  },
+
+  // Update news with image
+  updateNewsWithImage: async (id: string, formData: FormData) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/news/${id}/with-image`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Delete news
+  deleteNews: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/news/${id}`,
+    });
+  },
+
+  // Get my news
+  getMyNews: async (params?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "GET",
+      url: "/news/my/news",
+      params,
     });
   },
 };

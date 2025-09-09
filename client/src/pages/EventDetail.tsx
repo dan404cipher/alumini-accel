@@ -56,6 +56,7 @@ interface Event {
   price: number;
   tags?: string[];
   image?: string;
+  registrationDeadline?: string;
   organizer: {
     _id: string;
     firstName: string;
@@ -69,7 +70,6 @@ interface Event {
     photo?: string;
   }>;
   agenda?: Array<{
-    time: string;
     title: string;
     speaker?: string;
     description?: string;
@@ -233,7 +233,8 @@ const EventDetail = () => {
       const baseUrl = (
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
       ).replace("/api/v1", "");
-      return `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
+      const fullUrl = `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
+      return fullUrl;
     }
 
     return image;
@@ -244,6 +245,25 @@ const EventDetail = () => {
     const eventDateObj = new Date(eventDate);
     const now = new Date();
     return eventDateObj < now;
+  };
+
+  // Helper function to check if registration is closed
+  const isRegistrationClosed = (event: Event) => {
+    const now = new Date();
+
+    // If event has passed, registration is closed
+    if (isEventPast(event.startDate)) {
+      return true;
+    }
+
+    // If registration deadline has passed, registration is closed
+    if (event.registrationDeadline) {
+      const deadlineDate = new Date(event.registrationDeadline);
+      return deadlineDate < now;
+    }
+
+    // If no registration deadline set, registration is open until event starts
+    return false;
   };
 
   // Helper function to get event type icon
@@ -319,21 +339,23 @@ const EventDetail = () => {
         {/* Event Image */}
         {event.image && getImageUrl(event.image) && (
           <Card className="mb-6 overflow-hidden">
-            <div className="relative">
+            <div className="relative w-full flex justify-center">
               <img
                 src={getImageUrl(event.image)!}
                 alt={event.title}
-                className="w-full h-64 sm:h-80 lg:h-96 object-cover"
+                className="w-full h-auto object-contain"
+                style={{
+                  imageRendering: "high-quality",
+                  imageRendering: "-webkit-optimize-contrast",
+                }}
                 onError={(e) => {
                   // Hide image if it fails to load
                   e.currentTarget.style.display = "none";
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
             </div>
           </Card>
         )}
-
         {/* Event Header */}
         <Card className="mb-6">
           <CardHeader>
@@ -398,14 +420,16 @@ const EventDetail = () => {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 flex-wrap">
-                  {isEventPast(event.startDate) ? (
+                  {isRegistrationClosed(event) ? (
                     <Button
                       disabled
                       variant="outline"
                       className="flex-1 sm:flex-none"
                     >
                       <Users className="w-4 h-4 mr-2" />
-                      Event Ended
+                      {isEventPast(event.startDate)
+                        ? "Event Ended"
+                        : "Registration Closed"}
                     </Button>
                   ) : (
                     <Button
@@ -600,7 +624,7 @@ const EventDetail = () => {
             </Card>
 
             {/* Speakers */}
-            {event.speakers && event.speakers.length > 0 && (
+            {event.speakers && event.speakers.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Speakers</CardTitle>
@@ -631,10 +655,24 @@ const EventDetail = () => {
                   </div>
                 </CardContent>
               </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Speakers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500 italic">
+                    No speakers available for this event.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Debug: speakers = {JSON.stringify(event.speakers)}
+                  </p>
+                </CardContent>
+              </Card>
             )}
 
             {/* Agenda */}
-            {event.agenda && event.agenda.length > 0 && (
+            {event.agenda && event.agenda.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Event Agenda</CardTitle>
@@ -643,9 +681,6 @@ const EventDetail = () => {
                   <div className="space-y-4">
                     {event.agenda.map((item, index) => (
                       <div key={index} className="flex items-start space-x-4">
-                        <div className="w-16 text-sm font-medium text-gray-600">
-                          {item.time}
-                        </div>
                         <div className="flex-1">
                           <h4 className="font-semibold">{item.title}</h4>
                           {item.speaker && (
@@ -662,6 +697,20 @@ const EventDetail = () => {
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Event Agenda</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500 italic">
+                    No agenda items available for this event.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Debug: agenda = {JSON.stringify(event.agenda)}
+                  </p>
                 </CardContent>
               </Card>
             )}

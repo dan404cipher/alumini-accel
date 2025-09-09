@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 
-// ✅ Extended funds array with descriptions
+//  Extended funds array with descriptions
 const funds = [
   {
     id: 1,
@@ -23,7 +23,7 @@ This initiative will proudly serve as a lasting tribute to your commitment to ed
 
 This initiative will proudly serve as a lasting tribute to your commitment to education at our institution. Your support has made a tangible impact on our studentsWe are thrilled to announce an exciting initiative to recognize your contributions to our college. As a token of our gratitude, we would like to honor you by dedicating a classroom or hall in your parents' name, teachers' name, or in honor of a loved one.
 
-`, // 🔹 Full detail text here
+`, //  Full detail text here
     raised: 0,
     contributors: 0,
     fundedPercent: 0,

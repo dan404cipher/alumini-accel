@@ -174,7 +174,7 @@ const Navbar: React.FC = () => {
           </li>
 
           <li
-            onClick={() => navigate("/fundraising")}
+            onClick={() => navigate("/funds")}
             className="cursor-pointer hover:text-blue-600"
           >
             Fund Raising

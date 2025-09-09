@@ -11,7 +11,19 @@ const funds = [
     title: "A Classroom (Hall) Named with Gratitude",
     description:
       "Honor your loved ones by dedicating a classroom or hall, as a lasting tribute to your support for education.",
-    details: `We are thrilled to announce an exciting initiative to recognize your contributions...`, // 🔹 Full detail text here
+    details: `We are thrilled to announce an exciting initiative to recognize your contributions to our college. As a token of our gratitude, we would like to honor you by dedicating a classroom or hall in your parents' name, teachers' name, or in honor of a loved one.
+
+This initiative will proudly serve as a lasting tribute to your commitment to education at our institution. Your support has made a tangible impact on our students We are thrilled to announce an exciting initiative to recognize your contributions to our college. As a token of our gratitude, we would like to honor you by dedicating a classroom or hall in your parents' name, teachers' name, or in honor of a loved one.
+
+This initiative will proudly serve as a lasting tribute to your commitment to education at our institution. Your support has made a tangible impact on our studentsWe are thrilled to announce an exciting initiative to recognize your contributions to our college. As a token of our gratitude, we would like to honor you by dedicating a classroom or hall in your parents' name, teachers' name, or in honor of a loved one.
+
+This initiative will proudly serve as a lasting tribute to your commitment to education at our institution. Your support has made a tangible impact on our studentsWe are thrilled to announce an exciting initiative to recognize your contributions to our college. As a token of our gratitude, we would like to honor you by dedicating a classroom or hall in your parents' name, teachers' name, or in honor of a loved one.
+
+This initiative will proudly serve as a lasting tribute to your commitment to education at our institution. Your support has made a tangible impact on our studentsWe are thrilled to announce an exciting initiative to recognize your contributions to our college. As a token of our gratitude, we would like to honor you by dedicating a classroom or hall in your parents' name, teachers' name, or in honor of a loved one.
+
+This initiative will proudly serve as a lasting tribute to your commitment to education at our institution. Your support has made a tangible impact on our studentsWe are thrilled to announce an exciting initiative to recognize your contributions to our college. As a token of our gratitude, we would like to honor you by dedicating a classroom or hall in your parents' name, teachers' name, or in honor of a loved one.
+
+`, // 🔹 Full detail text here
     raised: 0,
     contributors: 0,
     fundedPercent: 0,
@@ -49,7 +61,9 @@ By supporting travel grants for scholars, you're investing in the future of know
     title: "Emergency Medical Fund for Student Parents",
     description:
       "Provide urgent medical support to student parents during crises, ensuring they continue education.",
-    details: `Many student parents face unique challenges during medical emergencies...`,
+    details: `Many student parents face unique challenges during medical emergencies, often juggling between caring for their family and continuing their education. These emergencies can impose unexpected financial burdens, causing stress and distraction that may affect both their academic performance and personal well-being.
+
+Our Emergency Medical Fund is designed to provide immediate assistance to student parents in need, helping them access essential medical care without worrying about costs. `,
     raised: 0,
     contributors: 0,
     fundedPercent: 0,
@@ -60,9 +74,9 @@ By supporting travel grants for scholars, you're investing in the future of know
     description:
       "Support endowed chair professorships to attract top scholars, foster research, and elevate education.",
     details: `A chair professorship attracts distinguished faculty, drives impactful research...`,
-    raised: 0,
+    raised: 25000,
     contributors: 1,
-    fundedPercent: 0,
+    fundedPercent: 10,
   },
 ];
 
@@ -82,7 +96,7 @@ const ContributionDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Back Button */}
         <Button
           variant="outline"

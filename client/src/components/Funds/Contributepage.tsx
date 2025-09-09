@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,29 +6,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-// ✅ Copy the funds array (or ideally import from a shared file)
+// ✅ Funds array for dynamic title
 const funds = [
-  {
-    id: 1,
-    title: "A Classroom (Hall) Named with Gratitude",
-  },
-  {
-    id: 2,
-    title: "Empowering Scholars: Help Fund Their Journey",
-  },
-  {
-    id: 3,
-    title: "Rank Holders Endowment Fund",
-  },
-  {
-    id: 4,
-    title: "Emergency Medical Fund for Student Parents",
-  },
-  {
-    id: 5,
-    title: "Chair Professorship Initiative",
-  },
+  { id: 1, title: "A Classroom (Hall) Named with Gratitude" },
+  { id: 2, title: "Empowering Scholars: Help Fund Their Journey" },
+  { id: 3, title: "Rank Holders Endowment Fund" },
+  { id: 4, title: "Emergency Medical Fund for Student Parents" },
+  { id: 5, title: "Chair Professorship Initiative" },
 ];
+
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  contact: string;
+  amount: string;
+  course: string;
+  stream: string;
+  endYear: string;
+  building: string;
+  locality: string;
+  city: string;
+  state: string;
+  country: string;
+  pincode: string;
+  notes: string;
+}
+
+interface FormErrors {
+  [key: string]: string;
+}
 
 const ContributionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,16 +43,125 @@ const ContributionPage: React.FC = () => {
 
   const fund = funds.find((f) => f.id === Number(id));
 
+  const [formData, setFormData] = useState<FormData>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    contact: "",
+    amount: "",
+    course: "",
+    stream: "",
+    endYear: "",
+    building: "",
+    locality: "",
+    city: "",
+    state: "",
+    country: "",
+    pincode: "",
+    notes: "",
+  });
+
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  // Validate each field
+  const validateField = (name: string, value: string) => {
+    let error = "";
+
+    // Required fields except notes
+    if (!value && name !== "notes") error = "This field is required";
+
+    // Email format
+    if (name === "email" && value) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) error = "Invalid email format";
+    }
+
+    // Contact number: 10 digits
+    if (name === "contact" && value) {
+      if (value.length !== 10) error = "Contact must be 10 digits";
+    }
+
+    // Amount > 0
+    if (name === "amount" && value) {
+      const numeric = Number(value.replace(/,/g, ""));
+      if (numeric <= 0) error = "Amount must be greater than 0";
+    }
+
+    // End Year: 4 digits
+    if (name === "endYear" && value) {
+      if (value.length !== 4) error = "End Year must be 4 digits";
+    }
+
+    // Pincode: 6 digits
+    if (name === "pincode" && value) {
+      if (value.length !== 6) error = "Pincode must be 6 digits";
+    }
+
+    // Letters-only fields
+    if (
+      ["firstName", "lastName", "course", "stream", "city", "state", "country", "locality"].includes(name) &&
+      value
+    ) {
+      if (!/^[A-Za-z]+$/.test(value)) error = "Only letters allowed, no spaces";
+    }
+
+    return error;
+  };
+
+  // Handle text & number inputs
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    let { name, value } = e.target;
+
+    // Letters-only fields: remove numbers, spaces, symbols
+    if (
+      ["firstName", "lastName", "course", "stream", "city", "state", "country", "locality"].includes(name)
+    ) {
+      value = value.replace(/[^A-Za-z]/g, "");
+    }
+
+    // Number-only fields
+    if (["contact", "pincode", "endYear"].includes(name)) {
+      value = value.replace(/\D/g, "");
+    }
+
+    // Amount formatting
+    if (name === "amount") {
+      value = value.replace(/[^\d.]/g, ""); // only digits & dot
+      const [intPart, decimalPart] = value.split(".");
+      const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      value = decimalPart !== undefined ? `${formattedInt}.${decimalPart}` : formattedInt;
+    }
+
+    setFormData({ ...formData, [name]: value });
+
+    const error = validateField(name, value);
+    setErrors({ ...errors, [name]: error });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // ✅ TODO: handle form submit logic here
-    alert("Form submitted successfully!");
+    const newErrors: FormErrors = {};
+
+    Object.entries(formData).forEach(([key, value]) => {
+      const error = validateField(key, value);
+      if (error) newErrors[key] = error;
+    });
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      console.log("Form Submitted:", formData);
+      alert("Form submitted successfully!");
+    } else {
+      alert("Please fix the errors before submitting.");
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-3xl mx-auto">
-        {/* Back Button */}
         <Button
           variant="outline"
           className="mb-6"
@@ -74,101 +190,212 @@ const ContributionPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Amount */}
               <div>
-                <Label>Amount *</Label>
+                <Label>
+                  Amount <span className="text-red-500">*</span>
+                </Label>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-600 font-medium">INR</span>
-                  <Input type="number" placeholder="0.00" required />
+                  <Input
+                    type="text"
+                    name="amount"
+                    value={formData.amount}
+                    onChange={handleChange}
+                    placeholder="0"
+                  />
                 </div>
+                {errors.amount && <p className="text-red-500 text-sm">{errors.amount}</p>}
               </div>
 
               {/* Name */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>First Name *</Label>
-                  <Input type="text" required />
+                  <Label>
+                    First Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    className={errors.firstName ? "border-red-500" : ""}
+                  />
+                  {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName}</p>}
                 </div>
                 <div>
-                  <Label>Last Name *</Label>
-                  <Input type="text" required />
+                  <Label>
+                    Last Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className={errors.lastName ? "border-red-500" : ""}
+                  />
+                  {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName}</p>}
                 </div>
               </div>
 
               {/* Email + Contact */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Email *</Label>
-                  <Input type="email" required />
+                  <Label>
+                    Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={errors.email ? "border-red-500" : ""}
+                  />
+                  {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
                 </div>
                 <div>
-                  <Label>Contact Number *</Label>
-                  <Input type="tel" required />
+                  <Label>
+                    Contact Number <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="contact"
+                    value={formData.contact}
+                    onChange={handleChange}
+                    placeholder="10-digit number"
+                    className={errors.contact ? "border-red-500" : ""}
+                  />
+                  {errors.contact && <p className="text-red-500 text-sm">{errors.contact}</p>}
                 </div>
               </div>
 
-              {/* Course / Degree, Stream, End Year */}
+              {/* Course / Stream / End Year */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Course / Degree</Label>
-                  <Input type="text" />
+                  <Input
+                    type="text"
+                    name="course"
+                    value={formData.course}
+                    onChange={handleChange}
+                    placeholder="MSC"
+                  />
                 </div>
                 <div>
                   <Label>Stream</Label>
-                  <Input type="text" />
+                  <Input
+                    type="text"
+                    name="stream"
+                    value={formData.stream}
+                    onChange={handleChange}
+                    placeholder="Computer Science"
+                  />
                 </div>
                 <div>
                   <Label>End Year</Label>
-                  <Input type="number" />
+                  <Input
+                    type="text"
+                    name="endYear"
+                    value={formData.endYear}
+                    onChange={handleChange}
+                    placeholder="YYYY"
+                  />
+                  {errors.endYear && <p className="text-red-500 text-sm">{errors.endYear}</p>}
                 </div>
               </div>
 
               {/* Address */}
               <div>
-                <Label>Building No. & Street *</Label>
-                <Input type="text" required />
+                <Label>
+                  Building No. & Street <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  name="building"
+                  value={formData.building}
+                  onChange={handleChange}
+                  className={errors.building ? "border-red-500" : ""}
+                />
+                {errors.building && <p className="text-red-500 text-sm">{errors.building}</p>}
               </div>
               <div>
-                <Label>Locality *</Label>
-                <Input type="text" required />
+                <Label>
+                  Locality <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  name="locality"
+                  value={formData.locality}
+                  onChange={handleChange}
+                  className={errors.locality ? "border-red-500" : ""}
+                />
+                {errors.locality && <p className="text-red-500 text-sm">{errors.locality}</p>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>City *</Label>
-                  <Input type="text" required />
+                  <Label>
+                    City <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    className={errors.city ? "border-red-500" : ""}
+                  />
+                  {errors.city && <p className="text-red-500 text-sm">{errors.city}</p>}
                 </div>
                 <div>
-                  <Label>State *</Label>
-                  <Input type="text" required />
+                  <Label>
+                    State <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    className={errors.state ? "border-red-500" : ""}
+                  />
+                  {errors.state && <p className="text-red-500 text-sm">{errors.state}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Country *</Label>
-                  <Input type="text" required />
+                  <Label>
+                    Country <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    className={errors.country ? "border-red-500" : ""}
+                  />
+                  {errors.country && <p className="text-red-500 text-sm">{errors.country}</p>}
                 </div>
                 <div>
-                  <Label>Pincode *</Label>
-                  <Input type="text" required />
+                  <Label>
+                    Pincode <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="pincode"
+                    value={formData.pincode}
+                    onChange={handleChange}
+                    placeholder="6-digit pincode"
+                    className={errors.pincode ? "border-red-500" : ""}
+                  />
+                  {errors.pincode && <p className="text-red-500 text-sm">{errors.pincode}</p>}
                 </div>
               </div>
 
               {/* Notes */}
               <div>
                 <Label>Please Add Instructions / Notes if any</Label>
-                <Textarea placeholder="Your message..." />
+                <Textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleChange}
+                />
               </div>
-
-              {/* Transaction Mode */}
-              {/* <div>
-                <Label>Transaction Mode *</Label>
-                <select
-                  required
-                  className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Mode</option>
-                  <option value="online">Online</option>
-                  {/* <option value="offline">Offline</option> */}
-                {/* </select>
-              </div> */} 
 
               {/* Submit Button */}
               <Button type="submit" className="w-full bg-blue-600 text-white">

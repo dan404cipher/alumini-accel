@@ -271,6 +271,23 @@ export const userAPI = {
 
 // Alumni API functions
 export const alumniAPI = {
+  // Get public alumni directory (no authentication required)
+  getPublicAlumniDirectory: async (params?: {
+    page?: number;
+    limit?: number;
+    batchYear?: number;
+    department?: string;
+    isHiring?: boolean;
+    availableForMentorship?: boolean;
+    location?: string;
+  }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/alumni/public",
+      params,
+    });
+  },
+
   // Get all alumni
   getAllAlumni: async (params?: {
     page?: number;
@@ -867,6 +884,125 @@ export const newsAPI = {
       method: "GET",
       url: "/news/my/news",
       params,
+    });
+  },
+};
+
+// Student API functions
+export const studentAPI = {
+  // Get all students
+  getAllStudents: async (params?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "GET",
+      url: "/students",
+      params,
+    });
+  },
+
+  // Get student by ID
+  getStudentById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/students/${id}`,
+    });
+  },
+
+  // Get student profile
+  getStudentProfile: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/students/profile",
+    });
+  },
+
+  // Create student profile
+  createStudentProfile: async (profileData: Record<string, unknown>) => {
+    return apiRequest({
+      method: "POST",
+      url: "/students/profile",
+      data: profileData,
+    });
+  },
+
+  // Update student profile
+  updateStudentProfile: async (profileData: Record<string, unknown>) => {
+    return apiRequest({
+      method: "PUT",
+      url: "/students/profile",
+      data: profileData,
+    });
+  },
+
+  // Add project
+  addProject: async (projectData: Record<string, unknown>) => {
+    return apiRequest({
+      method: "POST",
+      url: "/students/profile/projects",
+      data: projectData,
+    });
+  },
+
+  // Update project
+  updateProject: async (
+    projectId: string,
+    projectData: Record<string, unknown>
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/students/profile/projects/${projectId}`,
+      data: projectData,
+    });
+  },
+
+  // Delete project
+  deleteProject: async (projectId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/students/profile/projects/${projectId}`,
+    });
+  },
+
+  // Add internship experience
+  addInternshipExperience: async (formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: "/students/profile/internships",
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Add research work
+  addResearchWork: async (formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: "/students/profile/research",
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Add certification
+  addCertification: async (formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: "/students/profile/certifications",
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Get student stats
+  getStudentStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/students/profile/stats",
     });
   },
 };

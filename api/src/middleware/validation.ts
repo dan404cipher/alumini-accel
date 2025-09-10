@@ -63,6 +63,12 @@ export const validateUserLogin = [
   handleValidationErrors,
 ];
 
+// Alumni profile validation for skills updates only
+export const validateAlumniSkillsInterests = [
+  body("skills").optional().isArray().withMessage("Skills must be an array"),
+  handleValidationErrors,
+];
+
 // Alumni profile validation
 export const validateAlumniProfile = [
   body("batchYear")

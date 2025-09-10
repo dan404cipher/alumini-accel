@@ -4,6 +4,105 @@ import User from "@/models/User";
 import { logger } from "@/utils/logger";
 import { UserRole } from "@/types";
 
+// Get public alumni directory data (no authentication required)
+export const getPublicAlumniDirectory = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter: any = {};
+
+    // Apply filters
+    if (req.query.batchYear)
+      filter.batchYear = parseInt(req.query.batchYear as string);
+    if (req.query.department)
+      filter.department = { $regex: req.query.department, $options: "i" };
+    if (req.query.isHiring) filter.isHiring = req.query.isHiring === "true";
+    if (req.query.availableForMentorship)
+      filter.availableForMentorship =
+        req.query.availableForMentorship === "true";
+    if (req.query.location)
+      filter.currentLocation = { $regex: req.query.location, $options: "i" };
+
+    const alumni = await AlumniProfile.find(filter)
+      .populate({
+        path: "user",
+        select: "firstName lastName email profilePicture role",
+        match: { role: UserRole.ALUMNI },
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Filter out any alumni profiles where the user is not an alumni
+    const validAlumni = alumni.filter((alumnus) => (alumnus as any).user);
+
+    // Get total count of alumni profiles with alumni role
+    const total = await AlumniProfile.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      { $match: { "user.role": UserRole.ALUMNI } },
+      { $count: "total" },
+    ]);
+
+    const totalCount = total.length > 0 ? total[0].total : 0;
+
+    // Return only public information
+    const publicAlumni = validAlumni.map((alumnus) => ({
+      id: alumnus._id,
+      name: `${(alumnus as any).user.firstName} ${(alumnus as any).user.lastName}`,
+      email: (alumnus as any).user.email,
+      profileImage: (alumnus as any).user.profilePicture,
+      graduationYear: alumnus.graduationYear,
+      batchYear: alumnus.batchYear,
+      department: alumnus.department,
+      specialization: alumnus.specialization,
+      currentRole: alumnus.currentPosition,
+      company: alumnus.currentCompany,
+      location: alumnus.currentLocation,
+      experience: alumnus.experience,
+      skills: alumnus.skills,
+      isHiring: alumnus.isHiring,
+      availableForMentorship: alumnus.availableForMentorship,
+      mentorshipDomains: alumnus.mentorshipDomains,
+      achievements: alumnus.achievements,
+      bio: (alumnus as any).bio,
+      linkedinProfile: (alumnus as any).linkedinProfile,
+      githubProfile: (alumnus as any).githubProfile,
+      website: (alumnus as any).website,
+      createdAt: alumnus.createdAt,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        alumni: publicAlumni,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get public alumni directory error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch alumni directory",
+    });
+  }
+};
+
 // Get all alumni profiles
 export const getAllAlumni = async (req: Request, res: Response) => {
   try {
@@ -495,11 +594,48 @@ export const getAlumniStats = async (req: Request, res: Response) => {
   }
 };
 
+// Update alumni skills and interests only
+export const updateSkillsInterests = async (req: Request, res: Response) => {
+  try {
+    const { skills, careerInterests } = req.body;
+
+    const alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
+
+    if (!alumniProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    // Update only skills if provided (alumni don't have careerInterests field)
+    if (skills !== undefined) alumniProfile.skills = skills;
+
+    await alumniProfile.save();
+
+    return res.json({
+      success: true,
+      message: "Skills updated successfully",
+      data: {
+        skills: alumniProfile.skills,
+      },
+    });
+  } catch (error) {
+    logger.error("Update skills error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 export default {
+  getPublicAlumniDirectory,
   getAllAlumni,
   getAlumniById,
   createProfile,
   updateProfile,
+  updateSkillsInterests,
   searchAlumni,
   getAlumniByBatch,
   getHiringAlumni,

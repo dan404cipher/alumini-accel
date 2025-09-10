@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,101 +22,118 @@ import {
   Star,
 } from "lucide-react";
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
+import { alumniAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+
+// Alumni interface
+interface Alumni {
+  id: string;
+  name: string;
+  email: string;
+  profileImage?: string;
+  graduationYear: number;
+  batchYear: number;
+  department: string;
+  specialization?: string;
+  currentRole?: string;
+  company?: string;
+  location?: string;
+  experience: number;
+  skills: string[];
+  isHiring: boolean;
+  availableForMentorship: boolean;
+  mentorshipDomains: string[];
+  achievements: string[];
+  bio?: string;
+  linkedinProfile?: string;
+  githubProfile?: string;
+  website?: string;
+  createdAt: string;
+}
 
 const AlumniDirectory = () => {
+  const navigate = useNavigate();
   const [isAddAlumniOpen, setIsAddAlumniOpen] = useState(false);
-  const alumni = [
-    {
-      id: 1,
-      name: "Sarah Chen",
-      graduationYear: 2019,
-      degree: "Computer Science",
-      currentRole: "Senior Software Engineer",
-      company: "Google",
-      location: "San Francisco, CA",
-      profileImage:
-        "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
-      isVerified: true,
-      isHiring: true,
-      badges: ["Mentor", "Donor"],
-      connections: 45,
-    },
-    {
-      id: 2,
-      name: "Alex Kumar",
-      graduationYear: 2020,
-      degree: "Electrical Engineering",
-      currentRole: "Product Manager",
-      company: "Microsoft",
-      location: "Seattle, WA",
-      profileImage:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      isVerified: true,
-      isHiring: false,
-      badges: ["Speaker"],
-      connections: 32,
-    },
-    {
-      id: 3,
-      name: "Maria Rodriguez",
-      graduationYear: 2018,
-      degree: "Business Administration",
-      currentRole: "Marketing Director",
-      company: "Spotify",
-      location: "New York, NY",
-      profileImage:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-      isVerified: true,
-      isHiring: true,
-      badges: ["Mentor", "Champion"],
-      connections: 67,
-    },
-    {
-      id: 4,
-      name: "David Park",
-      graduationYear: 2021,
-      degree: "Data Science",
-      currentRole: "ML Engineer",
-      company: "Tesla",
-      location: "Austin, TX",
-      profileImage:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-      isVerified: true,
-      isHiring: false,
-      badges: ["Rising Star"],
-      connections: 28,
-    },
-    {
-      id: 5,
-      name: "Emily Johnson",
-      graduationYear: 2017,
-      degree: "Mechanical Engineering",
-      currentRole: "Engineering Manager",
-      company: "SpaceX",
-      location: "Los Angeles, CA",
-      profileImage:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face",
-      isVerified: true,
-      isHiring: true,
-      badges: ["Mentor", "Donor", "Speaker"],
-      connections: 89,
-    },
-    {
-      id: 6,
-      name: "James Wilson",
-      graduationYear: 2022,
-      degree: "Computer Science",
-      currentRole: "Software Developer",
-      company: "Amazon",
-      location: "Seattle, WA",
-      profileImage:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face",
-      isVerified: true,
-      isHiring: false,
-      badges: ["Recent Graduate"],
-      connections: 15,
-    },
-  ];
+  const [alumni, setAlumni] = useState<Alumni[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Handle profile click
+  const handleProfileClick = (alumniId: string) => {
+    navigate(`/alumni/${alumniId}`);
+  };
+
+  const fetchAlumni = useCallback(async () => {
+    // Mock data for fallback
+    const mockAlumni: Alumni[] = [
+      {
+        id: "1",
+        name: "Sarah Chen",
+        email: "sarah.chen@example.com",
+        graduationYear: 2019,
+        batchYear: 2019,
+        department: "Computer Science",
+        specialization: "Software Engineering",
+        currentRole: "Senior Software Engineer",
+        company: "Google",
+        location: "San Francisco, CA",
+        profileImage:
+          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
+        experience: 5,
+        skills: ["JavaScript", "React", "Node.js", "Python"],
+        isHiring: true,
+        availableForMentorship: true,
+        mentorshipDomains: ["Software Engineering", "Career Development"],
+        achievements: ["Google MVP Award", "Open Source Contributor"],
+        bio: "Passionate software engineer with 5+ years of experience in web development.",
+        linkedinProfile: "https://linkedin.com/in/sarahchen",
+        githubProfile: "https://github.com/sarahchen",
+        website: "https://sarahchen.dev",
+        createdAt: "2019-06-01T00:00:00.000Z",
+      },
+    ];
+    try {
+      setLoading(true);
+      setError(null);
+      console.log("Fetching alumni directory...");
+
+      const response = await alumniAPI.getPublicAlumniDirectory();
+      console.log("Alumni directory API response:", response);
+
+      if (
+        response &&
+        response.data &&
+        (response.data as { alumni: Alumni[] }).alumni
+      ) {
+        setAlumni((response.data as { alumni: Alumni[] }).alumni);
+        console.log(
+          "Processed alumni data:",
+          (response.data as { alumni: Alumni[] }).alumni
+        );
+      } else {
+        console.log("No alumni data found, using mock data");
+        setAlumni(mockAlumni);
+      }
+    } catch (error) {
+      console.error("Error fetching alumni directory:", error);
+      setError("Failed to load alumni directory");
+      // Fallback to mock data on error
+      setAlumni(mockAlumni);
+      toast({
+        title: "Warning",
+        description: "Using sample data. Please check your connection.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  // Fetch alumni data from API
+  useEffect(() => {
+    fetchAlumni();
+  }, [fetchAlumni]);
 
   return (
     <div className="space-y-6">
@@ -174,88 +192,164 @@ const AlumniDirectory = () => {
         </CardContent>
       </Card>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">
+            Loading alumni directory...
+          </p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="text-center py-12">
+          <div className="text-red-500 mb-4">
+            <Users className="h-12 w-12 mx-auto mb-2" />
+            <p className="text-lg font-semibold">
+              Failed to load alumni directory
+            </p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+          <Button onClick={fetchAlumni} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      )}
+
       {/* Alumni Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {alumni.map((alumnus) => (
-          <Card
-            key={alumnus.id}
-            className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
-          >
-            <CardContent className="p-6">
-              <div className="flex items-start space-x-4">
-                <div className="relative">
-                  <img
-                    src={alumnus.profileImage}
-                    alt={alumnus.name}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                  {alumnus.isVerified && (
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success rounded-full flex items-center justify-center">
-                      <Star className="w-3 h-3 text-success-foreground" />
+      {!loading && !error && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {alumni.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-lg font-semibold">No alumni found</p>
+              <p className="text-muted-foreground">
+                Check back later for new alumni profiles.
+              </p>
+            </div>
+          ) : (
+            alumni.map((alumnus) => (
+              <Card
+                key={alumnus.id}
+                className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
+                onClick={() => handleProfileClick(alumnus.id)}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="relative">
+                      <img
+                        src={alumnus.profileImage}
+                        alt={alumnus.name}
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                      {alumnus.availableForMentorship && (
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success rounded-full flex items-center justify-center">
+                          <Star className="w-3 h-3 text-success-foreground" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg truncate">
-                      {alumnus.name}
-                    </h3>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg truncate">
+                          {alumnus.name}
+                        </h3>
+                        {alumnus.isHiring && (
+                          <Badge variant="success" className="text-xs">
+                            Hiring
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {alumnus.currentRole || "Alumni"}
+                      </p>
+                      {alumnus.company && (
+                        <p className="text-sm font-medium text-primary">
+                          {alumnus.company}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Class of {alumnus.graduationYear} • {alumnus.department}
+                    </div>
+                    {alumnus.location && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4 mr-2" />
+                        {alumnus.location}
+                      </div>
+                    )}
+                    {alumnus.experience > 0 && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        {alumnus.experience} years experience
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badges */}
+                  <div className="mt-4 flex flex-wrap gap-1">
                     {alumnus.isHiring && (
                       <Badge variant="success" className="text-xs">
                         Hiring
                       </Badge>
                     )}
+                    {alumnus.availableForMentorship && (
+                      <Badge variant="secondary" className="text-xs">
+                        Mentor
+                      </Badge>
+                    )}
+                    {alumnus.skills.slice(0, 2).map((skill, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {alumnus.currentRole}
-                  </p>
-                  <p className="text-sm font-medium text-primary">
-                    {alumnus.company}
-                  </p>
-                </div>
-              </div>
 
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Class of {alumnus.graduationYear} • {alumnus.degree}
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  {alumnus.location}
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Users className="w-4 h-4 mr-2" />
-                  {alumnus.connections} connections
-                </div>
-              </div>
-
-              {/* Badges */}
-              <div className="mt-4 flex flex-wrap gap-1">
-                {alumnus.badges.map((badge, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {badge}
-                  </Badge>
-                ))}
-              </div>
-
-              {/* Actions */}
-              <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Mail className="w-4 h-4 mr-2" />
-                  Connect
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Linkedin className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Phone className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  {/* Actions */}
+                  <div
+                    className="mt-4 flex gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Connect
+                    </Button>
+                    {alumnus.linkedinProfile && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(alumnus.linkedinProfile, "_blank");
+                        }}
+                      >
+                        <Linkedin className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {alumnus.githubProfile && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(alumnus.githubProfile, "_blank");
+                        }}
+                      >
+                        <Phone className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Load More */}
       <div className="text-center">

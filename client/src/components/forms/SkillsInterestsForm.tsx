@@ -40,7 +40,7 @@ export const SkillsInterestsForm = ({
   const [isLoading, setIsLoading] = useState(false);
   const [skills, setSkills] = useState<string[]>(profileData?.skills || []);
   const [interests, setInterests] = useState<string[]>(
-    profileData?.interests || []
+    profileData?.careerInterests || []
   );
   const [newSkill, setNewSkill] = useState("");
   const [newInterest, setNewInterest] = useState("");
@@ -54,7 +54,7 @@ export const SkillsInterestsForm = ({
     resolver: zodResolver(skillsInterestsSchema),
     defaultValues: {
       skills: profileData?.skills || [],
-      interests: profileData?.interests || [],
+      interests: profileData?.careerInterests || [],
     },
   });
 
@@ -97,7 +97,7 @@ export const SkillsInterestsForm = ({
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
       const endpoint = isStudent
         ? `${apiUrl}/students/profile`
-        : `${apiUrl}/alumni/profile`;
+        : `${apiUrl}/alumni/profile/skills-interests`;
 
       const response = await fetch(endpoint, {
         method: "PUT",
@@ -107,7 +107,7 @@ export const SkillsInterestsForm = ({
         },
         body: JSON.stringify({
           skills: skills,
-          interests: interests,
+          ...(isStudent && { careerInterests: interests }),
         }),
       });
 
@@ -168,7 +168,7 @@ export const SkillsInterestsForm = ({
             {interests.length > 0 && (
               <div>
                 <Label className="text-sm font-medium text-gray-500 mb-2 block">
-                  Interests
+                  Career Interests
                 </Label>
                 <div className="flex flex-wrap gap-2">
                   {interests.map((interest, index) => (
@@ -181,7 +181,9 @@ export const SkillsInterestsForm = ({
             )}
 
             {skills.length === 0 && interests.length === 0 && (
-              <p className="text-gray-500">No skills or interests added yet</p>
+              <p className="text-gray-500">
+                No skills or career interests added yet
+              </p>
             )}
           </div>
         </CardContent>
@@ -235,12 +237,12 @@ export const SkillsInterestsForm = ({
             </div>
 
             <div className="space-y-2">
-              <Label>Interests</Label>
+              <Label>Career Interests</Label>
               <div className="flex space-x-2">
                 <Input
                   value={newInterest}
                   onChange={(e) => setNewInterest(e.target.value)}
-                  placeholder="Add an interest (e.g., AI, Sports, Startups)"
+                  placeholder="Add a career interest (e.g., AI, Sports, Startups)"
                   onKeyPress={(e) =>
                     e.key === "Enter" && (e.preventDefault(), addInterest())
                   }

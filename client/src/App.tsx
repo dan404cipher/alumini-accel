@@ -22,6 +22,8 @@ import EventsMeetups from "./components/EventsMeetups";
 import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";
 import NewsDetail from "./pages/NewsDetail";
+import AdminDashboard from "./components/AdminDashboard";
+import AlumniProfile from "./components/AlumniProfile";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +61,8 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
+
+                <Route path="/alumni/:id" element={<AlumniProfile />} />
 
                 <Route
                   path="/settings"
@@ -145,6 +149,15 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />

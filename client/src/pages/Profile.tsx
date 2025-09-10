@@ -382,13 +382,48 @@ const Profile = () => {
           {/* Main Content */}
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="education">Education</TabsTrigger>
+              <TabsList className="flex w-full flex-wrap justify-start gap-1 p-1">
+                <TabsTrigger value="overview" className="text-xs sm:text-sm">
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="education" className="text-xs sm:text-sm">
+                  Education
+                </TabsTrigger>
+                <TabsTrigger value="skills" className="text-xs sm:text-sm">
+                  Skills
+                </TabsTrigger>
+                <TabsTrigger value="projects" className="text-xs sm:text-sm">
+                  Projects
+                </TabsTrigger>
+                <TabsTrigger value="experience" className="text-xs sm:text-sm">
+                  Experience
+                </TabsTrigger>
+                <TabsTrigger value="research" className="text-xs sm:text-sm">
+                  Research
+                </TabsTrigger>
+                <TabsTrigger
+                  value="certifications"
+                  className="text-xs sm:text-sm"
+                >
+                  Certifications
+                </TabsTrigger>
+                <TabsTrigger value="connections" className="text-xs sm:text-sm">
+                  Connections
+                </TabsTrigger>
+                <TabsTrigger value="events" className="text-xs sm:text-sm">
+                  Events
+                </TabsTrigger>
                 {!isStudent && (
-                  <TabsTrigger value="professional">Professional</TabsTrigger>
+                  <TabsTrigger
+                    value="professional"
+                    className="text-xs sm:text-sm"
+                  >
+                    Professional
+                  </TabsTrigger>
                 )}
-                <TabsTrigger value="social">Social</TabsTrigger>
+                <TabsTrigger value="social" className="text-xs sm:text-sm">
+                  Social
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
@@ -461,32 +496,6 @@ const Profile = () => {
                         </div>
                       </CardContent>
                     </Card>
-
-                    {/* Role-specific sections */}
-                    {isStudent && profileData && (
-                      <>
-                        <ProjectsSection
-                          projects={profileData.projects || []}
-                          isEditing={isEditing}
-                          onUpdate={handleProfileUpdate}
-                        />
-                        <InternshipsSection
-                          internships={profileData.internshipExperience || []}
-                          isEditing={isEditing}
-                          onUpdate={handleProfileUpdate}
-                        />
-                        <ResearchSection
-                          research={profileData.researchWork || []}
-                          isEditing={isEditing}
-                          onUpdate={handleProfileUpdate}
-                        />
-                        <CertificationsSection
-                          certifications={profileData.certifications || []}
-                          isEditing={isEditing}
-                          onUpdate={handleProfileUpdate}
-                        />
-                      </>
-                    )}
 
                     {isAlumni && profileData && (
                       <Card>
@@ -691,58 +700,6 @@ const Profile = () => {
                                 </div>
                               </div>
                             )}
-
-                            {/* Skills and Interests */}
-                            {(profileData.skills?.length > 0 ||
-                              profileData.careerInterests?.length > 0) && (
-                              <div>
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                                  Skills & Interests
-                                </h4>
-                                <div className="space-y-4">
-                                  {profileData.skills &&
-                                    profileData.skills.length > 0 && (
-                                      <div>
-                                        <label className="text-sm font-medium text-gray-500">
-                                          Skills
-                                        </label>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                          {profileData.skills.map(
-                                            (skill, index) => (
-                                              <Badge
-                                                key={index}
-                                                variant="secondary"
-                                              >
-                                                {skill}
-                                              </Badge>
-                                            )
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
-                                  {profileData.careerInterests &&
-                                    profileData.careerInterests.length > 0 && (
-                                      <div>
-                                        <label className="text-sm font-medium text-gray-500">
-                                          Career Interests
-                                        </label>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                          {profileData.careerInterests.map(
-                                            (interest, index) => (
-                                              <Badge
-                                                key={index}
-                                                variant="outline"
-                                              >
-                                                {interest}
-                                              </Badge>
-                                            )
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
-                                </div>
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <p className="text-gray-500">
@@ -753,6 +710,126 @@ const Profile = () => {
                     </Card>
                   </div>
                 )}
+              </TabsContent>
+
+              {/* Skills & Interests Tab */}
+              <TabsContent value="skills">
+                {isEditing ? (
+                  <SkillsInterestsForm
+                    profileData={profileData}
+                    userRole={profile.user.role}
+                    isEditing={isEditing}
+                    onUpdate={handleProfileUpdate}
+                  />
+                ) : (
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Skills & Interests</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                              Skills
+                            </h4>
+                            {profileData?.skills &&
+                            profileData.skills.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {profileData.skills.map((skill, index) => (
+                                  <Badge key={index} variant="secondary">
+                                    {skill}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400">
+                                No skills added yet
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                              Career Interests
+                            </h4>
+                            {profileData?.careerInterests &&
+                            profileData.careerInterests.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {profileData.careerInterests.map(
+                                  (interest, index) => (
+                                    <Badge key={index} variant="outline">
+                                      {interest}
+                                    </Badge>
+                                  )
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400">
+                                No career interests added yet
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Projects Tab */}
+              <TabsContent value="projects">
+                <ProjectsSection
+                  projects={profileData?.projects || []}
+                  isEditing={isEditing}
+                  onUpdate={handleProfileUpdate}
+                />
+              </TabsContent>
+
+              {/* Experience Tab (Internships) */}
+              <TabsContent value="experience">
+                <InternshipsSection
+                  internships={profileData?.internshipExperience || []}
+                  isEditing={isEditing}
+                  onUpdate={handleProfileUpdate}
+                />
+              </TabsContent>
+
+              {/* Research Tab */}
+              <TabsContent value="research">
+                <ResearchSection
+                  research={profileData?.researchWork || []}
+                  isEditing={isEditing}
+                  onUpdate={handleProfileUpdate}
+                />
+              </TabsContent>
+
+              {/* Certifications Tab */}
+              <TabsContent value="certifications">
+                <CertificationsSection
+                  certifications={profileData?.certifications || []}
+                  isEditing={isEditing}
+                  onUpdate={handleProfileUpdate}
+                />
+              </TabsContent>
+
+              {/* Connections Tab */}
+              <TabsContent value="connections">
+                <ConnectionsSection
+                  connections={profileData?.connections || []}
+                  connectionRequests={profileData?.connectionRequests || []}
+                  isEditing={isEditing}
+                  onUpdate={handleProfileUpdate}
+                />
+              </TabsContent>
+
+              {/* Events Tab */}
+              <TabsContent value="events">
+                <EventsSection
+                  eventsRegistered={profileData?.eventsRegistered || []}
+                  eventsAttended={profileData?.eventsAttended || []}
+                  isEditing={isEditing}
+                  onUpdate={handleProfileUpdate}
+                />
               </TabsContent>
 
               {!isStudent && (
@@ -918,13 +995,6 @@ const Profile = () => {
                         </div>
                       </CardContent>
                     </Card>
-
-                    <SkillsInterestsForm
-                      profileData={profileData}
-                      userRole={profile.user.role}
-                      isEditing={isEditing}
-                      onUpdate={handleProfileUpdate}
-                    />
 
                     {isStudent && (
                       <JobPreferencesForm

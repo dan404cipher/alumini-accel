@@ -2,17 +2,27 @@ import express from "express";
 import alumniController from "@/controllers/alumniController";
 import {
   validateAlumniProfile,
+  validateAlumniSkillsInterests,
   validateId,
   validateRequest,
 } from "@/middleware/validation";
-import { authenticateToken, requireAlumni } from "@/middleware/auth";
+import {
+  authenticateToken,
+  requireAlumni,
+  requireAdmin,
+} from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
 
 const router = express.Router();
 
+// @route   GET /api/v1/alumni/public
+// @desc    Get public alumni directory data
+// @access  Public
+router.get("/public", asyncHandler(alumniController.getPublicAlumniDirectory));
+
 // @route   GET /api/v1/alumni
 // @desc    Get all alumni profiles
-// @access  Private
+// @access  Private (Alumni or Admin)
 router.get("/", authenticateToken, asyncHandler(alumniController.getAllAlumni));
 
 // @route   GET /api/v1/alumni/:id
@@ -45,6 +55,17 @@ router.put(
   requireAlumni,
   ...validateRequest(validateAlumniProfile),
   asyncHandler(alumniController.updateProfile)
+);
+
+// @route   PUT /api/v1/alumni/profile/skills-interests
+// @desc    Update alumni skills and interests only
+// @access  Private/Alumni
+router.put(
+  "/profile/skills-interests",
+  authenticateToken,
+  requireAlumni,
+  ...validateRequest(validateAlumniSkillsInterests),
+  asyncHandler(alumniController.updateSkillsInterests)
 );
 
 // @route   GET /api/v1/alumni/search

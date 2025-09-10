@@ -17,7 +17,8 @@ import { AppError } from "@/middleware/errorHandler";
 // Register new user
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, firstName, lastName, role, phone } = req.body;
+    const { email, password, firstName, lastName, role, phone, status } =
+      req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -28,6 +29,14 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
+    // Determine user status
+    let userStatus = UserStatus.PENDING;
+
+    // If status is provided, use it (for admin-created accounts)
+    if (status && status === "active") {
+      userStatus = UserStatus.ACTIVE;
+    }
+
     // Create user
     const user = new User({
       email: email.toLowerCase(),
@@ -36,7 +45,7 @@ export const register = async (req: Request, res: Response) => {
       lastName,
       role: role || UserRole.STUDENT,
       phone,
-      status: UserStatus.PENDING,
+      status: userStatus,
     });
 
     // Generate email verification token

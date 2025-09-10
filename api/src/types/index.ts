@@ -101,6 +101,9 @@ export interface IUser extends Document {
     pushNotifications: boolean;
     newsletterSubscription: boolean;
   };
+  university?: string;
+  isProfileComplete: boolean;
+  profileCompletionPercentage: number;
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -159,6 +162,148 @@ export interface IAlumniProfile extends Document {
     date: Date;
   }>;
   photos: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Student Profile Interface
+export interface IStudentProfile extends Document {
+  _id: string;
+  userId: string;
+  // Educational Details
+  university: string;
+  department: string;
+  program: string;
+  batchYear: number;
+  graduationYear: number;
+  rollNumber: string;
+  studentId?: string;
+  achievements: string[];
+  certifications: Array<{
+    name: string;
+    issuer: string;
+    date: Date;
+    credentialId?: string;
+    credentialUrl?: string;
+  }>;
+  // Current Academic Details
+  currentYear:
+    | "1st Year"
+    | "2nd Year"
+    | "3rd Year"
+    | "4th Year"
+    | "5th Year"
+    | "Final Year"
+    | "Graduate";
+  currentCGPA?: number;
+  currentGPA?: number;
+  projects: Array<{
+    _id?: string;
+    title: string;
+    description: string;
+    technologies: string[];
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    githubUrl?: string;
+    liveUrl?: string;
+    teamMembers: Array<{
+      name: string;
+      role: string;
+    }>;
+  }>;
+  researchWork: Array<{
+    title: string;
+    description: string;
+    supervisor?: string;
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    publicationUrl?: string;
+    conferenceUrl?: string;
+    keywords?: string[];
+    status: "ongoing" | "completed" | "published" | "presented";
+  }>;
+  internshipExperience: Array<{
+    company: string;
+    position: string;
+    description?: string;
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    location?: string;
+    isRemote: boolean;
+    stipend?: {
+      amount: number;
+      currency: string;
+    };
+    skills: string[];
+    certificateUrl?: string;
+  }>;
+  careerInterests: string[];
+  // Social & Networking
+  linkedinProfile?: string;
+  githubProfile?: string;
+  portfolioUrl?: string;
+  twitterHandle?: string;
+  otherSocialHandles: Array<{
+    platform: string;
+    handle: string;
+    url?: string;
+  }>;
+  // Connection Requests
+  connectionRequests: Array<{
+    _id?: string;
+    userId: string;
+    status: "pending" | "accepted" | "rejected";
+    requestedAt: Date;
+    respondedAt?: Date;
+    message?: string;
+  }>;
+  connections: string[];
+  // Skills & Interests
+  skills: string[];
+  interests: string[];
+  // Job Preferences
+  preferredJobLocation: string[];
+  preferredJobTypes: (
+    | "full-time"
+    | "part-time"
+    | "internship"
+    | "contract"
+    | "freelance"
+  )[];
+  expectedSalary?: {
+    min?: number;
+    max?: number;
+    currency: string;
+  };
+  // Events
+  eventsRegistered: Array<{
+    eventId: string;
+    registeredAt: Date;
+    status: "registered" | "attended" | "cancelled";
+  }>;
+  eventsAttended: Array<{
+    eventId: string;
+    attendedAt: Date;
+    feedback?: {
+      rating: number;
+      comment?: string;
+    };
+  }>;
+  // Additional Info
+  isAvailableForInternships: boolean;
+  isAvailableForProjects: boolean;
+  isAvailableForMentorship: boolean;
+  mentorshipDomains: string[];
+  resumeUrl?: string;
+  coverLetterUrl?: string;
+  additionalDocuments: Array<{
+    name: string;
+    url: string;
+    type: "transcript" | "certificate" | "portfolio" | "other";
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }

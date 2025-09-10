@@ -1,6 +1,10 @@
 import express from "express";
 import eventController from "@/controllers/eventController";
-import { validateEvent, validateId } from "@/middleware/validation";
+import {
+  validateEvent,
+  validateId,
+  validateRequest,
+} from "@/middleware/validation";
 import { authenticateToken, requireCoordinator } from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
 import multer from "multer";
@@ -43,7 +47,7 @@ router.get("/", authenticateToken, asyncHandler(eventController.getAllEvents));
 router.get(
   "/:id",
   authenticateToken,
-  validateId,
+  ...validateRequest(validateId),
   asyncHandler(eventController.getEventById)
 );
 
@@ -54,7 +58,7 @@ router.post(
   "/",
   authenticateToken,
   requireCoordinator,
-  validateEvent,
+  ...validateRequest(validateEvent),
   asyncHandler(eventController.createEvent)
 );
 
@@ -84,8 +88,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireCoordinator,
-  validateId,
-  validateEvent,
+  ...validateRequest([...validateId, ...validateEvent]),
   asyncHandler(eventController.updateEvent)
 );
 
@@ -97,7 +100,7 @@ router.put(
   upload.single("image") as any,
   authenticateToken,
   requireCoordinator,
-  validateId,
+  ...validateRequest(validateId),
   asyncHandler(eventController.updateEventWithImage)
 );
 
@@ -108,7 +111,7 @@ router.delete(
   "/:id",
   authenticateToken,
   requireCoordinator,
-  validateId,
+  ...validateRequest(validateId),
   asyncHandler(eventController.deleteEvent)
 );
 
@@ -118,7 +121,7 @@ router.delete(
 router.post(
   "/:id/register",
   authenticateToken,
-  validateId,
+  ...validateRequest(validateId),
   asyncHandler(eventController.registerForEvent)
 );
 
@@ -128,7 +131,7 @@ router.post(
 router.delete(
   "/:id/unregister",
   authenticateToken,
-  validateId,
+  ...validateRequest(validateId),
   asyncHandler(eventController.unregisterFromEvent)
 );
 
@@ -138,7 +141,7 @@ router.delete(
 router.post(
   "/:id/feedback",
   authenticateToken,
-  validateId,
+  ...validateRequest(validateId),
   asyncHandler(eventController.submitFeedback)
 );
 

@@ -7,12 +7,17 @@ import {
   checkInvitationExists,
 } from "../controllers/invitationController";
 import { authenticateToken } from "../middleware/auth";
-import { validateInvitation } from "../middleware/validation";
+import { validateInvitation, validateRequest } from "../middleware/validation";
 
 const router = express.Router();
 
 // Send invitation (authenticated users only)
-router.post("/", authenticateToken, validateInvitation, sendInvitation);
+router.post(
+  "/",
+  authenticateToken,
+  ...validateRequest(validateInvitation),
+  sendInvitation
+);
 
 // Get invitations (authenticated users only)
 router.get("/", authenticateToken, getInvitations);

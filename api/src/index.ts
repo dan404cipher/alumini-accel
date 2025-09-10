@@ -21,6 +21,7 @@ import { rateLimit as customRateLimit } from "@/middleware/auth";
 import authRoutes from "@/routes/auth";
 import userRoutes from "@/routes/users";
 import alumniRoutes from "@/routes/alumni";
+import studentRoutes from "@/routes/studentRoutes";
 import jobRoutes from "@/routes/jobs";
 import eventRoutes from "@/routes/events";
 import newsRoutes from "@/routes/news";
@@ -37,7 +38,29 @@ const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
 // Connect to database
-connectDB();
+const startServer = async () => {
+  try {
+    await connectDB();
+
+    // Start server
+    app.listen(PORT, () => {
+      logger.info(
+        `🚀 AlumniAccel API server running on port ${PORT} in ${NODE_ENV} mode`
+      );
+      logger.info(
+        `📊 Health check available at http://localhost:${PORT}/health`
+      );
+      logger.info(
+        `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
+      );
+    });
+  } catch (error) {
+    logger.error("Failed to start server:", error);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 // Security middleware
 app.use(
@@ -140,6 +163,7 @@ app.get("/test-uploads", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/alumni", alumniRoutes);
+app.use("/api/v1/students", studentRoutes);
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/news", newsRoutes);
@@ -200,39 +224,6 @@ process.on("unhandledRejection", (err: Error) => {
 process.on("uncaughtException", (err: Error) => {
   logger.error("Uncaught Exception:", err);
   process.exit(1);
-});
-
-// Start server
-const server = app.listen(PORT, () => {
-  logger.info(
-    `🚀 AlumniAccel API server running on port ${PORT} in ${NODE_ENV} mode`
-  );
-  logger.info(`📊 Health check available at http://localhost:${PORT}/health`);
-  logger.info(
-    `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
-  );
-});
-
-// Handle server errors
-server.on("error", (error: NodeJS.ErrnoException) => {
-  if (error.syscall !== "listen") {
-    throw error;
-  }
-
-  const bind = typeof PORT === "string" ? "Pipe " + PORT : "Port " + PORT;
-
-  switch (error.code) {
-    case "EACCES":
-      logger.error(`${bind} requires elevated privileges`);
-      process.exit(1);
-      break;
-    case "EADDRINUSE":
-      logger.error(`${bind} is already in use`);
-      process.exit(1);
-      break;
-    default:
-      throw error;
-  }
 });
 
 export default app;

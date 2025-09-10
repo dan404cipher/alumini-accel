@@ -20,6 +20,11 @@ export const handleValidationErrors = (
   return next();
 };
 
+// Generic validation request handler
+export const validateRequest = (validations: any[]) => {
+  return [...validations, handleValidationErrors];
+};
+
 // User registration validation
 export const validateUserRegistration = [
   body("email")

@@ -137,6 +137,22 @@ const userSchema = new Schema<IUser>(
         default: true,
       },
     },
+    // Additional profile fields
+    university: {
+      type: String,
+      trim: true,
+      maxlength: [200, "University name cannot exceed 200 characters"],
+    },
+    isProfileComplete: {
+      type: Boolean,
+      default: false,
+    },
+    profileCompletionPercentage: {
+      type: Number,
+      default: 0,
+      min: [0, "Profile completion percentage cannot be negative"],
+      max: [100, "Profile completion percentage cannot exceed 100"],
+    },
   },
   {
     timestamps: true,

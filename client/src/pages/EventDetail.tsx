@@ -345,7 +345,6 @@ const EventDetail = () => {
                 alt={event.title}
                 className="w-full h-auto object-contain"
                 style={{
-                  imageRendering: "high-quality",
                   imageRendering: "-webkit-optimize-contrast",
                 }}
                 onError={(e) => {

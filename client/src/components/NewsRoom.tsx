@@ -270,7 +270,7 @@ const NewsRoom = () => {
             {news.map((newsItem) => (
               <Card
                 key={newsItem._id}
-                className="overflow-hidden hover:shadow-lg transition-shadow"
+                className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"
               >
                 {/* News Image */}
                 {newsItem.image && getImageUrl(newsItem.image) && (
@@ -287,39 +287,54 @@ const NewsRoom = () => {
                 )}
 
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg line-clamp-2 mb-2">
-                        {newsItem.title}
-                      </CardTitle>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500">
-                        <User className="w-4 h-4" />
-                        <span>
-                          {newsItem.author.firstName} {newsItem.author.lastName}
-                        </span>
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg line-clamp-2 mb-2">
+                          {newsItem.title}
+                        </CardTitle>
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                          <User className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {newsItem.author.firstName}{" "}
+                            {newsItem.author.lastName}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/news/${newsItem._id}`)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleShareNews(newsItem)}
-                      >
-                        <Share2 className="w-4 h-4 mr-2" />
-                        Share
-                      </Button>
+
+                    {/* Action buttons row */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/news/${newsItem._id}`)}
+                          className="flex-shrink-0"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          <span className="hidden sm:inline">View Details</span>
+                          <span className="sm:hidden">View</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShareNews(newsItem)}
+                          className="flex-shrink-0"
+                        >
+                          <Share2 className="w-4 h-4 mr-2" />
+                          Share
+                        </Button>
+                      </div>
+
                       {canManageNews && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex-shrink-0"
+                            >
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -350,27 +365,31 @@ const NewsRoom = () => {
                   </div>
                 </CardHeader>
 
-                <CardContent className="pt-0">
-                  <CardDescription className="line-clamp-3 mb-4">
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  <CardDescription className="line-clamp-3 mb-4 flex-1">
                     {newsItem.summary}
                   </CardDescription>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-auto">
                     <div className="flex items-center space-x-2 text-sm text-gray-500">
-                      <Calendar className="w-4 h-4" />
-                      <span>{formatDate(newsItem.createdAt)}</span>
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">
+                        {formatDate(newsItem.createdAt)}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       {newsItem.isShared ? (
                         <Badge
                           variant="default"
-                          className="bg-green-100 text-green-800"
+                          className="bg-green-100 text-green-800 flex-shrink-0"
                         >
                           <Share2 className="w-3 h-3 mr-1" />
                           Shared
                         </Badge>
                       ) : (
-                        <Badge variant="secondary">Draft</Badge>
+                        <Badge variant="secondary" className="flex-shrink-0">
+                          Draft
+                        </Badge>
                       )}
                     </div>
                   </div>

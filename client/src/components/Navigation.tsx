@@ -114,11 +114,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               </span>
             </Button>
 
-            {/* Settings */}
-            <Button variant="ghost" size="icon">
-              <Settings className="w-5 h-5" />
-            </Button>
-
             {/* Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

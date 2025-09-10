@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Navigation from "./Navigation";
+import Footer from "./Footer";
 import Dashboard from "./Dashboard";
 import AlumniDirectory from "./AlumniDirectory";
 import AlumniManagement from "./AlumniManagement";
@@ -70,12 +71,16 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background" style={{ overflowY: "auto" }}>
+    <div
+      className="min-h-screen bg-background flex flex-col"
+      style={{ overflowY: "auto" }}
+    >
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {/* Content */}
         <div className="animate-fade-in-up">{renderContent()}</div>
       </main>
+      <Footer />
     </div>
   );
 };

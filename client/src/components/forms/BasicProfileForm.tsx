@@ -86,6 +86,15 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
   const onSubmit = async (data: BasicProfileFormData) => {
     try {
       setIsLoading(true);
+
+      // Convert dateOfBirth to ISO8601 format if present
+      const formattedData = {
+        ...data,
+        dateOfBirth: data.dateOfBirth
+          ? new Date(data.dateOfBirth).toISOString()
+          : undefined,
+      };
+
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
       const response = await fetch(`${apiUrl}/users/profile`, {
@@ -94,7 +103,7 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formattedData),
       });
 
       // Check if response is ok before parsing JSON

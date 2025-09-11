@@ -138,6 +138,165 @@ const StudentManagement = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Direct validation function that doesn't modify state
+  const validateFieldDirect = (
+    name: string,
+    value: string,
+    errors: Record<string, string>
+  ) => {
+    switch (name) {
+      case "firstName":
+        if (!value.trim()) {
+          errors.firstName = "First name is required";
+        } else if (value.trim().length < 2 || value.trim().length > 50) {
+          errors.firstName = "First name must be between 2 and 50 characters";
+        } else {
+          delete errors.firstName;
+        }
+        break;
+
+      case "lastName":
+        if (!value.trim()) {
+          errors.lastName = "Last name is required";
+        } else if (value.trim().length < 2 || value.trim().length > 50) {
+          errors.lastName = "Last name must be between 2 and 50 characters";
+        } else {
+          delete errors.lastName;
+        }
+        break;
+
+      case "email":
+        if (!value.trim()) {
+          errors.email = "Email is required";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          errors.email = "Please enter a valid email address";
+        } else {
+          delete errors.email;
+        }
+        break;
+
+      case "phone":
+        if (
+          value &&
+          !/^[\+]?[1-9][\d]{0,15}$/.test(value.replace(/[\s\-\(\)]/g, ""))
+        ) {
+          errors.phone = "Please enter a valid phone number";
+        } else {
+          delete errors.phone;
+        }
+        break;
+
+      case "university":
+        if (!value.trim()) {
+          errors.university = "University is required";
+        } else if (value.trim().length < 2 || value.trim().length > 100) {
+          errors.university = "University must be between 2 and 100 characters";
+        } else {
+          delete errors.university;
+        }
+        break;
+
+      case "department":
+        if (!value.trim()) {
+          errors.department = "Department is required";
+        } else if (value.trim().length < 2 || value.trim().length > 100) {
+          errors.department = "Department must be between 2 and 100 characters";
+        } else {
+          delete errors.department;
+        }
+        break;
+
+      case "program":
+        if (!value.trim()) {
+          errors.program = "Program is required";
+        } else if (value.trim().length < 2 || value.trim().length > 100) {
+          errors.program = "Program must be between 2 and 100 characters";
+        } else {
+          delete errors.program;
+        }
+        break;
+
+      case "batchYear": {
+        const year = parseInt(value);
+        if (!value) {
+          errors.batchYear = "Batch year is required";
+        } else if (
+          isNaN(year) ||
+          year < 1950 ||
+          year > new Date().getFullYear() + 10
+        ) {
+          errors.batchYear = "Please enter a valid batch year";
+        } else {
+          delete errors.batchYear;
+        }
+        break;
+      }
+
+      case "graduationYear": {
+        const year = parseInt(value);
+        if (!value) {
+          errors.graduationYear = "Graduation year is required";
+        } else if (
+          isNaN(year) ||
+          year < 1950 ||
+          year > new Date().getFullYear() + 10
+        ) {
+          errors.graduationYear = "Please enter a valid graduation year";
+        } else {
+          delete errors.graduationYear;
+        }
+        break;
+      }
+
+      case "currentYear":
+        if (!value.trim()) {
+          errors.currentYear = "Current year is required";
+        } else if (
+          ![
+            "1st Year",
+            "2nd Year",
+            "3rd Year",
+            "4th Year",
+            "5th Year",
+            "Final Year",
+            "Graduate",
+          ].includes(value)
+        ) {
+          errors.currentYear = "Please select a valid current year";
+        } else {
+          delete errors.currentYear;
+        }
+        break;
+
+      case "rollNumber":
+        if (!value.trim()) {
+          errors.rollNumber = "Roll number is required";
+        } else if (value.trim().length < 1 || value.trim().length > 50) {
+          errors.rollNumber = "Roll number must be between 1 and 50 characters";
+        } else {
+          delete errors.rollNumber;
+        }
+        break;
+
+      case "studentId":
+        if (!value.trim()) {
+          errors.studentId = "Student ID is required";
+        } else if (value.trim().length < 1 || value.trim().length > 50) {
+          errors.studentId = "Student ID must be between 1 and 50 characters";
+        } else {
+          delete errors.studentId;
+        }
+        break;
+
+      default:
+        // For any other fields, just clear any existing errors
+        delete errors[name];
+        break;
+    }
+
+    return Object.keys(errors).length === 0;
+  };
+
   // Form validation functions
   const validateField = (name: string, value: string) => {
     const errors = { ...formErrors };
@@ -185,24 +344,30 @@ const StudentManagement = () => {
         break;
 
       case "university":
-        if (value && value.trim().length > 100) {
-          errors.university = "University name cannot exceed 100 characters";
+        if (!value.trim()) {
+          errors.university = "University is required";
+        } else if (value.trim().length < 2 || value.trim().length > 100) {
+          errors.university = "University must be between 2 and 100 characters";
         } else {
           delete errors.university;
         }
         break;
 
       case "department":
-        if (value && value.trim().length > 100) {
-          errors.department = "Department cannot exceed 100 characters";
+        if (!value.trim()) {
+          errors.department = "Department is required";
+        } else if (value.trim().length < 2 || value.trim().length > 100) {
+          errors.department = "Department must be between 2 and 100 characters";
         } else {
           delete errors.department;
         }
         break;
 
       case "program":
-        if (value && value.trim().length > 100) {
-          errors.program = "Program cannot exceed 100 characters";
+        if (!value.trim()) {
+          errors.program = "Program is required";
+        } else if (value.trim().length < 2 || value.trim().length > 100) {
+          errors.program = "Program must be between 2 and 100 characters";
         } else {
           delete errors.program;
         }
@@ -215,7 +380,7 @@ const StudentManagement = () => {
         } else if (
           isNaN(year) ||
           year < 1950 ||
-          year > new Date().getFullYear() + 1
+          year > new Date().getFullYear() + 10
         ) {
           errors.batchYear = "Please enter a valid batch year";
         } else {
@@ -224,20 +389,65 @@ const StudentManagement = () => {
         break;
       }
 
+      case "graduationYear": {
+        const year = parseInt(value);
+        if (!value) {
+          errors.graduationYear = "Graduation year is required";
+        } else if (
+          isNaN(year) ||
+          year < 1950 ||
+          year > new Date().getFullYear() + 10
+        ) {
+          errors.graduationYear = "Please enter a valid graduation year";
+        } else {
+          delete errors.graduationYear;
+        }
+        break;
+      }
+
+      case "currentYear":
+        if (!value.trim()) {
+          errors.currentYear = "Current year is required";
+        } else if (
+          ![
+            "1st Year",
+            "2nd Year",
+            "3rd Year",
+            "4th Year",
+            "5th Year",
+            "Final Year",
+            "Graduate",
+          ].includes(value)
+        ) {
+          errors.currentYear = "Please select a valid current year";
+        } else {
+          delete errors.currentYear;
+        }
+        break;
+
       case "rollNumber":
-        if (value && value.trim().length > 20) {
-          errors.rollNumber = "Roll number cannot exceed 20 characters";
+        if (!value.trim()) {
+          errors.rollNumber = "Roll number is required";
+        } else if (value.trim().length < 1 || value.trim().length > 50) {
+          errors.rollNumber = "Roll number must be between 1 and 50 characters";
         } else {
           delete errors.rollNumber;
         }
         break;
 
       case "studentId":
-        if (value && value.trim().length > 20) {
-          errors.studentId = "Student ID cannot exceed 20 characters";
+        if (!value.trim()) {
+          errors.studentId = "Student ID is required";
+        } else if (value.trim().length < 1 || value.trim().length > 50) {
+          errors.studentId = "Student ID must be between 1 and 50 characters";
         } else {
           delete errors.studentId;
         }
+        break;
+
+      default:
+        // For any other fields, just clear any existing errors
+        delete errors[name];
         break;
     }
 
@@ -246,31 +456,62 @@ const StudentManagement = () => {
   };
 
   const validateForm = () => {
-    const requiredFields = ["firstName", "lastName", "email", "batchYear"];
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "email",
+      "university",
+      "department",
+      "program",
+      "batchYear",
+      "graduationYear",
+      "rollNumber",
+      "studentId",
+      "currentYear",
+    ];
     let isValid = true;
+    const allErrors: Record<string, string> = {};
 
+    // Validate all required fields and accumulate errors
     requiredFields.forEach((field) => {
-      if (
-        !validateField(
-          field,
-          newStudent[field as keyof typeof newStudent] as string
-        )
-      ) {
+      const value = newStudent[field as keyof typeof newStudent];
+      // Convert numbers to strings for validation
+      const stringValue =
+        typeof value === "number" ? value.toString() : (value as string);
+
+      // Create a temporary errors object for this field
+      const fieldErrors: Record<string, string> = {};
+
+      // Validate this specific field
+      const fieldValid = validateFieldDirect(field, stringValue, fieldErrors);
+
+      if (!fieldValid) {
         isValid = false;
+        allErrors[field] = fieldErrors[field];
       }
     });
 
     // Validate optional fields
     Object.keys(newStudent).forEach((field) => {
       if (!requiredFields.includes(field)) {
-        validateField(
-          field,
-          newStudent[field as keyof typeof newStudent] as string
-        );
+        const value = newStudent[field as keyof typeof newStudent];
+        // Convert numbers to strings for validation
+        const stringValue =
+          typeof value === "number" ? value.toString() : (value as string);
+
+        const fieldErrors: Record<string, string> = {};
+        validateFieldDirect(field, stringValue, fieldErrors);
+
+        if (fieldErrors[field]) {
+          allErrors[field] = fieldErrors[field];
+        }
       }
     });
 
-    return isValid && Object.keys(formErrors).length === 0;
+    // Set all accumulated errors at once
+    setFormErrors(allErrors);
+
+    return isValid && Object.keys(allErrors).length === 0;
   };
 
   const [newStudent, setNewStudent] = useState({
@@ -302,11 +543,7 @@ const StudentManagement = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      console.log("Fetching students...");
-      console.log("Current user:", user);
-      console.log("Token in localStorage:", localStorage.getItem("token"));
       const response = await studentAPI.getAllStudents();
-      console.log("Students API response:", response);
 
       // Handle different response structures and ensure we always have an array
       let studentsData = [];
@@ -322,11 +559,9 @@ const StudentManagement = () => {
       } else if (response && Array.isArray(response.students)) {
         studentsData = response.students;
       } else {
-        console.error("Unexpected response structure:", response);
         studentsData = [];
       }
 
-      console.log("Processed students data:", studentsData);
       setStudents(studentsData);
     } catch (error) {
       console.error("Error fetching students:", error);
@@ -371,17 +606,19 @@ const StudentManagement = () => {
       }
 
       // First create the user account
-      const userData = {
+      const userData: any = {
         firstName: newStudent.firstName.trim(),
         lastName: newStudent.lastName.trim(),
         email: newStudent.email.trim(),
         password: newStudent.password,
-        phone: newStudent.phone?.trim() || undefined,
         role: "student",
         status: "active", // Admin-created accounts should be active
       };
 
-      console.log("Sending user data:", userData);
+      // Only include phone if it has a value
+      if (newStudent.phone && newStudent.phone.trim()) {
+        userData.phone = newStudent.phone.trim();
+      }
 
       // Create user account
       const userResponse = await fetch(
@@ -400,8 +637,6 @@ const StudentManagement = () => {
 
       if (!userResponse.ok) {
         const errorData = await userResponse.json();
-        console.error("Registration error response:", errorData);
-        console.error("Validation errors:", errorData.errors);
 
         // Handle specific error cases
         if (errorData.message === "User with this email already exists") {
@@ -415,9 +650,10 @@ const StudentManagement = () => {
 
       const userResult = await userResponse.json();
       const userId = userResult.data.user._id;
+      const studentToken = userResult.data.token; // Get the student's token
 
-      // Create student profile
-      const profileData = {
+      // Create student profile using the student's token
+      const profileData: any = {
         university: newStudent.university,
         department: newStudent.department,
         program: newStudent.program,
@@ -426,21 +662,33 @@ const StudentManagement = () => {
         rollNumber: newStudent.rollNumber,
         studentId: newStudent.studentId,
         currentYear: newStudent.currentYear,
-        currentCGPA: newStudent.currentCGPA
-          ? parseFloat(newStudent.currentCGPA)
-          : undefined,
-        currentGPA: newStudent.currentGPA
-          ? parseFloat(newStudent.currentGPA)
-          : undefined,
         skills: newStudent.skills
-          ? newStudent.skills.split(",").map((s) => s.trim())
+          ? newStudent.skills
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0)
           : [],
         careerInterests: newStudent.careerInterests
-          ? newStudent.careerInterests.split(",").map((s) => s.trim())
+          ? newStudent.careerInterests
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0)
           : [],
-        linkedinProfile: newStudent.linkedinProfile || undefined,
-        githubProfile: newStudent.githubProfile || undefined,
       };
+
+      // Only include optional fields if they have values
+      if (newStudent.currentCGPA && newStudent.currentCGPA.trim()) {
+        profileData.currentCGPA = parseFloat(newStudent.currentCGPA);
+      }
+      if (newStudent.currentGPA && newStudent.currentGPA.trim()) {
+        profileData.currentGPA = parseFloat(newStudent.currentGPA);
+      }
+      if (newStudent.linkedinProfile && newStudent.linkedinProfile.trim()) {
+        profileData.linkedinProfile = newStudent.linkedinProfile.trim();
+      }
+      if (newStudent.githubProfile && newStudent.githubProfile.trim()) {
+        profileData.githubProfile = newStudent.githubProfile.trim();
+      }
 
       const profileResponse = await fetch(
         `${
@@ -450,7 +698,7 @@ const StudentManagement = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${studentToken}`, // Use student's token instead of admin's token
           },
           body: JSON.stringify(profileData),
         }

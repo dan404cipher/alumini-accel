@@ -91,6 +91,15 @@ const App = () => {
                 />
 
                 <Route
+                  path="/users"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/news"
                   element={
                     <ProtectedRoute>

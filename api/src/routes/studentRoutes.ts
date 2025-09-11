@@ -28,14 +28,39 @@ const router = express.Router();
 
 // Validation schemas
 const createStudentProfileValidation = [
-  body("university").notEmpty().withMessage("University is required"),
-  body("department").notEmpty().withMessage("Department is required"),
-  body("program").notEmpty().withMessage("Program is required"),
-  body("batchYear").isNumeric().withMessage("Batch year must be a number"),
+  // Required fields (same as alumni)
+  body("university")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("University must be between 2 and 100 characters"),
+  body("department")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Department must be between 2 and 100 characters"),
+  body("program")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Program must be between 2 and 100 characters"),
+  body("batchYear")
+    .isInt({ min: 1950, max: new Date().getFullYear() + 10 })
+    .withMessage("Batch year must be a valid year"),
   body("graduationYear")
-    .isNumeric()
-    .withMessage("Graduation year must be a number"),
-  body("rollNumber").notEmpty().withMessage("Roll number is required"),
+    .isInt({ min: 1950, max: new Date().getFullYear() + 10 })
+    .withMessage("Graduation year must be a valid year"),
+
+  // Student-specific required fields
+  body("rollNumber")
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage(
+      "Roll number is required and must be between 1 and 50 characters"
+    ),
+  body("studentId")
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage(
+      "Student ID is required and must be between 1 and 50 characters"
+    ),
   body("currentYear")
     .isIn([
       "1st Year",
@@ -46,7 +71,11 @@ const createStudentProfileValidation = [
       "Final Year",
       "Graduate",
     ])
-    .withMessage("Invalid current year"),
+    .withMessage(
+      "Current year must be one of: 1st Year, 2nd Year, 3rd Year, 4th Year, 5th Year, Final Year, Graduate"
+    ),
+
+  // Optional fields
   body("currentCGPA")
     .optional()
     .isFloat({ min: 0, max: 10 })
@@ -68,6 +97,48 @@ const createStudentProfileValidation = [
     .optional()
     .matches(/^@?[\w]{1,15}$/)
     .withMessage("Invalid Twitter handle"),
+  body("skills").optional().isArray().withMessage("Skills must be an array"),
+  body("skills.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Skill name cannot exceed 50 characters"),
+  body("interests")
+    .optional()
+    .isArray()
+    .withMessage("Interests must be an array"),
+  body("interests.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Interest name cannot exceed 50 characters"),
+  body("careerInterests")
+    .optional()
+    .isArray()
+    .withMessage("Career interests must be an array"),
+  body("careerInterests.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Career interest name cannot exceed 50 characters"),
+  body("preferredJobLocation")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Preferred job location cannot exceed 100 characters"),
+  body("preferredJobTypes")
+    .optional()
+    .isArray()
+    .withMessage("Preferred job types must be an array"),
+  body("preferredJobTypes.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Job type cannot exceed 50 characters"),
+  body("expectedSalary")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Expected salary must be a non-negative number"),
 ];
 
 const updateStudentProfileValidation = [

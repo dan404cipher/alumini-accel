@@ -46,6 +46,11 @@ export const validateUserRegistration = [
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage("Last name must be between 2 and 50 characters"),
+  body("phone")
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 15 })
+    .withMessage("Phone number must be between 10 and 15 characters"),
   body("role")
     .optional()
     .isIn(["student", "alumni", "admin", "coordinator"])

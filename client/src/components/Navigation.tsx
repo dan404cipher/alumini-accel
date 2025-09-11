@@ -34,17 +34,24 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // Check if user has admin permissions
+  const isAdmin =
+    user?.role === "super_admin" ||
+    user?.role === "admin" ||
+    user?.role === "coordinator";
+
   const navItems = [
     { id: "dashboard", name: "Dashboard", icon: BarChart3, count: null },
+    ...(isAdmin
+      ? [{ id: "admin", name: "Admin Dashboard", icon: Settings, count: null }]
+      : []),
     {
       id: "alumni",
-      name:
-        user?.role === "super_admin" || user?.role === "coordinator"
-          ? "Manage Alumni"
-          : "Alumni",
+      name: "Alumni",
       icon: Users,
       count: "2.8K",
     },
+    
     { id: "jobs", name: "Jobs", icon: Briefcase, count: "47" },
     { id: "events", name: "Events", icon: Calendar, count: "8" },
     { id: "news", name: "News Room", icon: Newspaper, count: null },

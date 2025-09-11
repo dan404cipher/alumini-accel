@@ -52,10 +52,8 @@ const Layout = () => {
       case "dashboard":
         return <Dashboard />;
       case "alumni":
-        // Show management interface for coordinators/admins, directory for others
-        if (user?.role === "super_admin" || user?.role === "coordinator") {
-          return <AlumniManagement />;
-        }
+        return <AlumniDirectory />;
+      case "users":
         return <AlumniDirectory />;
       case "jobs":
         return <JobBoard />;

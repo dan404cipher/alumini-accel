@@ -244,11 +244,7 @@ const AlumniManagement = () => {
   const fetchAlumni = async () => {
     try {
       setLoading(true);
-      console.log("Fetching alumni...");
-      console.log("Current user:", user);
-      console.log("Token in localStorage:", localStorage.getItem("token"));
       const response = await alumniAPI.getAllAlumni();
-      console.log("Alumni API response:", response);
 
       // Handle different response structures
       let alumniData: AlumniProfile[] = [];
@@ -269,16 +265,13 @@ const AlumniManagement = () => {
           } else if (data.results && Array.isArray(data.results)) {
             alumniData = data.results;
           } else {
-            console.warn("Unexpected response structure:", response.data);
             alumniData = [];
           }
         }
       } else {
-        console.warn("No data in response:", response);
         alumniData = [];
       }
 
-      console.log("Processed alumni data:", alumniData);
       setAlumni(alumniData);
     } catch (error) {
       console.error("Error fetching alumni:", error);
@@ -321,8 +314,6 @@ const AlumniManagement = () => {
         status: "active", // Admin-created accounts should be active
       };
 
-      console.log("Sending alumni user data:", userData);
-
       // Create user account
       const userResponse = await fetch(
         `${
@@ -355,28 +346,45 @@ const AlumniManagement = () => {
 
       const userResult = await userResponse.json();
       const userId = userResult.data.user._id;
+      const alumniToken = userResult.data.token; // Get the alumni's token
 
-      // Create alumni profile using the user's token (since they now have alumni role)
-      const profileData = {
+      // Create alumni profile using the alumni's token
+      const profileData: any = {
+        university: newAlumni.degree || "University", // Map degree to university
+        program: newAlumni.major || "General Program", // Map major to program
         batchYear: parseInt(newAlumni.graduationYear.toString()), // Use graduation year as batch year
         graduationYear: parseInt(newAlumni.graduationYear.toString()),
         department: newAlumni.major || "General", // Use major as department or default
-        specialization: newAlumni.degree || undefined, // Map degree to specialization
-        currentCompany: newAlumni.currentCompany || undefined,
-        currentPosition: newAlumni.currentPosition || undefined,
-        currentLocation: newAlumni.location || undefined,
         skills: newAlumni.skills
           ? newAlumni.skills
               .split(",")
               .map((s) => s.trim())
               .filter((s) => s.length > 0 && s.length <= 50)
           : [],
-        linkedinProfile: newAlumni.linkedinProfile || undefined,
-        githubProfile: newAlumni.githubProfile || undefined,
-        bio: newAlumni.bio || undefined,
       };
 
-      console.log("Sending alumni profile data:", profileData);
+      // Only include optional fields if they have values
+      if (newAlumni.degree && newAlumni.degree.trim()) {
+        profileData.specialization = newAlumni.degree.trim();
+      }
+      if (newAlumni.currentCompany && newAlumni.currentCompany.trim()) {
+        profileData.currentCompany = newAlumni.currentCompany.trim();
+      }
+      if (newAlumni.currentPosition && newAlumni.currentPosition.trim()) {
+        profileData.currentPosition = newAlumni.currentPosition.trim();
+      }
+      if (newAlumni.location && newAlumni.location.trim()) {
+        profileData.currentLocation = newAlumni.location.trim();
+      }
+      if (newAlumni.linkedinProfile && newAlumni.linkedinProfile.trim()) {
+        profileData.linkedinProfile = newAlumni.linkedinProfile.trim();
+      }
+      if (newAlumni.githubProfile && newAlumni.githubProfile.trim()) {
+        profileData.githubProfile = newAlumni.githubProfile.trim();
+      }
+      if (newAlumni.bio && newAlumni.bio.trim()) {
+        profileData.bio = newAlumni.bio.trim();
+      }
 
       // Use the newly created user's token for profile creation
       const profileResponse = await fetch(
@@ -387,7 +395,7 @@ const AlumniManagement = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${userResult.data.token}`,
+            Authorization: `Bearer ${alumniToken}`,
           },
           body: JSON.stringify(profileData),
         }
@@ -395,8 +403,6 @@ const AlumniManagement = () => {
 
       if (!profileResponse.ok) {
         const errorData = await profileResponse.json();
-        console.error("Profile creation error response:", errorData);
-        console.error("Profile validation errors:", errorData.errors);
         throw new Error(errorData.message || "Failed to create alumni profile");
       }
 

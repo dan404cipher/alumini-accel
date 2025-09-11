@@ -78,26 +78,17 @@ const AlumniDirectory = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("Fetching users directory...");
-
       const response = await alumniAPI.getAllUsersDirectory({
         userType: userTypeFilter,
         limit: 50,
       });
-      console.log("Users directory API response:", response);
-
       if (
         response &&
         response.data &&
         (response.data as { users: User[] }).users
       ) {
         setUsers((response.data as { users: User[] }).users);
-        console.log(
-          "Processed users data:",
-          (response.data as { users: User[] }).users
-        );
       } else {
-        console.log("No users data found");
         setUsers([]);
       }
     } catch (error) {

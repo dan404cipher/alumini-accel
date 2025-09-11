@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -113,6 +113,7 @@ export const EducationalDetailsForm = ({
       }
 
       const result = await response.json();
+
       if (result.success) {
         onUpdate();
         toast({
@@ -137,6 +138,25 @@ export const EducationalDetailsForm = ({
   };
 
   const isStudent = profileData?.currentYear !== undefined;
+
+  // Update form values when profileData changes
+  useEffect(() => {
+    if (profileData) {
+      setValue("university", profileData.university || "");
+      setValue("department", profileData.department || "");
+      setValue("program", profileData.program || "");
+      setValue("batchYear", profileData.batchYear || new Date().getFullYear());
+      setValue(
+        "graduationYear",
+        profileData.graduationYear || new Date().getFullYear() + 4
+      );
+      setValue("rollNumber", profileData.rollNumber || "");
+      setValue("studentId", profileData.studentId || "");
+      setValue("currentYear", profileData.currentYear || "1st Year");
+      setValue("currentCGPA", profileData.currentCGPA || undefined);
+      setValue("currentGPA", profileData.currentGPA || undefined);
+    }
+  }, [profileData, setValue]);
 
   return (
     <Card>

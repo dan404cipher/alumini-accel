@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -42,6 +42,13 @@ export const SkillsInterestsForm = ({
   const [interests, setInterests] = useState<string[]>(
     profileData?.careerInterests || []
   );
+
+  // Update local state when profileData changes
+  React.useEffect(() => {
+    console.log("🔄 SkillsInterestsForm: profileData changed:", profileData);
+    setSkills(profileData?.skills || []);
+    setInterests(profileData?.careerInterests || []);
+  }, [profileData]);
   const [newSkill, setNewSkill] = useState("");
   const [newInterest, setNewInterest] = useState("");
 
@@ -99,16 +106,23 @@ export const SkillsInterestsForm = ({
         ? `${apiUrl}/students/profile`
         : `${apiUrl}/alumni/profile/skills-interests`;
 
+      const requestData = {
+        skills: skills,
+        careerInterests: interests, // Now send careerInterests for both students and alumni
+      };
+
+      console.log("📤 Sending skills/interests data:", requestData);
+      console.log("📤 Endpoint:", endpoint);
+      console.log("📤 User role:", userRole);
+      console.log("📤 Is student:", isStudent);
+
       const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({
-          skills: skills,
-          ...(isStudent && { careerInterests: interests }),
-        }),
+        body: JSON.stringify(requestData),
       });
 
       // Check if response is ok before parsing JSON

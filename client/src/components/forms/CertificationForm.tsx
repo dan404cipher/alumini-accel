@@ -19,11 +19,13 @@ type CertificationFormData = z.infer<typeof certificationSchema>;
 
 interface CertificationFormProps {
   certification?: any;
+  userRole?: string;
   onSuccess: () => void;
 }
 
 export const CertificationForm = ({
   certification,
+  userRole = "student",
   onSuccess,
 }: CertificationFormProps) => {
   const { toast } = useToast();
@@ -51,9 +53,13 @@ export const CertificationForm = ({
 
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+      const baseEndpoint =
+        userRole === "student"
+          ? `${apiUrl}/students/profile/certifications`
+          : `${apiUrl}/alumni/profile/certifications`;
       const url = certification?._id
-        ? `${apiUrl}/students/profile/certifications/${certification._id}`
-        : `${apiUrl}/students/profile/certifications`;
+        ? `${baseEndpoint}/${certification._id}`
+        : baseEndpoint;
 
       const method = certification?._id ? "PUT" : "POST";
 

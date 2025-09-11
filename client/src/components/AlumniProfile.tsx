@@ -17,25 +17,33 @@ import {
   Award,
   Briefcase,
   GraduationCap,
+  BookOpen,
 } from "lucide-react";
 import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-// Alumni interface
-interface Alumni {
+// User interface (for both students and alumni)
+interface User {
   id: string;
   name: string;
   email: string;
   profileImage?: string;
-  graduationYear: number;
-  batchYear: number;
-  department: string;
+  role: string;
+  graduationYear?: number;
+  batchYear?: number;
+  department?: string;
   specialization?: string;
+  program?: string;
   currentRole?: string;
   company?: string;
   location?: string;
-  experience: number;
-  skills: string[];
+  currentLocation?: string;
+  currentYear?: string;
+  currentCGPA?: number;
+  currentGPA?: number;
+  experience?: number;
+  skills?: string[];
+  careerInterests?: string[];
   isHiring: boolean;
   availableForMentorship: boolean;
   mentorshipDomains: string[];
@@ -45,52 +53,64 @@ interface Alumni {
   githubProfile?: string;
   website?: string;
   createdAt: string;
+  // Additional fields for comprehensive profile
+  certifications?: Array<{
+    name: string;
+    issuer: string;
+    date: string;
+    credentialId?: string;
+  }>;
+  careerTimeline?: Array<{
+    company: string;
+    position: string;
+    startDate: string;
+    endDate?: string;
+    isCurrent: boolean;
+    description?: string;
+  }>;
+  education?: Array<{
+    degree: string;
+    institution: string;
+    year: number;
+    gpa?: number;
+  }>;
 }
 
 const AlumniProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [alumni, setAlumni] = useState<Alumni | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
-      fetchAlumniProfile(id);
+      fetchUserProfile(id);
     }
   }, [id]);
 
-  const fetchAlumniProfile = async (alumniId: string) => {
+  const fetchUserProfile = async (userId: string) => {
     try {
       setLoading(true);
       setError(null);
-      console.log("Fetching alumni profile:", alumniId);
+      console.log("Fetching user profile:", userId);
 
-      // For now, we'll use the public alumni directory and filter by ID
-      // In a real app, you'd have a specific endpoint for individual profiles
-      const response = await alumniAPI.getPublicAlumniDirectory();
-      console.log("Alumni directory API response:", response);
+      const response = await alumniAPI.getUserById(userId);
+      console.log("User profile API response:", response);
 
-      if (response && response.data && response.data.alumni) {
-        const foundAlumni = response.data.alumni.find(
-          (a: Alumni) => a.id === alumniId
-        );
-        if (foundAlumni) {
-          setAlumni(foundAlumni);
-          console.log("Found alumni profile:", foundAlumni);
-        } else {
-          setError("Alumni profile not found");
-        }
+      if (response && response.data && response.data.user) {
+        setUser(response.data.user);
+        console.log("Found user profile:", response.data.user);
       } else {
-        setError("Failed to load alumni data");
+        setError("User profile not found");
       }
     } catch (error) {
-      console.error("Error fetching alumni profile:", error);
-      setError("Failed to load alumni profile");
+      console.error("Error fetching user profile:", error);
+      setError("Failed to load user profile");
       toast({
         title: "Error",
-        description: "Failed to load alumni profile",
+        description: "Failed to load user profile",
         variant: "destructive",
       });
     } finally {
@@ -111,7 +131,7 @@ const AlumniProfile = () => {
     );
   }
 
-  if (error || !alumni) {
+  if (error || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -119,7 +139,7 @@ const AlumniProfile = () => {
             <Users className="h-12 w-12 mx-auto mb-2" />
             <p className="text-lg font-semibold">Profile Not Found</p>
             <p className="text-sm text-muted-foreground">
-              {error || "This alumni profile could not be found"}
+              {error || "This user profile could not be found"}
             </p>
           </div>
           <Button onClick={() => navigate("/alumni")} variant="outline">
@@ -152,11 +172,11 @@ const AlumniProfile = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
               <div className="relative">
                 <img
-                  src={alumni.profileImage || "/placeholder-avatar.jpg"}
-                  alt={alumni.name}
+                  src={user.profileImage || "/placeholder-avatar.jpg"}
+                  alt={user.name}
                   className="w-24 h-24 rounded-full object-cover"
                 />
-                {alumni.isHiring && (
+                {user.isHiring && (
                   <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                     <Star className="w-4 h-4 text-white" />
                   </div>
@@ -167,26 +187,32 @@ const AlumniProfile = () => {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                   <div>
                     <h1 className="text-3xl font-bold text-gray-900">
-                      {alumni.name}
+                      {user.name}
                     </h1>
                     <p className="text-lg text-gray-600">
-                      {alumni.currentRole || "Alumni"}
+                      {user.currentRole ||
+                        user.program ||
+                        (user.role === "alumni" ? "Alumni" : "Student")}
                     </p>
-                    {alumni.company && (
-                      <p className="text-primary font-medium">
-                        {alumni.company}
-                      </p>
+                    {user.company && (
+                      <p className="text-primary font-medium">{user.company}</p>
                     )}
                   </div>
 
                   <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-                    {alumni.isHiring && (
+                    <Badge
+                      variant={user.role === "alumni" ? "default" : "secondary"}
+                      className="text-sm"
+                    >
+                      {user.role === "alumni" ? "Alumni" : "Student"}
+                    </Badge>
+                    {user.isHiring && (
                       <Badge variant="success" className="text-sm">
                         <Briefcase className="w-3 h-3 mr-1" />
                         Hiring
                       </Badge>
                     )}
-                    {alumni.availableForMentorship && (
+                    {user.availableForMentorship && (
                       <Badge variant="secondary" className="text-sm">
                         <Users className="w-3 h-3 mr-1" />
                         Mentor
@@ -195,28 +221,49 @@ const AlumniProfile = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
                   <div className="flex items-center">
                     <GraduationCap className="w-4 h-4 mr-2" />
                     <span>
-                      Class of {alumni.graduationYear} • {alumni.department}
+                      {user.graduationYear
+                        ? `Class of ${user.graduationYear}`
+                        : user.currentYear || "Student"}{" "}
+                      • {user.department}
                     </span>
                   </div>
-                  {alumni.location && (
+                  {(user.location || user.currentLocation) && (
                     <div className="flex items-center">
                       <MapPin className="w-4 h-4 mr-2" />
-                      <span>{alumni.location}</span>
+                      <span>{user.currentLocation || user.location}</span>
                     </div>
                   )}
-                  {alumni.experience > 0 && (
+                  {user.experience && user.experience > 0 && (
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 mr-2" />
-                      <span>{alumni.experience} years experience</span>
+                      <span>{user.experience} years experience</span>
+                    </div>
+                  )}
+                  {user.currentCGPA && (
+                    <div className="flex items-center">
+                      <Award className="w-4 h-4 mr-2" />
+                      <span>CGPA: {user.currentCGPA}</span>
+                    </div>
+                  )}
+                  {user.specialization && (
+                    <div className="flex items-center">
+                      <Star className="w-4 h-4 mr-2" />
+                      <span>{user.specialization}</span>
+                    </div>
+                  )}
+                  {user.program && (
+                    <div className="flex items-center">
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      <span>{user.program}</span>
                     </div>
                   )}
                   <div className="flex items-center">
                     <Mail className="w-4 h-4 mr-2" />
-                    <span>{alumni.email}</span>
+                    <span className="truncate">{user.email}</span>
                   </div>
                 </div>
               </div>
@@ -228,24 +275,36 @@ const AlumniProfile = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Bio */}
-            {alumni.bio && (
+            {user.bio && (
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold mb-4">About</h2>
-                  <p className="text-gray-700 leading-relaxed">{alumni.bio}</p>
+                  <p className="text-gray-700 leading-relaxed">{user.bio}</p>
                 </CardContent>
               </Card>
             )}
 
             {/* Skills */}
-            {alumni.skills.length > 0 && (
+            {((user.skills && user.skills.length > 0) ||
+              (user.careerInterests && user.careerInterests.length > 0)) && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">Skills</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    {user.role === "alumni" ? "Skills" : "Skills & Interests"}
+                  </h2>
                   <div className="flex flex-wrap gap-2">
-                    {alumni.skills.map((skill, index) => (
+                    {(user.skills || []).map((skill, index) => (
                       <Badge key={index} variant="outline" className="text-sm">
                         {skill}
+                      </Badge>
+                    ))}
+                    {(user.careerInterests || []).map((interest, index) => (
+                      <Badge
+                        key={`interest-${index}`}
+                        variant="secondary"
+                        className="text-sm"
+                      >
+                        {interest}
                       </Badge>
                     ))}
                   </div>
@@ -254,12 +313,12 @@ const AlumniProfile = () => {
             )}
 
             {/* Achievements */}
-            {alumni.achievements.length > 0 && (
+            {user.achievements.length > 0 && (
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold mb-4">Achievements</h2>
                   <ul className="space-y-2">
-                    {alumni.achievements.map((achievement, index) => (
+                    {user.achievements.map((achievement, index) => (
                       <li key={index} className="flex items-start">
                         <Award className="w-4 h-4 mr-2 mt-1 text-yellow-500 flex-shrink-0" />
                         <span className="text-gray-700">{achievement}</span>
@@ -270,9 +329,196 @@ const AlumniProfile = () => {
               </Card>
             )}
 
+            {/* Academic Information */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  Academic Information
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {user.batchYear && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Batch Year:</span>
+                      <span className="font-medium">{user.batchYear}</span>
+                    </div>
+                  )}
+                  {user.graduationYear && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Graduation Year:</span>
+                      <span className="font-medium">{user.graduationYear}</span>
+                    </div>
+                  )}
+                  {user.currentYear && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current Year:</span>
+                      <span className="font-medium">{user.currentYear}</span>
+                    </div>
+                  )}
+                  {user.department && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Department:</span>
+                      <span className="font-medium">{user.department}</span>
+                    </div>
+                  )}
+                  {user.specialization && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Specialization:</span>
+                      <span className="font-medium">{user.specialization}</span>
+                    </div>
+                  )}
+                  {user.program && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Program:</span>
+                      <span className="font-medium">{user.program}</span>
+                    </div>
+                  )}
+                  {user.currentCGPA && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current CGPA:</span>
+                      <span className="font-medium">{user.currentCGPA}</span>
+                    </div>
+                  )}
+                  {user.currentGPA && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current GPA:</span>
+                      <span className="font-medium">{user.currentGPA}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Professional Information */}
+            {(user.currentRole ||
+              user.company ||
+              user.experience ||
+              user.isHiring) && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Professional Information
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {user.currentRole && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Current Role:</span>
+                        <span className="font-medium">{user.currentRole}</span>
+                      </div>
+                    )}
+                    {user.company && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Company:</span>
+                        <span className="font-medium">{user.company}</span>
+                      </div>
+                    )}
+                    {user.experience && user.experience > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Experience:</span>
+                        <span className="font-medium">
+                          {user.experience} years
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Hiring Status:</span>
+                      <span className="font-medium">
+                        {user.isHiring ? (
+                          <Badge variant="success" className="text-xs">
+                            Currently Hiring
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-500">Not Hiring</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Location Information */}
+            {(user.location || user.currentLocation) && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Location</h2>
+                  <div className="space-y-2">
+                    {user.currentLocation && (
+                      <div className="flex items-center">
+                        <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                        <span className="text-gray-700">
+                          {user.currentLocation}
+                        </span>
+                      </div>
+                    )}
+                    {user.location &&
+                      user.location !== user.currentLocation && (
+                        <div className="flex items-center">
+                          <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                          <span className="text-gray-700">{user.location}</span>
+                        </div>
+                      )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Contact Information */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  Contact Information
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <Mail className="w-4 h-4 mr-3 text-gray-500" />
+                    <span className="text-gray-700">{user.email}</span>
+                  </div>
+                  {user.linkedinProfile && (
+                    <div className="flex items-center">
+                      <Linkedin className="w-4 h-4 mr-3 text-blue-600" />
+                      <a
+                        href={user.linkedinProfile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        LinkedIn Profile
+                      </a>
+                    </div>
+                  )}
+                  {user.githubProfile && (
+                    <div className="flex items-center">
+                      <Phone className="w-4 h-4 mr-3 text-gray-600" />
+                      <a
+                        href={user.githubProfile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-600 hover:underline"
+                      >
+                        GitHub Profile
+                      </a>
+                    </div>
+                  )}
+                  {user.website && (
+                    <div className="flex items-center">
+                      <ExternalLink className="w-4 h-4 mr-3 text-green-600" />
+                      <a
+                        href={user.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:underline"
+                      >
+                        Personal Website
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Mentorship */}
-            {alumni.availableForMentorship &&
-              alumni.mentorshipDomains.length > 0 && (
+            {user.availableForMentorship &&
+              user.mentorshipDomains.length > 0 && (
                 <Card>
                   <CardContent className="p-6">
                     <h2 className="text-xl font-semibold mb-4">Mentorship</h2>
@@ -280,7 +526,7 @@ const AlumniProfile = () => {
                       Available for mentorship in:
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {alumni.mentorshipDomains.map((domain, index) => (
+                      {user.mentorshipDomains.map((domain, index) => (
                         <Badge
                           key={index}
                           variant="secondary"
@@ -293,6 +539,188 @@ const AlumniProfile = () => {
                   </CardContent>
                 </Card>
               )}
+
+            {/* Certifications */}
+            {user.certifications && user.certifications.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Certifications</h2>
+                  <div className="space-y-4">
+                    {user.certifications.map((cert, index) => (
+                      <div
+                        key={index}
+                        className="border-l-4 border-blue-500 pl-4"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">
+                              {cert.name}
+                            </h3>
+                            <p className="text-gray-600">{cert.issuer}</p>
+                            {cert.credentialId && (
+                              <p className="text-sm text-gray-500 font-mono">
+                                ID: {cert.credentialId}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {new Date(cert.date).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Career Timeline / Experience */}
+            {user.careerTimeline && user.careerTimeline.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Career Timeline
+                  </h2>
+                  <div className="space-y-6">
+                    {user.careerTimeline.map((job, index) => (
+                      <div key={index} className="relative">
+                        <div className="flex items-start space-x-4">
+                          <div className="flex-shrink-0">
+                            <div
+                              className={`w-4 h-4 rounded-full ${
+                                job.isCurrent ? "bg-green-500" : "bg-gray-300"
+                              }`}
+                            ></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="font-semibold text-gray-900">
+                                  {job.position}
+                                </h3>
+                                <p className="text-gray-600">{job.company}</p>
+                                {job.description && (
+                                  <p className="text-sm text-gray-700 mt-2">
+                                    {job.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right text-sm text-gray-500">
+                                <div>
+                                  {new Date(job.startDate).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      year: "numeric",
+                                      month: "short",
+                                    }
+                                  )}
+                                </div>
+                                <div>
+                                  {job.isCurrent ? (
+                                    <Badge
+                                      variant="success"
+                                      className="text-xs mt-1"
+                                    >
+                                      Current
+                                    </Badge>
+                                  ) : job.endDate ? (
+                                    new Date(job.endDate).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        year: "numeric",
+                                        month: "short",
+                                      }
+                                    )
+                                  ) : (
+                                    "Present"
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {index < user.careerTimeline.length - 1 && (
+                          <div className="absolute left-2 top-6 w-0.5 h-6 bg-gray-200"></div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Education */}
+            {user.education && user.education.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Education</h2>
+                  <div className="space-y-4">
+                    {user.education.map((edu, index) => (
+                      <div
+                        key={index}
+                        className="border-l-4 border-purple-500 pl-4"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">
+                              {edu.degree}
+                            </h3>
+                            <p className="text-gray-600">{edu.institution}</p>
+                            {edu.gpa && (
+                              <p className="text-sm text-gray-500">
+                                GPA: {edu.gpa}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {edu.year}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Account Information */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  Account Information
+                </h2>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">User ID:</span>
+                    <span className="font-mono text-sm text-gray-500">
+                      {user.id}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Role:</span>
+                    <Badge
+                      variant={user.role === "alumni" ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {user.role === "alumni" ? "Alumni" : "Student"}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Member Since:</span>
+                    <span className="font-medium">
+                      {new Date(user.createdAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
@@ -307,12 +735,12 @@ const AlumniProfile = () => {
                     Send Message
                   </Button>
 
-                  {alumni.linkedinProfile && (
+                  {user.linkedinProfile && (
                     <Button
                       variant="outline"
                       className="w-full justify-start"
                       onClick={() =>
-                        window.open(alumni.linkedinProfile, "_blank")
+                        window.open(user.linkedinProfile, "_blank")
                       }
                     >
                       <Linkedin className="w-4 h-4 mr-2" />
@@ -321,13 +749,11 @@ const AlumniProfile = () => {
                     </Button>
                   )}
 
-                  {alumni.githubProfile && (
+                  {user.githubProfile && (
                     <Button
                       variant="outline"
                       className="w-full justify-start"
-                      onClick={() =>
-                        window.open(alumni.githubProfile, "_blank")
-                      }
+                      onClick={() => window.open(user.githubProfile, "_blank")}
                     >
                       <Phone className="w-4 h-4 mr-2" />
                       GitHub
@@ -335,11 +761,11 @@ const AlumniProfile = () => {
                     </Button>
                   )}
 
-                  {alumni.website && (
+                  {user.website && (
                     <Button
                       variant="outline"
                       className="w-full justify-start"
-                      onClick={() => window.open(alumni.website, "_blank")}
+                      onClick={() => window.open(user.website, "_blank")}
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />
                       Website
@@ -350,32 +776,111 @@ const AlumniProfile = () => {
               </CardContent>
             </Card>
 
-            {/* Quick Info */}
+            {/* Quick Stats */}
             <Card>
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Quick Info</h3>
+                <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Graduation Year:</span>
-                    <span className="font-medium">{alumni.graduationYear}</span>
+                    <span className="text-gray-600">Role:</span>
+                    <Badge
+                      variant={user.role === "alumni" ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {user.role === "alumni" ? "Alumni" : "Student"}
+                    </Badge>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Department:</span>
-                    <span className="font-medium">{alumni.department}</span>
-                  </div>
-                  {alumni.specialization && (
+                  {user.skills && user.skills.length > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Specialization:</span>
+                      <span className="text-gray-600">Skills:</span>
+                      <span className="font-medium">{user.skills.length}</span>
+                    </div>
+                  )}
+                  {user.careerInterests && user.careerInterests.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Interests:</span>
                       <span className="font-medium">
-                        {alumni.specialization}
+                        {user.careerInterests.length}
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Experience:</span>
-                    <span className="font-medium">
-                      {alumni.experience} years
+                  {user.achievements && user.achievements.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Achievements:</span>
+                      <span className="font-medium">
+                        {user.achievements.length}
+                      </span>
+                    </div>
+                  )}
+                  {user.mentorshipDomains &&
+                    user.mentorshipDomains.length > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Mentor Areas:</span>
+                        <span className="font-medium">
+                          {user.mentorshipDomains.length}
+                        </span>
+                      </div>
+                    )}
+                  {user.certifications && user.certifications.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Certifications:</span>
+                      <span className="font-medium">
+                        {user.certifications.length}
+                      </span>
+                    </div>
+                  )}
+                  {user.careerTimeline && user.careerTimeline.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Career Positions:</span>
+                      <span className="font-medium">
+                        {user.careerTimeline.length}
+                      </span>
+                    </div>
+                  )}
+                  {user.education && user.education.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Education:</span>
+                      <span className="font-medium">
+                        {user.education.length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Status Indicators */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Status</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                      Available for Mentorship
                     </span>
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        user.availableForMentorship
+                          ? "bg-green-500"
+                          : "bg-gray-300"
+                      }`}
+                    ></div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                      Currently Hiring
+                    </span>
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        user.isHiring ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                    ></div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                      Profile Complete
+                    </span>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   </div>
                 </div>
               </CardContent>

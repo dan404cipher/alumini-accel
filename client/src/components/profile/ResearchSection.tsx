@@ -37,18 +37,24 @@ interface Research {
   endDate?: string;
   isOngoing: boolean;
   publicationUrl?: string;
+  conferenceUrl?: string;
+  keywords: string[];
   status: "ongoing" | "completed" | "published" | "presented";
+  publicationFile?: string;
+  conferenceFile?: string;
 }
 
 interface ResearchSectionProps {
   research: Research[];
   isEditing: boolean;
+  userRole?: string;
   onUpdate: () => void;
 }
 
 export const ResearchSection = ({
   research,
   isEditing,
+  userRole = "student",
   onUpdate,
 }: ResearchSectionProps) => {
   const { toast } = useToast();
@@ -148,6 +154,7 @@ export const ResearchSection = ({
                 </DialogDescription>
               </DialogHeader>
               <ResearchForm
+                userRole={userRole}
                 onSuccess={() => {
                   setIsAddDialogOpen(false);
                   onUpdate();
@@ -166,6 +173,7 @@ export const ResearchSection = ({
               </DialogHeader>
               <ResearchForm
                 research={selectedResearch}
+                userRole={userRole}
                 onSuccess={() => {
                   setIsEditDialogOpen(false);
                   setSelectedResearch(null);
@@ -228,23 +236,71 @@ export const ResearchSection = ({
                       )}
                     </div>
 
-                    {item.publicationUrl && (
-                      <div className="mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const apiUrl =
-                              import.meta.env.VITE_API_URL ||
-                              "http://localhost:3000/api/v1";
-                            const baseUrl = apiUrl.replace("/api/v1", "");
-                            const fullUrl = `${baseUrl}${item.publicationUrl}`;
-                            window.open(fullUrl, "_blank");
-                          }}
-                        >
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          View Publication
-                        </Button>
+                    {(item.publicationUrl || item.publicationFile) && (
+                      <div className="mt-3 flex gap-2">
+                        {item.publicationUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(item.publicationUrl, "_blank")
+                            }
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View Publication URL
+                          </Button>
+                        )}
+                        {item.publicationFile && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const apiUrl =
+                                import.meta.env.VITE_API_URL ||
+                                "http://localhost:3000/api/v1";
+                              const baseUrl = apiUrl.replace("/api/v1", "");
+                              const fullUrl = `${baseUrl}${item.publicationFile}`;
+                              window.open(fullUrl, "_blank");
+                            }}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View Publication File
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {(item.conferenceUrl || item.conferenceFile) && (
+                      <div className="mt-2 flex gap-2">
+                        {item.conferenceUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(item.conferenceUrl, "_blank")
+                            }
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View Conference URL
+                          </Button>
+                        )}
+                        {item.conferenceFile && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const apiUrl =
+                                import.meta.env.VITE_API_URL ||
+                                "http://localhost:3000/api/v1";
+                              const baseUrl = apiUrl.replace("/api/v1", "");
+                              const fullUrl = `${baseUrl}${item.conferenceFile}`;
+                              window.open(fullUrl, "_blank");
+                            }}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View Conference File
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

@@ -34,17 +34,20 @@ interface Certification {
   date: string;
   credentialId?: string;
   credentialUrl?: string;
+  credentialFile?: string;
 }
 
 interface CertificationsSectionProps {
   certifications: Certification[];
   isEditing: boolean;
+  userRole?: string;
   onUpdate: () => void;
 }
 
 export const CertificationsSection = ({
   certifications,
   isEditing,
+  userRole = "student",
   onUpdate,
 }: CertificationsSectionProps) => {
   const { toast } = useToast();
@@ -128,6 +131,7 @@ export const CertificationsSection = ({
                 </DialogDescription>
               </DialogHeader>
               <CertificationForm
+                userRole={userRole}
                 onSuccess={() => {
                   setIsAddDialogOpen(false);
                   onUpdate();
@@ -146,6 +150,7 @@ export const CertificationsSection = ({
               </DialogHeader>
               <CertificationForm
                 certification={selectedCertification}
+                userRole={userRole}
                 onSuccess={() => {
                   setIsEditDialogOpen(false);
                   setSelectedCertification(null);
@@ -191,23 +196,37 @@ export const CertificationsSection = ({
                       )}
                     </div>
 
-                    {cert.credentialUrl && (
-                      <div className="mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const apiUrl =
-                              import.meta.env.VITE_API_URL ||
-                              "http://localhost:3000/api/v1";
-                            const baseUrl = apiUrl.replace("/api/v1", "");
-                            const fullUrl = `${baseUrl}${cert.credentialUrl}`;
-                            window.open(fullUrl, "_blank");
-                          }}
-                        >
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          View Credential
-                        </Button>
+                    {(cert.credentialUrl || cert.credentialFile) && (
+                      <div className="mt-3 flex gap-2">
+                        {cert.credentialUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(cert.credentialUrl, "_blank")
+                            }
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View Credential URL
+                          </Button>
+                        )}
+                        {cert.credentialFile && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const apiUrl =
+                                import.meta.env.VITE_API_URL ||
+                                "http://localhost:3000/api/v1";
+                              const baseUrl = apiUrl.replace("/api/v1", "");
+                              const fullUrl = `${baseUrl}${cert.credentialFile}`;
+                              window.open(fullUrl, "_blank");
+                            }}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View Credential File
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

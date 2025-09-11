@@ -48,12 +48,14 @@ interface ProjectsSectionProps {
   projects: Project[];
   isEditing: boolean;
   onUpdate: () => void;
+  userRole?: string;
 }
 
 export const ProjectsSection = ({
   projects,
   isEditing,
   onUpdate,
+  userRole = "student",
 }: ProjectsSectionProps) => {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -74,15 +76,17 @@ export const ProjectsSection = ({
     try {
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
-      const response = await fetch(
-        `${apiUrl}/students/profile/projects/${projectId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const endpoint =
+        userRole === "student"
+          ? `${apiUrl}/students/profile/projects/${projectId}`
+          : `${apiUrl}/alumni/profile/projects/${projectId}`;
+
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       if (response.ok) {
         onUpdate();
@@ -139,6 +143,7 @@ export const ProjectsSection = ({
                   setIsAddDialogOpen(false);
                   onUpdate();
                 }}
+                userRole={userRole}
               />
             </DialogContent>
           </Dialog>
@@ -263,6 +268,7 @@ export const ProjectsSection = ({
                   setSelectedProject(null);
                   onUpdate();
                 }}
+                userRole={userRole}
               />
             )}
           </DialogContent>

@@ -44,18 +44,20 @@ interface Internship {
     currency: string;
   };
   skills: string[];
-  certificateUrl?: string;
+  certificateFile?: string;
 }
 
 interface InternshipsSectionProps {
   internships: Internship[];
   isEditing: boolean;
+  userRole?: string;
   onUpdate: () => void;
 }
 
 export const InternshipsSection = ({
   internships,
   isEditing,
+  userRole = "student",
   onUpdate,
 }: InternshipsSectionProps) => {
   const { toast } = useToast();
@@ -144,6 +146,7 @@ export const InternshipsSection = ({
                 </DialogDescription>
               </DialogHeader>
               <InternshipForm
+                userRole={userRole}
                 onSuccess={() => {
                   setIsAddDialogOpen(false);
                   onUpdate();
@@ -162,6 +165,7 @@ export const InternshipsSection = ({
               </DialogHeader>
               <InternshipForm
                 internship={selectedInternship}
+                userRole={userRole}
                 onSuccess={() => {
                   setIsEditDialogOpen(false);
                   setSelectedInternship(null);
@@ -254,7 +258,7 @@ export const InternshipsSection = ({
                       </div>
                     )}
 
-                    {internship.certificateUrl && (
+                    {internship.certificateFile && (
                       <div className="mt-3">
                         <Button
                           variant="outline"
@@ -264,7 +268,7 @@ export const InternshipsSection = ({
                               import.meta.env.VITE_API_URL ||
                               "http://localhost:3000/api/v1";
                             const baseUrl = apiUrl.replace("/api/v1", "");
-                            const fullUrl = `${baseUrl}${internship.certificateUrl}`;
+                            const fullUrl = `${baseUrl}${internship.certificateFile}`;
                             window.open(fullUrl, "_blank");
                           }}
                         >

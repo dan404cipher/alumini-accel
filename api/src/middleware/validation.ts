@@ -63,14 +63,26 @@ export const validateUserLogin = [
   handleValidationErrors,
 ];
 
-// Alumni profile validation for skills updates only
+// Alumni profile validation for skills and interests updates
 export const validateAlumniSkillsInterests = [
   body("skills").optional().isArray().withMessage("Skills must be an array"),
+  body("careerInterests")
+    .optional()
+    .isArray()
+    .withMessage("Career interests must be an array"),
   handleValidationErrors,
 ];
 
-// Alumni profile validation
+// Alumni profile validation (for creation)
 export const validateAlumniProfile = [
+  body("university")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("University must be between 2 and 100 characters"),
+  body("program")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Program must be between 2 and 100 characters"),
   body("batchYear")
     .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
     .withMessage("Batch year must be a valid year"),
@@ -111,6 +123,108 @@ export const validateAlumniProfile = [
     .trim()
     .isLength({ max: 50 })
     .withMessage("Skill name cannot exceed 50 characters"),
+  handleValidationErrors,
+];
+
+// Alumni profile update validation (all fields optional)
+export const validateAlumniProfileUpdate = [
+  body("university")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("University must be between 2 and 100 characters"),
+  body("program")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Program must be between 2 and 100 characters"),
+  body("batchYear")
+    .optional()
+    .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
+    .withMessage("Batch year must be a valid year"),
+  body("graduationYear")
+    .optional()
+    .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
+    .withMessage("Graduation year must be a valid year"),
+  body("department")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Department must be between 2 and 100 characters"),
+  body("rollNumber")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 20 })
+    .withMessage("Roll number must be between 1 and 20 characters"),
+  body("studentId")
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage("Student ID cannot exceed 20 characters"),
+  body("specialization")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Specialization cannot exceed 100 characters"),
+  body("currentCompany")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Company name cannot exceed 100 characters"),
+  body("currentPosition")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Position cannot exceed 100 characters"),
+  body("currentLocation")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Location cannot exceed 100 characters"),
+  body("experience")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Experience must be a non-negative number"),
+  body("salary")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Salary must be a non-negative number"),
+  body("currency")
+    .optional()
+    .isIn(["USD", "EUR", "GBP", "INR", "CAD", "AUD", "JPY", "CHF", "CNY"])
+    .withMessage("Currency must be a valid currency code"),
+  body("skills").optional().isArray().withMessage("Skills must be an array"),
+  body("skills.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Skill name cannot exceed 50 characters"),
+  body("achievements")
+    .optional()
+    .isArray()
+    .withMessage("Achievements must be an array"),
+  body("achievements.*")
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage("Achievement cannot exceed 200 characters"),
+  body("isHiring")
+    .optional()
+    .isBoolean()
+    .withMessage("isHiring must be a boolean"),
+  body("availableForMentorship")
+    .optional()
+    .isBoolean()
+    .withMessage("availableForMentorship must be a boolean"),
+  body("mentorshipDomains")
+    .optional()
+    .isArray()
+    .withMessage("Mentorship domains must be an array"),
+  body("mentorshipDomains.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Mentorship domain cannot exceed 50 characters"),
   handleValidationErrors,
 ];
 
@@ -335,6 +449,14 @@ export const validateProfileUpdate = [
     .optional()
     .matches(/^\+?[\d\s-()]+$/)
     .withMessage("Please provide a valid phone number"),
+  body("dateOfBirth")
+    .optional()
+    .isISO8601()
+    .withMessage("Date of birth must be a valid date"),
+  body("gender")
+    .optional()
+    .isIn(["male", "female", "other"])
+    .withMessage("Gender must be male, female, or other"),
   body("bio")
     .optional()
     .trim()
@@ -401,11 +523,59 @@ export const validateInvitation = [
   handleValidationErrors,
 ];
 
+// Internship validation
+export const addInternshipValidation = [
+  body("company").notEmpty().withMessage("Company name is required"),
+  body("position").notEmpty().withMessage("Position is required"),
+  body("startDate").isISO8601().withMessage("Start date must be a valid date"),
+  body("endDate")
+    .optional()
+    .isISO8601()
+    .withMessage("End date must be a valid date"),
+  body("certificateUrl")
+    .optional()
+    .isURL()
+    .withMessage("Invalid certificate URL"),
+];
+
+// Research validation
+export const addResearchValidation = [
+  body("title").notEmpty().withMessage("Research title is required"),
+  body("description")
+    .notEmpty()
+    .withMessage("Research description is required"),
+  body("startDate").isISO8601().withMessage("Start date must be a valid date"),
+  body("endDate")
+    .optional()
+    .isISO8601()
+    .withMessage("End date must be a valid date"),
+  body("status")
+    .optional()
+    .isIn(["ongoing", "completed", "published", "presented"])
+    .withMessage("Invalid status"),
+  body("publicationUrl")
+    .optional()
+    .isURL()
+    .withMessage("Invalid publication URL"),
+];
+
+// Certification validation
+export const addCertificationValidation = [
+  body("name").notEmpty().withMessage("Certification name is required"),
+  body("issuer").notEmpty().withMessage("Issuer is required"),
+  body("date").isISO8601().withMessage("Date must be a valid date"),
+  body("credentialUrl")
+    .optional()
+    .isURL()
+    .withMessage("Invalid credential URL"),
+];
+
 export default {
   handleValidationErrors,
   validateUserRegistration,
   validateUserLogin,
   validateAlumniProfile,
+  validateAlumniProfileUpdate,
   validateJobPost,
   validateEvent,
   validateMentorship,
@@ -415,4 +585,7 @@ export default {
   validateEmail,
   validatePasswordReset,
   validateProfileUpdate,
+  addInternshipValidation,
+  addResearchValidation,
+  addCertificationValidation,
 };

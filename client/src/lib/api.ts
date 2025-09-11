@@ -271,6 +271,27 @@ export const userAPI = {
 
 // Alumni API functions
 export const alumniAPI = {
+  // Get all users directory (students and alumni)
+  getAllUsersDirectory: async (params?: {
+    page?: number;
+    limit?: number;
+    userType?: "student" | "alumni" | "all";
+  }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/alumni/users",
+      params,
+    });
+  },
+
+  // Get user by ID (student or alumni)
+  getUserById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni/user/${id}`,
+    });
+  },
+
   // Get public alumni directory (no authentication required)
   getPublicAlumniDirectory: async (params?: {
     page?: number;

@@ -95,7 +95,9 @@ export const ProfessionalDetailsForm = ({
       }
 
       const result = await response.json();
+      console.log("📤 ProfessionalDetailsForm API response:", result);
       if (result.success) {
+        console.log("✅ Update successful, calling onUpdate callback...");
         onUpdate();
         toast({
           title: "Success",

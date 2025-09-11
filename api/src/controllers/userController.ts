@@ -85,6 +85,8 @@ export const updateProfile = async (req: Request, res: Response) => {
       firstName,
       lastName,
       phone,
+      dateOfBirth,
+      gender,
       bio,
       location,
       linkedinProfile,
@@ -106,6 +108,8 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phone) user.phone = phone;
+    if (dateOfBirth) user.dateOfBirth = new Date(dateOfBirth);
+    if (gender) user.gender = gender;
     if (bio) user.bio = bio;
     if (location) user.location = location;
     if (linkedinProfile) user.linkedinProfile = linkedinProfile;

@@ -90,4 +90,13 @@ router.post(
   asyncHandler(authController.resendVerificationEmail)
 );
 
+// @route   POST /api/v1/auth/check-email
+// @desc    Check if email is available
+// @access  Public
+router.post(
+  "/check-email",
+  ...validateRequest(validateEmail),
+  asyncHandler(authController.checkEmailAvailability)
+);
+
 export default router;

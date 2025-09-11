@@ -114,6 +114,8 @@ export interface IUser extends Document {
 export interface IAlumniProfile extends Document {
   _id: string;
   userId: string;
+  university: string;
+  program: string;
   batchYear: number;
   graduationYear: number;
   department: string;
@@ -128,11 +130,45 @@ export interface IAlumniProfile extends Document {
   currency?: string;
   skills: string[];
   achievements: string[];
+  internshipExperience: Array<{
+    _id?: string;
+    company: string;
+    position: string;
+    description?: string;
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    location?: string;
+    isRemote: boolean;
+    stipend?: {
+      amount: number;
+      currency: string;
+    };
+    skills: string[];
+    certificateFile?: string;
+  }>;
+  researchWork: Array<{
+    _id?: string;
+    title: string;
+    description: string;
+    supervisor?: string;
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    publicationUrl?: string;
+    conferenceUrl?: string;
+    keywords: string[];
+    status: "ongoing" | "completed" | "published" | "presented";
+    publicationFile?: string;
+    conferenceFile?: string;
+  }>;
   certifications: Array<{
+    _id?: string;
     name: string;
     issuer: string;
     date: Date;
     credentialId?: string;
+    credentialFile?: string;
   }>;
   education: Array<{
     degree: string;
@@ -162,6 +198,22 @@ export interface IAlumniProfile extends Document {
     date: Date;
   }>;
   photos: string[];
+  projects: Array<{
+    _id?: string;
+    title: string;
+    description: string;
+    technologies: string[];
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    githubUrl?: string;
+    liveUrl?: string;
+    teamMembers: Array<{
+      name: string;
+      role: string;
+    }>;
+  }>;
+  careerInterests: string[];
   createdAt: Date;
   updatedAt: Date;
 }

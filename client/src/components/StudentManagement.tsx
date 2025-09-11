@@ -76,8 +76,67 @@ const StudentManagement = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [emailChecking, setEmailChecking] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Check if email is available
+  const checkEmailAvailability = async (email: string) => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return true; // Don't check invalid emails
+    }
+
+    try {
+      setEmailChecking(true);
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+        }/auth/check-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ email }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.available;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking email availability:", error);
+      return false;
+    } finally {
+      setEmailChecking(false);
+    }
+  };
+
+  // Email validation with availability check
+  const validateEmailField = async (email: string) => {
+    const errors = { ...formErrors };
+
+    if (!email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Please enter a valid email address";
+    } else {
+      // Check if email is available
+      const isAvailable = await checkEmailAvailability(email);
+      if (!isAvailable) {
+        errors.email =
+          "This email is already registered. Please use a different email address.";
+      } else {
+        delete errors.email;
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   // Form validation functions
   const validateField = (name: string, value: string) => {
@@ -292,6 +351,19 @@ const StudentManagement = () => {
         toast({
           title: "Validation Error",
           description: "Please fix the errors in the form before submitting",
+          variant: "destructive",
+        });
+        setCreateLoading(false);
+        return;
+      }
+
+      // Final email availability check
+      const isEmailAvailable = await checkEmailAvailability(newStudent.email);
+      if (!isEmailAvailable) {
+        toast({
+          title: "Email Already Exists",
+          description:
+            "This email is already registered. Please use a different email address.",
           variant: "destructive",
         });
         setCreateLoading(false);
@@ -567,13 +639,28 @@ const StudentManagement = () => {
                   id="email"
                   type="email"
                   value={newStudent.email}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     setNewStudent({ ...newStudent, email: e.target.value });
+                    // Basic validation first
                     validateField("email", e.target.value);
+                    // Then check availability with debounce
+                    if (
+                      e.target.value &&
+                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value)
+                    ) {
+                      setTimeout(() => {
+                        validateEmailField(e.target.value);
+                      }, 1000); // 1 second debounce
+                    }
                   }}
                   className={formErrors.email ? "border-red-500" : ""}
                   required
                 />
+                {emailChecking && (
+                  <p className="text-sm text-blue-500">
+                    Checking email availability...
+                  </p>
+                )}
                 {formErrors.email && (
                   <p className="text-sm text-red-500">{formErrors.email}</p>
                 )}

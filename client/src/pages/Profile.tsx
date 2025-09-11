@@ -90,7 +90,8 @@ const Profile = () => {
       setIsLoading(true);
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
-      const response = await fetch(`${apiUrl}/auth/me`, {
+      // Add cache-busting parameter to prevent browser caching
+      const response = await fetch(`${apiUrl}/auth/me?t=${Date.now()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -381,52 +382,160 @@ const Profile = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-2">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="flex w-full flex-wrap justify-start gap-1 p-1">
-                <TabsTrigger value="overview" className="text-xs sm:text-sm">
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger value="education" className="text-xs sm:text-sm">
-                  Education
-                </TabsTrigger>
-                <TabsTrigger value="skills" className="text-xs sm:text-sm">
-                  Skills
-                </TabsTrigger>
-                <TabsTrigger value="projects" className="text-xs sm:text-sm">
-                  Projects
-                </TabsTrigger>
-                <TabsTrigger value="experience" className="text-xs sm:text-sm">
-                  Experience
-                </TabsTrigger>
-                <TabsTrigger value="research" className="text-xs sm:text-sm">
-                  Research
-                </TabsTrigger>
-                <TabsTrigger
-                  value="certifications"
-                  className="text-xs sm:text-sm"
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
+              {/* Clean Tab Navigation */}
+              <div className="border-b border-gray-200 mb-6">
+                <nav
+                  className="flex space-x-8 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                 >
-                  Certifications
-                </TabsTrigger>
-                <TabsTrigger value="connections" className="text-xs sm:text-sm">
-                  Connections
-                </TabsTrigger>
-                <TabsTrigger value="events" className="text-xs sm:text-sm">
-                  Events
-                </TabsTrigger>
-                {!isStudent && (
-                  <TabsTrigger
-                    value="professional"
-                    className="text-xs sm:text-sm"
+                  <button
+                    onClick={() => setActiveTab("overview")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "overview"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
                   >
-                    Professional
-                  </TabsTrigger>
-                )}
-                <TabsTrigger value="social" className="text-xs sm:text-sm">
-                  Social
-                </TabsTrigger>
-              </TabsList>
+                    <User className="w-4 h-4" />
+                    Overview
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("education")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "education"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                    Education
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("skills")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "skills"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <Award className="w-4 h-4" />
+                    Skills
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("projects")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "projects"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Projects
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("experience")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "experience"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    Experience
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("research")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "research"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Research
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("certifications")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "certifications"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <Award className="w-4 h-4" />
+                    Certifications
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("connections")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "connections"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <Users className="w-4 h-4" />
+                    Network
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("events")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "events"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Events
+                  </button>
+                  {!isStudent && (
+                    <>
+                      <button
+                        onClick={() => setActiveTab("professional")}
+                        className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                          activeTab === "professional"
+                            ? "border-blue-500 text-blue-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        <Briefcase className="w-4 h-4" />
+                        Professional
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("career")}
+                        className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                          activeTab === "career"
+                            ? "border-blue-500 text-blue-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Career Timeline
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setActiveTab("social")}
+                    className={`flex items-center gap-2 px-1 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "social"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <Globe className="w-4 h-4" />
+                    Social
+                  </button>
+                </nav>
+              </div>
 
-              <TabsContent value="overview" className="space-y-6">
+              <TabsContent
+                value="overview"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 {isEditing ? (
                   <BasicProfileForm
                     user={profile.user}
@@ -504,46 +613,40 @@ const Profile = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {profileData.currentCompany && (
-                              <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                  Current Company
-                                </label>
-                                <p className="text-sm">
-                                  {profileData.currentCompany}
-                                </p>
-                              </div>
-                            )}
-                            {profileData.currentPosition && (
-                              <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                  Position
-                                </label>
-                                <p className="text-sm">
-                                  {profileData.currentPosition}
-                                </p>
-                              </div>
-                            )}
-                            {profileData.experience && (
-                              <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                  Experience
-                                </label>
-                                <p className="text-sm">
-                                  {profileData.experience} years
-                                </p>
-                              </div>
-                            )}
-                            {profileData.currentLocation && (
-                              <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                  Location
-                                </label>
-                                <p className="text-sm">
-                                  {profileData.currentLocation}
-                                </p>
-                              </div>
-                            )}
+                            <div>
+                              <label className="text-sm font-medium text-gray-500">
+                                Current Company
+                              </label>
+                              <p className="text-sm">
+                                {profileData.currentCompany || "Not specified"}
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-500">
+                                Position
+                              </label>
+                              <p className="text-sm">
+                                {profileData.currentPosition || "Not specified"}
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-500">
+                                Experience
+                              </label>
+                              <p className="text-sm">
+                                {profileData.experience
+                                  ? `${profileData.experience} years`
+                                  : "Not specified"}
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-500">
+                                Location
+                              </label>
+                              <p className="text-sm">
+                                {profileData.currentLocation || "Not specified"}
+                              </p>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -566,7 +669,10 @@ const Profile = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="education">
+              <TabsContent
+                value="education"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 {isEditing ? (
                   <EducationalDetailsForm
                     profileData={profileData}
@@ -713,7 +819,10 @@ const Profile = () => {
               </TabsContent>
 
               {/* Skills & Interests Tab */}
-              <TabsContent value="skills">
+              <TabsContent
+                value="skills"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 {isEditing ? (
                   <SkillsInterestsForm
                     profileData={profileData}
@@ -777,43 +886,62 @@ const Profile = () => {
               </TabsContent>
 
               {/* Projects Tab */}
-              <TabsContent value="projects">
+              <TabsContent
+                value="projects"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 <ProjectsSection
                   projects={profileData?.projects || []}
                   isEditing={isEditing}
                   onUpdate={handleProfileUpdate}
+                  userRole={profile.user.role}
                 />
               </TabsContent>
 
               {/* Experience Tab (Internships) */}
-              <TabsContent value="experience">
+              <TabsContent
+                value="experience"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 <InternshipsSection
                   internships={profileData?.internshipExperience || []}
                   isEditing={isEditing}
+                  userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
                 />
               </TabsContent>
 
               {/* Research Tab */}
-              <TabsContent value="research">
+              <TabsContent
+                value="research"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 <ResearchSection
                   research={profileData?.researchWork || []}
                   isEditing={isEditing}
+                  userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
                 />
               </TabsContent>
 
               {/* Certifications Tab */}
-              <TabsContent value="certifications">
+              <TabsContent
+                value="certifications"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 <CertificationsSection
                   certifications={profileData?.certifications || []}
                   isEditing={isEditing}
+                  userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
                 />
               </TabsContent>
 
               {/* Connections Tab */}
-              <TabsContent value="connections">
+              <TabsContent
+                value="connections"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 <ConnectionsSection
                   connections={profileData?.connections || []}
                   connectionRequests={profileData?.connectionRequests || []}
@@ -823,7 +951,10 @@ const Profile = () => {
               </TabsContent>
 
               {/* Events Tab */}
-              <TabsContent value="events">
+              <TabsContent
+                value="events"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 <EventsSection
                   eventsRegistered={profileData?.eventsRegistered || []}
                   eventsAttended={profileData?.eventsAttended || []}
@@ -833,7 +964,10 @@ const Profile = () => {
               </TabsContent>
 
               {!isStudent && (
-                <TabsContent value="professional">
+                <TabsContent
+                  value="professional"
+                  className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+                >
                   {isEditing ? (
                     <ProfessionalDetailsForm
                       profileData={profileData}
@@ -849,67 +983,131 @@ const Profile = () => {
                           {profileData ? (
                             <div className="space-y-4">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {profileData.currentCompany && (
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-500">
-                                      Current Company
-                                    </label>
-                                    <p className="text-sm">
-                                      {profileData.currentCompany}
-                                    </p>
-                                  </div>
-                                )}
-                                {profileData.currentPosition && (
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-500">
-                                      Position
-                                    </label>
-                                    <p className="text-sm">
-                                      {profileData.currentPosition}
-                                    </p>
-                                  </div>
-                                )}
-                                {profileData.experience && (
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-500">
-                                      Experience
-                                    </label>
-                                    <p className="text-sm">
-                                      {profileData.experience} years
-                                    </p>
-                                  </div>
-                                )}
-                                {profileData.currentLocation && (
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-500">
-                                      Location
-                                    </label>
-                                    <p className="text-sm">
-                                      {profileData.currentLocation}
-                                    </p>
-                                  </div>
-                                )}
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Current Company
+                                  </label>
+                                  <p className="text-sm">
+                                    {profileData.currentCompany ||
+                                      "Not specified"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Position
+                                  </label>
+                                  <p className="text-sm">
+                                    {profileData.currentPosition ||
+                                      "Not specified"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Experience
+                                  </label>
+                                  <p className="text-sm">
+                                    {profileData.experience
+                                      ? `${profileData.experience} years`
+                                      : "Not specified"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Location
+                                  </label>
+                                  <p className="text-sm">
+                                    {profileData.currentLocation ||
+                                      "Not specified"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Salary
+                                  </label>
+                                  <p className="text-sm">
+                                    {profileData.salary && profileData.currency
+                                      ? `${profileData.salary} ${profileData.currency}`
+                                      : "Not specified"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Specialization
+                                  </label>
+                                  <p className="text-sm">
+                                    {profileData.specialization ||
+                                      "Not specified"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Hiring Status
+                                  </label>
+                                  <p className="text-sm">
+                                    {profileData.isHiring
+                                      ? "Currently Hiring"
+                                      : "Not Hiring"}
+                                  </p>
+                                </div>
                               </div>
-                              {profileData.skills &&
-                                profileData.skills.length > 0 && (
+                              {profileData.achievements &&
+                                profileData.achievements.length > 0 && (
                                   <div>
                                     <label className="text-sm font-medium text-gray-500">
-                                      Skills
+                                      Achievements
                                     </label>
                                     <div className="flex flex-wrap gap-2 mt-1">
-                                      {profileData.skills.map(
-                                        (skill, index) => (
+                                      {profileData.achievements.map(
+                                        (achievement, index) => (
                                           <Badge
                                             key={index}
-                                            variant="secondary"
+                                            variant="outline"
+                                            className="bg-yellow-50 text-yellow-700 border-yellow-200"
                                           >
-                                            {skill}
+                                            {achievement}
                                           </Badge>
                                         )
                                       )}
                                     </div>
                                   </div>
                                 )}
+                              {profileData.availableForMentorship && (
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">
+                                    Mentorship
+                                  </label>
+                                  <div className="mt-1">
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-green-50 text-green-700 border-green-200"
+                                    >
+                                      Available for Mentorship
+                                    </Badge>
+                                    {profileData.mentorshipDomains &&
+                                      profileData.mentorshipDomains.length >
+                                        0 && (
+                                        <div className="mt-2">
+                                          <p className="text-xs text-gray-500 mb-1">
+                                            Domains:
+                                          </p>
+                                          <div className="flex flex-wrap gap-1">
+                                            {profileData.mentorshipDomains.map(
+                                              (domain, index) => (
+                                                <Badge
+                                                  key={index}
+                                                  variant="secondary"
+                                                  className="text-xs"
+                                                >
+                                                  {domain}
+                                                </Badge>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <p className="text-gray-500">
@@ -923,7 +1121,81 @@ const Profile = () => {
                 </TabsContent>
               )}
 
-              <TabsContent value="social">
+              {/* Career Timeline Tab - Alumni Only */}
+              {!isStudent && (
+                <TabsContent
+                  value="career"
+                  className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+                >
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Career Timeline</CardTitle>
+                        <CardDescription>
+                          Your professional journey and work history
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {profileData?.careerTimeline &&
+                        profileData.careerTimeline.length > 0 ? (
+                          <div className="space-y-4">
+                            {profileData.careerTimeline.map((job, index) => (
+                              <div
+                                key={index}
+                                className="border-l-4 border-blue-200 pl-4 py-2"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <h4 className="font-semibold text-lg">
+                                      {job.position}
+                                    </h4>
+                                    <p className="text-gray-600 font-medium">
+                                      {job.company}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      {new Date(
+                                        job.startDate
+                                      ).toLocaleDateString()}{" "}
+                                      -
+                                      {job.isCurrent
+                                        ? " Present"
+                                        : new Date(
+                                            job.endDate
+                                          ).toLocaleDateString()}
+                                    </p>
+                                    {job.description && (
+                                      <p className="text-sm text-gray-700 mt-2">
+                                        {job.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {job.isCurrent && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-green-50 text-green-700 border-green-200"
+                                    >
+                                      Current
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500">
+                            No career timeline available
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+              )}
+
+              <TabsContent
+                value="social"
+                className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
+              >
                 {isEditing ? (
                   <SocialNetworkingForm
                     user={profile.user}
@@ -995,6 +1267,46 @@ const Profile = () => {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Testimonials Section - Alumni Only */}
+                    {!isStudent &&
+                      profileData?.testimonials &&
+                      profileData.testimonials.length > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Testimonials</CardTitle>
+                            <CardDescription>
+                              What others say about working with you
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {profileData.testimonials.map(
+                                (testimonial, index) => (
+                                  <div
+                                    key={index}
+                                    className="border-l-4 border-blue-200 pl-4 py-2"
+                                  >
+                                    <p className="text-gray-700 italic">
+                                      "{testimonial.content}"
+                                    </p>
+                                    <div className="mt-2 flex items-center justify-between">
+                                      <p className="text-sm font-medium text-gray-900">
+                                        - {testimonial.author}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {new Date(
+                                          testimonial.date
+                                        ).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
                     {isStudent && (
                       <JobPreferencesForm

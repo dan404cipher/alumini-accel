@@ -1,8 +1,148 @@
 import { Request, Response } from "express";
 import AlumniProfile from "@/models/AlumniProfile";
+import StudentProfile from "@/models/StudentProfile";
 import User from "@/models/User";
 import { logger } from "@/utils/logger";
 import { UserRole } from "@/types";
+
+// Get all users directory (students and alumni)
+export const getAllUsersDirectory = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+    const userType = req.query.userType as string; // 'student', 'alumni', or 'all'
+
+    // Build filter for user type
+    const userFilter: any = {};
+    if (userType && userType !== "all") {
+      userFilter.role =
+        userType === "student" ? UserRole.STUDENT : UserRole.ALUMNI;
+    }
+
+    // Get all users
+    const users = await User.find(userFilter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Get total count
+    const total = await User.countDocuments(userFilter);
+
+    // Get profiles for all users
+    const alumniProfiles = await AlumniProfile.find({
+      userId: { $in: users.map((u) => u._id) },
+    }).populate(
+      "userId",
+      "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
+    );
+
+    const studentProfiles = await StudentProfile.find({
+      userId: { $in: users.map((u) => u._id) },
+    }).populate(
+      "userId",
+      "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
+    );
+
+    // Create maps for quick lookup
+    const alumniMap = new Map();
+    alumniProfiles.forEach((profile: any) => {
+      alumniMap.set(profile.userId.toString(), profile);
+    });
+
+    const studentMap = new Map();
+    studentProfiles.forEach((profile: any) => {
+      studentMap.set(profile.userId.toString(), profile);
+    });
+
+    // Format the response
+    const formattedUsers = users.map((user) => {
+      const baseUser = {
+        id: user._id,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        profileImage: user.profilePicture,
+        role: user.role,
+        bio: user.bio,
+        location: user.location,
+        linkedinProfile: user.linkedinProfile,
+        githubProfile: user.githubProfile,
+        website: user.website,
+        createdAt: user.createdAt,
+        skills: [],
+        careerInterests: [],
+        isHiring: false,
+        availableForMentorship: false,
+        mentorshipDomains: [],
+        achievements: [],
+      };
+
+      // Add profile-specific data
+      if (user.role === UserRole.ALUMNI) {
+        const profile = alumniMap.get(user._id.toString());
+        if (profile) {
+          return {
+            ...baseUser,
+            graduationYear: profile.graduationYear,
+            batchYear: profile.batchYear,
+            department: profile.department,
+            specialization: profile.specialization,
+            currentRole: profile.currentPosition,
+            company: profile.currentCompany,
+            currentLocation: profile.currentLocation,
+            experience: profile.experience,
+            skills: profile.skills || [],
+            isHiring: profile.isHiring,
+            availableForMentorship: profile.availableForMentorship,
+            mentorshipDomains: profile.mentorshipDomains || [],
+            achievements: profile.achievements || [],
+          };
+        }
+      } else if (user.role === UserRole.STUDENT) {
+        const profile = studentMap.get(user._id.toString());
+        if (profile) {
+          return {
+            ...baseUser,
+            graduationYear: profile.graduationYear,
+            batchYear: profile.batchYear,
+            department: profile.department,
+            program: profile.program,
+            currentYear: profile.currentYear,
+            currentCGPA: profile.currentCGPA,
+            currentGPA: profile.currentGPA,
+            skills: profile.skills || [],
+            careerInterests: profile.careerInterests || [],
+            isHiring: false,
+            availableForMentorship: false,
+            mentorshipDomains: [],
+            achievements: [],
+          };
+        }
+      }
+
+      return baseUser;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        users: formattedUsers,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get all users directory error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch users directory",
+    });
+  }
+};
 
 // Get public alumni directory data (no authentication required)
 export const getPublicAlumniDirectory = async (req: Request, res: Response) => {
@@ -185,6 +325,8 @@ export const getAlumniById = async (req: Request, res: Response) => {
 export const createProfile = async (req: Request, res: Response) => {
   try {
     const {
+      university,
+      program,
       batchYear,
       graduationYear,
       department,
@@ -223,6 +365,8 @@ export const createProfile = async (req: Request, res: Response) => {
 
     const alumniProfile = new AlumniProfile({
       userId: req.user.id,
+      university,
+      program,
       batchYear,
       graduationYear,
       department,
@@ -271,6 +415,8 @@ export const createProfile = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const {
+      university,
+      program,
       batchYear,
       graduationYear,
       department,
@@ -306,6 +452,8 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     // Update fields if provided
+    if (university !== undefined) alumniProfile.university = university;
+    if (program !== undefined) alumniProfile.program = program;
     if (batchYear !== undefined) alumniProfile.batchYear = batchYear;
     if (graduationYear !== undefined)
       alumniProfile.graduationYear = graduationYear;
@@ -608,8 +756,10 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
       });
     }
 
-    // Update only skills if provided (alumni don't have careerInterests field)
+    // Update skills and careerInterests if provided
     if (skills !== undefined) alumniProfile.skills = skills;
+    if (careerInterests !== undefined)
+      alumniProfile.careerInterests = careerInterests;
 
     await alumniProfile.save();
 
@@ -629,7 +779,792 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
   }
 };
 
+// Get user by ID (student or alumni)
+export const getUserById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Get user
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Get profile based on user role
+    let profile = null;
+    if (user.role === UserRole.ALUMNI) {
+      profile = await AlumniProfile.findOne({ userId: user._id });
+    } else if (user.role === UserRole.STUDENT) {
+      profile = await StudentProfile.findOne({ userId: user._id });
+    }
+
+    // Format the response
+    const baseUser = {
+      id: user._id,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      profileImage: user.profilePicture,
+      role: user.role,
+      bio: user.bio,
+      location: user.location,
+      linkedinProfile: user.linkedinProfile,
+      githubProfile: user.githubProfile,
+      website: user.website,
+      createdAt: user.createdAt,
+      skills: [],
+      careerInterests: [],
+      isHiring: false,
+      availableForMentorship: false,
+      mentorshipDomains: [],
+      achievements: [],
+    };
+
+    // Add profile-specific data
+    if (user.role === UserRole.ALUMNI && profile) {
+      const alumniProfile = profile as any;
+      const formattedUser = {
+        ...baseUser,
+        graduationYear: alumniProfile.graduationYear,
+        batchYear: alumniProfile.batchYear,
+        department: alumniProfile.department,
+        specialization: alumniProfile.specialization,
+        currentRole: alumniProfile.currentPosition,
+        company: alumniProfile.currentCompany,
+        currentLocation: alumniProfile.currentLocation,
+        experience: alumniProfile.experience,
+        skills: alumniProfile.skills || [],
+        isHiring: alumniProfile.isHiring,
+        availableForMentorship: alumniProfile.availableForMentorship,
+        mentorshipDomains: alumniProfile.mentorshipDomains || [],
+        achievements: alumniProfile.achievements || [],
+        certifications: alumniProfile.certifications || [],
+        careerTimeline: alumniProfile.careerTimeline || [],
+        education: alumniProfile.education || [],
+      };
+      return res.json({
+        success: true,
+        data: { user: formattedUser },
+      });
+    } else if (user.role === UserRole.STUDENT && profile) {
+      const studentProfile = profile as any;
+      const formattedUser = {
+        ...baseUser,
+        graduationYear: studentProfile.graduationYear,
+        batchYear: studentProfile.batchYear,
+        department: studentProfile.department,
+        program: studentProfile.program,
+        currentYear: studentProfile.currentYear,
+        currentCGPA: studentProfile.currentCGPA,
+        currentGPA: studentProfile.currentGPA,
+        skills: studentProfile.skills || [],
+        careerInterests: studentProfile.careerInterests || [],
+        isHiring: false,
+        availableForMentorship: false,
+        mentorshipDomains: [],
+        achievements: [],
+      };
+      return res.json({
+        success: true,
+        data: { user: formattedUser },
+      });
+    }
+
+    // Return base user if no profile found
+    return res.json({
+      success: true,
+      data: { user: baseUser },
+    });
+  } catch (error) {
+    logger.error("Get user by ID error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch user",
+    });
+  }
+};
+
+// Add project to alumni profile
+export const addProject = async (req: Request, res: Response) => {
+  try {
+    const {
+      title,
+      description,
+      technologies,
+      startDate,
+      endDate,
+      isOngoing,
+      githubUrl,
+      liveUrl,
+      teamMembers,
+    } = req.body;
+
+    let profile = await AlumniProfile.findOne({ userId: req.user.id });
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    // Validate team members
+    if (!teamMembers || teamMembers.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one team member is required",
+      });
+    }
+
+    const project = {
+      title,
+      description,
+      technologies: technologies || [],
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : undefined,
+      isOngoing: isOngoing || false,
+      githubUrl,
+      liveUrl,
+      teamMembers: teamMembers || [],
+    };
+
+    profile.projects.push(project);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Project added successfully",
+      data: { project },
+    });
+  } catch (error) {
+    console.error("Add alumni project error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+// Update project in alumni profile
+export const updateProject = async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const updateData = req.body;
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const projectIndex = profile.projects.findIndex(
+      (p) => p._id?.toString() === projectId
+    );
+    if (projectIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    // Update project fields
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] !== undefined) {
+        if (key === "startDate" || key === "endDate") {
+          (profile.projects[projectIndex] as any)[key] = new Date(
+            updateData[key]
+          );
+        } else {
+          (profile.projects[projectIndex] as any)[key] = updateData[key];
+        }
+      }
+    });
+
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Project updated successfully",
+      data: { project: profile.projects[projectIndex] },
+    });
+  } catch (error) {
+    logger.error("Update alumni project error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update project",
+    });
+  }
+};
+
+// Delete project from alumni profile
+export const deleteProject = async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const projectIndex = profile.projects.findIndex(
+      (p) => p._id?.toString() === projectId
+    );
+    if (projectIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    profile.projects.splice(projectIndex, 1);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Project deleted successfully",
+    });
+  } catch (error) {
+    logger.error("Delete alumni project error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete project",
+    });
+  }
+};
+
+// Add internship experience
+export const addInternship = async (req: Request, res: Response) => {
+  try {
+    const {
+      company,
+      position,
+      description,
+      startDate,
+      endDate,
+      isOngoing,
+      location,
+      isRemote,
+      stipendAmount,
+      stipendCurrency,
+      skills,
+    } = req.body;
+
+    // Handle file upload
+    let certificateFile = "";
+    if (req.file) {
+      certificateFile = `/uploads/documents/${req.file.filename}`;
+    }
+
+    let profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const internship = {
+      company,
+      position,
+      description: description || "",
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : undefined,
+      isOngoing: isOngoing || false,
+      location: location || "",
+      isRemote: isRemote || false,
+      stipend: stipendAmount
+        ? {
+            amount: stipendAmount,
+            currency: stipendCurrency || "INR",
+          }
+        : undefined,
+      skills: skills
+        ? typeof skills === "string"
+          ? JSON.parse(skills)
+          : skills
+        : [],
+      certificateFile: certificateFile || "",
+    };
+
+    profile.internshipExperience.push(internship);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Internship experience added successfully",
+      data: { internship },
+    });
+  } catch (error) {
+    console.error("Add internship error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add internship experience",
+    });
+  }
+};
+
+// Update internship experience
+export const updateInternship = async (req: Request, res: Response) => {
+  try {
+    const { internshipId } = req.params;
+    const updateData = req.body;
+
+    // Handle file upload
+    if (req.file) {
+      updateData.certificateFile = `/uploads/documents/${req.file.filename}`;
+    }
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const internshipIndex = profile.internshipExperience.findIndex(
+      (internship) => internship._id?.toString() === internshipId
+    );
+
+    if (internshipIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Internship not found",
+      });
+    }
+
+    const internship = profile.internshipExperience[internshipIndex];
+
+    // Update fields
+    if (updateData.company) internship.company = updateData.company;
+    if (updateData.position) internship.position = updateData.position;
+    if (updateData.description !== undefined)
+      internship.description = updateData.description;
+    if (updateData.startDate)
+      internship.startDate = new Date(updateData.startDate);
+    if (updateData.endDate !== undefined)
+      internship.endDate = updateData.endDate
+        ? new Date(updateData.endDate)
+        : undefined;
+    if (updateData.isOngoing !== undefined)
+      internship.isOngoing = updateData.isOngoing;
+    if (updateData.location !== undefined)
+      internship.location = updateData.location;
+    if (updateData.isRemote !== undefined)
+      internship.isRemote = updateData.isRemote;
+    if (updateData.skills)
+      internship.skills =
+        typeof updateData.skills === "string"
+          ? JSON.parse(updateData.skills)
+          : updateData.skills;
+    if (updateData.certificateFile !== undefined)
+      internship.certificateFile = updateData.certificateFile;
+
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Internship experience updated successfully",
+      data: { internship },
+    });
+  } catch (error) {
+    console.error("Update internship error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update internship experience",
+    });
+  }
+};
+
+// Delete internship experience
+export const deleteInternship = async (req: Request, res: Response) => {
+  try {
+    const { internshipId } = req.params;
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const internshipIndex = profile.internshipExperience.findIndex(
+      (internship) => internship._id?.toString() === internshipId
+    );
+
+    if (internshipIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Internship not found",
+      });
+    }
+
+    profile.internshipExperience.splice(internshipIndex, 1);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Internship experience deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete internship error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete internship experience",
+    });
+  }
+};
+
+// Add research work
+export const addResearch = async (req: Request, res: Response) => {
+  try {
+    const {
+      title,
+      description,
+      supervisor,
+      startDate,
+      endDate,
+      isOngoing,
+      publicationUrl,
+      conferenceUrl,
+      keywords,
+      status,
+    } = req.body;
+
+    // Handle file uploads
+    let publicationFile = "";
+    let conferenceFile = "";
+
+    if (req.files) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      if (files.publicationFile && files.publicationFile[0]) {
+        publicationFile = `/uploads/documents/${files.publicationFile[0].filename}`;
+      }
+
+      if (files.conferenceFile && files.conferenceFile[0]) {
+        conferenceFile = `/uploads/documents/${files.conferenceFile[0].filename}`;
+      }
+    }
+
+    let profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const research = {
+      title,
+      description,
+      supervisor: supervisor || "",
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : undefined,
+      isOngoing: isOngoing || false,
+      publicationUrl: publicationUrl || "",
+      conferenceUrl: conferenceUrl || "",
+      keywords: keywords
+        ? typeof keywords === "string"
+          ? JSON.parse(keywords)
+          : keywords
+        : [],
+      status: status || "ongoing",
+      publicationFile: publicationFile || "",
+      conferenceFile: conferenceFile || "",
+    };
+
+    profile.researchWork.push(research);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Research work added successfully",
+      data: { research },
+    });
+  } catch (error) {
+    console.error("Add research error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add research work",
+    });
+  }
+};
+
+// Update research work
+export const updateResearch = async (req: Request, res: Response) => {
+  try {
+    const { researchId } = req.params;
+    const updateData = req.body;
+
+    // Handle file uploads
+    if (req.files) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      if (files.publicationFile && files.publicationFile[0]) {
+        updateData.publicationFile = `/uploads/documents/${files.publicationFile[0].filename}`;
+      }
+
+      if (files.conferenceFile && files.conferenceFile[0]) {
+        updateData.conferenceFile = `/uploads/documents/${files.conferenceFile[0].filename}`;
+      }
+    }
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const researchIndex = profile.researchWork.findIndex(
+      (research) => research._id?.toString() === researchId
+    );
+
+    if (researchIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Research work not found",
+      });
+    }
+
+    const research = profile.researchWork[researchIndex];
+
+    // Update fields
+    if (updateData.title) research.title = updateData.title;
+    if (updateData.description) research.description = updateData.description;
+    if (updateData.supervisor !== undefined)
+      research.supervisor = updateData.supervisor;
+    if (updateData.startDate)
+      research.startDate = new Date(updateData.startDate);
+    if (updateData.endDate !== undefined)
+      research.endDate = updateData.endDate
+        ? new Date(updateData.endDate)
+        : undefined;
+    if (updateData.isOngoing !== undefined)
+      research.isOngoing = updateData.isOngoing;
+    if (updateData.publicationUrl !== undefined)
+      research.publicationUrl = updateData.publicationUrl;
+    if (updateData.conferenceUrl !== undefined)
+      research.conferenceUrl = updateData.conferenceUrl;
+    if (updateData.keywords)
+      research.keywords =
+        typeof updateData.keywords === "string"
+          ? JSON.parse(updateData.keywords)
+          : updateData.keywords;
+    if (updateData.status) research.status = updateData.status;
+    if (updateData.publicationFile !== undefined)
+      research.publicationFile = updateData.publicationFile;
+    if (updateData.conferenceFile !== undefined)
+      research.conferenceFile = updateData.conferenceFile;
+
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Research work updated successfully",
+      data: { research },
+    });
+  } catch (error) {
+    console.error("Update research error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update research work",
+    });
+  }
+};
+
+// Delete research work
+export const deleteResearch = async (req: Request, res: Response) => {
+  try {
+    const { researchId } = req.params;
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const researchIndex = profile.researchWork.findIndex(
+      (research) => research._id?.toString() === researchId
+    );
+
+    if (researchIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Research work not found",
+      });
+    }
+
+    profile.researchWork.splice(researchIndex, 1);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Research work deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete research error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete research work",
+    });
+  }
+};
+
+// Add certification
+export const addCertification = async (req: Request, res: Response) => {
+  try {
+    const { name, issuer, date, credentialId } = req.body;
+
+    // Handle file upload
+    let credentialFile = "";
+    if (req.file) {
+      credentialFile = `/uploads/documents/${req.file.filename}`;
+    }
+
+    let profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const certification = {
+      name,
+      issuer,
+      date: new Date(date),
+      credentialId: credentialId || "",
+      credentialFile: credentialFile || "",
+    };
+
+    profile.certifications.push(certification);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Certification added successfully",
+      data: { certification },
+    });
+  } catch (error) {
+    console.error("Add certification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add certification",
+    });
+  }
+};
+
+// Update certification
+export const updateCertification = async (req: Request, res: Response) => {
+  try {
+    const { certificationId } = req.params;
+    const updateData = req.body;
+
+    // Handle file upload
+    if (req.file) {
+      updateData.credentialFile = `/uploads/documents/${req.file.filename}`;
+    }
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const certificationIndex = profile.certifications.findIndex(
+      (certification) => certification._id?.toString() === certificationId
+    );
+
+    if (certificationIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Certification not found",
+      });
+    }
+
+    const certification = profile.certifications[certificationIndex];
+
+    // Update fields
+    if (updateData.name) certification.name = updateData.name;
+    if (updateData.issuer) certification.issuer = updateData.issuer;
+    if (updateData.date) certification.date = new Date(updateData.date);
+    if (updateData.credentialId !== undefined)
+      certification.credentialId = updateData.credentialId;
+
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Certification updated successfully",
+      data: { certification },
+    });
+  } catch (error) {
+    console.error("Update certification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update certification",
+    });
+  }
+};
+
+// Delete certification
+export const deleteCertification = async (req: Request, res: Response) => {
+  try {
+    const { certificationId } = req.params;
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const certificationIndex = profile.certifications.findIndex(
+      (certification) => certification._id?.toString() === certificationId
+    );
+
+    if (certificationIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Certification not found",
+      });
+    }
+
+    profile.certifications.splice(certificationIndex, 1);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Certification deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete certification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete certification",
+    });
+  }
+};
+
 export default {
+  getAllUsersDirectory,
+  getUserById,
   getPublicAlumniDirectory,
   getAllAlumni,
   getAlumniById,
@@ -641,4 +1576,16 @@ export default {
   getHiringAlumni,
   getMentors,
   getAlumniStats,
+  addProject,
+  updateProject,
+  deleteProject,
+  addInternship,
+  updateInternship,
+  deleteInternship,
+  addResearch,
+  updateResearch,
+  deleteResearch,
+  addCertification,
+  updateCertification,
+  deleteCertification,
 };

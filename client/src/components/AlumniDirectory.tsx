@@ -25,21 +25,28 @@ import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-// Alumni interface
-interface Alumni {
+// User interface (for both students and alumni)
+interface User {
   id: string;
   name: string;
   email: string;
   profileImage?: string;
-  graduationYear: number;
-  batchYear: number;
-  department: string;
+  role: string;
+  graduationYear?: number;
+  batchYear?: number;
+  department?: string;
   specialization?: string;
+  program?: string;
   currentRole?: string;
   company?: string;
   location?: string;
-  experience: number;
-  skills: string[];
+  currentLocation?: string;
+  currentYear?: string;
+  currentCGPA?: number;
+  currentGPA?: number;
+  experience?: number;
+  skills?: string[];
+  careerInterests?: string[];
   isHiring: boolean;
   availableForMentorship: boolean;
   mentorshipDomains: string[];
@@ -54,9 +61,12 @@ interface Alumni {
 const AlumniDirectory = () => {
   const navigate = useNavigate();
   const [isAddAlumniOpen, setIsAddAlumniOpen] = useState(false);
-  const [alumni, setAlumni] = useState<Alumni[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userTypeFilter, setUserTypeFilter] = useState<
+    "all" | "student" | "alumni"
+  >("all");
   const { toast } = useToast();
 
   // Handle profile click
@@ -64,85 +74,59 @@ const AlumniDirectory = () => {
     navigate(`/alumni/${alumniId}`);
   };
 
-  const fetchAlumni = useCallback(async () => {
-    // Mock data for fallback
-    const mockAlumni: Alumni[] = [
-      {
-        id: "1",
-        name: "Sarah Chen",
-        email: "sarah.chen@example.com",
-        graduationYear: 2019,
-        batchYear: 2019,
-        department: "Computer Science",
-        specialization: "Software Engineering",
-        currentRole: "Senior Software Engineer",
-        company: "Google",
-        location: "San Francisco, CA",
-        profileImage:
-          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
-        experience: 5,
-        skills: ["JavaScript", "React", "Node.js", "Python"],
-        isHiring: true,
-        availableForMentorship: true,
-        mentorshipDomains: ["Software Engineering", "Career Development"],
-        achievements: ["Google MVP Award", "Open Source Contributor"],
-        bio: "Passionate software engineer with 5+ years of experience in web development.",
-        linkedinProfile: "https://linkedin.com/in/sarahchen",
-        githubProfile: "https://github.com/sarahchen",
-        website: "https://sarahchen.dev",
-        createdAt: "2019-06-01T00:00:00.000Z",
-      },
-    ];
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("Fetching alumni directory...");
+      console.log("Fetching users directory...");
 
-      const response = await alumniAPI.getPublicAlumniDirectory();
-      console.log("Alumni directory API response:", response);
+      const response = await alumniAPI.getAllUsersDirectory({
+        userType: userTypeFilter,
+        limit: 50,
+      });
+      console.log("Users directory API response:", response);
 
       if (
         response &&
         response.data &&
-        (response.data as { alumni: Alumni[] }).alumni
+        (response.data as { users: User[] }).users
       ) {
-        setAlumni((response.data as { alumni: Alumni[] }).alumni);
+        setUsers((response.data as { users: User[] }).users);
         console.log(
-          "Processed alumni data:",
-          (response.data as { alumni: Alumni[] }).alumni
+          "Processed users data:",
+          (response.data as { users: User[] }).users
         );
       } else {
-        console.log("No alumni data found, using mock data");
-        setAlumni(mockAlumni);
+        console.log("No users data found");
+        setUsers([]);
       }
     } catch (error) {
-      console.error("Error fetching alumni directory:", error);
-      setError("Failed to load alumni directory");
-      // Fallback to mock data on error
-      setAlumni(mockAlumni);
+      console.error("Error fetching users directory:", error);
+      setError("Failed to load users directory");
+      setUsers([]);
       toast({
-        title: "Warning",
-        description: "Using sample data. Please check your connection.",
+        title: "Error",
+        description: "Failed to load users directory. Please try again.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [userTypeFilter, toast]);
 
-  // Fetch alumni data from API
+  // Fetch users data from API
   useEffect(() => {
-    fetchAlumni();
-  }, [fetchAlumni]);
+    fetchUsers();
+  }, [fetchUsers]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Alumni Directory</h1>
+          <h1 className="text-3xl font-bold">User Directory</h1>
           <p className="text-muted-foreground">
-            Connect with our global network of {alumni.length}K+ alumni
+            Connect with our global network of {users.length} users
           </p>
         </div>
         <Button
@@ -160,17 +144,20 @@ const AlumniDirectory = () => {
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex gap-2">
-              <Select>
+              <Select
+                value={userTypeFilter}
+                onValueChange={(value: "all" | "student" | "alumni") =>
+                  setUserTypeFilter(value)
+                }
+              >
                 <SelectTrigger className="w-40">
                   <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Graduation Year" />
+                  <SelectValue placeholder="User Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                  <SelectItem value="2022">2022</SelectItem>
-                  <SelectItem value="2021">2021</SelectItem>
-                  <SelectItem value="2020">2020</SelectItem>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="student">Students</SelectItem>
+                  <SelectItem value="alumni">Alumni</SelectItem>
                 </SelectContent>
               </Select>
               <Select>
@@ -197,7 +184,7 @@ const AlumniDirectory = () => {
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">
-            Loading alumni directory...
+            Loading users directory...
           </p>
         </div>
       )}
@@ -208,43 +195,48 @@ const AlumniDirectory = () => {
           <div className="text-red-500 mb-4">
             <Users className="h-12 w-12 mx-auto mb-2" />
             <p className="text-lg font-semibold">
-              Failed to load alumni directory
+              Failed to load users directory
             </p>
             <p className="text-sm text-muted-foreground">{error}</p>
           </div>
-          <Button onClick={fetchAlumni} variant="outline">
+          <Button onClick={fetchUsers} variant="outline">
             Try Again
           </Button>
         </div>
       )}
 
-      {/* Alumni Grid */}
+      {/* Users Grid */}
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {alumni.length === 0 ? (
+          {users.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg font-semibold">No alumni found</p>
+              <p className="text-lg font-semibold">No users found</p>
               <p className="text-muted-foreground">
-                Check back later for new alumni profiles.
+                Check back later for new user profiles.
               </p>
             </div>
           ) : (
-            alumni.map((alumnus) => (
+            users.map((user) => (
               <Card
-                key={alumnus.id}
+                key={user.id}
                 className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
-                onClick={() => handleProfileClick(alumnus.id)}
+                onClick={() => handleProfileClick(user.id)}
               >
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4">
                     <div className="relative">
                       <img
-                        src={alumnus.profileImage}
-                        alt={alumnus.name}
+                        src={
+                          user.profileImage ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            user.name
+                          )}&background=random`
+                        }
+                        alt={user.name}
                         className="w-16 h-16 rounded-full object-cover"
                       />
-                      {alumnus.availableForMentorship && (
+                      {user.availableForMentorship && (
                         <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success rounded-full flex items-center justify-center">
                           <Star className="w-3 h-3 text-success-foreground" />
                         </div>
@@ -253,61 +245,96 @@ const AlumniDirectory = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-lg truncate">
-                          {alumnus.name}
+                          {user.name}
                         </h3>
-                        {alumnus.isHiring && (
-                          <Badge variant="success" className="text-xs">
-                            Hiring
+                        <div className="flex gap-1">
+                          <Badge
+                            variant={
+                              user.role === "alumni" ? "default" : "secondary"
+                            }
+                            className="text-xs"
+                          >
+                            {user.role === "alumni" ? "Alumni" : "Student"}
                           </Badge>
-                        )}
+                          {user.isHiring && (
+                            <Badge variant="success" className="text-xs">
+                              Hiring
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {alumnus.currentRole || "Alumni"}
+                        {user.currentRole || user.program || user.role}
                       </p>
-                      {alumnus.company && (
+                      {user.company && (
                         <p className="text-sm font-medium text-primary">
-                          {alumnus.company}
+                          {user.company}
                         </p>
                       )}
                     </div>
                   </div>
 
                   <div className="mt-4 space-y-2">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Class of {alumnus.graduationYear} • {alumnus.department}
-                    </div>
-                    {alumnus.location && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <MapPin className="w-4 h-4 mr-2" />
-                        {alumnus.location}
-                      </div>
-                    )}
-                    {alumnus.experience > 0 && (
+                    {user.graduationYear && (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Calendar className="w-4 h-4 mr-2" />
-                        {alumnus.experience} years experience
+                        Class of {user.graduationYear} • {user.department}
+                      </div>
+                    )}
+                    {user.currentYear && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        {user.currentYear} • {user.department}
+                      </div>
+                    )}
+                    {(user.location || user.currentLocation) && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4 mr-2" />
+                        {user.currentLocation || user.location}
+                      </div>
+                    )}
+                    {user.experience && user.experience > 0 && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        {user.experience} years experience
+                      </div>
+                    )}
+                    {user.currentCGPA && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        CGPA: {user.currentCGPA}
                       </div>
                     )}
                   </div>
 
                   {/* Badges */}
                   <div className="mt-4 flex flex-wrap gap-1">
-                    {alumnus.isHiring && (
+                    {user.isHiring && (
                       <Badge variant="success" className="text-xs">
                         Hiring
                       </Badge>
                     )}
-                    {alumnus.availableForMentorship && (
+                    {user.availableForMentorship && (
                       <Badge variant="secondary" className="text-xs">
                         Mentor
                       </Badge>
                     )}
-                    {alumnus.skills.slice(0, 2).map((skill, index) => (
+                    {(user.skills || []).slice(0, 2).map((skill, index) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {skill}
                       </Badge>
                     ))}
+                    {(user.careerInterests || [])
+                      .slice(0, 1)
+                      .map((interest, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          {interest}
+                        </Badge>
+                      ))}
                   </div>
 
                   {/* Actions */}
@@ -319,25 +346,25 @@ const AlumniDirectory = () => {
                       <Mail className="w-4 h-4 mr-2" />
                       Connect
                     </Button>
-                    {alumnus.linkedinProfile && (
+                    {user.linkedinProfile && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.open(alumnus.linkedinProfile, "_blank");
+                          window.open(user.linkedinProfile, "_blank");
                         }}
                       >
                         <Linkedin className="w-4 h-4" />
                       </Button>
                     )}
-                    {alumnus.githubProfile && (
+                    {user.githubProfile && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.open(alumnus.githubProfile, "_blank");
+                          window.open(user.githubProfile, "_blank");
                         }}
                       >
                         <Phone className="w-4 h-4" />
@@ -354,7 +381,7 @@ const AlumniDirectory = () => {
       {/* Load More */}
       <div className="text-center">
         <Button variant="outline" size="lg">
-          Load More Alumni
+          Load More Users
         </Button>
       </div>
 

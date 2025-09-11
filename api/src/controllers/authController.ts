@@ -367,6 +367,8 @@ export const getCurrentUser = async (req: Request, res: Response) => {
           profilePicture: user.profilePicture,
           bio: user.bio,
           location: user.location,
+          dateOfBirth: user.dateOfBirth,
+          gender: user.gender,
           linkedinProfile: user.linkedinProfile,
           twitterHandle: user.twitterHandle,
           githubProfile: user.githubProfile,
@@ -501,6 +503,37 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
   }
 };
 
+// Check if email is available
+export const checkEmailAvailability = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+
+    return res.json({
+      success: true,
+      available: !existingUser,
+      message: existingUser
+        ? "Email is already registered"
+        : "Email is available",
+    });
+  } catch (error) {
+    logger.error("Check email availability error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 export default {
   register,
   login,
@@ -512,4 +545,5 @@ export default {
   logout,
   changePassword,
   resendVerificationEmail,
+  checkEmailAvailability,
 };

@@ -58,9 +58,14 @@ type ProjectFormData = z.infer<typeof projectSchema>;
 interface ProjectFormProps {
   project?: any;
   onSuccess: () => void;
+  userRole?: string;
 }
 
-export const ProjectForm = ({ project, onSuccess }: ProjectFormProps) => {
+export const ProjectForm = ({
+  project,
+  onSuccess,
+  userRole = "student",
+}: ProjectFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [technologies, setTechnologies] = useState<string[]>(
@@ -143,13 +148,24 @@ export const ProjectForm = ({ project, onSuccess }: ProjectFormProps) => {
             : undefined,
         liveUrl:
           data.liveUrl && data.liveUrl.trim() !== "" ? data.liveUrl : undefined,
+        // Handle endDate properly - don't send empty string for ongoing projects
+        endDate:
+          data.isOngoing || !data.endDate || data.endDate.trim() === ""
+            ? undefined
+            : data.endDate,
       };
+
+      console.log("📤 Sending project data:", projectData);
 
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+      const baseEndpoint =
+        userRole === "student"
+          ? `${apiUrl}/students/profile/projects`
+          : `${apiUrl}/alumni/profile/projects`;
       const url = project?._id
-        ? `${apiUrl}/students/profile/projects/${project._id}`
-        : `${apiUrl}/students/profile/projects`;
+        ? `${baseEndpoint}/${project._id}`
+        : baseEndpoint;
 
       const method = project?._id ? "PUT" : "POST";
 

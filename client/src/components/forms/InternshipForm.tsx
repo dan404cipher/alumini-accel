@@ -29,11 +29,13 @@ type InternshipFormData = z.infer<typeof internshipSchema>;
 
 interface InternshipFormProps {
   internship?: any;
+  userRole?: string;
   onSuccess: () => void;
 }
 
 export const InternshipForm = ({
   internship,
+  userRole = "student",
   onSuccess,
 }: InternshipFormProps) => {
   const { toast } = useToast();
@@ -91,9 +93,13 @@ export const InternshipForm = ({
 
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+      const baseEndpoint =
+        userRole === "student"
+          ? `${apiUrl}/students/profile/internships`
+          : `${apiUrl}/alumni/profile/internships`;
       const url = internship?._id
-        ? `${apiUrl}/students/profile/internships/${internship._id}`
-        : `${apiUrl}/students/profile/internships`;
+        ? `${baseEndpoint}/${internship._id}`
+        : baseEndpoint;
 
       const method = internship?._id ? "PUT" : "POST";
 

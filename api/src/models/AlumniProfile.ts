@@ -24,6 +24,18 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
         "Graduation year cannot be in the future",
       ],
     },
+    university: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, "University cannot exceed 100 characters"],
+    },
+    program: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, "Program cannot exceed 100 characters"],
+    },
     department: {
       type: String,
       required: true,
@@ -91,8 +103,137 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
         ],
       },
     ],
+    internshipExperience: [
+      {
+        _id: { type: Schema.Types.ObjectId, auto: true },
+        company: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: [100, "Company name cannot exceed 100 characters"],
+        },
+        position: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: [100, "Position cannot exceed 100 characters"],
+        },
+        description: {
+          type: String,
+          trim: true,
+          maxlength: [1000, "Description cannot exceed 1000 characters"],
+        },
+        startDate: {
+          type: Date,
+          required: true,
+        },
+        endDate: {
+          type: Date,
+        },
+        isOngoing: {
+          type: Boolean,
+          default: false,
+        },
+        location: {
+          type: String,
+          trim: true,
+          maxlength: [100, "Location cannot exceed 100 characters"],
+        },
+        isRemote: {
+          type: Boolean,
+          default: false,
+        },
+        stipend: {
+          amount: {
+            type: Number,
+            min: [0, "Stipend amount cannot be negative"],
+          },
+          currency: {
+            type: String,
+            default: "INR",
+            enum: ["INR", "USD", "EUR", "GBP", "CAD", "AUD"],
+          },
+        },
+        skills: [
+          {
+            type: String,
+            trim: true,
+            maxlength: [50, "Skill name cannot exceed 50 characters"],
+          },
+        ],
+        certificateFile: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
+    researchWork: [
+      {
+        _id: { type: Schema.Types.ObjectId, auto: true },
+        title: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: [200, "Research title cannot exceed 200 characters"],
+        },
+        description: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: [
+            1000,
+            "Research description cannot exceed 1000 characters",
+          ],
+        },
+        supervisor: {
+          type: String,
+          trim: true,
+          maxlength: [100, "Supervisor name cannot exceed 100 characters"],
+        },
+        startDate: {
+          type: Date,
+          required: true,
+        },
+        endDate: {
+          type: Date,
+        },
+        isOngoing: {
+          type: Boolean,
+          default: false,
+        },
+        publicationUrl: {
+          type: String,
+          trim: true,
+        },
+        conferenceUrl: {
+          type: String,
+          trim: true,
+        },
+        keywords: [
+          {
+            type: String,
+            trim: true,
+            maxlength: [50, "Keyword cannot exceed 50 characters"],
+          },
+        ],
+        status: {
+          type: String,
+          enum: ["ongoing", "completed", "published", "presented"],
+          default: "ongoing",
+        },
+        publicationFile: {
+          type: String,
+          trim: true,
+        },
+        conferenceFile: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
     certifications: [
       {
+        _id: { type: Schema.Types.ObjectId, auto: true },
         name: {
           type: String,
           required: true,
@@ -113,6 +254,10 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
           type: String,
           trim: true,
           maxlength: [50, "Credential ID cannot exceed 50 characters"],
+        },
+        credentialFile: {
+          type: String,
+          trim: true,
         },
       },
     ],
@@ -245,6 +390,89 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
       {
         type: String,
         trim: true,
+      },
+    ],
+    projects: [
+      {
+        _id: { type: Schema.Types.ObjectId, auto: true },
+        title: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: [200, "Project title cannot exceed 200 characters"],
+        },
+        description: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: [
+            1000,
+            "Project description cannot exceed 1000 characters",
+          ],
+        },
+        technologies: [
+          {
+            type: String,
+            trim: true,
+            maxlength: [50, "Technology name cannot exceed 50 characters"],
+          },
+        ],
+        startDate: {
+          type: Date,
+          required: true,
+        },
+        endDate: {
+          type: Date,
+        },
+        isOngoing: {
+          type: Boolean,
+          default: false,
+        },
+        githubUrl: {
+          type: String,
+          required: [true, "GitHub URL is required"],
+          trim: true,
+          validate: {
+            validator: function (v: string) {
+              return /^https?:\/\/(www\.)?github\.com\/.+/.test(v);
+            },
+            message: "Please enter a valid GitHub URL",
+          },
+        },
+        liveUrl: {
+          type: String,
+          trim: true,
+          validate: {
+            validator: function (v: string) {
+              if (!v || v === "") return true; // Allow empty strings
+              return /^https?:\/\/.+/.test(v);
+            },
+            message: "Please enter a valid live URL",
+          },
+        },
+        teamMembers: [
+          {
+            name: {
+              type: String,
+              required: true,
+              trim: true,
+              maxlength: [100, "Name cannot exceed 100 characters"],
+            },
+            role: {
+              type: String,
+              required: true,
+              trim: true,
+              maxlength: [100, "Role cannot exceed 100 characters"],
+            },
+          },
+        ],
+      },
+    ],
+    careerInterests: [
+      {
+        type: String,
+        trim: true,
+        maxlength: [50, "Career interest cannot exceed 50 characters"],
       },
     ],
   },

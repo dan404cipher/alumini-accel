@@ -27,10 +27,15 @@ type ResearchFormData = z.infer<typeof researchSchema>;
 
 interface ResearchFormProps {
   research?: any;
+  userRole?: string;
   onSuccess: () => void;
 }
 
-export const ResearchForm = ({ research, onSuccess }: ResearchFormProps) => {
+export const ResearchForm = ({
+  research,
+  userRole = "student",
+  onSuccess,
+}: ResearchFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [keywords, setKeywords] = useState<string[]>(research?.keywords || []);
@@ -83,9 +88,13 @@ export const ResearchForm = ({ research, onSuccess }: ResearchFormProps) => {
 
       const apiUrl =
         import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+      const baseEndpoint =
+        userRole === "student"
+          ? `${apiUrl}/students/profile/research`
+          : `${apiUrl}/alumni/profile/research`;
       const url = research?._id
-        ? `${apiUrl}/students/profile/research/${research._id}`
-        : `${apiUrl}/students/profile/research`;
+        ? `${baseEndpoint}/${research._id}`
+        : baseEndpoint;
 
       const method = research?._id ? "PUT" : "POST";
 

@@ -2,9 +2,13 @@ import express from "express";
 import alumniController from "@/controllers/alumniController";
 import {
   validateAlumniProfile,
+  validateAlumniProfileUpdate,
   validateAlumniSkillsInterests,
   validateId,
   validateRequest,
+  addInternshipValidation,
+  addResearchValidation,
+  addCertificationValidation,
 } from "@/middleware/validation";
 import {
   authenticateToken,
@@ -12,8 +16,22 @@ import {
   requireAdmin,
 } from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
+import {
+  uploadOptionalDocument,
+  uploadMixedDocuments,
+} from "@/middleware/fileUpload";
 
 const router = express.Router();
+
+// @route   GET /api/v1/alumni/users
+// @desc    Get all users directory (students and alumni)
+// @access  Public
+router.get("/users", asyncHandler(alumniController.getAllUsersDirectory));
+
+// @route   GET /api/v1/alumni/user/:id
+// @desc    Get user by ID (student or alumni)
+// @access  Public
+router.get("/user/:id", asyncHandler(alumniController.getUserById));
 
 // @route   GET /api/v1/alumni/public
 // @desc    Get public alumni directory data
@@ -53,7 +71,7 @@ router.put(
   "/profile",
   authenticateToken,
   requireAlumni,
-  ...validateRequest(validateAlumniProfile),
+  ...validateRequest(validateAlumniProfileUpdate),
   asyncHandler(alumniController.updateProfile)
 );
 
@@ -66,6 +84,145 @@ router.put(
   requireAlumni,
   ...validateRequest(validateAlumniSkillsInterests),
   asyncHandler(alumniController.updateSkillsInterests)
+);
+
+// @route   POST /api/v1/alumni/profile/projects
+// @desc    Add project to alumni profile
+// @access  Private/Alumni
+router.post(
+  "/profile/projects",
+  authenticateToken,
+  requireAlumni,
+  ...validateRequest(validateAlumniSkillsInterests), // Reuse validation for now
+  asyncHandler(alumniController.addProject)
+);
+
+// @route   PUT /api/v1/alumni/profile/projects/:projectId
+// @desc    Update project in alumni profile
+// @access  Private/Alumni
+router.put(
+  "/profile/projects/:projectId",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.updateProject)
+);
+
+// @route   DELETE /api/v1/alumni/profile/projects/:projectId
+// @desc    Delete project from alumni profile
+// @access  Private/Alumni
+router.delete(
+  "/profile/projects/:projectId",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.deleteProject)
+);
+
+// @route   POST /api/v1/alumni/profile/internships
+// @desc    Add internship to alumni profile
+// @access  Private/Alumni
+router.post(
+  "/profile/internships",
+  authenticateToken,
+  requireAlumni,
+  uploadOptionalDocument("certificateFile"),
+  ...validateRequest(addInternshipValidation),
+  asyncHandler(alumniController.addInternship)
+);
+
+// @route   PUT /api/v1/alumni/profile/internships/:internshipId
+// @desc    Update internship in alumni profile
+// @access  Private/Alumni
+router.put(
+  "/profile/internships/:internshipId",
+  authenticateToken,
+  requireAlumni,
+  uploadOptionalDocument("certificateFile"),
+  ...validateRequest(addInternshipValidation),
+  asyncHandler(alumniController.updateInternship)
+);
+
+// @route   DELETE /api/v1/alumni/profile/internships/:internshipId
+// @desc    Delete internship from alumni profile
+// @access  Private/Alumni
+router.delete(
+  "/profile/internships/:internshipId",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.deleteInternship)
+);
+
+// @route   POST /api/v1/alumni/profile/research
+// @desc    Add research work to alumni profile
+// @access  Private/Alumni
+router.post(
+  "/profile/research",
+  authenticateToken,
+  requireAlumni,
+  uploadMixedDocuments([
+    { name: "publicationFile", maxCount: 1 },
+    { name: "conferenceFile", maxCount: 1 },
+  ]),
+  ...validateRequest(addResearchValidation),
+  asyncHandler(alumniController.addResearch)
+);
+
+// @route   PUT /api/v1/alumni/profile/research/:researchId
+// @desc    Update research work in alumni profile
+// @access  Private/Alumni
+router.put(
+  "/profile/research/:researchId",
+  authenticateToken,
+  requireAlumni,
+  uploadMixedDocuments([
+    { name: "publicationFile", maxCount: 1 },
+    { name: "conferenceFile", maxCount: 1 },
+  ]),
+  ...validateRequest(addResearchValidation),
+  asyncHandler(alumniController.updateResearch)
+);
+
+// @route   DELETE /api/v1/alumni/profile/research/:researchId
+// @desc    Delete research work from alumni profile
+// @access  Private/Alumni
+router.delete(
+  "/profile/research/:researchId",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.deleteResearch)
+);
+
+// @route   POST /api/v1/alumni/profile/certifications
+// @desc    Add certification to alumni profile
+// @access  Private/Alumni
+router.post(
+  "/profile/certifications",
+  authenticateToken,
+  requireAlumni,
+  uploadOptionalDocument("credentialFile"),
+  ...validateRequest(addCertificationValidation),
+  asyncHandler(alumniController.addCertification)
+);
+
+// @route   PUT /api/v1/alumni/profile/certifications/:certificationId
+// @desc    Update certification in alumni profile
+// @access  Private/Alumni
+router.put(
+  "/profile/certifications/:certificationId",
+  authenticateToken,
+  requireAlumni,
+  uploadOptionalDocument("credentialFile"),
+  ...validateRequest(addCertificationValidation),
+  asyncHandler(alumniController.updateCertification)
+);
+
+// @route   DELETE /api/v1/alumni/profile/certifications/:certificationId
+// @desc    Delete certification from alumni profile
+// @access  Private/Alumni
+router.delete(
+  "/profile/certifications/:certificationId",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.deleteCertification)
 );
 
 // @route   GET /api/v1/alumni/search

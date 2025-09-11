@@ -1,6 +1,6 @@
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,10 +11,27 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredRole,
-  fallback
+  fallback,
 }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+
+  // Handle navigation in useEffect to avoid setState during render
+  useEffect(() => {
+    if (!loading) {
+      // If user is not authenticated, redirect to login
+      if (!user) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      // If role is required and user doesn't have it, redirect
+      if (requiredRole && user.role !== requiredRole) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+    }
+  }, [user, loading, requiredRole, navigate]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -25,21 +42,27 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // If user is not authenticated, redirect to login
+  // If user is not authenticated, show loading while redirecting
   if (!user) {
-    navigate('/login', { replace: true });
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
-  // If role is required and user doesn't have it, show fallback or redirect
+  // If role is required and user doesn't have it, show fallback or loading
   if (requiredRole && user.role !== requiredRole) {
     if (fallback) {
       return <>{fallback}</>;
     }
-    
-    // Redirect to dashboard if user doesn't have required role
-    navigate('/dashboard', { replace: true });
-    return null;
+
+    // Show loading while redirecting
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   // User is authenticated and has required role (if specified)
@@ -47,8 +70,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 };
 
 // Higher-order component for role-based protection
-export const withRole = (Component: React.ComponentType<any>, requiredRole: string) => {
-  return (props: any) => (
+export const withRole = (
+  Component: React.ComponentType<Record<string, unknown>>,
+  requiredRole: string
+) => {
+  return (props: Record<string, unknown>) => (
     <ProtectedRoute requiredRole={requiredRole}>
       <Component {...props} />
     </ProtectedRoute>
@@ -56,30 +82,24 @@ export const withRole = (Component: React.ComponentType<any>, requiredRole: stri
 };
 
 // Admin route component
-export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <ProtectedRoute requiredRole="admin">
-      {children}
-    </ProtectedRoute>
-  );
+export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  return <ProtectedRoute requiredRole="admin">{children}</ProtectedRoute>;
 };
 
 // Alumni route component
-export const AlumniRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <ProtectedRoute requiredRole="alumni">
-      {children}
-    </ProtectedRoute>
-  );
+export const AlumniRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  return <ProtectedRoute requiredRole="alumni">{children}</ProtectedRoute>;
 };
 
 // Student route component
-export const StudentRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <ProtectedRoute requiredRole="student">
-      {children}
-    </ProtectedRoute>
-  );
+export const StudentRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  return <ProtectedRoute requiredRole="student">{children}</ProtectedRoute>;
 };
 
-export default ProtectedRoute; 
+export default ProtectedRoute;

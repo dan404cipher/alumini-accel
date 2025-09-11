@@ -361,13 +361,15 @@ const AlumniManagement = () => {
         batchYear: parseInt(newAlumni.graduationYear.toString()), // Use graduation year as batch year
         graduationYear: parseInt(newAlumni.graduationYear.toString()),
         department: newAlumni.major || "General", // Use major as department or default
-        degree: newAlumni.degree || undefined,
-        major: newAlumni.major || undefined,
+        specialization: newAlumni.degree || undefined, // Map degree to specialization
         currentCompany: newAlumni.currentCompany || undefined,
         currentPosition: newAlumni.currentPosition || undefined,
         currentLocation: newAlumni.location || undefined,
         skills: newAlumni.skills
-          ? newAlumni.skills.split(",").map((s) => s.trim())
+          ? newAlumni.skills
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0 && s.length <= 50)
           : [],
         linkedinProfile: newAlumni.linkedinProfile || undefined,
         githubProfile: newAlumni.githubProfile || undefined,

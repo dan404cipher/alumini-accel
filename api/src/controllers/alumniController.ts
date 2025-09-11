@@ -836,6 +836,7 @@ export const getUserById = async (req: Request, res: Response) => {
         currentLocation: alumniProfile.currentLocation,
         experience: alumniProfile.experience,
         skills: alumniProfile.skills || [],
+        careerInterests: alumniProfile.careerInterests || [],
         isHiring: alumniProfile.isHiring,
         availableForMentorship: alumniProfile.availableForMentorship,
         mentorshipDomains: alumniProfile.mentorshipDomains || [],
@@ -843,6 +844,9 @@ export const getUserById = async (req: Request, res: Response) => {
         certifications: alumniProfile.certifications || [],
         careerTimeline: alumniProfile.careerTimeline || [],
         education: alumniProfile.education || [],
+        projects: alumniProfile.projects || [],
+        internshipExperience: alumniProfile.internshipExperience || [],
+        researchWork: alumniProfile.researchWork || [],
       };
       return res.json({
         success: true,
@@ -865,6 +869,10 @@ export const getUserById = async (req: Request, res: Response) => {
         availableForMentorship: false,
         mentorshipDomains: [],
         achievements: [],
+        projects: studentProfile.projects || [],
+        internshipExperience: studentProfile.internshipExperience || [],
+        researchWork: studentProfile.researchWork || [],
+        certifications: studentProfile.certifications || [],
       };
       return res.json({
         success: true,
@@ -1562,6 +1570,152 @@ export const deleteCertification = async (req: Request, res: Response) => {
   }
 };
 
+// Add career timeline item
+export const addCareerTimelineItem = async (req: Request, res: Response) => {
+  try {
+    const {
+      position,
+      company,
+      startDate,
+      endDate,
+      isCurrent,
+      description,
+      location,
+    } = req.body;
+
+    let profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const careerItem = {
+      position,
+      company,
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : undefined,
+      isCurrent: isCurrent || false,
+      description: description || "",
+      location: location || "",
+    };
+
+    profile.careerTimeline.push(careerItem);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Career timeline item added successfully",
+      data: { careerItem },
+    });
+  } catch (error) {
+    console.error("Add career timeline item error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add career timeline item",
+    });
+  }
+};
+
+// Update career timeline item
+export const updateCareerTimelineItem = async (req: Request, res: Response) => {
+  try {
+    const { itemId } = req.params;
+    const updateData = req.body;
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const itemIndex = profile.careerTimeline.findIndex(
+      (item) => item._id?.toString() === itemId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Career timeline item not found",
+      });
+    }
+
+    const item = profile.careerTimeline[itemIndex];
+
+    // Update fields
+    if (updateData.position) item.position = updateData.position;
+    if (updateData.company) item.company = updateData.company;
+    if (updateData.startDate) item.startDate = new Date(updateData.startDate);
+    if (updateData.endDate !== undefined) {
+      item.endDate = updateData.endDate
+        ? new Date(updateData.endDate)
+        : undefined;
+    }
+    if (updateData.isCurrent !== undefined)
+      item.isCurrent = updateData.isCurrent;
+    if (updateData.description !== undefined)
+      item.description = updateData.description;
+    if (updateData.location !== undefined) item.location = updateData.location;
+
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Career timeline item updated successfully",
+      data: { careerItem: item },
+    });
+  } catch (error) {
+    console.error("Update career timeline item error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update career timeline item",
+    });
+  }
+};
+
+// Delete career timeline item
+export const deleteCareerTimelineItem = async (req: Request, res: Response) => {
+  try {
+    const { itemId } = req.params;
+
+    const profile = await AlumniProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    const itemIndex = profile.careerTimeline.findIndex(
+      (item) => item._id?.toString() === itemId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Career timeline item not found",
+      });
+    }
+
+    profile.careerTimeline.splice(itemIndex, 1);
+    await profile.save();
+
+    return res.json({
+      success: true,
+      message: "Career timeline item deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete career timeline item error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete career timeline item",
+    });
+  }
+};
+
 export default {
   getAllUsersDirectory,
   getUserById,
@@ -1588,4 +1742,7 @@ export default {
   addCertification,
   updateCertification,
   deleteCertification,
+  addCareerTimelineItem,
+  updateCareerTimelineItem,
+  deleteCareerTimelineItem,
 };

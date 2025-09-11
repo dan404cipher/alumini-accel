@@ -261,4 +261,35 @@ router.get(
   asyncHandler(alumniController.getMentors)
 );
 
+// Career Timeline routes
+// @route   POST /api/v1/alumni/profile/career-timeline
+// @desc    Add career timeline item to alumni profile
+// @access  Private/Alumni
+router.post(
+  "/profile/career-timeline",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.addCareerTimelineItem)
+);
+
+// @route   PUT /api/v1/alumni/profile/career-timeline/:itemId
+// @desc    Update career timeline item in alumni profile
+// @access  Private/Alumni
+router.put(
+  "/profile/career-timeline/:itemId",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.updateCareerTimelineItem)
+);
+
+// @route   DELETE /api/v1/alumni/profile/career-timeline/:itemId
+// @desc    Delete career timeline item from alumni profile
+// @access  Private/Alumni
+router.delete(
+  "/profile/career-timeline/:itemId",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.deleteCareerTimelineItem)
+);
+
 export default router;

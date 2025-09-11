@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
 
 // User interface (for both students and alumni)
 interface User {
@@ -59,6 +61,7 @@ interface User {
     issuer: string;
     date: string;
     credentialId?: string;
+    credentialFile?: string;
   }>;
   careerTimeline?: Array<{
     company: string;
@@ -73,6 +76,35 @@ interface User {
     institution: string;
     year: number;
     gpa?: number;
+  }>;
+  projects?: Array<{
+    title: string;
+    description?: string;
+    startDate: string;
+    endDate?: string;
+    technologies?: string[];
+    url?: string;
+  }>;
+  internshipExperience?: Array<{
+    company: string;
+    position: string;
+    description?: string;
+    startDate: string;
+    endDate?: string;
+    skills?: string[];
+    certificateFile?: string;
+  }>;
+  researchWork?: Array<{
+    title: string;
+    description?: string;
+    startDate: string;
+    endDate?: string;
+    keywords?: string[];
+    status: string;
+    publicationUrl?: string;
+    publicationFile?: string;
+    conferenceUrl?: string;
+    conferenceFile?: string;
   }>;
 }
 
@@ -120,39 +152,54 @@ const AlumniProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">
-            Loading alumni profile...
-          </p>
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div
+          className="flex items-center justify-center"
+          style={{ minHeight: "calc(100vh - 200px)" }}
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">
+              Loading alumni profile...
+            </p>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (error || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 mb-4">
-            <Users className="h-12 w-12 mx-auto mb-2" />
-            <p className="text-lg font-semibold">Profile Not Found</p>
-            <p className="text-sm text-muted-foreground">
-              {error || "This user profile could not be found"}
-            </p>
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div
+          className="flex items-center justify-center"
+          style={{ minHeight: "calc(100vh - 200px)" }}
+        >
+          <div className="text-center">
+            <div className="text-red-500 mb-4">
+              <Users className="h-12 w-12 mx-auto mb-2" />
+              <p className="text-lg font-semibold">Profile Not Found</p>
+              <p className="text-sm text-muted-foreground">
+                {error || "This user profile could not be found"}
+              </p>
+            </div>
+            <Button onClick={() => navigate("/alumni")} variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Alumni Directory
+            </Button>
           </div>
-          <Button onClick={() => navigate("/alumni")} variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Alumni Directory
-          </Button>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
@@ -285,22 +332,32 @@ const AlumniProfile = () => {
             )}
 
             {/* Skills */}
-            {((user.skills && user.skills.length > 0) ||
-              (user.careerInterests && user.careerInterests.length > 0)) && (
+            {user.skills && user.skills.length > 0 && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    {user.role === "alumni" ? "Skills" : "Skills & Interests"}
-                  </h2>
+                  <h2 className="text-xl font-semibold mb-4">Skills</h2>
                   <div className="flex flex-wrap gap-2">
-                    {(user.skills || []).map((skill, index) => (
+                    {user.skills.map((skill, index) => (
                       <Badge key={index} variant="outline" className="text-sm">
                         {skill}
                       </Badge>
                     ))}
-                    {(user.careerInterests || []).map((interest, index) => (
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Career Interests */}
+            {user.careerInterests && user.careerInterests.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Career Interests
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    {user.careerInterests.map((interest, index) => (
                       <Badge
-                        key={`interest-${index}`}
+                        key={index}
                         variant="secondary"
                         className="text-sm"
                       >
@@ -570,6 +627,24 @@ const AlumniProfile = () => {
                             })}
                           </span>
                         </div>
+                        {cert.credentialFile && (
+                          <div className="mt-2">
+                            <a
+                              href={`${
+                                import.meta.env.VITE_API_URL?.replace(
+                                  "/api/v1",
+                                  ""
+                                ) || "http://localhost:3000"
+                              }${cert.credentialFile}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-sm flex items-center"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              View Credential File
+                            </a>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -686,41 +761,314 @@ const AlumniProfile = () => {
               </Card>
             )}
 
-            {/* Account Information */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4">
-                  Account Information
-                </h2>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">User ID:</span>
-                    <span className="font-mono text-sm text-gray-500">
-                      {user.id}
-                    </span>
+            {/* Projects */}
+            {user.projects && user.projects.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Projects</h2>
+                  <div className="space-y-4">
+                    {user.projects.map((project, index) => (
+                      <div
+                        key={index}
+                        className="border-l-4 border-blue-500 pl-4"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900">
+                              {project.title}
+                            </h3>
+                            {project.description && (
+                              <p className="text-gray-700 mt-1">
+                                {project.description}
+                              </p>
+                            )}
+                            {project.technologies &&
+                              project.technologies.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {project.technologies.map(
+                                    (tech, techIndex) => (
+                                      <Badge
+                                        key={techIndex}
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {tech}
+                                      </Badge>
+                                    )
+                                  )}
+                                </div>
+                              )}
+                          </div>
+                          <div className="text-right text-sm text-gray-500 ml-4">
+                            <div>
+                              {new Date(project.startDate).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                }
+                              )}
+                            </div>
+                            <div>
+                              {project.endDate
+                                ? new Date(project.endDate).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      year: "numeric",
+                                      month: "short",
+                                    }
+                                  )
+                                : "Ongoing"}
+                            </div>
+                          </div>
+                        </div>
+                        {project.url && (
+                          <div className="mt-2">
+                            <a
+                              href={project.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-sm flex items-center"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              View Project
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Role:</span>
-                    <Badge
-                      variant={user.role === "alumni" ? "default" : "secondary"}
-                      className="text-xs"
-                    >
-                      {user.role === "alumni" ? "Alumni" : "Student"}
-                    </Badge>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Internship Experience */}
+            {user.internshipExperience &&
+              user.internshipExperience.length > 0 && (
+                <Card>
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">
+                      Internship Experience
+                    </h2>
+                    <div className="space-y-4">
+                      {user.internshipExperience.map((internship, index) => (
+                        <div
+                          key={index}
+                          className="border-l-4 border-green-500 pl-4"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900">
+                                {internship.position}
+                              </h3>
+                              <p className="text-gray-600">
+                                {internship.company}
+                              </p>
+                              {internship.description && (
+                                <p className="text-gray-700 mt-1">
+                                  {internship.description}
+                                </p>
+                              )}
+                              {internship.skills &&
+                                internship.skills.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {internship.skills.map(
+                                      (skill, skillIndex) => (
+                                        <Badge
+                                          key={skillIndex}
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
+                                          {skill}
+                                        </Badge>
+                                      )
+                                    )}
+                                  </div>
+                                )}
+                            </div>
+                            <div className="text-right text-sm text-gray-500 ml-4">
+                              <div>
+                                {new Date(
+                                  internship.startDate
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                })}
+                              </div>
+                              <div>
+                                {internship.endDate
+                                  ? new Date(
+                                      internship.endDate
+                                    ).toLocaleDateString("en-US", {
+                                      year: "numeric",
+                                      month: "short",
+                                    })
+                                  : "Ongoing"}
+                              </div>
+                            </div>
+                          </div>
+                          {internship.certificateFile && (
+                            <div className="mt-2">
+                              <a
+                                href={`${
+                                  import.meta.env.VITE_API_URL?.replace(
+                                    "/api/v1",
+                                    ""
+                                  ) || "http://localhost:3000"
+                                }${internship.certificateFile}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline text-sm flex items-center"
+                              >
+                                <ExternalLink className="w-3 h-3 mr-1" />
+                                View Certificate
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+            {/* Research Work */}
+            {user.researchWork && user.researchWork.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Research Work</h2>
+                  <div className="space-y-4">
+                    {user.researchWork.map((research, index) => (
+                      <div
+                        key={index}
+                        className="border-l-4 border-purple-500 pl-4"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900">
+                              {research.title}
+                            </h3>
+                            {research.description && (
+                              <p className="text-gray-700 mt-1">
+                                {research.description}
+                              </p>
+                            )}
+                            {research.keywords &&
+                              research.keywords.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {research.keywords.map(
+                                    (keyword, keywordIndex) => (
+                                      <Badge
+                                        key={keywordIndex}
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {keyword}
+                                      </Badge>
+                                    )
+                                  )}
+                                </div>
+                              )}
+                            <div className="mt-2">
+                              <Badge
+                                variant={
+                                  research.status === "completed"
+                                    ? "default"
+                                    : research.status === "published"
+                                    ? "success"
+                                    : "secondary"
+                                }
+                                className="text-xs"
+                              >
+                                {research.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right text-sm text-gray-500 ml-4">
+                            <div>
+                              {new Date(research.startDate).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                }
+                              )}
+                            </div>
+                            <div>
+                              {research.endDate
+                                ? new Date(research.endDate).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      year: "numeric",
+                                      month: "short",
+                                    }
+                                  )
+                                : "Ongoing"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          {research.publicationUrl && (
+                            <a
+                              href={research.publicationUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-sm flex items-center"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Publication
+                            </a>
+                          )}
+                          {research.publicationFile && (
+                            <a
+                              href={`${
+                                import.meta.env.VITE_API_URL?.replace(
+                                  "/api/v1",
+                                  ""
+                                ) || "http://localhost:3000"
+                              }${research.publicationFile}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-sm flex items-center"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Publication File
+                            </a>
+                          )}
+                          {research.conferenceUrl && (
+                            <a
+                              href={research.conferenceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-sm flex items-center"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Conference
+                            </a>
+                          )}
+                          {research.conferenceFile && (
+                            <a
+                              href={`${
+                                import.meta.env.VITE_API_URL?.replace(
+                                  "/api/v1",
+                                  ""
+                                ) || "http://localhost:3000"
+                              }${research.conferenceFile}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-sm flex items-center"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Conference File
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Member Since:</span>
-                    <span className="font-medium">
-                      {new Date(user.createdAt).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -888,6 +1236,7 @@ const AlumniProfile = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

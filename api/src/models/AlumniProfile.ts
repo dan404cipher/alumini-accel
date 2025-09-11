@@ -290,6 +290,7 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
     ],
     careerTimeline: [
       {
+        _id: { type: Schema.Types.ObjectId, auto: true },
         company: {
           type: String,
           required: true,
@@ -317,6 +318,11 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
           type: String,
           trim: true,
           maxlength: [500, "Description cannot exceed 500 characters"],
+        },
+        location: {
+          type: String,
+          trim: true,
+          maxlength: [100, "Location cannot exceed 100 characters"],
         },
         logo: {
           type: String,

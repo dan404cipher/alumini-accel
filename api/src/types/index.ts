@@ -177,12 +177,14 @@ export interface IAlumniProfile extends Document {
     gpa?: number;
   }>;
   careerTimeline: Array<{
+    _id?: string;
     company: string;
     position: string;
     startDate: Date;
     endDate?: Date;
     isCurrent: boolean;
     description?: string;
+    location?: string;
     logo?: string;
   }>;
   isHiring: boolean;

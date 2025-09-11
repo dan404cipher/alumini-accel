@@ -21,7 +21,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Building, MapPin, DollarSign, Calendar } from "lucide-react";
+import {
+  Building,
+  MapPin,
+  DollarSign,
+  Calendar,
+  Plus,
+  X,
+  Award,
+  Users,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const professionalDetailsSchema = z.object({
   currentCompany: z.string().optional(),
@@ -34,6 +45,7 @@ const professionalDetailsSchema = z.object({
   isHiring: z.boolean().optional(),
   availableForMentorship: z.boolean().optional(),
   mentorshipDomains: z.array(z.string()).optional(),
+  achievements: z.array(z.string()).optional(),
 });
 
 type ProfessionalDetailsFormData = z.infer<typeof professionalDetailsSchema>;
@@ -49,6 +61,14 @@ export const ProfessionalDetailsForm = ({
 }: ProfessionalDetailsFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [achievements, setAchievements] = useState<string[]>(
+    profileData?.achievements || []
+  );
+  const [newAchievement, setNewAchievement] = useState("");
+  const [mentorshipDomains, setMentorshipDomains] = useState<string[]>(
+    profileData?.mentorshipDomains || []
+  );
+  const [newDomain, setNewDomain] = useState("");
 
   const {
     register,
@@ -69,8 +89,44 @@ export const ProfessionalDetailsForm = ({
       isHiring: profileData?.isHiring || false,
       availableForMentorship: profileData?.availableForMentorship || false,
       mentorshipDomains: profileData?.mentorshipDomains || [],
+      achievements: profileData?.achievements || [],
     },
   });
+
+  // Helper functions for achievements
+  const addAchievement = () => {
+    if (
+      newAchievement.trim() &&
+      !achievements.includes(newAchievement.trim())
+    ) {
+      const updatedAchievements = [...achievements, newAchievement.trim()];
+      setAchievements(updatedAchievements);
+      setValue("achievements", updatedAchievements);
+      setNewAchievement("");
+    }
+  };
+
+  const removeAchievement = (achievement: string) => {
+    const updatedAchievements = achievements.filter((a) => a !== achievement);
+    setAchievements(updatedAchievements);
+    setValue("achievements", updatedAchievements);
+  };
+
+  // Helper functions for mentorship domains
+  const addDomain = () => {
+    if (newDomain.trim() && !mentorshipDomains.includes(newDomain.trim())) {
+      const updatedDomains = [...mentorshipDomains, newDomain.trim()];
+      setMentorshipDomains(updatedDomains);
+      setValue("mentorshipDomains", updatedDomains);
+      setNewDomain("");
+    }
+  };
+
+  const removeDomain = (domain: string) => {
+    const updatedDomains = mentorshipDomains.filter((d) => d !== domain);
+    setMentorshipDomains(updatedDomains);
+    setValue("mentorshipDomains", updatedDomains);
+  };
 
   const onSubmit = async (data: ProfessionalDetailsFormData) => {
     try {
@@ -231,6 +287,107 @@ export const ProfessionalDetailsForm = ({
                 <p className="text-sm text-red-600">{errors.salary.message}</p>
               )}
             </div>
+          </div>
+
+          {/* Achievements Section */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Award className="w-4 h-4" />
+                Achievements
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {achievements.map((achievement, index) => (
+                  <Badge
+                    key={index}
+                    variant="outline"
+                    className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                  >
+                    {achievement}
+                    <button
+                      type="button"
+                      onClick={() => removeAchievement(achievement)}
+                      className="ml-2 hover:text-red-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newAchievement}
+                  onChange={(e) => setNewAchievement(e.target.value)}
+                  placeholder="Add an achievement"
+                  onKeyPress={(e) =>
+                    e.key === "Enter" && (e.preventDefault(), addAchievement())
+                  }
+                />
+                <Button type="button" onClick={addAchievement} size="sm">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mentorship Section */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="availableForMentorship"
+                {...register("availableForMentorship")}
+              />
+              <Label
+                htmlFor="availableForMentorship"
+                className="flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                Available for Mentorship
+              </Label>
+            </div>
+
+            {watch("availableForMentorship") && (
+              <div className="space-y-2">
+                <Label>Mentorship Domains</Label>
+                <div className="flex flex-wrap gap-2">
+                  {mentorshipDomains.map((domain, index) => (
+                    <Badge
+                      key={index}
+                      variant="outline"
+                      className="bg-blue-50 text-blue-700 border-blue-200"
+                    >
+                      {domain}
+                      <button
+                        type="button"
+                        onClick={() => removeDomain(domain)}
+                        className="ml-2 hover:text-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newDomain}
+                    onChange={(e) => setNewDomain(e.target.value)}
+                    placeholder="Add a mentorship domain"
+                    onKeyPress={(e) =>
+                      e.key === "Enter" && (e.preventDefault(), addDomain())
+                    }
+                  />
+                  <Button type="button" onClick={addDomain} size="sm">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Hiring Status */}
+          <div className="flex items-center space-x-2">
+            <Checkbox id="isHiring" {...register("isHiring")} />
+            <Label htmlFor="isHiring">Currently Hiring</Label>
           </div>
 
           <div className="flex justify-end space-x-2">

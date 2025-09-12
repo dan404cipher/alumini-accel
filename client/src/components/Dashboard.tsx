@@ -56,22 +56,6 @@ const Dashboard = () => {
             </p>
             {canCreateContent && (
               <div className="flex flex-wrap gap-4">
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  onClick={() => setIsAddAlumniOpen(true)}
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  Add Alumni
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
-                  onClick={() => setIsCreateEventOpen(true)}
-                >
-                  Create Event
-                </Button>
               </div>
             )}
           </div>

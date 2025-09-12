@@ -21,13 +21,12 @@ import {
   UserCircle,
   Newspaper,
   Info,
-  MoreHorizontal,
+  Menu,
   Image,
   Instagram,
   Facebook,
   Linkedin,
   ExternalLink,
-  Menu,
   X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,7 +67,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     { id: "news", name: "News Room", icon: Newspaper, count: null },
     { id: "recognition", name: "Recognition", icon: Award, count: null },
     { id: "about", name: "About Us", icon: Info, count: null },
-    { id: "more", name: "More", icon: MoreHorizontal, count: null },
+    { id: "more", name: "More", icon: Menu, count: null },
   ];
 
   const handleLogout = async () => {
@@ -203,10 +202,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     variant="ghost"
                     className="flex items-center px-5 py-3 rounded-xl text-sm font-semibold text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md transition-all duration-200"
                   >
-                    <User className="w-5 h-5 mr-3" />
-                    <span className="tracking-wide">
-                      {user.firstName} {user.lastName}
-                    </span>
+                    <User className="w-5 h-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">

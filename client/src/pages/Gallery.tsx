@@ -311,7 +311,7 @@ const Gallery: React.FC = () => {
             <Button
               variant={selectedCategory === "all" ? "default" : "outline"}
               onClick={() => setSelectedCategory("all")}
-              className="text-white border-white hover:bg-white hover:text-blue-600"
+              className="text-white border-white bg-gray-400 hover:bg-white hover:text-blue-600"
             >
               All
             </Button>
@@ -320,7 +320,7 @@ const Gallery: React.FC = () => {
                 key={category}
                 variant={selectedCategory === category ? "default" : "outline"}
                 onClick={() => setSelectedCategory(category)}
-                className="text-white border-white hover:bg-white hover:text-blue-600"
+                className="text-white bg-gray-400 border-white hover:bg-white hover:text-blue-600"
               >
                 {category}
               </Button>

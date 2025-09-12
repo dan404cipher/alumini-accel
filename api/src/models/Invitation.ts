@@ -67,7 +67,6 @@ const invitationSchema = new Schema<IInvitation>(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     expiresAt: {
       type: Date,
@@ -96,8 +95,7 @@ const invitationSchema = new Schema<IInvitation>(
 
 // Index for efficient queries
 invitationSchema.index({ email: 1, status: 1 });
-invitationSchema.index({ token: 1 });
-invitationSchema.index({ expiresAt: 1 });
+// Note: token and expiresAt indexes are automatically created by field definitions
 
 export const Invitation = mongoose.model<IInvitation>(
   "Invitation",

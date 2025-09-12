@@ -63,6 +63,17 @@ const Layout = () => {
         return <NewsRoom />;
       case "recognition":
         return <Recognition />;
+      case "about":
+        // Redirect to the public About Us page
+        navigate("/about");
+        return null;
+      case "gallery":
+        // Redirect to the public Gallery page
+        navigate("/gallery");
+        return null;
+      case "more":
+        // More dropdown doesn't navigate to a page
+        return <Dashboard />;
       default:
         return <Dashboard />;
     }

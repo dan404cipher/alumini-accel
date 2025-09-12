@@ -553,7 +553,7 @@ const studentProfileSchema = new Schema<IStudentProfile>(
 );
 
 // Indexes for better query performance
-studentProfileSchema.index({ userId: 1 });
+// Note: userId index is automatically created by unique: true
 studentProfileSchema.index({ university: 1 });
 studentProfileSchema.index({ department: 1 });
 studentProfileSchema.index({ batchYear: 1 });

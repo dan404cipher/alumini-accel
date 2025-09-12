@@ -9,6 +9,7 @@ const uploadDirs = [
   "uploads/documents",
   "uploads/events",
   "uploads/news",
+  "uploads/gallery",
 ];
 
 uploadDirs.forEach((dir) => {
@@ -84,5 +85,52 @@ export const uploadGeneral = multer({
   storage: generalStorage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
+
+// Configure multer for gallery images
+const galleryImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/gallery/");
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `gallery-${uniqueSuffix}${ext}`);
+  },
+});
+
+// File filter for gallery images
+const galleryImageFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  // Check file type
+  const allowedTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed."
+      )
+    );
+  }
+};
+
+// Multer configuration for gallery images
+export const uploadGalleryImages = multer({
+  storage: galleryImageStorage,
+  fileFilter: galleryImageFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per image
   },
 });

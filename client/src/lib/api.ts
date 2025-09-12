@@ -1126,5 +1126,103 @@ export const studentAPI = {
   },
 };
 
+// Gallery API functions
+export const galleryAPI = {
+  // Get all galleries
+  getAllGalleries: async (params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.category) queryParams.append("category", params.category);
+
+    return apiRequest({
+      method: "GET",
+      url: `/gallery?${queryParams.toString()}`,
+    });
+  },
+
+  // Get gallery by ID
+  getGalleryById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/gallery/${id}`,
+    });
+  },
+
+  // Upload gallery images
+  uploadImages: async (images: File[]) => {
+    const formData = new FormData();
+    images.forEach((image) => {
+      formData.append("images", image);
+    });
+
+    return apiRequest({
+      method: "POST",
+      url: "/gallery/upload-images",
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Create gallery
+  createGallery: async (galleryData: {
+    title: string;
+    description?: string;
+    images: string[];
+    tags?: string[];
+    category?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/gallery",
+      data: galleryData,
+    });
+  },
+
+  // Update gallery
+  updateGallery: async (
+    id: string,
+    galleryData: {
+      title?: string;
+      description?: string;
+      images?: string[];
+      tags?: string[];
+      category?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/gallery/${id}`,
+      data: galleryData,
+    });
+  },
+
+  // Delete gallery
+  deleteGallery: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/gallery/${id}`,
+    });
+  },
+
+  // Get user's galleries
+  getUserGalleries: async (params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/gallery/user/my-galleries?${queryParams.toString()}`,
+    });
+  },
+};
+
 // Export the API instance and functions
 export default api;

@@ -24,6 +24,8 @@ import Layout from "./components/Layout";
 import NewsDetail from "./pages/NewsDetail";
 import AdminDashboard from "./components/AdminDashboard";
 import AlumniProfile from "./components/AlumniProfile";
+import AboutUs from "./pages/AboutUs";
+import Gallery from "./pages/Gallery";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +50,8 @@ const App = () => {
                 {/* Public routes */}
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/about" element={<AboutUs />} />
+                <Route path="/gallery" element={<Gallery />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/cookies" element={<CookiePolicy />} />

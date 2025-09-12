@@ -29,6 +29,7 @@ import mentorshipRoutes from "@/routes/mentorship";
 import donationRoutes from "@/routes/donations";
 import invitationRoutes from "@/routes/invitations";
 import docsRoutes from "@/routes/docs";
+import galleryRoutes from "@/routes/gallery";
 
 // Load environment variables
 dotenv.config();
@@ -171,6 +172,7 @@ app.use("/api/v1/mentorship", mentorshipRoutes);
 app.use("/api/v1/donations", donationRoutes);
 app.use("/api/v1/invitations", invitationRoutes);
 app.use("/api/v1/docs", docsRoutes);
+app.use("/api/v1/gallery", galleryRoutes);
 
 // Serve static files with CORS headers
 app.use(

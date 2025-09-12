@@ -18,9 +18,24 @@ const api: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and check rate limits
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Check client-side rate limiting for auth endpoints
+    if (config.url?.includes("/auth/")) {
+      const rateLimitKey = `auth-${config.url}`;
+      if (!rateLimiter.canMakeRequest(rateLimitKey)) {
+        const timeUntilReset = rateLimiter.getTimeUntilReset(rateLimitKey);
+        const error = new Error(
+          `Rate limit exceeded. Please wait ${Math.ceil(
+            timeUntilReset / 1000
+          )} seconds before trying again.`
+        );
+        error.name = "RateLimitError";
+        return Promise.reject(error);
+      }
+    }
+
     const token = localStorage.getItem("token");
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -32,13 +47,83 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors and token refresh
+// Rate limiting utility
+class RateLimiter {
+  private requests: Map<string, number[]> = new Map();
+  private readonly maxRequests: number = 5; // Max requests per window
+  private readonly windowMs: number = 60000; // 1 minute window
+
+  canMakeRequest(key: string): boolean {
+    const now = Date.now();
+    const requests = this.requests.get(key) || [];
+
+    // Remove old requests outside the window
+    const validRequests = requests.filter((time) => now - time < this.windowMs);
+
+    if (validRequests.length >= this.maxRequests) {
+      return false;
+    }
+
+    // Add current request
+    validRequests.push(now);
+    this.requests.set(key, validRequests);
+    return true;
+  }
+
+  getTimeUntilReset(key: string): number {
+    const requests = this.requests.get(key) || [];
+    if (requests.length === 0) return 0;
+
+    const oldestRequest = Math.min(...requests);
+    const resetTime = oldestRequest + this.windowMs;
+    return Math.max(0, resetTime - Date.now());
+  }
+}
+
+const rateLimiter = new RateLimiter();
+
+// Helper function for exponential backoff delay
+const getRetryDelay = (retryCount: number): number => {
+  const baseDelay = 1000; // 1 second
+  const maxDelay = 30000; // 30 seconds
+  const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+  return delay + Math.random() * 1000; // Add jitter
+};
+
+// Response interceptor to handle errors, token refresh, and rate limiting
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // Handle 429 errors (rate limited) with exponential backoff
+    if (error.response?.status === 429) {
+      const retryCount = originalRequest._retryCount || 0;
+      const maxRetries = 3;
+
+      if (retryCount < maxRetries) {
+        originalRequest._retryCount = retryCount + 1;
+        const delay = getRetryDelay(retryCount);
+
+        console.warn(
+          `Rate limited. Retrying in ${Math.round(delay / 1000)}s... (attempt ${
+            retryCount + 1
+          }/${maxRetries})`
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return api(originalRequest);
+      } else {
+        // Max retries exceeded
+        const rateLimitError = new Error(
+          "Too many requests. Please wait a moment before trying again."
+        );
+        rateLimitError.name = "RateLimitError";
+        return Promise.reject(rateLimitError);
+      }
+    }
 
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401 && !originalRequest._retry) {

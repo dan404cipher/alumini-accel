@@ -145,7 +145,6 @@ const JobBoard = () => {
           params.location = selectedLocation;
         if (selectedType && selectedType !== "all") params.type = selectedType;
 
-        console.log("API call params:", params);
         const response = await jobAPI.getAllJobs(params);
 
         // Reset retry count on successful request
@@ -159,15 +158,7 @@ const JobBoard = () => {
 
           // Debug: Log the first job to see what fields are available
           if (newJobs.length > 0) {
-            console.log("First job from API:", newJobs[0]);
-            console.log(
-              "Company Website in first job:",
-              newJobs[0].companyWebsite
-            );
-            console.log(
-              "Application URL in first job:",
-              newJobs[0].applicationUrl
-            );
+            // Jobs loaded successfully
           }
 
           if (append) {
@@ -180,25 +171,15 @@ const JobBoard = () => {
           if (data && typeof data === "object" && "pagination" in data) {
             const pagination = data.pagination;
             const hasMorePages = pagination.page < pagination.totalPages;
-            console.log("Pagination info:", {
-              page: pagination.page,
-              totalPages: pagination.totalPages,
-              hasMorePages,
-            });
             setHasMore(hasMorePages);
           } else {
             // If no pagination info, check if we got a full page
             const hasMorePages = newJobs.length === 10;
-            console.log("No pagination, checking job count:", {
-              jobCount: newJobs.length,
-              hasMorePages,
-            });
             setHasMore(hasMorePages);
           }
 
           // Safety check: if we got no jobs, there are no more pages
           if (newJobs.length === 0) {
-            console.log("No jobs returned, setting hasMore to false");
             setHasMore(false);
           }
         } else {
@@ -232,13 +213,7 @@ const JobBoard = () => {
         setIsFetching(false);
       }
     },
-    [
-      debouncedSearchQuery,
-      selectedLocation,
-      selectedType,
-      isFetching,
-      retryCount,
-    ]
+    [debouncedSearchQuery, selectedLocation, selectedType, isFetching]
   );
 
   // Store the latest fetchJobs function in ref

@@ -28,7 +28,7 @@ const AdminDashboard = () => {
   if (!isAdmin) {
     return (
       <>
-        <Navigation />
+        <Navigation activeTab="" onTabChange={() => {}} />
         <div className="container mx-auto px-4 py-8">
           <Card>
             <CardContent className="p-6">
@@ -50,7 +50,7 @@ const AdminDashboard = () => {
 
   return (
     <>
-      <Navigation />
+      <Navigation activeTab="admin" onTabChange={() => {}} />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>

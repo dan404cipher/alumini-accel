@@ -77,17 +77,8 @@ const NewsRoom = () => {
   } = useQuery({
     queryKey: ["news"],
     queryFn: async () => {
-      console.log("NewsRoom - User:", user);
-      console.log("NewsRoom - Token:", localStorage.getItem("token"));
-      console.log(
-        "NewsRoom - API URL:",
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-      );
-      console.log("NewsRoom - newsAPI:", newsAPI);
-
       try {
         const response = await newsAPI.getAllNews();
-        console.log("NewsRoom - Response:", response);
         return response;
       } catch (error) {
         console.error("NewsRoom - Error:", error);

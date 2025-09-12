@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   Briefcase,
   GraduationCap,
   BookOpen,
+  Github,
 } from "lucide-react";
 import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +52,7 @@ interface User {
   mentorshipDomains: string[];
   achievements: string[];
   bio?: string;
+  phone?: string;
   linkedinProfile?: string;
   githubProfile?: string;
   website?: string;
@@ -116,44 +118,51 @@ const AlumniProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchUserProfile = useCallback(
+    async (userId: string) => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await alumniAPI.getUserById(userId);
+
+        if (
+          response &&
+          response.data &&
+          typeof response.data === "object" &&
+          response.data !== null &&
+          "user" in response.data
+        ) {
+          const userData = (response.data as { user: User }).user;
+          setUser(userData);
+        } else {
+          setError("User profile not found");
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        setError("Failed to load user profile");
+        toast({
+          title: "Error",
+          description: "Failed to load user profile",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast]
+  );
+
   useEffect(() => {
     if (id) {
       fetchUserProfile(id);
     }
-  }, [id]);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      console.log("Fetching user profile:", userId);
-
-      const response = await alumniAPI.getUserById(userId);
-      console.log("User profile API response:", response);
-
-      if (response && response.data && response.data.user) {
-        setUser(response.data.user);
-        console.log("Found user profile:", response.data.user);
-      } else {
-        setError("User profile not found");
-      }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      setError("Failed to load user profile");
-      toast({
-        title: "Error",
-        description: "Failed to load user profile",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id, fetchUserProfile]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navigation />
+        <Navigation activeTab="" onTabChange={() => {}} />
         <div
           className="flex items-center justify-center"
           style={{ minHeight: "calc(100vh - 200px)" }}
@@ -173,7 +182,7 @@ const AlumniProfile = () => {
   if (error || !user) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navigation />
+        <Navigation activeTab="" onTabChange={() => {}} />
         <div
           className="flex items-center justify-center"
           style={{ minHeight: "calc(100vh - 200px)" }}
@@ -199,7 +208,7 @@ const AlumniProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
+      <Navigation activeTab="alumni" onTabChange={() => {}} />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
@@ -530,6 +539,20 @@ const AlumniProfile = () => {
                     <Mail className="w-4 h-4 mr-3 text-gray-500" />
                     <span className="text-gray-700">{user.email}</span>
                   </div>
+                  {user.phone && (
+                    <div className="flex items-center">
+                      <Phone className="w-4 h-4 mr-3 text-gray-500" />
+                      <span className="text-gray-700">{user.phone}</span>
+                    </div>
+                  )}
+                  {(user.location || user.currentLocation) && (
+                    <div className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-3 text-gray-500" />
+                      <span className="text-gray-700">
+                        {user.currentLocation || user.location}
+                      </span>
+                    </div>
+                  )}
                   {user.linkedinProfile && (
                     <div className="flex items-center">
                       <Linkedin className="w-4 h-4 mr-3 text-blue-600" />
@@ -545,7 +568,7 @@ const AlumniProfile = () => {
                   )}
                   {user.githubProfile && (
                     <div className="flex items-center">
-                      <Phone className="w-4 h-4 mr-3 text-gray-600" />
+                      <Github className="w-4 h-4 mr-3 text-gray-600" />
                       <a
                         href={user.githubProfile}
                         target="_blank"

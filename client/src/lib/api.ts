@@ -21,8 +21,8 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token and check rate limits
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Check client-side rate limiting for auth endpoints
-    if (config.url?.includes("/auth/")) {
+    // Check client-side rate limiting for auth endpoints (excluding /auth/me)
+    if (config.url?.includes("/auth/") && !config.url?.includes("/auth/me")) {
       const rateLimitKey = `auth-${config.url}`;
       if (!rateLimiter.canMakeRequest(rateLimitKey)) {
         const timeUntilReset = rateLimiter.getTimeUntilReset(rateLimitKey);
@@ -50,8 +50,13 @@ api.interceptors.request.use(
 // Rate limiting utility
 class RateLimiter {
   private requests: Map<string, number[]> = new Map();
-  private readonly maxRequests: number = 5; // Max requests per window
+  private readonly maxRequests: number = 30; // Max requests per window (increased from 5)
   private readonly windowMs: number = 60000; // 1 minute window
+
+  // Method to clear all rate limits (useful for debugging)
+  clearAllLimits(): void {
+    this.requests.clear();
+  }
 
   canMakeRequest(key: string): boolean {
     const now = Date.now();
@@ -81,6 +86,14 @@ class RateLimiter {
 }
 
 const rateLimiter = new RateLimiter();
+
+// Make rateLimiter available in browser console for debugging
+if (typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).clearRateLimits = () => {
+    rateLimiter.clearAllLimits();
+    console.log("Rate limits cleared");
+  };
+}
 
 // Helper function for exponential backoff delay
 const getRetryDelay = (retryCount: number): number => {

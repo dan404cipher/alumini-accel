@@ -1,0 +1,88 @@
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Ensure upload directories exist
+const uploadDirs = [
+  "uploads",
+  "uploads/profile-images",
+  "uploads/documents",
+  "uploads/events",
+  "uploads/news",
+];
+
+uploadDirs.forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+// Configure multer for profile images
+const profileImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/profile-images/");
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `profile-${uniqueSuffix}${ext}`);
+  },
+});
+
+// File filter for profile images
+const profileImageFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  // Check file type
+  const allowedTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed."
+      )
+    );
+  }
+};
+
+// Multer configuration for profile images
+export const uploadProfileImage = multer({
+  storage: profileImageStorage,
+  fileFilter: profileImageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+});
+
+// General file storage for other uploads
+const generalStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = "uploads/documents/";
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `file-${uniqueSuffix}${ext}`);
+  },
+});
+
+export const uploadGeneral = multer({
+  storage: generalStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});

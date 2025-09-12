@@ -125,7 +125,7 @@ const limiter = rateLimit({
 app.use("/api/", limiter);
 
 // Custom rate limiting for specific endpoints
-app.use("/api/auth/", customRateLimit(5, 900000)); // 5 requests per 15 minutes for auth
+app.use("/api/auth/", customRateLimit(100, 900000)); // 100 requests per 15 minutes for auth
 app.use("/api/users/", customRateLimit(50, 900000)); // 50 requests per 15 minutes for users
 
 // Request logging middleware

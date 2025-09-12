@@ -24,6 +24,8 @@ import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import SimpleImageUpload from "@/components/SimpleImageUpload";
+import { useAuth } from "@/contexts/AuthContext";
 
 // User interface (for both students and alumni)
 interface User {
@@ -114,9 +116,15 @@ const AlumniProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Check if this is the current user's own profile
+  const isOwnProfile = currentUser && user && currentUser._id === user.id;
 
   const fetchUserProfile = useCallback(
     async (userId: string) => {
@@ -152,6 +160,67 @@ const AlumniProfile = () => {
     },
     [toast]
   );
+
+  const handleImageUpload = async (file: File) => {
+    try {
+      setUploadingImage(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("profileImage", file);
+
+      // Upload the image
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+        }/users/profile-image`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to upload image");
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        const newImageUrl = result.data.profileImage;
+
+        // Update the user state with new image URL
+        setUser((prev) => {
+          return prev ? { ...prev, profileImage: newImageUrl } : null;
+        });
+
+        toast({
+          title: "Success",
+          description: "Profile image updated successfully",
+        });
+
+        // Refresh the profile data to ensure we have the latest image
+        if (id) {
+          setTimeout(() => {
+            fetchUserProfile(id);
+          }, 500);
+        }
+      } else {
+        throw new Error(result.message || "Failed to upload image");
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload profile image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -228,9 +297,25 @@ const AlumniProfile = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
               <div className="relative">
                 <img
-                  src={user.profileImage || "/placeholder-avatar.jpg"}
+                  src={
+                    user.profileImage
+                      ? user.profileImage.startsWith("http")
+                        ? user.profileImage
+                        : `${
+                            import.meta.env.VITE_API_URL ||
+                            "http://localhost:3000"
+                          }${user.profileImage}`
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          user.name
+                        )}&background=random`
+                  }
                   alt={user.name}
                   className="w-24 h-24 rounded-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      user.name
+                    )}&background=random`;
+                  }}
                 />
                 {user.isHiring && (
                   <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
@@ -240,11 +325,31 @@ const AlumniProfile = () => {
               </div>
 
               <div className="flex-1">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  {user.name}
+                </h1>
+                <p className="text-lg text-gray-600 mb-4">
+                  {user.currentRole || user.role}
+                </p>
+
+                {/* Profile Image Upload - Only show for own profile */}
+                {isOwnProfile && (
+                  <div className="mb-4">
+                    <SimpleImageUpload
+                      currentImage={user.profileImage}
+                      onImageChange={setImageFile}
+                      onImageUpload={handleImageUpload}
+                      isLoading={uploadingImage}
+                      maxSize={5}
+                      aspectRatio={1}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
-                      {user.name}
-                    </h1>
                     <p className="text-lg text-gray-600">
                       {user.currentRole ||
                         user.program ||

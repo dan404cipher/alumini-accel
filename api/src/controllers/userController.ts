@@ -363,6 +363,81 @@ export const bulkUpdateUsers = async (req: Request, res: Response) => {
   }
 };
 
+// Upload profile image
+export const uploadProfileImage = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No image file provided",
+      });
+    }
+
+    // Get the uploaded file info
+    const file = req.file;
+
+    // Validate file type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.",
+      });
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: "File too large. Maximum size is 5MB.",
+      });
+    }
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Update user's profile picture
+    user.profilePicture = `/uploads/profile-images/${file.filename}`;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Profile image uploaded successfully",
+      data: {
+        profileImage: user.profilePicture,
+      },
+    });
+  } catch (error) {
+    console.error("Error uploading profile image:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload profile image",
+    });
+  }
+};
+
 export default {
   getAllUsers,
   getUserById,
@@ -372,4 +447,5 @@ export default {
   searchUsers,
   getUserStats,
   bulkUpdateUsers,
+  uploadProfileImage,
 };

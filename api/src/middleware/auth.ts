@@ -181,6 +181,11 @@ export const rateLimit = (
   const requests = new Map();
 
   return (req: Request, res: Response, next: NextFunction) => {
+    // Skip rate limiting for /auth/me endpoint
+    if (req.path === "/me") {
+      return next();
+    }
+
     const ip = req.ip || req.connection.remoteAddress || "unknown";
     const now = Date.now();
     const windowStart = now - windowMs;

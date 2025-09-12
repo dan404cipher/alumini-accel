@@ -1,6 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import ReactCrop, {
+  centerCrop,
+  makeAspectCrop,
+  Crop,
+  PixelCrop,
+} from "react-image-crop";
+
+// Type assertion to fix ReactCrop TypeScript issues
+const CropComponent = ReactCrop as any;
+import "react-image-crop/dist/ReactCrop.css";
 import {
   Card,
   CardContent,
@@ -31,6 +41,7 @@ import {
   Github,
   Twitter,
   Globe as GlobeIcon,
+  X,
 } from "lucide-react";
 import { BasicProfileForm } from "@/components/forms/BasicProfileForm";
 import { EducationalDetailsForm } from "@/components/forms/EducationalDetailsForm";
@@ -70,8 +81,8 @@ interface UserProfile {
     role: string;
     profileCompletionPercentage: number;
   };
-  alumniProfile?: any;
-  studentProfile?: any;
+  alumniProfile?: Record<string, unknown>;
+  studentProfile?: Record<string, unknown>;
 }
 
 const Profile = () => {
@@ -81,12 +92,190 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
   const [isEditing, setIsEditing] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
-  useEffect(() => {
-    fetchProfile();
+  // Image cropping states
+  const [showCrop, setShowCrop] = useState(false);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string>("");
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Image processing utility functions
+  const createImage = (url: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.addEventListener("load", () => resolve(img));
+      img.addEventListener("error", (e) => reject(e));
+      img.setAttribute("crossOrigin", "anonymous");
+      img.src = url;
+    });
+
+  const getCroppedImg = (
+    image: HTMLImageElement,
+    crop: PixelCrop,
+    fileName: string
+  ): Promise<File> => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      throw new Error("No 2d context");
+    }
+
+    // Calculate the scale factor between displayed image and natural image
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+
+    // Set canvas size to the crop size (square)
+    const cropSize = Math.min(crop.width, crop.height);
+    canvas.width = cropSize;
+    canvas.height = cropSize;
+
+    // Draw the cropped portion directly
+    ctx.drawImage(
+      image,
+      crop.x * scaleX, // Source X
+      crop.y * scaleY, // Source Y
+      crop.width * scaleX, // Source width
+      crop.height * scaleY, // Source height
+      0, // Destination X
+      0, // Destination Y
+      cropSize, // Destination width
+      cropSize // Destination height
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            throw new Error("Canvas is empty");
+          }
+          const file = new File([blob], fileName, { type: "image/jpeg" });
+          resolve(file);
+        },
+        "image/jpeg",
+        0.95
+      );
+    });
+  };
+
+  // Crop event handlers
+  const onImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const { width, height } = e.currentTarget;
+      // Create a square crop area
+      const cropSize = Math.min(width, height) * 0.8; // 80% of the smaller dimension
+      const crop = centerCrop(
+        makeAspectCrop(
+          {
+            unit: "px",
+            width: cropSize,
+            height: cropSize,
+          },
+          1,
+          width,
+          height
+        ),
+        width,
+        height
+      );
+      setCrop(crop);
+    },
+    []
+  );
+
+  const onCropChange = useCallback((crop: Crop) => {
+    setCrop(crop);
   }, []);
 
-  const fetchProfile = async () => {
+  const onCropComplete = useCallback((crop: PixelCrop) => {
+    setCompletedCrop(crop);
+
+    // Generate preview of cropped image
+    if (imgRef.current && crop.width && crop.height) {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        const image = imgRef.current;
+        const scaleX = image.naturalWidth / image.width;
+        const scaleY = image.naturalHeight / image.height;
+        const cropSize = Math.min(crop.width, crop.height);
+
+        canvas.width = cropSize;
+        canvas.height = cropSize;
+
+        ctx.drawImage(
+          image,
+          crop.x * scaleX,
+          crop.y * scaleY,
+          crop.width * scaleX,
+          crop.height * scaleY,
+          0,
+          0,
+          cropSize,
+          cropSize
+        );
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              setCroppedPreviewUrl(URL.createObjectURL(blob));
+            }
+          },
+          "image/jpeg",
+          0.95
+        );
+      }
+    }
+  }, []);
+
+  const handleCropAndUpload = async () => {
+    if (!imgRef.current || !completedCrop || !selectedFile) {
+      return;
+    }
+
+    try {
+      // Use the same image element as the preview for consistency
+      const image = imgRef.current;
+
+      const croppedImage = await getCroppedImg(
+        image,
+        completedCrop,
+        "profile-image.jpg"
+      );
+      await handleImageUpload(croppedImage);
+
+      // Reset crop interface
+      setShowCrop(false);
+      setPreviewUrl("");
+      setSelectedFile(null);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
+    } catch (error) {
+      console.error("Error cropping and uploading image:", error);
+      toast({
+        title: "Error",
+        description: "Failed to crop and upload image. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetCrop = () => {
+    setShowCrop(false);
+    setPreviewUrl("");
+    setSelectedFile(null);
+    setCrop(undefined);
+    setCompletedCrop(undefined);
+    setCroppedPreviewUrl("");
+  };
+
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       const apiUrl =
@@ -118,7 +307,11 @@ const Profile = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleProfileUpdate = () => {
     fetchProfile();
@@ -127,6 +320,73 @@ const Profile = () => {
       title: "Success",
       description: "Profile updated successfully",
     });
+  };
+
+  const handleImageUpload = async (file: File) => {
+    try {
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append("profileImage", file);
+      const token = localStorage.getItem("token");
+      const apiUrl = `${
+        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+      }/users/profile-image`;
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Upload failed:", errorText);
+        throw new Error("Failed to upload image");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update the profile state with the new image
+        const newImageUrl = result.data.profileImage;
+
+        setProfile((prev) => {
+          const updated = prev
+            ? {
+                ...prev,
+                user: {
+                  ...prev.user,
+                  profilePicture: newImageUrl,
+                },
+              }
+            : null;
+          return updated;
+        });
+
+        // Force refresh profile data to ensure image shows up
+        setTimeout(() => {
+          fetchProfile();
+        }, 1000);
+
+        toast({
+          title: "Success",
+          description: "Profile image updated successfully",
+        });
+      } else {
+        throw new Error(result.message || "Failed to upload image");
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload profile image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   if (isLoading) {
@@ -239,9 +499,21 @@ const Profile = () => {
                   <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                     {profile.user.profilePicture ? (
                       <img
-                        src={profile.user.profilePicture}
+                        src={
+                          profile.user.profilePicture.startsWith("http")
+                            ? profile.user.profilePicture
+                            : `${
+                                import.meta.env.VITE_API_URL ||
+                                "http://localhost:3000"
+                              }${profile.user.profilePicture}`
+                        }
                         alt="Profile"
                         className="w-24 h-24 rounded-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            profile.user.firstName + " " + profile.user.lastName
+                          )}&background=random`;
+                        }}
                       />
                     ) : (
                       <User className="w-12 h-12 text-gray-400" />
@@ -256,6 +528,125 @@ const Profile = () => {
                     </Button>
                   )}
                 </div>
+
+                {/* Profile Image Upload Button */}
+                <div className="mt-4">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Check file size (5MB max)
+                        const maxSize = 5 * 1024 * 1024; // 5MB
+                        if (file.size > maxSize) {
+                          toast({
+                            title: "File too large",
+                            description:
+                              "Please select an image smaller than 5MB",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+
+                        // Check file type
+                        if (!file.type.startsWith("image/")) {
+                          toast({
+                            title: "Invalid file type",
+                            description: "Please select a valid image file",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+
+                        setSelectedFile(file);
+                        const url = URL.createObjectURL(file);
+                        setPreviewUrl(url);
+                        setShowCrop(true);
+                        setCrop(undefined);
+                        setCompletedCrop(undefined);
+                      } else {
+                      }
+                    }}
+                    className="hidden"
+                    id="profile-image-upload"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const input = document.getElementById(
+                        "profile-image-upload"
+                      );
+                      input?.click();
+                    }}
+                    disabled={uploadingImage || showCrop}
+                    className="w-full"
+                  >
+                    {uploadingImage ? "Uploading..." : "Upload Profile Image"}
+                  </Button>
+                </div>
+
+                {/* Crop Interface */}
+                {showCrop && previewUrl && (
+                  <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">
+                          Crop Your Image
+                        </h3>
+                        <Button variant="outline" size="sm" onClick={resetCrop}>
+                          <X className="w-4 h-4 mr-2" />
+                          Cancel
+                        </Button>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <CropComponent
+                          crop={crop}
+                          onChange={onCropChange}
+                          onComplete={onCropComplete}
+                          aspect={1}
+                          minWidth={50}
+                        >
+                          <img
+                            ref={imgRef}
+                            src={previewUrl}
+                            alt="Crop preview"
+                            className="max-w-full max-h-64"
+                            onLoad={onImageLoad}
+                          />
+                        </CropComponent>
+                      </div>
+
+                      {/* Cropped Preview */}
+                      {croppedPreviewUrl && (
+                        <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                          <h4 className="text-sm font-medium mb-2">
+                            Preview of cropped image:
+                          </h4>
+                          <div className="flex justify-center">
+                            <img
+                              src={croppedPreviewUrl}
+                              alt="Cropped preview"
+                              className="w-32 h-32 rounded-full object-cover border-2 border-gray-300"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-center space-x-2">
+                        <Button
+                          onClick={handleCropAndUpload}
+                          disabled={!completedCrop || uploadingImage}
+                          className="w-full"
+                        >
+                          {uploadingImage ? "Uploading..." : "Crop & Upload"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <CardTitle className="text-xl">
                   {profile.user.firstName} {profile.user.lastName}
                 </CardTitle>

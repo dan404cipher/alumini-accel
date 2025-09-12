@@ -219,13 +219,24 @@ const AlumniDirectory = () => {
                     <div className="relative">
                       <img
                         src={
-                          user.profileImage ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            user.name
-                          )}&background=random`
+                          user.profileImage
+                            ? user.profileImage.startsWith("http")
+                              ? user.profileImage
+                              : `${
+                                  import.meta.env.VITE_API_URL ||
+                                  "http://localhost:3000"
+                                }${user.profileImage}`
+                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                user.name
+                              )}&background=random`
                         }
                         alt={user.name}
                         className="w-16 h-16 rounded-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            user.name
+                          )}&background=random`;
+                        }}
                       />
                       {user.availableForMentorship && (
                         <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success rounded-full flex items-center justify-center">

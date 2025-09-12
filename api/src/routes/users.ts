@@ -7,6 +7,7 @@ import {
 } from "@/middleware/validation";
 import { authenticateToken, requireAdmin } from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
+import { uploadProfileImage } from "@/config/multer";
 
 const router = express.Router();
 
@@ -38,6 +39,16 @@ router.put(
   authenticateToken,
   ...validateRequest(validateProfileUpdate),
   asyncHandler(userController.updateProfile)
+);
+
+// @route   POST /api/v1/users/profile-image
+// @desc    Upload profile image
+// @access  Private
+router.post(
+  "/profile-image",
+  authenticateToken,
+  uploadProfileImage.single("profileImage") as any,
+  asyncHandler(userController.uploadProfileImage)
 );
 
 // @route   DELETE /api/v1/users/:id

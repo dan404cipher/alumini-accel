@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import SimpleImageUpload from "@/components/SimpleImageUpload";
+import ConnectionButton from "@/components/ConnectionButton";
 import { useAuth } from "@/contexts/AuthContext";
 
 // User interface (for both students and alumni)
@@ -381,6 +382,18 @@ const AlumniProfile = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Connection Button - Only show for other users' profiles */}
+                {!isOwnProfile && (
+                  <div className="mb-4">
+                    <ConnectionButton
+                      userId={user.id}
+                      userName={user.name}
+                      variant="default"
+                      size="default"
+                    />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
                   <div className="flex items-center">

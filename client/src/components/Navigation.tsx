@@ -28,6 +28,7 @@ import {
   Linkedin,
   ExternalLink,
   X,
+  UserPlus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -64,6 +65,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
     { id: "jobs", name: "Jobs", icon: Briefcase, count: "47" },
     { id: "events", name: "Events", icon: Calendar, count: "8" },
+    { id: "connections", name: "Connections", icon: UserPlus, count: null },
     { id: "news", name: "News Room", icon: Newspaper, count: null },
     { id: "recognition", name: "Recognition", icon: Award, count: null },
     { id: "about", name: "About Us", icon: Info, count: null },

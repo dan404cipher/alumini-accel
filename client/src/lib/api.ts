@@ -1224,5 +1224,112 @@ export const galleryAPI = {
   },
 };
 
+// Connection API
+export const connectionAPI = {
+  // Send connection request
+  sendConnectionRequest: async (data: {
+    recipientId: string;
+    type?: string;
+    message?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/connections/send",
+      data,
+    });
+  },
+
+  // Accept connection request
+  acceptConnection: async (connectionId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/connections/${connectionId}/accept`,
+    });
+  },
+
+  // Reject connection request
+  rejectConnection: async (connectionId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/connections/${connectionId}/reject`,
+    });
+  },
+
+  // Block user
+  blockUser: async (connectionId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/connections/${connectionId}/block`,
+    });
+  },
+
+  // Cancel connection request
+  cancelConnection: async (connectionId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/connections/${connectionId}/cancel`,
+    });
+  },
+
+  // Remove connection (unfriend)
+  removeConnection: async (connectionId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/connections/${connectionId}/remove`,
+    });
+  },
+
+  // Get user connections
+  getUserConnections: async (params?: {
+    status?: string;
+    type?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.type) queryParams.append("type", params.type);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/connections?${queryParams.toString()}`,
+    });
+  },
+
+  // Get pending requests
+  getPendingRequests: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/connections/pending",
+    });
+  },
+
+  // Get sent requests
+  getSentRequests: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/connections/sent",
+    });
+  },
+
+  // Get connection statistics
+  getConnectionStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/connections/stats",
+    });
+  },
+
+  // Check connection status between two users
+  checkConnectionStatus: async (userId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/connections/check/${userId}`,
+    });
+  },
+};
+
 // Export the API instance and functions
 export default api;

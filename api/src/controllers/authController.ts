@@ -81,7 +81,7 @@ export const register = async (req: Request, res: Response) => {
         "User registered successfully. Please check your email to verify your account.",
       data: {
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -150,7 +150,7 @@ export const login = async (req: Request, res: Response) => {
       message: "Login successful",
       data: {
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -357,7 +357,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       success: true,
       data: {
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,

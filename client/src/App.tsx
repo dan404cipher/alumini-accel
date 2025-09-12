@@ -26,6 +26,7 @@ import AdminDashboard from "./components/AdminDashboard";
 import AlumniProfile from "./components/AlumniProfile";
 import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
+import Connections from "./pages/Connections";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/gallery" element={<Gallery />} />
+                <Route path="/connections" element={<Connections />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/cookies" element={<CookiePolicy />} />

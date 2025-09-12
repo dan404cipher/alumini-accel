@@ -30,6 +30,7 @@ import donationRoutes from "@/routes/donations";
 import invitationRoutes from "@/routes/invitations";
 import docsRoutes from "@/routes/docs";
 import galleryRoutes from "@/routes/gallery";
+import connectionRoutes from "@/routes/connection";
 
 // Load environment variables
 dotenv.config();
@@ -121,6 +122,21 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for authentication and connection endpoints
+    return (
+      req.path === "/v1/auth/me" ||
+      req.path.endsWith("/auth/me") ||
+      req.path === "/v1/auth/login" ||
+      req.path.endsWith("/auth/login") ||
+      req.path === "/v1/auth/register" ||
+      req.path.endsWith("/auth/register") ||
+      req.path === "/v1/auth/refresh" ||
+      req.path.endsWith("/auth/refresh") ||
+      req.path.startsWith("/v1/connections/check/") ||
+      req.path.includes("/connections/check/")
+    );
+  },
 });
 
 app.use("/api/", limiter);
@@ -173,6 +189,7 @@ app.use("/api/v1/donations", donationRoutes);
 app.use("/api/v1/invitations", invitationRoutes);
 app.use("/api/v1/docs", docsRoutes);
 app.use("/api/v1/gallery", galleryRoutes);
+app.use("/api/v1/connections", connectionRoutes);
 
 // Serve static files with CORS headers
 app.use(

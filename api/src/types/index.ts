@@ -2,6 +2,9 @@ import { Request } from "express";
 import { Document } from "mongoose";
 import mongoose from "mongoose";
 
+// Export connection types
+export * from "./connection";
+
 // User Roles
 export enum UserRole {
   SUPER_ADMIN = "super_admin",

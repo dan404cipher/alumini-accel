@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navigation from "./Navigation";
 import Footer from "./Footer";
 import Dashboard from "./Dashboard";
@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const { user } = useAuth();
@@ -70,6 +71,10 @@ const Layout = () => {
       case "gallery":
         // Redirect to the public Gallery page
         navigate("/gallery");
+        return null;
+      case "connections":
+        // Redirect to the Connections page
+        navigate("/connections");
         return null;
       case "more":
         // More dropdown doesn't navigate to a page

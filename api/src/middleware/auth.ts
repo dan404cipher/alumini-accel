@@ -181,8 +181,19 @@ export const rateLimit = (
   const requests = new Map();
 
   return (req: Request, res: Response, next: NextFunction) => {
-    // Skip rate limiting for /auth/me endpoint
-    if (req.path === "/me") {
+    // Skip rate limiting for authentication and connection endpoints
+    if (
+      req.path === "/me" ||
+      req.path.endsWith("/auth/me") ||
+      req.path === "/login" ||
+      req.path.endsWith("/auth/login") ||
+      req.path === "/register" ||
+      req.path.endsWith("/auth/register") ||
+      req.path === "/refresh" ||
+      req.path.endsWith("/auth/refresh") ||
+      req.path.startsWith("/connections/check/") ||
+      req.path.includes("/connections/check/")
+    ) {
       return next();
     }
 

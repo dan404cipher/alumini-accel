@@ -22,8 +22,10 @@ import {
   Star,
 } from "lucide-react";
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
+import ConnectionButton from "./ConnectionButton";
 import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 // User interface (for both students and alumni)
 interface User {
@@ -60,6 +62,7 @@ interface User {
 
 const AlumniDirectory = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isAddAlumniOpen, setIsAddAlumniOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +123,6 @@ const AlumniDirectory = () => {
             Connect with our global network of {users.length} users
           </p>
         </div>
-      
       </div>
 
       {/* Filters */}
@@ -201,174 +203,199 @@ const AlumniDirectory = () => {
               </p>
             </div>
           ) : (
-            users.map((user) => (
-              <Card
-                key={user.id}
-                className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
-                onClick={() => handleProfileClick(user.id)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="relative">
-                      <img
-                        src={
-                          user.profileImage
-                            ? user.profileImage.startsWith("http")
-                              ? user.profileImage
-                              : `${
-                                  import.meta.env.VITE_API_URL ||
-                                  "http://localhost:3000"
-                                }${user.profileImage}`
-                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                user.name
-                              )}&background=random`
-                        }
-                        alt={user.name}
-                        className="w-16 h-16 rounded-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            user.name
-                          )}&background=random`;
-                        }}
-                      />
-                      {user.availableForMentorship && (
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success rounded-full flex items-center justify-center">
-                          <Star className="w-3 h-3 text-success-foreground" />
+            users
+              .filter((directoryUser) => directoryUser.id !== user?._id) // Filter out current user
+              .map((directoryUser) => (
+                <Card
+                  key={directoryUser.id}
+                  className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
+                  onClick={() => handleProfileClick(directoryUser.id)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start space-x-4">
+                      <div className="relative">
+                        <img
+                          src={
+                            directoryUser.profileImage
+                              ? directoryUser.profileImage.startsWith("http")
+                                ? directoryUser.profileImage
+                                : `${
+                                    import.meta.env.VITE_API_URL ||
+                                    "http://localhost:3000"
+                                  }${directoryUser.profileImage}`
+                              : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  directoryUser.name
+                                )}&background=random`
+                          }
+                          alt={directoryUser.name}
+                          className="w-16 h-16 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              directoryUser.name
+                            )}&background=random`;
+                          }}
+                        />
+                        {directoryUser.availableForMentorship && (
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-success rounded-full flex items-center justify-center">
+                            <Star className="w-3 h-3 text-success-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-lg truncate">
+                            {directoryUser.name}
+                          </h3>
+                          <div className="flex gap-1">
+                            <Badge
+                              variant={
+                                directoryUser.role === "alumni"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {directoryUser.role === "alumni"
+                                ? "Alumni"
+                                : "Student"}
+                            </Badge>
+                            {directoryUser.isHiring && (
+                              <Badge variant="success" className="text-xs">
+                                Hiring
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {directoryUser.currentRole ||
+                            directoryUser.program ||
+                            directoryUser.role}
+                        </p>
+                        {directoryUser.company && (
+                          <p className="text-sm font-medium text-primary">
+                            {directoryUser.company}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      {directoryUser.graduationYear && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Class of {directoryUser.graduationYear} •{" "}
+                          {directoryUser.department}
+                        </div>
+                      )}
+                      {directoryUser.currentYear && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          {directoryUser.currentYear} •{" "}
+                          {directoryUser.department}
+                        </div>
+                      )}
+                      {(directoryUser.location ||
+                        directoryUser.currentLocation) && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <MapPin className="w-4 h-4 mr-2" />
+                          {directoryUser.currentLocation ||
+                            directoryUser.location}
+                        </div>
+                      )}
+                      {directoryUser.experience &&
+                        directoryUser.experience > 0 && (
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Calendar className="w-4 h-4 mr-2" />
+                            {directoryUser.experience} years experience
+                          </div>
+                        )}
+                      {directoryUser.currentCGPA && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          CGPA: {directoryUser.currentCGPA}
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-lg truncate">
-                          {user.name}
-                        </h3>
-                        <div className="flex gap-1">
+
+                    {/* Badges */}
+                    <div className="mt-4 flex flex-wrap gap-1">
+                      {directoryUser.isHiring && (
+                        <Badge variant="success" className="text-xs">
+                          Hiring
+                        </Badge>
+                      )}
+                      {directoryUser.availableForMentorship && (
+                        <Badge variant="secondary" className="text-xs">
+                          Mentor
+                        </Badge>
+                      )}
+                      {(directoryUser.skills || [])
+                        .slice(0, 2)
+                        .map((skill, index) => (
                           <Badge
-                            variant={
-                              user.role === "alumni" ? "default" : "secondary"
-                            }
+                            key={index}
+                            variant="outline"
                             className="text-xs"
                           >
-                            {user.role === "alumni" ? "Alumni" : "Student"}
+                            {skill}
                           </Badge>
-                          {user.isHiring && (
-                            <Badge variant="success" className="text-xs">
-                              Hiring
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {user.currentRole || user.program || user.role}
-                      </p>
-                      {user.company && (
-                        <p className="text-sm font-medium text-primary">
-                          {user.company}
-                        </p>
+                        ))}
+                      {(directoryUser.careerInterests || [])
+                        .slice(0, 1)
+                        .map((interest, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            {interest}
+                          </Badge>
+                        ))}
+                    </div>
+
+                    {/* Actions */}
+                    <div
+                      className="mt-4 flex gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ConnectionButton
+                        userId={directoryUser.id}
+                        userName={directoryUser.name}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                      />
+                      {directoryUser.linkedinProfile && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(
+                              directoryUser.linkedinProfile,
+                              "_blank"
+                            );
+                          }}
+                        >
+                          <Linkedin className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {directoryUser.githubProfile && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(directoryUser.githubProfile, "_blank");
+                          }}
+                        >
+                          <Phone className="w-4 h-4" />
+                        </Button>
                       )}
                     </div>
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    {user.graduationYear && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Class of {user.graduationYear} • {user.department}
-                      </div>
-                    )}
-                    {user.currentYear && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        {user.currentYear} • {user.department}
-                      </div>
-                    )}
-                    {(user.location || user.currentLocation) && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <MapPin className="w-4 h-4 mr-2" />
-                        {user.currentLocation || user.location}
-                      </div>
-                    )}
-                    {user.experience && user.experience > 0 && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        {user.experience} years experience
-                      </div>
-                    )}
-                    {user.currentCGPA && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        CGPA: {user.currentCGPA}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Badges */}
-                  <div className="mt-4 flex flex-wrap gap-1">
-                    {user.isHiring && (
-                      <Badge variant="success" className="text-xs">
-                        Hiring
-                      </Badge>
-                    )}
-                    {user.availableForMentorship && (
-                      <Badge variant="secondary" className="text-xs">
-                        Mentor
-                      </Badge>
-                    )}
-                    {(user.skills || []).slice(0, 2).map((skill, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {(user.careerInterests || [])
-                      .slice(0, 1)
-                      .map((interest, index) => (
-                        <Badge
-                          key={index}
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {interest}
-                        </Badge>
-                      ))}
-                  </div>
-
-                  {/* Actions */}
-                  <div
-                    className="mt-4 flex gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Mail className="w-4 h-4 mr-2" />
-                      Connect
-                    </Button>
-                    {user.linkedinProfile && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(user.linkedinProfile, "_blank");
-                        }}
-                      >
-                        <Linkedin className="w-4 h-4" />
-                      </Button>
-                    )}
-                    {user.githubProfile && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(user.githubProfile, "_blank");
-                        }}
-                      >
-                        <Phone className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              ))
           )}
         </div>
       )}

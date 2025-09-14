@@ -68,7 +68,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       count: "2.8K",
     },
     { id: "jobs", name: "Jobs", icon: Briefcase, count: "47" },
-    { id: "more", name: "More", icon: Menu, count: null },
   ];
 
   // Content dropdown items
@@ -92,7 +91,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
   return (
     <nav className="bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-xl sticky top-0 z-50 overflow-hidden">
-      <div className="w-full max-w-8xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
         <div className="flex justify-between items-center h-16 sm:h-18 md:h-20 min-w-0">
           {/* Logo */}
           <div
@@ -107,86 +106,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             </div>
           </div>
 
-          {/* Navigation Links - Aligned to the right */}
+          {/* Navigation Links - Centered */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2 xl:space-x-3 min-w-0 flex-shrink-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
-
-              // Handle More dropdown separately
-              if (item.id === "more") {
-                return (
-                  <DropdownMenu
-                    key={item.id}
-                    open={moreDropdownOpen}
-                    onOpenChange={setMoreDropdownOpen}
-                  >
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className={`group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${
-                          isActive
-                            ? "text-blue-600 bg-blue-50/80 border border-blue-200/50 shadow-lg backdrop-blur-sm"
-                            : "text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 hover:border-blue-200/30"
-                        }`}
-                        onMouseEnter={() => setMoreDropdownOpen(true)}
-                        onMouseLeave={() => setMoreDropdownOpen(false)}
-                      >
-                        <Icon className="w-4 h-4 md:w-4 md:h-4 mr-1 md:mr-2" />
-                        <span className="tracking-wide hidden lg:inline">
-                          {item.name}
-                        </span>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      onMouseEnter={() => setMoreDropdownOpen(true)}
-                      onMouseLeave={() => setMoreDropdownOpen(false)}
-                    >
-                      <DropdownMenuItem
-                        onClick={() =>
-                          window.open(
-                            "https://instagram.com/yourcollege",
-                            "_blank"
-                          )
-                        }
-                      >
-                        <Instagram className="mr-2 h-4 w-4" />
-                        <span>Instagram</span>
-                        <ExternalLink className="ml-auto h-3 w-3" />
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          window.open(
-                            "https://facebook.com/yourcollege",
-                            "_blank"
-                          )
-                        }
-                      >
-                        <Facebook className="mr-2 h-4 w-4" />
-                        <span>Facebook</span>
-                        <ExternalLink className="ml-auto h-3 w-3" />
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          window.open(
-                            "https://linkedin.com/company/yourcollege",
-                            "_blank"
-                          )
-                        }
-                      >
-                        <Linkedin className="mr-2 h-4 w-4" />
-                        <span>LinkedIn</span>
-                        <ExternalLink className="ml-auto h-3 w-3" />
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => navigate("/about")}>
-                        <Info className="mr-2 h-4 w-4" />
-                        <span>About the College</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                );
-              }
 
               // Regular navigation items
               return (
@@ -326,95 +250,156 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Theme Toggle */}
-            <div className="ml-3 md:ml-6">
-              <ThemeToggle />
-            </div>
-
-            {/* Login/Register Links */}
-            {user ? (
-              <DropdownMenu
-                open={userDropdownOpen}
-                onOpenChange={setUserDropdownOpen}
+            {/* More Dropdown */}
+            <DropdownMenu
+              open={moreDropdownOpen}
+              onOpenChange={setMoreDropdownOpen}
+            >
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300"
+                  onMouseEnter={() => setMoreDropdownOpen(true)}
+                  onMouseLeave={() => setMoreDropdownOpen(false)}
+                >
+                  <Menu className="w-4 h-4 md:w-4 md:h-4 mr-1 md:mr-2 group-hover:rotate-12 transition-transform duration-300" />
+                  <span className="tracking-wide hidden lg:inline">More</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                onMouseEnter={() => setMoreDropdownOpen(true)}
+                onMouseLeave={() => setMoreDropdownOpen(false)}
               >
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300"
+                <DropdownMenuItem
+                  onClick={() =>
+                    window.open("https://instagram.com/yourcollege", "_blank")
+                  }
+                >
+                  <Instagram className="mr-2 h-4 w-4" />
+                  <span>Instagram</span>
+                  <ExternalLink className="ml-auto h-3 w-3" />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    window.open("https://facebook.com/yourcollege", "_blank")
+                  }
+                >
+                  <Facebook className="mr-2 h-4 w-4" />
+                  <span>Facebook</span>
+                  <ExternalLink className="ml-auto h-3 w-3" />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    window.open(
+                      "https://linkedin.com/company/yourcollege",
+                      "_blank"
+                    )
+                  }
+                >
+                  <Linkedin className="mr-2 h-4 w-4" />
+                  <span>LinkedIn</span>
+                  <ExternalLink className="ml-auto h-3 w-3" />
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/about")}>
+                  <Info className="mr-2 h-4 w-4" />
+                  <span>About the College</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Right side controls */}
+            <div className="flex items-center space-x-3">
+              {/* Theme Toggle */}
+              <div>
+                <ThemeToggle />
+              </div>
+
+              {/* Login/Register Links */}
+              {user ? (
+                <DropdownMenu
+                  open={userDropdownOpen}
+                  onOpenChange={setUserDropdownOpen}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300"
+                      onMouseEnter={() => setUserDropdownOpen(true)}
+                      onMouseLeave={() => setUserDropdownOpen(false)}
+                    >
+                      <User className="w-4 h-4 md:w-4 md:h-4 group-hover:rotate-12 transition-transform duration-300" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-56"
+                    align="end"
                     onMouseEnter={() => setUserDropdownOpen(true)}
                     onMouseLeave={() => setUserDropdownOpen(false)}
                   >
-                    <User className="w-4 h-4 md:w-4 md:h-4 group-hover:rotate-12 transition-transform duration-300" />
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                        {user?.role && (
+                          <Badge variant="secondary" className="w-fit text-xs">
+                            {user.role}
+                          </Badge>
+                        )}
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/profile")}>
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/settings")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate("/login")}
+                    className="group px-2 md:px-3 lg:px-4 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300 tracking-wide rounded-xl"
+                  >
+                    <span className="hidden sm:inline group-hover:tracking-wider transition-all duration-300">
+                      LOGIN
+                    </span>
+                    <span className="sm:hidden group-hover:tracking-wider transition-all duration-300">
+                      LOG
+                    </span>
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  className="w-56"
-                  align="end"
-                  onMouseEnter={() => setUserDropdownOpen(true)}
-                  onMouseLeave={() => setUserDropdownOpen(false)}
-                >
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                      {user?.role && (
-                        <Badge variant="secondary" className="w-fit text-xs">
-                          {user.role}
-                        </Badge>
-                      )}
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/profile")}>
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <div className="flex items-center space-x-1 md:space-x-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate("/login")}
-                  className="group px-2 md:px-3 lg:px-4 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300 tracking-wide rounded-xl"
-                >
-                  <span className="hidden sm:inline group-hover:tracking-wider transition-all duration-300">
-                    LOGIN
+                  <span className="text-gray-400 font-bold text-xs md:text-sm">
+                    ::
                   </span>
-                  <span className="sm:hidden group-hover:tracking-wider transition-all duration-300">
-                    LOG
-                  </span>
-                </Button>
-                <span className="text-gray-400 font-bold text-xs md:text-sm">
-                  ::
-                </span>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate("/login")}
-                  className="group px-2 md:px-3 lg:px-4 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300 tracking-wide rounded-xl"
-                >
-                  <span className="hidden sm:inline group-hover:tracking-wider transition-all duration-300">
-                    REGISTER
-                  </span>
-                  <span className="sm:hidden group-hover:tracking-wider transition-all duration-300">
-                    REG
-                  </span>
-                </Button>
-              </div>
-            )}
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate("/login")}
+                    className="group px-2 md:px-3 lg:px-4 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300 tracking-wide rounded-xl"
+                  >
+                    <span className="hidden sm:inline group-hover:tracking-wider transition-all duration-300">
+                      REGISTER
+                    </span>
+                    <span className="sm:hidden group-hover:tracking-wider transition-all duration-300">
+                      REG
+                    </span>
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Mobile menu button */}

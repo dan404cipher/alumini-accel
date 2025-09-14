@@ -45,6 +45,10 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [contentDropdownOpen, setContentDropdownOpen] = useState(false);
+  const [socialDropdownOpen, setSocialDropdownOpen] = useState(false);
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   // Check if user has admin permissions
   const isAdmin =
@@ -63,15 +67,22 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       icon: Users,
       count: "2.8K",
     },
-
     { id: "jobs", name: "Jobs", icon: Briefcase, count: "47" },
+    { id: "more", name: "More", icon: Menu, count: null },
+  ];
+
+  // Content dropdown items
+  const contentItems = [
     { id: "events", name: "Events", icon: Calendar, count: "8" },
-    { id: "connections", name: "Connections", icon: UserPlus, count: null },
-    { id: "messages", name: "Messages", icon: MessageCircle, count: null },
     { id: "news", name: "News Room", icon: Newspaper, count: null },
     { id: "recognition", name: "Recognition", icon: Award, count: null },
-    { id: "about", name: "About Us", icon: Info, count: null },
-    { id: "more", name: "More", icon: Menu, count: null },
+    { id: "gallery", name: "Gallery", icon: Image, count: null },
+  ];
+
+  // Social dropdown items
+  const socialItems = [
+    { id: "messages", name: "Messages", icon: MessageCircle, count: null },
+    { id: "connections", name: "Connections", icon: UserPlus, count: null },
   ];
 
   const handleLogout = async () => {
@@ -80,20 +91,24 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200 shadow-lg sticky top-0 z-50">
-      <div className="max-w-8xl mx-auto px-6 sm:px-8 lg:px-12 xl:px-16">
-        <div className="flex justify-between items-center h-20">
+    <nav className="bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-xl sticky top-0 z-50 overflow-hidden">
+      <div className="w-full max-w-8xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+        <div className="flex justify-between items-center h-16 sm:h-18 md:h-20 min-w-0">
           {/* Logo */}
-          <div className="flex items-center">
+          <div
+            className="flex items-center group cursor-pointer"
+            onClick={() => navigate("/")}
+          >
             <div className="flex-shrink-0">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent tracking-tight">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent tracking-tight group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-blue-900 transition-all duration-300">
                 AlumniAccel
               </h1>
+              <div className="h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
             </div>
           </div>
 
           {/* Navigation Links - Aligned to the right */}
-          <div className="hidden lg:flex items-center space-x-2 xl:space-x-3">
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-2 xl:space-x-3 min-w-0 flex-shrink-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -101,24 +116,32 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               // Handle More dropdown separately
               if (item.id === "more") {
                 return (
-                  <DropdownMenu key={item.id}>
+                  <DropdownMenu
+                    key={item.id}
+                    open={moreDropdownOpen}
+                    onOpenChange={setMoreDropdownOpen}
+                  >
                     <DropdownMenuTrigger asChild>
                       <button
-                        className={`flex items-center px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                        className={`group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${
                           isActive
-                            ? "text-blue-600 bg-blue-50 border border-blue-200 shadow-md"
-                            : "text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md"
+                            ? "text-blue-600 bg-blue-50/80 border border-blue-200/50 shadow-lg backdrop-blur-sm"
+                            : "text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 hover:border-blue-200/30"
                         }`}
+                        onMouseEnter={() => setMoreDropdownOpen(true)}
+                        onMouseLeave={() => setMoreDropdownOpen(false)}
                       >
-                        <Icon className="w-5 h-5 mr-3" />
-                        <span className="tracking-wide">{item.name}</span>
+                        <Icon className="w-4 h-4 md:w-4 md:h-4 mr-1 md:mr-2" />
+                        <span className="tracking-wide hidden lg:inline">
+                          {item.name}
+                        </span>
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem onClick={() => navigate("/gallery")}>
-                        <Image className="mr-2 h-4 w-4" />
-                        <span>Gallery</span>
-                      </DropdownMenuItem>
+                    <DropdownMenuContent
+                      align="start"
+                      onMouseEnter={() => setMoreDropdownOpen(true)}
+                      onMouseLeave={() => setMoreDropdownOpen(false)}
+                    >
                       <DropdownMenuItem
                         onClick={() =>
                           window.open(
@@ -173,18 +196,20 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     onTabChange(item.id);
                     navigate(`/${item.id}`);
                   }}
-                  className={`flex items-center px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  className={`group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${
                     isActive
-                      ? "text-blue-600 bg-blue-50 border border-blue-200 shadow-md"
-                      : "text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md"
+                      ? "text-blue-600 bg-blue-50/80 border border-blue-200/50 shadow-lg backdrop-blur-sm"
+                      : "text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 hover:border-blue-200/30"
                   }`}
                 >
-                  <Icon className="w-5 h-5 mr-3" />
-                  <span className="tracking-wide">{item.name}</span>
+                  <Icon className="w-4 h-4 md:w-4 md:h-4 mr-1 md:mr-2" />
+                  <span className="tracking-wide hidden lg:inline">
+                    {item.name}
+                  </span>
                   {item.count && (
                     <Badge
                       variant="secondary"
-                      className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700"
+                      className="ml-1 md:ml-2 text-xs px-1.5 md:px-2 py-0.5 bg-blue-100 text-blue-700"
                     >
                       {item.count}
                     </Badge>
@@ -193,23 +218,141 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               );
             })}
 
+            {/* Content Dropdown */}
+            <DropdownMenu
+              open={contentDropdownOpen}
+              onOpenChange={setContentDropdownOpen}
+            >
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300"
+                  onMouseEnter={() => setContentDropdownOpen(true)}
+                  onMouseLeave={() => setContentDropdownOpen(false)}
+                >
+                  <Newspaper className="w-4 h-4 md:w-4 md:h-4 mr-1 md:mr-2 group-hover:rotate-12 transition-transform duration-300" />
+                  <span className="tracking-wide hidden lg:inline">
+                    Content
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
+                onMouseEnter={() => setContentDropdownOpen(true)}
+                onMouseLeave={() => setContentDropdownOpen(false)}
+              >
+                {contentItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <DropdownMenuItem
+                      key={item.id}
+                      onClick={() => {
+                        onTabChange(item.id);
+                        navigate(`/${item.id}`);
+                      }}
+                      className={`flex items-center group hover:bg-blue-50/80 transition-all duration-200 ${
+                        isActive
+                          ? "bg-blue-50/80 text-blue-600 font-medium"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span>{item.name}</span>
+                      {item.count && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-auto text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700"
+                        >
+                          {item.count}
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Social Dropdown */}
+            <DropdownMenu
+              open={socialDropdownOpen}
+              onOpenChange={setSocialDropdownOpen}
+            >
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300"
+                  onMouseEnter={() => setSocialDropdownOpen(true)}
+                  onMouseLeave={() => setSocialDropdownOpen(false)}
+                >
+                  <MessageCircle className="w-4 h-4 md:w-4 md:h-4 mr-1 md:mr-2 group-hover:rotate-12 transition-transform duration-300" />
+                  <span className="tracking-wide hidden lg:inline">Social</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
+                onMouseEnter={() => setSocialDropdownOpen(true)}
+                onMouseLeave={() => setSocialDropdownOpen(false)}
+              >
+                {socialItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <DropdownMenuItem
+                      key={item.id}
+                      onClick={() => {
+                        onTabChange(item.id);
+                        navigate(`/${item.id}`);
+                      }}
+                      className={`flex items-center group hover:bg-blue-50/80 transition-all duration-200 ${
+                        isActive
+                          ? "bg-blue-50/80 text-blue-600 font-medium"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span>{item.name}</span>
+                      {item.count && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-auto text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700"
+                        >
+                          {item.count}
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Theme Toggle */}
-            <div className="ml-6">
+            <div className="ml-3 md:ml-6">
               <ThemeToggle />
             </div>
 
             {/* Login/Register Links */}
             {user ? (
-              <DropdownMenu>
+              <DropdownMenu
+                open={userDropdownOpen}
+                onOpenChange={setUserDropdownOpen}
+              >
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="flex items-center px-5 py-3 rounded-xl text-sm font-semibold text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md transition-all duration-200"
+                    className="group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300"
+                    onMouseEnter={() => setUserDropdownOpen(true)}
+                    onMouseLeave={() => setUserDropdownOpen(false)}
                   >
-                    <User className="w-5 h-5" />
+                    <User className="w-4 h-4 md:w-4 md:h-4 group-hover:rotate-12 transition-transform duration-300" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuContent
+                  className="w-56"
+                  align="end"
+                  onMouseEnter={() => setUserDropdownOpen(true)}
+                  onMouseLeave={() => setUserDropdownOpen(false)}
+                >
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
@@ -242,38 +385,50 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-1 md:space-x-2">
                 <Button
                   variant="ghost"
                   onClick={() => navigate("/login")}
-                  className="px-5 py-3 text-sm font-semibold text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md transition-all duration-200 tracking-wide rounded-xl"
+                  className="group px-2 md:px-3 lg:px-4 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300 tracking-wide rounded-xl"
                 >
-                  LOGIN
+                  <span className="hidden sm:inline group-hover:tracking-wider transition-all duration-300">
+                    LOGIN
+                  </span>
+                  <span className="sm:hidden group-hover:tracking-wider transition-all duration-300">
+                    LOG
+                  </span>
                 </Button>
-                <span className="text-gray-400 font-bold text-lg">::</span>
+                <span className="text-gray-400 font-bold text-xs md:text-sm">
+                  ::
+                </span>
                 <Button
                   variant="ghost"
                   onClick={() => navigate("/login")}
-                  className="px-5 py-3 text-sm font-semibold text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md transition-all duration-200 tracking-wide rounded-xl"
+                  className="group px-2 md:px-3 lg:px-4 py-2 md:py-2.5 text-xs md:text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 transition-all duration-300 tracking-wide rounded-xl"
                 >
-                  REGISTER
+                  <span className="hidden sm:inline group-hover:tracking-wider transition-all duration-300">
+                    REGISTER
+                  </span>
+                  <span className="sm:hidden group-hover:tracking-wider transition-all duration-300">
+                    REG
+                  </span>
                 </Button>
               </div>
             )}
           </div>
 
           {/* Mobile menu button */}
-          <div className="lg:hidden">
+          <div className="md:hidden">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md transition-all duration-200 rounded-xl"
+              className="group text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-110 transition-all duration-300 rounded-xl"
             >
               {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
               ) : (
-                <Menu className="w-6 h-6" />
+                <Menu className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
               )}
             </Button>
           </div>
@@ -281,8 +436,8 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white shadow-lg">
-            <div className="px-6 py-6 space-y-3">
+          <div className="md:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-md shadow-xl">
+            <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-2 sm:space-y-3">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -294,17 +449,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                         <Icon className="w-4 h-4 mr-2" />
                         {item.name}
                       </div>
-                      <div className="pl-6 space-y-1">
-                        <button
-                          onClick={() => {
-                            navigate("/gallery");
-                            setMobileMenuOpen(false);
-                          }}
-                          className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
-                        >
-                          <Image className="w-4 h-4 mr-2" />
-                          Gallery
-                        </button>
+                      <div className="pl-4 sm:pl-6 space-y-1">
                         <button
                           onClick={() => {
                             window.open(
@@ -313,7 +458,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                             );
                             setMobileMenuOpen(false);
                           }}
-                          className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
+                          className="flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
                         >
                           <Instagram className="w-4 h-4 mr-2" />
                           Instagram
@@ -326,7 +471,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                             );
                             setMobileMenuOpen(false);
                           }}
-                          className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
+                          className="flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
                         >
                           <Facebook className="w-4 h-4 mr-2" />
                           Facebook
@@ -339,7 +484,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                             );
                             setMobileMenuOpen(false);
                           }}
-                          className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
+                          className="flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
                         >
                           <Linkedin className="w-4 h-4 mr-2" />
                           LinkedIn
@@ -349,7 +494,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                             navigate("/about");
                             setMobileMenuOpen(false);
                           }}
-                          className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
+                          className="flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-xl w-full transition-all duration-200"
                         >
                           <Info className="w-4 h-4 mr-2" />
                           About the College
@@ -367,18 +512,18 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                       navigate(`/${item.id}`);
                       setMobileMenuOpen(false);
                     }}
-                    className={`flex items-center px-4 py-3 rounded-xl text-sm font-semibold w-full transition-all duration-200 ${
+                    className={`flex items-center px-3 sm:px-4 py-2 sm:py-3 rounded-xl text-sm font-semibold w-full transition-all duration-200 ${
                       isActive
                         ? "text-blue-600 bg-blue-50 shadow-md"
                         : "text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md"
                     }`}
                   >
-                    <Icon className="w-4 h-4 mr-2" />
-                    {item.name}
+                    <Icon className="w-4 h-4 mr-2 sm:mr-3" />
+                    <span className="flex-1 text-left">{item.name}</span>
                     {item.count && (
                       <Badge
                         variant="secondary"
-                        className="ml-auto text-xs px-2 py-0.5 bg-blue-100 text-blue-700"
+                        className="ml-auto text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700"
                       >
                         {item.count}
                       </Badge>
@@ -386,6 +531,86 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                   </button>
                 );
               })}
+
+              {/* Content Section */}
+              <div className="space-y-1">
+                <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700">
+                  <Newspaper className="w-4 h-4 mr-2" />
+                  Content
+                </div>
+                <div className="pl-4 sm:pl-6 space-y-1">
+                  {contentItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          onTabChange(item.id);
+                          navigate(`/${item.id}`);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium w-full transition-all duration-200 rounded-xl ${
+                          isActive
+                            ? "text-blue-600 bg-blue-50 shadow-md"
+                            : "text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 mr-2 sm:mr-3" />
+                        <span className="flex-1 text-left">{item.name}</span>
+                        {item.count && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700"
+                          >
+                            {item.count}
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Social Section */}
+              <div className="space-y-1">
+                <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700">
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Social
+                </div>
+                <div className="pl-4 sm:pl-6 space-y-1">
+                  {socialItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          onTabChange(item.id);
+                          navigate(`/${item.id}`);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium w-full transition-all duration-200 rounded-xl ${
+                          isActive
+                            ? "text-blue-600 bg-blue-50 shadow-md"
+                            : "text-gray-800 hover:text-blue-600 hover:bg-gray-50 hover:shadow-md"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 mr-2 sm:mr-3" />
+                        <span className="flex-1 text-left">{item.name}</span>
+                        {item.count && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto text-xs px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700"
+                          >
+                            {item.count}
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}

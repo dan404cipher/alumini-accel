@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,14 +72,22 @@ const Messages = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchConversations();
+    // Debounce the API call to prevent rapid successive requests
+    const timeoutId = setTimeout(() => {
+      fetchConversations();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [searchParams]);
 
   const fetchConversations = async () => {
     try {
       setLoading(true);
+      // Add a small delay to prevent rapid successive calls
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const response = await messageAPI.getConversations();
 
       if (response.success) {
@@ -210,6 +218,11 @@ const Messages = () => {
     }
   };
 
+  const handleProfileClick = (e: React.MouseEvent, userId: string) => {
+    e.stopPropagation(); // Prevent conversation selection
+    navigate(`/alumni/${userId}`);
+  };
+
   const filteredConversations = conversations.filter(
     (conv) =>
       conv.user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -272,7 +285,12 @@ const Messages = () => {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
+                      <Avatar
+                        className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                        onClick={(e) =>
+                          handleProfileClick(e, conversation.user.id)
+                        }
+                      >
                         <AvatarImage
                           src={getImageUrl(
                             conversation.user.profilePicture,
@@ -286,7 +304,12 @@ const Messages = () => {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-gray-900 truncate">
+                          <h3
+                            className="font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                            onClick={(e) =>
+                              handleProfileClick(e, conversation.user.id)
+                            }
+                          >
                             {conversation.user.firstName}{" "}
                             {conversation.user.lastName}
                           </h3>
@@ -320,7 +343,12 @@ const Messages = () => {
                 {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
+                    <div
+                      className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                      onClick={(e) =>
+                        handleProfileClick(e, selectedConversation.user.id)
+                      }
+                    >
                       <Avatar className="h-8 w-8">
                         <AvatarImage
                           src={getImageUrl(
@@ -334,7 +362,7 @@ const Messages = () => {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-medium">
+                        <h3 className="font-medium hover:text-blue-600 transition-colors">
                           {selectedConversation.user.firstName}{" "}
                           {selectedConversation.user.lastName}
                         </h3>

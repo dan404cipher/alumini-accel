@@ -18,6 +18,7 @@ import CookiePolicy from "./pages/CookiePolicy";
 import Dashboard from "./components/Dashboard";
 import AlumniDirectory from "./components/AlumniDirectory";
 import JobBoard from "./components/JobBoard";
+
 import EventsMeetups from "./components/EventsMeetups";
 import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";

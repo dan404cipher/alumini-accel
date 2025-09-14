@@ -19,6 +19,7 @@ import {
   GraduationCap,
   BookOpen,
   Github,
+  MessageCircle,
 } from "lucide-react";
 import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -311,8 +312,10 @@ const AlumniProfile = () => {
                       ? user.profileImage.startsWith("http")
                         ? user.profileImage
                         : `${
-                            import.meta.env.VITE_API_URL ||
-                            "http://localhost:3000"
+                            import.meta.env.VITE_API_URL?.replace(
+                              "/api/v1",
+                              ""
+                            ) || "http://localhost:3000"
                           }${user.profileImage}`
                       : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                           user.name
@@ -1226,10 +1229,16 @@ const AlumniProfile = () => {
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Connect</h3>
                 <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Mail className="w-4 h-4 mr-2" />
-                    Send Message
-                  </Button>
+                  {!isOwnProfile && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => navigate(`/messages?user=${user.id}`)}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Send Message
+                    </Button>
+                  )}
 
                   {user.linkedinProfile && (
                     <Button

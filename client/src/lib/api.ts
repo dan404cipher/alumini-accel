@@ -91,7 +91,6 @@ const rateLimiter = new RateLimiter();
 if (typeof window !== "undefined") {
   (window as unknown as Record<string, unknown>).clearRateLimits = () => {
     rateLimiter.clearAllLimits();
-    console.log("Rate limits cleared");
   };
 }
 
@@ -1327,6 +1326,69 @@ export const connectionAPI = {
     return apiRequest({
       method: "GET",
       url: `/connections/check/${userId}`,
+    });
+  },
+};
+
+// Message API
+export const messageAPI = {
+  // Send a message
+  sendMessage: async (data: {
+    recipientId: string;
+    content: string;
+    messageType?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/messages",
+      data,
+    });
+  },
+
+  // Get messages between two users
+  getMessages: async (
+    recipientId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
+    return apiRequest({
+      method: "GET",
+      url: `/messages/${recipientId}`,
+      params,
+    });
+  },
+
+  // Get all conversations for a user
+  getConversations: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/messages/conversations",
+    });
+  },
+
+  // Mark a message as read
+  markAsRead: async (messageId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/messages/${messageId}/read`,
+    });
+  },
+
+  // Get unread message count
+  getUnreadCount: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/messages/unread-count",
+    });
+  },
+
+  // Delete a message
+  deleteMessage: async (messageId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/messages/${messageId}`,
     });
   },
 };

@@ -31,6 +31,7 @@ import invitationRoutes from "@/routes/invitations";
 import docsRoutes from "@/routes/docs";
 import galleryRoutes from "@/routes/gallery";
 import connectionRoutes from "@/routes/connection";
+import messageRoutes from "@/routes/message";
 
 // Load environment variables
 dotenv.config();
@@ -190,6 +191,7 @@ app.use("/api/v1/invitations", invitationRoutes);
 app.use("/api/v1/docs", docsRoutes);
 app.use("/api/v1/gallery", galleryRoutes);
 app.use("/api/v1/connections", connectionRoutes);
+app.use("/api/v1/messages", messageRoutes);
 
 // Serve static files with CORS headers
 app.use(

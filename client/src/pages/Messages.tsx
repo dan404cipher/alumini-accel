@@ -1,0 +1,445 @@
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  MessageCircle,
+  Send,
+  Search,
+  MoreVertical,
+  Trash2,
+  Check,
+  CheckCheck,
+} from "lucide-react";
+import { messageAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
+
+interface Message {
+  id: string;
+  sender: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profilePicture?: string;
+  };
+  recipient: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profilePicture?: string;
+  };
+  content: string;
+  messageType: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Conversation {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profilePicture?: string;
+  };
+  lastMessage?: {
+    content: string;
+    createdAt: string;
+    isRead: boolean;
+  };
+  unreadCount: number;
+}
+
+const Messages = () => {
+  const [searchParams] = useSearchParams();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] =
+    useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+
+  useEffect(() => {
+    fetchConversations();
+  }, [searchParams]);
+
+  const fetchConversations = async () => {
+    try {
+      setLoading(true);
+      const response = await messageAPI.getConversations();
+
+      if (response.success) {
+        const conversationsData = response.data || [];
+        setConversations(conversationsData);
+
+        // Auto-select conversation if user ID is provided in URL
+        const userId = searchParams.get("user");
+        if (userId && conversationsData.length > 0) {
+          const targetConversation = conversationsData.find(
+            (conv) => conv.user.id === userId
+          );
+          if (targetConversation) {
+            setSelectedConversation(targetConversation);
+            fetchMessages(targetConversation.user.id);
+          }
+        }
+      } else {
+        console.error("❌ API Error:", response.message);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching conversations:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversations",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMessages = async (recipientId: string) => {
+    try {
+      const response = await messageAPI.getMessages(recipientId, { limit: 50 });
+      if (response.success) {
+        setMessages(response.data.messages || []);
+      }
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || sending) return;
+
+    try {
+      setSending(true);
+      const response = await messageAPI.sendMessage({
+        recipientId: selectedConversation.user.id,
+        content: newMessage.trim(),
+      });
+
+      if (response.success) {
+        setNewMessage("");
+        // Refresh messages
+        await fetchMessages(selectedConversation.user.id);
+        // Refresh conversations to update last message
+        await fetchConversations();
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to send message",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const selectConversation = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    fetchMessages(conversation.user.id);
+  };
+
+  const getImageUrl = (profilePicture?: string, name?: string) => {
+    if (profilePicture) {
+      if (profilePicture.startsWith("http")) {
+        return profilePicture;
+      }
+      // Remove leading slash if present to avoid double slashes
+      const cleanPath = profilePicture.startsWith("/")
+        ? profilePicture.slice(1)
+        : profilePicture;
+      const baseUrl =
+        import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
+        "http://localhost:3000";
+      const url = `${baseUrl}/${cleanPath}`;
+      return url;
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      name || "User"
+    )}&background=random`;
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  const filteredConversations = conversations.filter(
+    (conv) =>
+      conv.user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.user.lastName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+        <Navigation activeTab="messages" onTabChange={() => {}} />
+        <div className="container mx-auto px-4 py-8 flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-semibold mb-2">Loading messages...</h3>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      <Navigation activeTab="messages" onTabChange={() => {}} />
+      <div className="container mx-auto px-4 py-8 flex-1 flex flex-col min-h-0">
+        <div className="flex flex-1 bg-white rounded-lg shadow-lg overflow-hidden min-h-0">
+          {/* Conversations List */}
+          <div className="w-1/3 border-r border-gray-200 flex flex-col">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold mb-4">Messages</h2>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {filteredConversations.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  <MessageCircle className="h-8 w-8 mx-auto mb-2" />
+                  <p>No connected users yet</p>
+                  <p className="text-sm mt-1">
+                    Connect with other users to start messaging
+                  </p>
+                </div>
+              ) : (
+                filteredConversations.map((conversation) => (
+                  <div
+                    key={conversation.user.id}
+                    onClick={() => selectConversation(conversation)}
+                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                      selectedConversation?.user.id === conversation.user.id
+                        ? "bg-blue-50 border-blue-200"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={getImageUrl(
+                            conversation.user.profilePicture,
+                            `${conversation.user.firstName} ${conversation.user.lastName}`
+                          )}
+                        />
+                        <AvatarFallback>
+                          {conversation.user.firstName[0]}
+                          {conversation.user.lastName[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-gray-900 truncate">
+                            {conversation.user.firstName}{" "}
+                            {conversation.user.lastName}
+                          </h3>
+                          {conversation.unreadCount > 0 && (
+                            <Badge variant="destructive" className="ml-2">
+                              {conversation.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
+                        {conversation.lastMessage ? (
+                          <p className="text-sm text-gray-500 truncate">
+                            {conversation.lastMessage.content}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-400 italic">
+                            No messages yet - click to start conversation
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Chat Area */}
+          <div className="flex-1 flex flex-col">
+            {selectedConversation ? (
+              <>
+                {/* Chat Header */}
+                <div className="p-4 border-b border-gray-200 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage
+                          src={getImageUrl(
+                            selectedConversation.user.profilePicture,
+                            `${selectedConversation.user.firstName} ${selectedConversation.user.lastName}`
+                          )}
+                        />
+                        <AvatarFallback>
+                          {selectedConversation.user.firstName[0]}
+                          {selectedConversation.user.lastName[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-medium">
+                          {selectedConversation.user.firstName}{" "}
+                          {selectedConversation.user.lastName}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {selectedConversation.user.email}
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <MessageCircle className="h-8 w-8 mx-auto mb-2" />
+                      <p>No messages yet. Start the conversation!</p>
+                      <p className="text-sm mt-2">
+                        You can now message{" "}
+                        {selectedConversation.user.firstName}{" "}
+                        {selectedConversation.user.lastName}
+                      </p>
+                    </div>
+                  ) : (
+                    messages
+                      .slice()
+                      .reverse()
+                      .map((message) => {
+                        const isOwnMessage =
+                          message.sender.id === currentUser?._id;
+                        return (
+                          <div
+                            key={message.id}
+                            className={`flex ${
+                              isOwnMessage ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                isOwnMessage
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-gray-200 text-gray-900"
+                              }`}
+                            >
+                              <p className="text-sm">{message.content}</p>
+                              <div className="flex items-center justify-end mt-1 space-x-1">
+                                <span className="text-xs opacity-70">
+                                  {formatTime(message.createdAt)}
+                                </span>
+                                {isOwnMessage && (
+                                  <div className="text-xs opacity-70">
+                                    {message.isRead ? (
+                                      <CheckCheck className="h-3 w-3" />
+                                    ) : (
+                                      <Check className="h-3 w-3" />
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+
+                {/* Message Input */}
+                <div className="p-4 border-t border-gray-200">
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Type a message..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      disabled={sending}
+                    />
+                    <Button
+                      onClick={sendMessage}
+                      disabled={sending || !newMessage.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    Select a conversation
+                  </h3>
+                  <p>Choose a conversation from the list to start messaging</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+export default Messages;

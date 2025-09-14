@@ -323,14 +323,6 @@ export const userAPI = {
     });
   },
 
-  // Get user by ID
-  getUserById: async (id: string) => {
-    return apiRequest({
-      method: "GET",
-      url: `/users/${id}`,
-    });
-  },
-
   // Update user profile
   updateProfile: async (profileData: {
     firstName?: string;
@@ -1260,6 +1252,14 @@ export const connectionAPI = {
     return apiRequest({
       method: "PATCH",
       url: `/connections/${connectionId}/block`,
+    });
+  },
+
+  // Unblock user
+  unblockUser: async (connectionId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/connections/${connectionId}/unblock`,
     });
   },
 

@@ -5,6 +5,7 @@ import {
   acceptConnection,
   rejectConnection,
   blockUser,
+  unblockUser,
   cancelConnection,
   getUserConnections,
   getPendingRequests,
@@ -30,6 +31,9 @@ router.patch("/:connectionId/reject", rejectConnection);
 
 // Block user
 router.patch("/:connectionId/block", blockUser);
+
+// Unblock user
+router.patch("/:connectionId/unblock", unblockUser);
 
 // Cancel connection request
 router.patch("/:connectionId/cancel", cancelConnection);

@@ -43,6 +43,14 @@ const connectionSchema = new Schema<IConnection>(
     blockedAt: {
       type: Date,
     },
+    blockedBy: {
+      type: mongoose.Types.ObjectId as any,
+      ref: "User",
+    },
+    previousStatus: {
+      type: String,
+      enum: Object.values(ConnectionStatus),
+    },
   },
   {
     timestamps: true,
@@ -88,15 +96,36 @@ connectionSchema.methods.reject = function () {
 };
 
 // Instance method to block connection
-connectionSchema.methods.block = function () {
+connectionSchema.methods.block = function (blockedByUserId: string) {
+  // Save the previous status before blocking
+  this.previousStatus = this.status;
   this.status = ConnectionStatus.BLOCKED;
   this.blockedAt = new Date();
+  this.blockedBy = blockedByUserId;
   return this.save();
 };
 
 // Instance method to cancel connection
 connectionSchema.methods.cancel = function () {
   this.status = ConnectionStatus.CANCELLED;
+  return this.save();
+};
+
+// Instance method to unblock connection
+connectionSchema.methods.unblock = function () {
+  // Restore the previous status
+  if (this.previousStatus) {
+    this.status = this.previousStatus;
+  } else {
+    // If no previous status, default to PENDING
+    this.status = ConnectionStatus.PENDING;
+  }
+
+  // Clear blocking-related fields
+  this.blockedAt = undefined;
+  this.blockedBy = undefined;
+  this.previousStatus = undefined;
+
   return this.save();
 };
 
@@ -114,8 +143,8 @@ connectionSchema.statics.findUserConnections = function (
   }
 
   return this.find(query)
-    .populate("requesterUser", "firstName lastName email profilePicture role")
-    .populate("recipientUser", "firstName lastName email profilePicture role")
+    .populate("requester", "firstName lastName email profilePicture role")
+    .populate("recipient", "firstName lastName email profilePicture role")
     .sort({ createdAt: -1 });
 };
 
@@ -125,7 +154,10 @@ connectionSchema.statics.findPendingRequests = function (userId: string) {
     recipient: userId,
     status: ConnectionStatus.PENDING,
   })
-    .populate("requesterUser", "firstName lastName email profilePicture role")
+    .populate(
+      "requester",
+      "firstName lastName email profilePicture role bio location university"
+    )
     .sort({ createdAt: -1 });
 };
 
@@ -135,7 +167,10 @@ connectionSchema.statics.findSentRequests = function (userId: string) {
     requester: userId,
     status: ConnectionStatus.PENDING,
   })
-    .populate("recipientUser", "firstName lastName email profilePicture role")
+    .populate(
+      "recipient",
+      "firstName lastName email profilePicture role bio location university"
+    )
     .sort({ createdAt: -1 });
 };
 
@@ -174,12 +209,22 @@ connectionSchema.statics.getConnectionStats = async function (userId: string) {
     },
   ]);
 
+  // Get blocked users count separately (only users blocked by current user)
+  const blockedUsersCount = await this.countDocuments({
+    $or: [
+      { requester: new mongoose.Types.ObjectId(userId) },
+      { recipient: new mongoose.Types.ObjectId(userId) },
+    ],
+    status: ConnectionStatus.BLOCKED,
+    blockedBy: new mongoose.Types.ObjectId(userId),
+  });
+
   const result = {
     totalConnections: 0,
     pendingRequests: 0,
     sentRequests: 0,
     receivedRequests: 0,
-    blockedUsers: 0,
+    blockedUsers: blockedUsersCount,
   };
 
   stats.forEach((stat) => {
@@ -190,9 +235,7 @@ connectionSchema.statics.getConnectionStats = async function (userId: string) {
       case ConnectionStatus.PENDING:
         result.pendingRequests = stat.count;
         break;
-      case ConnectionStatus.BLOCKED:
-        result.blockedUsers = stat.count;
-        break;
+      // blockedUsers is now calculated separately above
     }
   });
 

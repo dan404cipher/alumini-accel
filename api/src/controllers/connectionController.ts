@@ -254,7 +254,7 @@ export const blockUser = async (req: Request, res: Response) => {
       });
     }
 
-    await connection.block();
+    await connection.block(userId);
 
     logger.info(`User ${userId} blocked connection ${connectionId}`);
 
@@ -345,6 +345,11 @@ export const getUserConnections = async (req: Request, res: Response) => {
 
     if (status) {
       query.status = status;
+
+      // For blocked status, only show connections blocked by the current user
+      if (status === "blocked") {
+        query.blockedBy = userId;
+      }
     }
 
     if (type) {
@@ -352,8 +357,14 @@ export const getUserConnections = async (req: Request, res: Response) => {
     }
 
     const connections = await Connection.find(query)
-      .populate("requesterUser", "firstName lastName email profilePicture role")
-      .populate("recipientUser", "firstName lastName email profilePicture role")
+      .populate(
+        "requester",
+        "firstName lastName email profilePicture role bio location university"
+      )
+      .populate(
+        "recipient",
+        "firstName lastName email profilePicture role bio location university"
+      )
       .sort({ createdAt: -1 })
       .limit(Number(limit) * 1)
       .skip((Number(page) - 1) * Number(limit));
@@ -515,6 +526,61 @@ export const checkConnectionStatus = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Failed to check connection status",
+    });
+  }
+};
+
+// Unblock user
+export const unblockUser = async (req: Request, res: Response) => {
+  try {
+    const { connectionId } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    const connection = await Connection.findById(connectionId);
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: "Connection not found",
+      });
+    }
+
+    // Only the user who blocked can unblock
+    if (connection.blockedBy?.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the user who blocked can unblock",
+      });
+    }
+
+    if (connection.status !== ConnectionStatus.BLOCKED) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not blocked",
+      });
+    }
+
+    // Restore the connection to its previous status
+    await connection.unblock();
+
+    logger.info(`User ${userId} unblocked connection ${connectionId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "User unblocked successfully",
+    });
+  } catch (error) {
+    logger.error("Error unblocking user:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to unblock user",
     });
   }
 };

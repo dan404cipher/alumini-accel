@@ -133,6 +133,11 @@ const AlumniProfile = () => {
         setLoading(true);
         setError(null);
 
+        if (!userId || userId === "undefined") {
+          setError("Invalid user ID");
+          setLoading(false);
+          return;
+        }
         const response = await alumniAPI.getUserById(userId);
 
         if (
@@ -224,8 +229,11 @@ const AlumniProfile = () => {
   };
 
   useEffect(() => {
-    if (id) {
+    if (id && id !== "undefined") {
       fetchUserProfile(id);
+    } else {
+      setError("Invalid user ID provided");
+      setLoading(false);
     }
   }, [id, fetchUserProfile]);
 
@@ -342,7 +350,6 @@ const AlumniProfile = () => {
                       onImageUpload={handleImageUpload}
                       isLoading={uploadingImage}
                       maxSize={5}
-                      aspectRatio={1}
                     />
                   </div>
                 )}

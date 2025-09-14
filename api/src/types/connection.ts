@@ -29,6 +29,8 @@ export interface IConnection extends Document {
   acceptedAt?: Date;
   rejectedAt?: Date;
   blockedAt?: Date;
+  blockedBy?: string; // User ID who initiated the block
+  previousStatus?: ConnectionStatus; // Status before blocking
 
   // Virtual populated fields
   requesterUser?: any;
@@ -37,7 +39,8 @@ export interface IConnection extends Document {
   // Instance methods
   accept(): Promise<IConnection>;
   reject(): Promise<IConnection>;
-  block(): Promise<IConnection>;
+  block(blockedByUserId: string): Promise<IConnection>;
+  unblock(): Promise<IConnection>;
   cancel(): Promise<IConnection>;
 }
 

@@ -1,24 +1,19 @@
 import { Request, Response } from "express";
 import AlumniProfile from "@/models/AlumniProfile";
-import StudentProfile from "@/models/StudentProfile";
 import User from "@/models/User";
 import { logger } from "@/utils/logger";
 import { UserRole } from "@/types";
 
-// Get all users directory (students and alumni)
+// Get all alumni directory
 export const getAllUsersDirectory = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
-    const userType = req.query.userType as string; // 'student', 'alumni', or 'all'
-
-    // Build filter for user type
-    const userFilter: any = {};
-    if (userType && userType !== "all") {
-      userFilter.role =
-        userType === "student" ? UserRole.STUDENT : UserRole.ALUMNI;
-    }
+    // Build filter for alumni only
+    const userFilter: any = {
+      role: UserRole.ALUMNI,
+    };
 
     // Get all users
     const users = await User.find(userFilter)
@@ -37,22 +32,10 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
     );
 
-    const studentProfiles = await StudentProfile.find({
-      userId: { $in: users.map((u) => u._id) },
-    }).populate(
-      "userId",
-      "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
-    );
-
     // Create maps for quick lookup
     const alumniMap = new Map();
     alumniProfiles.forEach((profile: any) => {
       alumniMap.set(profile.userId.toString(), profile);
-    });
-
-    const studentMap = new Map();
-    studentProfiles.forEach((profile: any) => {
-      studentMap.set(profile.userId.toString(), profile);
     });
 
     // Format the response
@@ -97,26 +80,6 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
             availableForMentorship: profile.availableForMentorship,
             mentorshipDomains: profile.mentorshipDomains || [],
             achievements: profile.achievements || [],
-          };
-        }
-      } else if (user.role === UserRole.STUDENT) {
-        const profile = studentMap.get(user._id.toString());
-        if (profile) {
-          return {
-            ...baseUser,
-            graduationYear: profile.graduationYear,
-            batchYear: profile.batchYear,
-            department: profile.department,
-            program: profile.program,
-            currentYear: profile.currentYear,
-            currentCGPA: profile.currentCGPA,
-            currentGPA: profile.currentGPA,
-            skills: profile.skills || [],
-            careerInterests: profile.careerInterests || [],
-            isHiring: false,
-            availableForMentorship: false,
-            mentorshipDomains: [],
-            achievements: [],
           };
         }
       }
@@ -780,27 +743,22 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
   }
 };
 
-// Get user by ID (student or alumni)
+// Get alumni by ID
 export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Get user
-    const user = await User.findById(id);
+    // Get user (alumni only)
+    const user = await User.findOne({ _id: id, role: UserRole.ALUMNI });
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: "Alumni not found",
       });
     }
 
-    // Get profile based on user role
-    let profile = null;
-    if (user.role === UserRole.ALUMNI) {
-      profile = await AlumniProfile.findOne({ userId: user._id });
-    } else if (user.role === UserRole.STUDENT) {
-      profile = await StudentProfile.findOne({ userId: user._id });
-    }
+    // Get alumni profile
+    const profile = await AlumniProfile.findOne({ userId: user._id });
 
     // Format the response
     const baseUser = {
@@ -825,7 +783,7 @@ export const getUserById = async (req: Request, res: Response) => {
     };
 
     // Add profile-specific data
-    if (user.role === UserRole.ALUMNI && profile) {
+    if (profile) {
       const alumniProfile = profile as any;
       const formattedUser = {
         ...baseUser,
@@ -849,32 +807,6 @@ export const getUserById = async (req: Request, res: Response) => {
         projects: alumniProfile.projects || [],
         internshipExperience: alumniProfile.internshipExperience || [],
         researchWork: alumniProfile.researchWork || [],
-      };
-      return res.json({
-        success: true,
-        data: { user: formattedUser },
-      });
-    } else if (user.role === UserRole.STUDENT && profile) {
-      const studentProfile = profile as any;
-      const formattedUser = {
-        ...baseUser,
-        graduationYear: studentProfile.graduationYear,
-        batchYear: studentProfile.batchYear,
-        department: studentProfile.department,
-        program: studentProfile.program,
-        currentYear: studentProfile.currentYear,
-        currentCGPA: studentProfile.currentCGPA,
-        currentGPA: studentProfile.currentGPA,
-        skills: studentProfile.skills || [],
-        careerInterests: studentProfile.careerInterests || [],
-        isHiring: false,
-        availableForMentorship: false,
-        mentorshipDomains: [],
-        achievements: [],
-        projects: studentProfile.projects || [],
-        internshipExperience: studentProfile.internshipExperience || [],
-        researchWork: studentProfile.researchWork || [],
-        certifications: studentProfile.certifications || [],
       };
       return res.json({
         success: true,

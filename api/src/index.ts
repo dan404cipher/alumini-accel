@@ -21,7 +21,6 @@ import { rateLimit as customRateLimit } from "@/middleware/auth";
 import authRoutes from "@/routes/auth";
 import userRoutes from "@/routes/users";
 import alumniRoutes from "@/routes/alumni";
-import studentRoutes from "@/routes/studentRoutes";
 import jobRoutes from "@/routes/jobs";
 import eventRoutes from "@/routes/events";
 import newsRoutes from "@/routes/news";
@@ -181,7 +180,6 @@ app.get("/test-uploads", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/alumni", alumniRoutes);
-app.use("/api/v1/students", studentRoutes);
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/news", newsRoutes);

@@ -1,47 +1,35 @@
 # Admin/Coordinator Account Management Guide
 
-This guide explains how to use the admin and coordinator functionality for creating and managing student and alumni accounts.
+This guide explains how to use the admin and coordinator functionality for creating and managing alumni accounts.
 
 ## 🎯 **Overview**
 
-The system now includes comprehensive admin/coordinator functionality for managing user accounts:
+The system now includes comprehensive admin/coordinator functionality for managing alumni accounts:
 
-- **Student Management** - Create and manage student accounts
 - **Alumni Management** - Create and manage alumni accounts
 - **Admin Dashboard** - Unified interface for all administrative tasks
 
 ## 🔧 **Components Created**
 
-### 1. StudentManagement.tsx
-
-- **Location**: `/client/src/components/StudentManagement.tsx`
-- **Purpose**: Complete student account management interface
-- **Features**:
-  - Create new student accounts
-  - View all students with search and filtering
-  - Display student profiles with academic information
-  - Statistics dashboard
-
-### 2. AdminDashboard.tsx
+### 1. AdminDashboard.tsx
 
 - **Location**: `/client/src/components/AdminDashboard.tsx`
 - **Purpose**: Unified admin interface
 - **Features**:
   - Overview dashboard with statistics
-  - Tabbed interface for Students, Alumni, and Analytics
+  - Tabbed interface for Alumni and Analytics
   - Quick action buttons
   - Role-based access control
 
-### 3. Student API Functions
+### 2. AlumniManagement.tsx
 
-- **Location**: `/client/src/lib/api.ts`
-- **Purpose**: API integration for student management
-- **Functions**:
-  - `getAllStudents()` - Fetch all students
-  - `getStudentById()` - Get specific student
-  - `createStudentProfile()` - Create student profile
-  - `updateStudentProfile()` - Update student profile
-  - And more...
+- **Location**: `/client/src/components/AlumniManagement.tsx`
+- **Purpose**: Complete alumni account management interface
+- **Features**:
+  - Create new alumni accounts
+  - View all alumni with search and filtering
+  - Display alumni profiles with professional information
+  - Statistics dashboard
 
 ## 🚀 **How to Use**
 
@@ -51,48 +39,31 @@ The system now includes comprehensive admin/coordinator functionality for managi
 2. **Navigate** to `/admin` in your browser
 3. **Access** the unified admin dashboard
 
-### Creating Student Accounts
-
-1. **Go to** the Students tab in admin dashboard
-2. **Click** "Create Student Account" button
-3. **Fill out** the comprehensive form:
-
-   - Basic Info: Name, Email, Phone
-   - Academic Info: University, Department, Program
-   - Academic Details: Batch Year, Graduation Year, Current Year
-   - Student Details: Roll Number, Student ID
-   - Academic Performance: CGPA, GPA (optional)
-   - Skills & Interests: Comma-separated lists
-   - Social Profiles: LinkedIn, GitHub (optional)
-
-4. **Submit** the form to create both user account and student profile
-
 ### Creating Alumni Accounts
 
 1. **Go to** the Alumni tab in admin dashboard
 2. **Click** "Create Alumni Account" button
-3. **Fill out** the alumni-specific form
-4. **Submit** to create both user account and alumni profile
+3. **Fill out** the comprehensive form:
+
+   - Basic Info: Name, Email, Phone
+   - Academic Info: University, Department, Program
+   - Academic Details: Batch Year, Graduation Year
+   - Professional Details: Current Company, Position, Location
+   - Skills & Interests: Comma-separated lists
+   - Social Profiles: LinkedIn, GitHub (optional)
+
+4. **Submit** the form to create both user account and alumni profile
 
 ## 📋 **Form Fields**
 
-### Student Account Creation
-
-- **Personal**: First Name, Last Name, Email, Phone
-- **Academic**: University, Department, Program
-- **Timeline**: Batch Year, Graduation Year, Current Year
-- **Identification**: Roll Number, Student ID
-- **Performance**: Current CGPA, Current GPA
-- **Skills**: Comma-separated skills list
-- **Interests**: Comma-separated career interests
-- **Social**: LinkedIn Profile, GitHub Profile
-
 ### Alumni Account Creation
 
-- **Personal**: First Name, Last Name, Email
-- **Academic**: Graduation Year, Degree, Major
-- **Professional**: Current Company, Current Position, Location
-- **Profile**: Bio, Skills, Social Profiles
+- **Personal**: First Name, Last Name, Email, Phone
+- **Academic**: University, Department, Program, Batch Year, Graduation Year
+- **Professional**: Current Company, Current Position, Location, Experience
+- **Skills**: Comma-separated skills list
+- **Interests**: Comma-separated career interests
+- **Social**: LinkedIn Profile, GitHub Profile, Website
 
 ## 🔐 **Permissions**
 

@@ -24,12 +24,12 @@ import {
 const router = express.Router();
 
 // @route   GET /api/v1/alumni/users
-// @desc    Get all users directory (students and alumni)
+// @desc    Get all alumni directory
 // @access  Public
 router.get("/users", asyncHandler(alumniController.getAllUsersDirectory));
 
 // @route   GET /api/v1/alumni/user/:id
-// @desc    Get user by ID (student or alumni)
+// @desc    Get alumni by ID
 // @access  Public
 router.get("/user/:id", asyncHandler(alumniController.getUserById));
 

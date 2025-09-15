@@ -111,7 +111,16 @@ const AlumniManagement = () => {
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           errors.email = "Please enter a valid email address";
         } else {
-          delete errors.email;
+          // Check if email already exists in current alumni list
+          const emailExists = alumni?.some(
+            (alumnus) =>
+              alumnus.userId?.email?.toLowerCase() === value.toLowerCase()
+          );
+          if (emailExists) {
+            errors.email = "This email is already registered";
+          } else {
+            delete errors.email;
+          }
         }
         break;
 
@@ -341,6 +350,12 @@ const AlumniManagement = () => {
           );
         }
 
+        // Handle validation errors
+        if (errorData.errors && Object.keys(errorData.errors).length > 0) {
+          const validationErrors = Object.values(errorData.errors).join(", ");
+          throw new Error(`Validation error: ${validationErrors}`);
+        }
+
         throw new Error(errorData.message || "Failed to create user account");
       }
 
@@ -349,7 +364,7 @@ const AlumniManagement = () => {
       const alumniToken = userResult.data.token; // Get the alumni's token
 
       // Create alumni profile using the alumni's token
-      const profileData: any = {
+      const profileData: Record<string, unknown> = {
         university: newAlumni.degree || "University", // Map degree to university
         program: newAlumni.major || "General Program", // Map major to program
         batchYear: parseInt(newAlumni.graduationYear.toString()), // Use graduation year as batch year
@@ -433,9 +448,13 @@ const AlumniManagement = () => {
       fetchAlumni();
     } catch (error) {
       console.error("Error creating alumni:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create alumni account";
       toast({
         title: "Error",
-        description: "Failed to create alumni account",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -445,11 +464,11 @@ const AlumniManagement = () => {
 
   const filteredAlumni = (alumni || []).filter(
     (alumnus) =>
-      `${alumnus.userId.firstName} ${alumnus.userId.lastName}`
+      `${alumnus.userId?.firstName || ""} ${alumnus.userId?.lastName || ""}`
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      alumnus.userId.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      alumnus.currentCompany.toLowerCase().includes(searchTerm.toLowerCase())
+      alumnus.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      alumnus.currentCompany?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Check if user has permission to manage alumni
@@ -490,7 +509,9 @@ const AlumniManagement = () => {
             <DialogHeader>
               <DialogTitle>Create New Alumni Account</DialogTitle>
               <DialogDescription>
-                Create a new alumni account with profile information
+                Create a new alumni account with profile information. Make sure
+                to use a unique email address that hasn't been registered
+                before.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateAlumni} className="space-y-4">
@@ -538,6 +559,7 @@ const AlumniManagement = () => {
                 <Input
                   id="email"
                   type="email"
+                  placeholder="alumni@example.com"
                   value={newAlumni.email}
                   onChange={(e) => {
                     setNewAlumni({ ...newAlumni, email: e.target.value });
@@ -549,6 +571,9 @@ const AlumniManagement = () => {
                 {formErrors.email && (
                   <p className="text-sm text-red-500">{formErrors.email}</p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Use a unique email address that hasn't been registered before
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -730,9 +755,12 @@ const AlumniManagement = () => {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-lg font-semibold">
-                        {alumnus.userId.firstName} {alumnus.userId.lastName}
+                        {alumnus.userId?.firstName || "Unknown"}{" "}
+                        {alumnus.userId?.lastName || "User"}
                       </h3>
-                      <Badge variant="secondary">{alumnus.userId.role}</Badge>
+                      <Badge variant="secondary">
+                        {alumnus.userId?.role || "alumni"}
+                      </Badge>
                       {alumnus.isActive ? (
                         <Badge variant="default">Active</Badge>
                       ) : (
@@ -743,7 +771,7 @@ const AlumniManagement = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center space-x-2">
                         <Mail className="w-4 h-4" />
-                        <span>{alumnus.userId.email}</span>
+                        <span>{alumnus.userId?.email || "No email"}</span>
                       </div>
 
                       {alumnus.currentCompany && (

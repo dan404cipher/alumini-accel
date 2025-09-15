@@ -502,10 +502,12 @@ const Profile = () => {
                         src={
                           profile.user.profilePicture.startsWith("http")
                             ? profile.user.profilePicture
-                            : `${
+                            : `${(
                                 import.meta.env.VITE_API_URL ||
-                                "http://localhost:3000"
-                              }${profile.user.profilePicture}`
+                                "http://localhost:3000/api/v1"
+                              ).replace("/api/v1", "")}${
+                                profile.user.profilePicture
+                              }`
                         }
                         alt="Profile"
                         className="w-24 h-24 rounded-full object-cover"

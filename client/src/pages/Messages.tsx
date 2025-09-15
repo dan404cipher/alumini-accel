@@ -188,15 +188,10 @@ const Messages = () => {
       if (profilePicture.startsWith("http")) {
         return profilePicture;
       }
-      // Remove leading slash if present to avoid double slashes
-      const cleanPath = profilePicture.startsWith("/")
-        ? profilePicture.slice(1)
-        : profilePicture;
-      const baseUrl =
-        import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
-        "http://localhost:3000";
-      const url = `${baseUrl}/${cleanPath}`;
-      return url;
+      const baseUrl = (
+        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+      ).replace("/api/v1", "");
+      return `${baseUrl}${profilePicture}`;
     }
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       name || "User"

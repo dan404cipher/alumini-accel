@@ -125,13 +125,6 @@ export const requireAlumni = authorize(
   UserRole.COORDINATOR,
   UserRole.ALUMNI
 );
-export const requireStudent = authorize(
-  UserRole.SUPER_ADMIN,
-  UserRole.ADMIN,
-  UserRole.COORDINATOR,
-  UserRole.ALUMNI,
-  UserRole.STUDENT
-);
 
 // Optional authentication middleware (doesn't fail if no token)
 export const optionalAuth = async (
@@ -304,7 +297,6 @@ export default {
   requireAdmin,
   requireCoordinator,
   requireAlumni,
-  requireStudent,
   optionalAuth,
   rateLimit,
   logout,

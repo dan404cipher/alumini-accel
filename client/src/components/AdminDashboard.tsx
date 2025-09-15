@@ -10,7 +10,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, GraduationCap, Building, BarChart3 } from "lucide-react";
-import StudentManagement from "./StudentManagement";
 import AlumniManagement from "./AlumniManagement";
 import Navigation from "./Navigation";
 import Footer from "./Footer";
@@ -64,9 +63,8 @@ const AdminDashboard = () => {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="alumni">Alumni</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
@@ -144,14 +142,6 @@ const AdminDashboard = () => {
                   <Button
                     className="w-full justify-start"
                     variant="outline"
-                    onClick={() => setActiveTab("students")}
-                  >
-                    <GraduationCap className="mr-2 h-4 w-4" />
-                    Manage Students
-                  </Button>
-                  <Button
-                    className="w-full justify-start"
-                    variant="outline"
                     onClick={() => setActiveTab("alumni")}
                   >
                     <Users className="mr-2 h-4 w-4" />
@@ -181,10 +171,6 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="students">
-            <StudentManagement />
           </TabsContent>
 
           <TabsContent value="alumni">

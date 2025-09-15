@@ -219,10 +219,12 @@ const AlumniDirectory = () => {
                             directoryUser.profileImage
                               ? directoryUser.profileImage.startsWith("http")
                                 ? directoryUser.profileImage
-                                : `${
+                                : `${(
                                     import.meta.env.VITE_API_URL ||
-                                    "http://localhost:3000"
-                                  }${directoryUser.profileImage}`
+                                    "http://localhost:3000/api/v1"
+                                  ).replace("/api/v1", "")}${
+                                    directoryUser.profileImage
+                                  }`
                               : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                   directoryUser.name
                                 )}&background=random`

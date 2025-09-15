@@ -43,7 +43,7 @@ export const register = async (req: Request, res: Response) => {
       password,
       firstName,
       lastName,
-      role: role || UserRole.STUDENT,
+      role: role || UserRole.ALUMNI,
       phone,
       status: userStatus,
     });
@@ -346,13 +346,6 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       alumniProfile = await AlumniProfile.findOne({ userId: user._id });
     }
 
-    // If user is student, include student profile
-    let studentProfile = null;
-    if (user.role === UserRole.STUDENT) {
-      const StudentProfile = (await import("@/models/StudentProfile")).default;
-      studentProfile = await StudentProfile.findOne({ userId: user._id });
-    }
-
     return res.json({
       success: true,
       data: {
@@ -380,7 +373,6 @@ export const getCurrentUser = async (req: Request, res: Response) => {
           lastLoginAt: user.lastLoginAt,
         },
         alumniProfile,
-        studentProfile,
       },
     });
   } catch (error) {

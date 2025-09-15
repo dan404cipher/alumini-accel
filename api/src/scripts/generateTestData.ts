@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import User from "@/models/User";
 import AlumniProfile from "@/models/AlumniProfile";
-import StudentProfile from "@/models/StudentProfile";
 import { UserRole, UserStatus } from "@/types";
 import { logger } from "@/utils/logger";
 
@@ -417,63 +416,6 @@ const getRandomNumber = (min: number, max: number) =>
 const getRandomFloat = (min: number, max: number, decimals: number = 2) =>
   parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
 
-// Generate random student data
-const generateStudentData = (index: number) => {
-  const firstName = getRandomItem(firstNames);
-  const lastName = getRandomItem(lastNames);
-  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${index}@student.edu`;
-
-  const currentYear = getRandomItem([
-    "1st Year",
-    "2nd Year",
-    "3rd Year",
-    "4th Year",
-    "5th Year",
-  ]);
-  const batchYear = getRandomNumber(2020, new Date().getFullYear());
-  const graduationYear = batchYear + getRandomNumber(3, 5);
-
-  return {
-    user: {
-      email,
-      password: "Student@123",
-      firstName,
-      lastName,
-      role: UserRole.STUDENT,
-      status: UserStatus.ACTIVE,
-      phone: `+1-555-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-      isEmailVerified: true,
-      isPhoneVerified: Math.random() > 0.5,
-      bio: `${currentYear} student studying ${getRandomItem(departments)} with interests in ${getRandomItems(careerInterests, 2).join(" and ")}.`,
-      location: getRandomItem(locations),
-      linkedinProfile: `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}-${index}`,
-      githubProfile: `https://github.com/${firstName.toLowerCase()}${lastName.toLowerCase()}${index}`,
-      preferences: {
-        emailNotifications: true,
-        smsNotifications: Math.random() > 0.5,
-        pushNotifications: true,
-        newsletterSubscription: Math.random() > 0.3,
-      },
-    },
-    profile: {
-      university: getRandomItem(universities),
-      department: getRandomItem(departments),
-      program: getRandomItem(["Bachelor's", "Master's", "PhD", "Certificate"]),
-      batchYear,
-      graduationYear,
-      rollNumber: `${getRandomItem(departments).substring(0, 2).toUpperCase()}${batchYear}${String(index).padStart(3, "0")}`,
-      studentId: `STU${batchYear}${String(index).padStart(4, "0")}`,
-      currentYear,
-      currentCGPA: getRandomFloat(2.5, 4.0),
-      currentGPA: getRandomFloat(2.5, 4.0),
-      skills: getRandomItems(skills, getRandomNumber(3, 8)),
-      careerInterests: getRandomItems(careerInterests, getRandomNumber(2, 5)),
-      linkedinProfile: `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}-${index}`,
-      githubProfile: `https://github.com/${firstName.toLowerCase()}${lastName.toLowerCase()}${index}`,
-    },
-  };
-};
-
 // Generate random alumni data
 const generateAlumniData = (index: number) => {
   const firstName = getRandomItem(firstNames);
@@ -624,42 +566,10 @@ const clearTestData = async () => {
     await User.deleteMany({
       email: { $regex: /@(student|alumni)\.edu$/ },
     });
-    await StudentProfile.deleteMany({});
     await AlumniProfile.deleteMany({});
     logger.info("Test data cleared successfully");
   } catch (error) {
     logger.error("Error clearing test data:", error);
-  }
-};
-
-// Create students
-const createStudents = async () => {
-  try {
-    const students = [];
-
-    for (let i = 1; i <= 10; i++) {
-      const studentData = generateStudentData(i);
-
-      // Create user
-      const user = new User(studentData.user);
-      await user.save();
-
-      // Create student profile
-      const profile = new StudentProfile({
-        ...studentData.profile,
-        userId: user._id,
-      });
-      await profile.save();
-
-      students.push({ user, profile });
-      logger.info(`Created student ${i}/10: ${user.email}`);
-    }
-
-    logger.info(`✅ Created ${students.length} students successfully`);
-    return students;
-  } catch (error) {
-    logger.error("Error creating students:", error);
-    throw error;
   }
 };
 
@@ -704,25 +614,16 @@ const generateTestData = async () => {
     // Clear existing test data
     await clearTestData();
 
-    // Create students
-    logger.info("📚 Creating 10 random students...");
-    const students = await createStudents();
-
     // Create alumni
     logger.info("🎓 Creating 10 random alumni...");
     const alumni = await createAlumni();
 
     logger.info("🎉 Test data generation completed successfully!");
     logger.info(`📊 Summary:`);
-    logger.info(`   - ${students.length} students created`);
     logger.info(`   - ${alumni.length} alumni created`);
-    logger.info(`   - Total: ${students.length + alumni.length} users`);
 
     // Display sample credentials
     logger.info("\n🔑 Sample Login Credentials:");
-    if (students.length > 0) {
-      logger.info(`Student: ${students[0].user.email} / Student@123`);
-    }
     if (alumni.length > 0) {
       logger.info(`Alumni: ${alumni[0].user.email} / Alumni@123`);
     }

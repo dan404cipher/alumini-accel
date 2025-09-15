@@ -289,9 +289,13 @@ const Gallery: React.FC = () => {
     if (imagePath.startsWith("http")) {
       return imagePath;
     }
-    return `${
-      import.meta.env.VITE_API_URL || "http://localhost:3000"
-    }${imagePath}`;
+
+    // For static files, use the base URL without /api/v1
+    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    const staticBaseUrl = baseUrl.replace("/api/v1", "");
+    const url = `${staticBaseUrl}${imagePath}`;
+
+    return url;
   };
 
   return (
@@ -586,7 +590,7 @@ const Gallery: React.FC = () => {
                     className="w-full h-64 object-cover"
                     onError={(e) => {
                       e.currentTarget.src =
-                        "https://via.placeholder.com/400x300?text=Image+Not+Found";
+                        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=";
                     }}
                   />
                 </div>
@@ -730,7 +734,7 @@ const Gallery: React.FC = () => {
                       }}
                       onError={(e) => {
                         e.currentTarget.src =
-                          "https://via.placeholder.com/400x300?text=Image+Not+Found";
+                          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=";
                       }}
                     />
                     <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">

@@ -14,6 +14,7 @@ export interface RolePermissions {
   canEditUsers: boolean;
   canDeleteUsers: boolean;
   canViewAllUsers: boolean;
+  canApproveUsers?: boolean; // Can approve user requests
 
   // College Management
   canManageColleges: boolean;
@@ -35,6 +36,11 @@ export interface RolePermissions {
   canCreateJobs: boolean;
   canEditAllJobs: boolean;
   canDeleteJobs: boolean;
+
+  // Fundraising Management
+  canCreateFundraisers?: boolean;
+  canEditFundraisers?: boolean;
+  canDeleteFundraisers?: boolean;
 
   // Analytics & Reports
   canViewAnalytics: boolean;
@@ -136,6 +142,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canEditUsers: true,
     canDeleteUsers: false,
     canViewAllUsers: false, // Can only view department users
+    canApproveUsers: true, // Can approve alumni/staff requests
 
     // College Management
     canManageColleges: false,
@@ -157,6 +164,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canCreateJobs: true,
     canEditAllJobs: false, // Can only edit their own jobs
     canDeleteJobs: false, // Can only delete their own jobs
+
+    // Fundraising Management
+    canCreateFundraisers: true,
+    canEditFundraisers: true, // Can edit their own fundraisers
+    canDeleteFundraisers: false, // Can only delete their own fundraisers
 
     // Analytics & Reports
     canViewAnalytics: true,
@@ -173,6 +185,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canEditUsers: false,
     canDeleteUsers: false,
     canViewAllUsers: false,
+    canApproveUsers: true, // Can approve alumni requests
 
     // College Management
     canManageColleges: false,
@@ -194,6 +207,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canCreateJobs: true,
     canEditAllJobs: false, // Can only edit their own jobs
     canDeleteJobs: false, // Can only delete their own jobs
+
+    // Fundraising Management
+    canCreateFundraisers: true,
+    canEditFundraisers: true, // Can edit their own fundraisers
+    canDeleteFundraisers: false, // Can only delete their own fundraisers
 
     // Analytics & Reports
     canViewAnalytics: false,

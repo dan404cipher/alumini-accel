@@ -65,19 +65,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const navItems = [
     { id: "dashboard", name: "Dashboard", icon: BarChart3, count: null },
     // For Super Admin, everything is in the Dashboard tabs
-    ...(user?.role !== "super_admin" && isAdmin
-      ? [
-          {
-            id: "admin",
-            name: "College Management",
-            icon: Settings,
-            count: null,
-          },
-        ]
-      : []),
-    ...(user?.role !== "super_admin" && canManageUsersAccess
-      ? [{ id: "users", name: "Admin & Staff", icon: UserPlus, count: null }]
-      : []),
+    // For College Admin, everything is also in the Dashboard tabs (College Management, Admin & Staff, Alumni are all combined)
     {
       id: "alumni",
       name: "Alumni Directory",

@@ -95,9 +95,27 @@ const AlumniManagement = () => {
 
   const [colleges, setColleges] = useState<College[]>([]);
 
-  // Fetch colleges on component mount
+  // Fetch colleges on component mount (only for Super Admin)
   useEffect(() => {
     const fetchColleges = async () => {
+      // Only fetch colleges if user is Super Admin
+      if (user?.role !== "super_admin") {
+        // For College Admin, set their own college
+        if ((user as any)?.tenantId) {
+          setColleges([
+            {
+              _id: (user as any).tenantId,
+              name: (user as any).tenantName || "Your College",
+              establishedYear: new Date().getFullYear(),
+              website: "",
+              description: "",
+              location: "",
+            },
+          ]);
+        }
+        return;
+      }
+
       try {
         const response = await fetch(
           `${
@@ -119,7 +137,7 @@ const AlumniManagement = () => {
     };
 
     fetchColleges();
-  }, []);
+  }, [user]);
 
   // Validation function
   const validateForm = () => {
@@ -171,7 +189,15 @@ const AlumniManagement = () => {
       const alumniData = await alumniAPI.getAllAlumni();
       console.log("Fetched alumni data:", alumniData);
 
-      setAlumni((alumniData.data as AlumniProfile[]) || []);
+      // Ensure alumni is always an array
+      const alumniArray = Array.isArray(alumniData.data)
+        ? alumniData.data
+        : Array.isArray((alumniData.data as any)?.alumni)
+        ? (alumniData.data as any).alumni
+        : Array.isArray((alumniData.data as any)?.profiles)
+        ? (alumniData.data as any).profiles
+        : [];
+      setAlumni(alumniArray as AlumniProfile[]);
     } catch (error) {
       console.error("Error fetching alumni:", error);
       console.error("Error details:", error.response?.data);
@@ -478,7 +504,7 @@ const AlumniManagement = () => {
           <div className="flex items-center justify-center p-8">
             <div className="text-muted-foreground">Loading alumni...</div>
           </div>
-        ) : alumni.filter(
+        ) : (Array.isArray(alumni) ? alumni : []).filter(
             (alumnus) =>
               `${alumnus.userId?.firstName || ""} ${
                 alumnus.userId?.lastName || ""
@@ -500,7 +526,7 @@ const AlumniManagement = () => {
             </div>
           </div>
         ) : (
-          alumni
+          (Array.isArray(alumni) ? alumni : [])
             .filter(
               (alumnus) =>
                 `${alumnus.userId?.firstName || ""} ${

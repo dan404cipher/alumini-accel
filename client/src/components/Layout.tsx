@@ -4,8 +4,7 @@ import Navigation from "./Navigation";
 import Footer from "./Footer";
 import Dashboard from "./Dashboard";
 import AlumniDirectory from "./AlumniDirectory";
-import AlumniManagement from "./AlumniManagement";
-import TenantManagement from "./TenantManagement";
+// Note: AlumniManagement and TenantManagement are now integrated into CollegeAdminDashboard
 import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import NewsRoom from "./NewsRoom";
@@ -54,12 +53,11 @@ const Layout = () => {
     switch (activeTab) {
       case "dashboard":
         return <RoleBasedDashboard />;
-      case "admin":
-        return <TenantManagement />;
+      // Note: "admin" and "users" tabs are now handled within the Dashboard tabs
+      // case "admin": - Now part of College Admin Dashboard
+      // case "users": - Now part of College Admin Dashboard
       case "alumni":
         return <AlumniDirectory />;
-      case "users":
-        return <AlumniManagement />;
       case "jobs":
         return <JobBoard />;
       case "events":

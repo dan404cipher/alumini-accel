@@ -113,17 +113,39 @@ export const authorize = (...roles: UserRole[]) => {
 
 // Specific role authorization helpers
 export const requireSuperAdmin = authorize(UserRole.SUPER_ADMIN);
-export const requireAdmin = authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN);
-export const requireCoordinator = authorize(
+
+export const requireCollegeAdmin = authorize(
   UserRole.SUPER_ADMIN,
-  UserRole.ADMIN,
-  UserRole.COORDINATOR
+  UserRole.COLLEGE_ADMIN
 );
+
+export const requireHOD = authorize(
+  UserRole.SUPER_ADMIN,
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD
+);
+
+export const requireStaff = authorize(
+  UserRole.SUPER_ADMIN,
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD,
+  UserRole.STAFF
+);
+
 export const requireAlumni = authorize(
   UserRole.SUPER_ADMIN,
-  UserRole.ADMIN,
-  UserRole.COORDINATOR,
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD,
+  UserRole.STAFF,
   UserRole.ALUMNI
+);
+
+// Admin level access (Super Admin, College Admin, HOD, Staff)
+export const requireAdmin = authorize(
+  UserRole.SUPER_ADMIN,
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD,
+  UserRole.STAFF
 );
 
 // Optional authentication middleware (doesn't fail if no token)
@@ -290,13 +312,19 @@ export const verifyRefreshToken = (token: string): any => {
   return jwt.verify(token, secret);
 };
 
+// Legacy coordinator function for backward compatibility
+export const requireCoordinator = requireCollegeAdmin;
+
 export default {
   authenticateToken,
   authorize,
   requireSuperAdmin,
+  requireCollegeAdmin,
+  requireHOD,
+  requireStaff,
   requireAdmin,
-  requireCoordinator,
   requireAlumni,
+  requireCoordinator,
   optionalAuth,
   rateLimit,
   logout,

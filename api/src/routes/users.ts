@@ -5,7 +5,11 @@ import {
   validateId,
   validateRequest,
 } from "@/middleware/validation";
-import { authenticateToken, requireAdmin } from "@/middleware/auth";
+import {
+  authenticateToken,
+  requireAdmin,
+  requireSuperAdmin,
+} from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
 import { uploadProfileImage } from "@/config/multer";
 
@@ -19,6 +23,16 @@ router.get(
   authenticateToken,
   requireAdmin,
   asyncHandler(userController.getAllUsers)
+);
+
+// @route   POST /api/v1/users
+// @desc    Create new user (Super Admin only)
+// @access  Private/Super Admin
+router.post(
+  "/",
+  authenticateToken,
+  requireSuperAdmin, // Only Super Admin can create users
+  asyncHandler(userController.createUser)
 );
 
 // @route   GET /api/v1/users/:id
@@ -39,6 +53,17 @@ router.put(
   authenticateToken,
   ...validateRequest(validateProfileUpdate),
   asyncHandler(userController.updateProfile)
+);
+
+// @route   PUT /api/v1/users/:id
+// @desc    Update any user by ID (Super Admin only)
+// @access  Private/Super Admin
+router.put(
+  "/:id",
+  authenticateToken,
+  requireSuperAdmin,
+  ...validateRequest([...validateId, ...validateProfileUpdate]),
+  asyncHandler(userController.updateUserById)
 );
 
 // @route   POST /api/v1/users/profile-image

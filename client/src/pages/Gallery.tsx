@@ -617,7 +617,8 @@ const Gallery: React.FC = () => {
                     </div>
                     <div className="flex items-center">
                       <User className="w-4 h-4 mr-1" />
-                      {gallery.createdBy.firstName} {gallery.createdBy.lastName}
+                      {gallery.createdBy?.firstName}{" "}
+                      {gallery.createdBy?.lastName}
                     </div>
                   </div>
 
@@ -691,8 +692,8 @@ const Gallery: React.FC = () => {
                 </div>
                 <div className="flex items-center">
                   <User className="w-4 h-4 mr-1" />
-                  {selectedGallery.createdBy.firstName}{" "}
-                  {selectedGallery.createdBy.lastName}
+                  {selectedGallery.createdBy?.firstName}{" "}
+                  {selectedGallery.createdBy?.lastName}
                 </div>
                 <Badge variant="secondary">{selectedGallery.category}</Badge>
                 <span>

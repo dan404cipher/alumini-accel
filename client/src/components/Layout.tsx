@@ -5,12 +5,14 @@ import Footer from "./Footer";
 import Dashboard from "./Dashboard";
 import AlumniDirectory from "./AlumniDirectory";
 import AlumniManagement from "./AlumniManagement";
+import TenantManagement from "./TenantManagement";
 import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import NewsRoom from "./NewsRoom";
 import Recognition from "./Recognition";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
+import RoleBasedDashboard from "./RoleBasedDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Layout = () => {
@@ -51,11 +53,13 @@ const Layout = () => {
 
     switch (activeTab) {
       case "dashboard":
-        return <Dashboard />;
+        return <RoleBasedDashboard />;
+      case "admin":
+        return <TenantManagement />;
       case "alumni":
         return <AlumniDirectory />;
       case "users":
-        return <AlumniDirectory />;
+        return <AlumniManagement />;
       case "jobs":
         return <JobBoard />;
       case "events":
@@ -78,9 +82,9 @@ const Layout = () => {
         return null;
       case "more":
         // More dropdown doesn't navigate to a page
-        return <Dashboard />;
+        return <RoleBasedDashboard />;
       default:
-        return <Dashboard />;
+        return <RoleBasedDashboard />;
     }
   };
 

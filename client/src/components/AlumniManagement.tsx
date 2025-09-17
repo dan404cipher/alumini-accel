@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,26 +48,24 @@ interface AlumniProfile {
     role: string;
   };
   graduationYear: number;
-  degree: string;
-  major: string;
-  currentCompany: string;
-  currentPosition: string;
-  location: string;
-  bio: string;
-  skills: string[];
-  linkedinProfile: string;
-  githubProfile: string;
-  isActive: boolean;
+  currentCompany?: string;
+  currentPosition?: string;
+  currentLocation?: string;
+  linkedinProfile?: string;
+  githubProfile?: string;
+  bio?: string;
+  skills?: string[];
   createdAt: string;
+  updatedAt: string;
 }
 
-interface AlumniResponse {
-  data?:
-    | AlumniProfile[]
-    | {
-        alumni?: AlumniProfile[];
-        results?: AlumniProfile[];
-      };
+interface College {
+  _id: string;
+  name: string;
+  location: string;
+  establishedYear: number;
+  website?: string;
+  description?: string;
 }
 
 const AlumniManagement = () => {
@@ -80,208 +78,100 @@ const AlumniManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Form validation functions
-  const validateField = (name: string, value: string) => {
-    const errors = { ...formErrors };
+  const [newAlumni, setNewAlumni] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    collegeId: "",
+    department: "",
+    graduationYear: new Date().getFullYear(),
+    currentCompany: "",
+    currentPosition: "",
+    phoneNumber: "",
+    address: "",
+    bio: "",
+  });
 
-    switch (name) {
-      case "firstName":
-        if (!value.trim()) {
-          errors.firstName = "First name is required";
-        } else if (value.trim().length < 2 || value.trim().length > 50) {
-          errors.firstName = "First name must be between 2 and 50 characters";
-        } else {
-          delete errors.firstName;
-        }
-        break;
+  const [colleges, setColleges] = useState<College[]>([]);
 
-      case "lastName":
-        if (!value.trim()) {
-          errors.lastName = "Last name is required";
-        } else if (value.trim().length < 2 || value.trim().length > 50) {
-          errors.lastName = "Last name must be between 2 and 50 characters";
-        } else {
-          delete errors.lastName;
-        }
-        break;
-
-      case "email":
-        if (!value.trim()) {
-          errors.email = "Email is required";
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          errors.email = "Please enter a valid email address";
-        } else {
-          // Check if email already exists in current alumni list
-          const emailExists = alumni?.some(
-            (alumnus) =>
-              alumnus.userId?.email?.toLowerCase() === value.toLowerCase()
-          );
-          if (emailExists) {
-            errors.email = "This email is already registered";
-          } else {
-            delete errors.email;
+  // Fetch colleges on component mount
+  useEffect(() => {
+    const fetchColleges = async () => {
+      try {
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+          }/tenants`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
           }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setColleges(data.data?.tenants || []);
         }
-        break;
-
-      case "graduationYear": {
-        const year = parseInt(value);
-        if (!value) {
-          errors.graduationYear = "Graduation year is required";
-        } else if (
-          isNaN(year) ||
-          year < 1950 ||
-          year > new Date().getFullYear() + 1
-        ) {
-          errors.graduationYear = "Please enter a valid graduation year";
-        } else {
-          delete errors.graduationYear;
-        }
-        break;
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
       }
+    };
 
-      case "major":
-        if (value && value.trim().length > 100) {
-          errors.major = "Major cannot exceed 100 characters";
-        } else {
-          delete errors.major;
-        }
-        break;
+    fetchColleges();
+  }, []);
 
-      case "currentCompany":
-        if (value && value.trim().length > 100) {
-          errors.currentCompany = "Company name cannot exceed 100 characters";
-        } else {
-          delete errors.currentCompany;
-        }
-        break;
+  // Validation function
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
 
-      case "currentPosition":
-        if (value && value.trim().length > 100) {
-          errors.currentPosition = "Position cannot exceed 100 characters";
-        } else {
-          delete errors.currentPosition;
-        }
-        break;
+    if (!newAlumni.firstName.trim()) {
+      errors.firstName = "First name is required";
+    }
 
-      case "location":
-        if (value && value.trim().length > 100) {
-          errors.location = "Location cannot exceed 100 characters";
-        } else {
-          delete errors.location;
-        }
-        break;
+    if (!newAlumni.lastName.trim()) {
+      errors.lastName = "Last name is required";
+    }
 
-      case "bio":
-        if (value && value.trim().length > 500) {
-          errors.bio = "Bio cannot exceed 500 characters";
-        } else {
-          delete errors.bio;
-        }
-        break;
+    if (!newAlumni.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newAlumni.email)) {
+      errors.email = "Please enter a valid email address";
+    }
 
-      case "linkedinProfile":
-        if (value && !/^https?:\/\/.+\..+/.test(value)) {
-          errors.linkedinProfile = "Please enter a valid URL";
-        } else {
-          delete errors.linkedinProfile;
-        }
-        break;
+    if (!newAlumni.password.trim()) {
+      errors.password = "Password is required";
+    } else if (newAlumni.password.length < 6) {
+      errors.password = "Password must be at least 6 characters long";
+    }
 
-      case "githubProfile":
-        if (value && !/^https?:\/\/.+\..+/.test(value)) {
-          errors.githubProfile = "Please enter a valid URL";
-        } else {
-          delete errors.githubProfile;
-        }
-        break;
+    if (!newAlumni.collegeId) {
+      errors.collegeId = "Please select a college";
+    }
+
+    if (!newAlumni.department.trim()) {
+      errors.department = "Department is required";
+    }
+
+    if (
+      !newAlumni.graduationYear ||
+      newAlumni.graduationYear < 1900 ||
+      newAlumni.graduationYear > new Date().getFullYear() + 10
+    ) {
+      errors.graduationYear = "Please enter a valid graduation year";
     }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const validateForm = () => {
-    const requiredFields = ["firstName", "lastName", "email", "graduationYear"];
-    let isValid = true;
-
-    requiredFields.forEach((field) => {
-      if (
-        !validateField(
-          field,
-          newAlumni[field as keyof typeof newAlumni] as string
-        )
-      ) {
-        isValid = false;
-      }
-    });
-
-    // Validate optional fields
-    Object.keys(newAlumni).forEach((field) => {
-      if (!requiredFields.includes(field)) {
-        validateField(
-          field,
-          newAlumni[field as keyof typeof newAlumni] as string
-        );
-      }
-    });
-
-    return isValid && Object.keys(formErrors).length === 0;
-  };
-
-  const [newAlumni, setNewAlumni] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "Alumni@123", // Default password
-    graduationYear: new Date().getFullYear(),
-    degree: "",
-    major: "",
-    currentCompany: "",
-    currentPosition: "",
-    location: "",
-    bio: "",
-    skills: "",
-    linkedinProfile: "",
-    githubProfile: "",
-  });
-
-  useEffect(() => {
-    fetchAlumni();
-  }, []);
-
-  const fetchAlumni = async () => {
+  const fetchAlumni = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await alumniAPI.getAllAlumni();
+      const alumniData = await alumniAPI.getAllAlumni();
+      console.log("Fetched alumni data:", alumniData);
 
-      // Handle different response structures
-      let alumniData: AlumniProfile[] = [];
-
-      if (response && response.data) {
-        // If response.data is an array, use it directly
-        if (Array.isArray(response.data)) {
-          alumniData = response.data;
-        }
-        // If response.data has nested arrays, try to extract them
-        else {
-          const data = response.data as {
-            alumni?: AlumniProfile[];
-            results?: AlumniProfile[];
-          };
-          if (data.alumni && Array.isArray(data.alumni)) {
-            alumniData = data.alumni;
-          } else if (data.results && Array.isArray(data.results)) {
-            alumniData = data.results;
-          } else {
-            alumniData = [];
-          }
-        }
-      } else {
-        alumniData = [];
-      }
-
-      setAlumni(alumniData);
+      setAlumni((alumniData.data as AlumniProfile[]) || []);
     } catch (error) {
       console.error("Error fetching alumni:", error);
       console.error("Error details:", error.response?.data);
@@ -295,7 +185,11 @@ const AlumniManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchAlumni();
+  }, [fetchAlumni]);
 
   const handleCreateAlumni = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -313,117 +207,36 @@ const AlumniManagement = () => {
         return;
       }
 
-      // First create the user account
+      // Create pending user request (NOT an actual user account)
       const userData = {
         firstName: newAlumni.firstName.trim(),
         lastName: newAlumni.lastName.trim(),
         email: newAlumni.email.trim(),
         password: newAlumni.password,
         role: "alumni",
-        status: "active", // Admin-created accounts should be active
+        tenantId: newAlumni.collegeId,
+        department: newAlumni.department,
       };
 
-      // Create user account
-      const userResponse = await fetch(
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/auth/register`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify(userData),
-        }
-      );
+      // Import the userAPI to use the approval system
+      const { userAPI } = await import("@/lib/api");
 
-      if (!userResponse.ok) {
-        const errorData = await userResponse.json();
-        console.error("Alumni registration error response:", errorData);
-        console.error("Validation errors:", errorData.errors);
+      // Create pending user request
+      const userResponse = await userAPI.createPendingUserRequest(userData);
 
-        // Handle specific error cases
-        if (errorData.message === "User with this email already exists") {
-          throw new Error(
-            "An account with this email already exists. Please use a different email address."
-          );
-        }
-
-        // Handle validation errors
-        if (errorData.errors && Object.keys(errorData.errors).length > 0) {
-          const validationErrors = Object.values(errorData.errors).join(", ");
-          throw new Error(`Validation error: ${validationErrors}`);
-        }
-
-        throw new Error(errorData.message || "Failed to create user account");
+      if (!userResponse.success) {
+        console.error("Alumni request creation error:", userResponse);
+        throw new Error(
+          userResponse.message || "Failed to create alumni request"
+        );
       }
 
-      const userResult = await userResponse.json();
-      const userId = userResult.data.user._id;
-      const alumniToken = userResult.data.token; // Get the alumni's token
+      console.log("Alumni request creation response:", userResponse);
 
-      // Create alumni profile using the alumni's token
-      const profileData: Record<string, unknown> = {
-        university: newAlumni.degree || "University", // Map degree to university
-        program: newAlumni.major || "General Program", // Map major to program
-        batchYear: parseInt(newAlumni.graduationYear.toString()), // Use graduation year as batch year
-        graduationYear: parseInt(newAlumni.graduationYear.toString()),
-        department: newAlumni.major || "General", // Use major as department or default
-        skills: newAlumni.skills
-          ? newAlumni.skills
-              .split(",")
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0 && s.length <= 50)
-          : [],
-      };
-
-      // Only include optional fields if they have values
-      if (newAlumni.degree && newAlumni.degree.trim()) {
-        profileData.specialization = newAlumni.degree.trim();
-      }
-      if (newAlumni.currentCompany && newAlumni.currentCompany.trim()) {
-        profileData.currentCompany = newAlumni.currentCompany.trim();
-      }
-      if (newAlumni.currentPosition && newAlumni.currentPosition.trim()) {
-        profileData.currentPosition = newAlumni.currentPosition.trim();
-      }
-      if (newAlumni.location && newAlumni.location.trim()) {
-        profileData.currentLocation = newAlumni.location.trim();
-      }
-      if (newAlumni.linkedinProfile && newAlumni.linkedinProfile.trim()) {
-        profileData.linkedinProfile = newAlumni.linkedinProfile.trim();
-      }
-      if (newAlumni.githubProfile && newAlumni.githubProfile.trim()) {
-        profileData.githubProfile = newAlumni.githubProfile.trim();
-      }
-      if (newAlumni.bio && newAlumni.bio.trim()) {
-        profileData.bio = newAlumni.bio.trim();
-      }
-
-      // Use the newly created user's token for profile creation
-      const profileResponse = await fetch(
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/alumni/profile`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${alumniToken}`,
-          },
-          body: JSON.stringify(profileData),
-        }
-      );
-
-      if (!profileResponse.ok) {
-        const errorData = await profileResponse.json();
-        throw new Error(errorData.message || "Failed to create alumni profile");
-      }
-
+      // Show success message for request submission
       toast({
-        title: "Alumni Created",
-        description: `Account created for ${newAlumni.firstName} ${newAlumni.lastName}`,
+        title: "Success",
+        description: "Alumni request submitted for approval!",
       });
 
       // Reset form
@@ -431,62 +244,35 @@ const AlumniManagement = () => {
         firstName: "",
         lastName: "",
         email: "",
-        password: "Alumni@123",
+        password: "",
+        collegeId: "",
+        department: "",
         graduationYear: new Date().getFullYear(),
-        degree: "",
-        major: "",
         currentCompany: "",
         currentPosition: "",
-        location: "",
+        phoneNumber: "",
+        address: "",
         bio: "",
-        skills: "",
-        linkedinProfile: "",
-        githubProfile: "",
       });
 
+      setCreateLoading(false);
       setIsCreateDialogOpen(false);
-      fetchAlumni();
+      fetchAlumni(); // Refresh the alumni list
+      return; // Exit early since we're not creating the profile yet
     } catch (error) {
-      console.error("Error creating alumni:", error);
+      console.error("Error creating alumni request:", error);
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Failed to create alumni account";
+          : "Failed to create alumni request";
       toast({
         title: "Error",
         description: errorMessage,
         variant: "destructive",
       });
-    } finally {
       setCreateLoading(false);
     }
   };
-
-  const filteredAlumni = (alumni || []).filter(
-    (alumnus) =>
-      `${alumnus.userId?.firstName || ""} ${alumnus.userId?.lastName || ""}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      alumnus.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      alumnus.currentCompany?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Check if user has permission to manage alumni
-  const canManageAlumni =
-    user?.role === "super_admin" || user?.role === "coordinator";
-
-  if (!canManageAlumni) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-muted-foreground mb-4">
-          Access Denied
-        </h2>
-        <p className="text-muted-foreground">
-          You don't have permission to manage alumni accounts.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -521,12 +307,11 @@ const AlumniManagement = () => {
                   <Input
                     id="firstName"
                     value={newAlumni.firstName}
-                    onChange={(e) => {
-                      setNewAlumni({ ...newAlumni, firstName: e.target.value });
-                      validateField("firstName", e.target.value);
-                    }}
+                    onChange={(e) =>
+                      setNewAlumni({ ...newAlumni, firstName: e.target.value })
+                    }
+                    placeholder="Enter first name"
                     className={formErrors.firstName ? "border-red-500" : ""}
-                    required
                   />
                   {formErrors.firstName && (
                     <p className="text-sm text-red-500">
@@ -539,12 +324,11 @@ const AlumniManagement = () => {
                   <Input
                     id="lastName"
                     value={newAlumni.lastName}
-                    onChange={(e) => {
-                      setNewAlumni({ ...newAlumni, lastName: e.target.value });
-                      validateField("lastName", e.target.value);
-                    }}
+                    onChange={(e) =>
+                      setNewAlumni({ ...newAlumni, lastName: e.target.value })
+                    }
+                    placeholder="Enter last name"
                     className={formErrors.lastName ? "border-red-500" : ""}
-                    required
                   />
                   {formErrors.lastName && (
                     <p className="text-sm text-red-500">
@@ -555,156 +339,106 @@ const AlumniManagement = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">Email Address *</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="alumni@example.com"
                   value={newAlumni.email}
-                  onChange={(e) => {
-                    setNewAlumni({ ...newAlumni, email: e.target.value });
-                    validateField("email", e.target.value);
-                  }}
+                  onChange={(e) =>
+                    setNewAlumni({ ...newAlumni, email: e.target.value })
+                  }
+                  placeholder="Enter email address"
                   className={formErrors.email ? "border-red-500" : ""}
-                  required
                 />
                 {formErrors.email && (
                   <p className="text-sm text-red-500">{formErrors.email}</p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Use a unique email address that hasn't been registered before
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="graduationYear">Graduation Year *</Label>
-                  <Input
-                    id="graduationYear"
-                    type="number"
-                    value={newAlumni.graduationYear}
-                    onChange={(e) => {
-                      setNewAlumni({
-                        ...newAlumni,
-                        graduationYear: parseInt(e.target.value),
-                      });
-                      validateField("graduationYear", e.target.value);
-                    }}
-                    className={
-                      formErrors.graduationYear ? "border-red-500" : ""
-                    }
-                    required
-                  />
-                  {formErrors.graduationYear && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.graduationYear}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="degree">Degree</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setNewAlumni({ ...newAlumni, degree: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select degree" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Bachelor">Bachelor's</SelectItem>
-                      <SelectItem value="Master">Master's</SelectItem>
-                      <SelectItem value="PhD">PhD</SelectItem>
-                      <SelectItem value="Certificate">Certificate</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="major">Major/Field of Study</Label>
+                <Label htmlFor="password">Password *</Label>
                 <Input
-                  id="major"
-                  value={newAlumni.major}
-                  onChange={(e) => {
-                    setNewAlumni({ ...newAlumni, major: e.target.value });
-                    validateField("major", e.target.value);
-                  }}
-                  className={formErrors.major ? "border-red-500" : ""}
+                  id="password"
+                  type="password"
+                  value={newAlumni.password}
+                  onChange={(e) =>
+                    setNewAlumni({ ...newAlumni, password: e.target.value })
+                  }
+                  placeholder="Enter password"
+                  className={formErrors.password ? "border-red-500" : ""}
                 />
-                {formErrors.major && (
-                  <p className="text-sm text-red-500">{formErrors.major}</p>
+                {formErrors.password && (
+                  <p className="text-sm text-red-500">{formErrors.password}</p>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="currentCompany">Current Company</Label>
-                  <Input
-                    id="currentCompany"
-                    value={newAlumni.currentCompany}
-                    onChange={(e) =>
-                      setNewAlumni({
-                        ...newAlumni,
-                        currentCompany: e.target.value,
-                      })
+                  <Label htmlFor="college">College *</Label>
+                  <Select
+                    value={newAlumni.collegeId}
+                    onValueChange={(value) =>
+                      setNewAlumni({ ...newAlumni, collegeId: value })
                     }
-                  />
+                  >
+                    <SelectTrigger
+                      className={formErrors.collegeId ? "border-red-500" : ""}
+                    >
+                      <SelectValue placeholder="Select college" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colleges.map((college) => (
+                        <SelectItem key={college._id} value={college._id}>
+                          {college.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.collegeId && (
+                    <p className="text-sm text-red-500">
+                      {formErrors.collegeId}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="currentPosition">Current Position</Label>
+                  <Label htmlFor="department">Department *</Label>
                   <Input
-                    id="currentPosition"
-                    value={newAlumni.currentPosition}
+                    id="department"
+                    value={newAlumni.department}
                     onChange={(e) =>
-                      setNewAlumni({
-                        ...newAlumni,
-                        currentPosition: e.target.value,
-                      })
+                      setNewAlumni({ ...newAlumni, department: e.target.value })
                     }
+                    placeholder="Enter department"
+                    className={formErrors.department ? "border-red-500" : ""}
                   />
+                  {formErrors.department && (
+                    <p className="text-sm text-red-500">
+                      {formErrors.department}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
+                <Label htmlFor="graduationYear">Graduation Year *</Label>
                 <Input
-                  id="location"
-                  value={newAlumni.location}
+                  id="graduationYear"
+                  type="number"
+                  value={newAlumni.graduationYear}
                   onChange={(e) =>
-                    setNewAlumni({ ...newAlumni, location: e.target.value })
+                    setNewAlumni({
+                      ...newAlumni,
+                      graduationYear:
+                        parseInt(e.target.value) || new Date().getFullYear(),
+                    })
                   }
+                  placeholder="Enter graduation year"
+                  className={formErrors.graduationYear ? "border-red-500" : ""}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="skills">Skills (comma-separated)</Label>
-                <Input
-                  id="skills"
-                  value={newAlumni.skills}
-                  onChange={(e) =>
-                    setNewAlumni({ ...newAlumni, skills: e.target.value })
-                  }
-                  placeholder="JavaScript, React, Node.js, Python"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <textarea
-                  id="bio"
-                  className={`w-full p-2 border rounded-md ${
-                    formErrors.bio ? "border-red-500" : ""
-                  }`}
-                  rows={3}
-                  value={newAlumni.bio}
-                  onChange={(e) => {
-                    setNewAlumni({ ...newAlumni, bio: e.target.value });
-                    validateField("bio", e.target.value);
-                  }}
-                />
-                {formErrors.bio && (
-                  <p className="text-sm text-red-500">{formErrors.bio}</p>
+                {formErrors.graduationYear && (
+                  <p className="text-sm text-red-500">
+                    {formErrors.graduationYear}
+                  </p>
                 )}
               </div>
 
@@ -717,7 +451,7 @@ const AlumniManagement = () => {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createLoading}>
-                  {createLoading ? "Creating..." : "Create Account"}
+                  {createLoading ? "Creating..." : "Create Alumni"}
                 </Button>
               </div>
             </form>
@@ -725,98 +459,111 @@ const AlumniManagement = () => {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search alumni by name, email, or company..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search and Filter */}
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search alumni..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Alumni List */}
       <div className="grid gap-4">
         {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-2 text-muted-foreground">Loading alumni...</p>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-muted-foreground">Loading alumni...</div>
           </div>
-        ) : filteredAlumni.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">No alumni found</p>
+        ) : alumni.filter(
+            (alumnus) =>
+              `${alumnus.userId?.firstName || ""} ${
+                alumnus.userId?.lastName || ""
+              }`
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase()) ||
+              alumnus.userId?.email
+                ?.toLowerCase()
+                .includes(searchTerm.toLowerCase()) ||
+              alumnus.currentCompany
+                ?.toLowerCase()
+                .includes(searchTerm.toLowerCase())
+          ).length === 0 ? (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-muted-foreground">
+              {searchTerm
+                ? "No alumni found matching your search."
+                : "No alumni found."}
+            </div>
           </div>
         ) : (
-          filteredAlumni.map((alumnus) => (
-            <Card key={alumnus._id}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold">
-                        {alumnus.userId?.firstName || "Unknown"}{" "}
-                        {alumnus.userId?.lastName || "User"}
-                      </h3>
-                      <Badge variant="secondary">
-                        {alumnus.userId?.role || "alumni"}
-                      </Badge>
-                      {alumnus.isActive ? (
-                        <Badge variant="default">Active</Badge>
-                      ) : (
-                        <Badge variant="outline">Inactive</Badge>
-                      )}
+          alumni
+            .filter(
+              (alumnus) =>
+                `${alumnus.userId?.firstName || ""} ${
+                  alumnus.userId?.lastName || ""
+                }`
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase()) ||
+                alumnus.userId?.email
+                  ?.toLowerCase()
+                  .includes(searchTerm.toLowerCase()) ||
+                alumnus.currentCompany
+                  ?.toLowerCase()
+                  .includes(searchTerm.toLowerCase())
+            )
+            .map((alumni) => (
+              <Card
+                key={alumni._id}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <GraduationCap className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="text-lg font-semibold">
+                            {alumni.userId.firstName} {alumni.userId.lastName}
+                          </h3>
+                          <Badge variant="secondary">Alumni</Badge>
+                        </div>
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          <div className="flex items-center space-x-2">
+                            <Mail className="h-4 w-4" />
+                            <span>{alumni.userId.email}</span>
+                          </div>
+                          {alumni.currentCompany && (
+                            <div className="flex items-center space-x-2">
+                              <Building className="h-4 w-4" />
+                              <span>{alumni.currentCompany}</span>
+                              {alumni.currentPosition && (
+                                <span>• {alumni.currentPosition}</span>
+                              )}
+                            </div>
+                          )}
+                          {alumni.currentLocation && (
+                            <div className="flex items-center space-x-2">
+                              <MapPin className="h-4 w-4" />
+                              <span>{alumni.currentLocation}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-2">
+                            <GraduationCap className="h-4 w-4" />
+                            <span>Class of {alumni.graduationYear}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-2">
-                        <Mail className="w-4 h-4" />
-                        <span>{alumnus.userId?.email || "No email"}</span>
-                      </div>
-
-                      {alumnus.currentCompany && (
-                        <div className="flex items-center space-x-2">
-                          <Building className="w-4 h-4" />
-                          <span>{alumnus.currentCompany}</span>
-                        </div>
-                      )}
-
-                      {alumnus.location && (
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="w-4 h-4" />
-                          <span>{alumnus.location}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center space-x-2">
-                        <GraduationCap className="w-4 h-4" />
-                        <span>
-                          {alumnus.graduationYear} - {alumnus.degree} in{" "}
-                          {alumnus.major}
-                        </span>
-                      </div>
-                    </div>
-
-                    {alumnus.skills && alumnus.skills.length > 0 && (
-                      <div className="mt-3">
-                        <div className="flex flex-wrap gap-1">
-                          {alumnus.skills.map((skill, index) => (
-                            <Badge
-                              key={index}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            ))
         )}
       </div>
     </div>

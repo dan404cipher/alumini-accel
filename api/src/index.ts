@@ -31,6 +31,9 @@ import docsRoutes from "@/routes/docs";
 import galleryRoutes from "@/routes/gallery";
 import connectionRoutes from "@/routes/connection";
 import messageRoutes from "@/routes/message";
+import tenantRoutes from "@/routes/tenantRoutes";
+import campaignRoutes from "@/routes/campaignRoutes";
+import postRoutes from "@/routes/postRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -61,8 +64,6 @@ const startServer = async () => {
     process.exit(1);
   }
 };
-
-startServer();
 
 // Security middleware
 app.use(
@@ -190,6 +191,9 @@ app.use("/api/v1/docs", docsRoutes);
 app.use("/api/v1/gallery", galleryRoutes);
 app.use("/api/v1/connections", connectionRoutes);
 app.use("/api/v1/messages", messageRoutes);
+app.use("/api/v1/tenants", tenantRoutes);
+app.use("/api/v1/campaigns", campaignRoutes);
+app.use("/api/v1/posts", postRoutes);
 
 // Serve static files with CORS headers
 app.use(
@@ -244,5 +248,8 @@ process.on("uncaughtException", (err: Error) => {
   logger.error("Uncaught Exception:", err);
   process.exit(1);
 });
+
+// Start the server
+startServer();
 
 export default app;

@@ -7,11 +7,11 @@ export * from "./connection";
 
 // User Roles
 export enum UserRole {
-  SUPER_ADMIN = "super_admin",
-  ADMIN = "admin",
-  COORDINATOR = "coordinator",
-  ALUMNI = "alumni",
-  BATCH_REP = "batch_rep",
+  SUPER_ADMIN = "super_admin", // Can manage multiple colleges
+  COLLEGE_ADMIN = "college_admin", // Manages one specific college
+  HOD = "hod", // Head of Department
+  STAFF = "staff", // College staff member
+  ALUMNI = "alumni", // Alumni member
 }
 
 // User Status
@@ -77,6 +77,7 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   role: UserRole;
+  tenantId?: string;
   status: UserStatus;
   phone?: string;
   profilePicture?: string;
@@ -96,6 +97,7 @@ export interface IUser extends Document {
   website?: string;
   bio?: string;
   location?: string;
+  department?: string;
   timezone?: string;
   preferences: {
     emailNotifications: boolean;

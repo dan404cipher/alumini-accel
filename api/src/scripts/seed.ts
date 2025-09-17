@@ -5,29 +5,138 @@ import User from "@/models/User";
 import AlumniProfile from "@/models/AlumniProfile";
 import Event from "@/models/Event";
 import JobPost from "@/models/JobPost";
+import Tenant from "@/models/Tenant";
 import { UserRole, UserStatus, EventType, JobPostStatus } from "@/types";
 import { logger } from "@/utils/logger";
+import connectDB from "@/config/database";
 
 // Load environment variables
 dotenv.config();
 
-// Sample users data
-const sampleUsers = [
+// Sample tenant data for 3 colleges
+const sampleTenants = [
   {
-    email: "admin@alumniaccel.com",
-    password: "Admin@123",
-    firstName: "System",
-    lastName: "Administrator",
+    name: "Tech University",
+    domain: "tech-university",
+    logo: "https://example.com/tech-university-logo.png",
+    banner: "https://example.com/tech-university-banner.jpg",
+    about:
+      "A leading technology university fostering innovation in computer science, engineering, and emerging technologies.",
+    superAdminId: new mongoose.Types.ObjectId(),
+    settings: {
+      allowAlumniRegistration: true,
+      requireApproval: true,
+      allowJobPosting: true,
+      allowFundraising: true,
+      allowMentorship: true,
+      allowEvents: true,
+      emailNotifications: true,
+      whatsappNotifications: false,
+      customBranding: true,
+    },
+    contactInfo: {
+      email: "contact@techuniversity.edu",
+      phone: "+1-555-0123",
+      address: "123 Innovation Drive, Tech City, TC 12345",
+      website: "https://techuniversity.edu",
+    },
+    subscription: {
+      plan: "premium",
+      status: "active",
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      maxUsers: 5000,
+      features: ["advanced_analytics", "custom_branding", "priority_support"],
+    },
+    isActive: true,
+  },
+  {
+    name: "Business School",
+    domain: "business-school",
+    logo: "https://example.com/business-school-logo.png",
+    banner: "https://example.com/business-school-banner.jpg",
+    about:
+      "Premier business education institution specializing in MBA, finance, marketing, and entrepreneurship.",
+    superAdminId: new mongoose.Types.ObjectId(),
+    settings: {
+      allowAlumniRegistration: true,
+      requireApproval: true,
+      allowJobPosting: true,
+      allowFundraising: true,
+      allowMentorship: true,
+      allowEvents: true,
+      emailNotifications: true,
+      whatsappNotifications: false,
+      customBranding: true,
+    },
+    contactInfo: {
+      email: "contact@businessschool.edu",
+      phone: "+1-555-0124",
+      address: "456 Commerce Avenue, Business District, BD 67890",
+      website: "https://businessschool.edu",
+    },
+    subscription: {
+      plan: "premium",
+      status: "active",
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      maxUsers: 5000,
+      features: ["advanced_analytics", "custom_branding", "priority_support"],
+    },
+    isActive: true,
+  },
+  {
+    name: "Medical Institute",
+    domain: "medical-institute",
+    logo: "https://example.com/medical-institute-logo.png",
+    banner: "https://example.com/medical-institute-banner.jpg",
+    about:
+      "Leading medical education institution offering programs in medicine, nursing, pharmacy, and healthcare management.",
+    superAdminId: new mongoose.Types.ObjectId(),
+    settings: {
+      allowAlumniRegistration: true,
+      requireApproval: true,
+      allowJobPosting: true,
+      allowFundraising: true,
+      allowMentorship: true,
+      allowEvents: true,
+      emailNotifications: true,
+      whatsappNotifications: false,
+      customBranding: true,
+    },
+    contactInfo: {
+      email: "contact@medicalinstitute.edu",
+      phone: "+1-555-0125",
+      address: "789 Health Boulevard, Medical Center, MC 11111",
+      website: "https://medicalinstitute.edu",
+    },
+    subscription: {
+      plan: "premium",
+      status: "active",
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      maxUsers: 5000,
+      features: ["advanced_analytics", "custom_branding", "priority_support"],
+    },
+    isActive: true,
+  },
+];
+
+// Sample users data for all colleges
+const sampleUsers = [
+  // Super Admin (Global)
+  {
+    email: "superadmin@alumniaccel.com",
+    password: "SuperAdmin@123",
+    firstName: "John",
+    lastName: "Smith",
     role: UserRole.SUPER_ADMIN,
     status: UserStatus.ACTIVE,
-    phone: "+1-555-0100",
+    phone: "+1-555-0000",
     isEmailVerified: true,
     isPhoneVerified: true,
-    bio: "System administrator for AlumniAccel platform",
-    location: "San Francisco, CA",
-    linkedinProfile: "https://linkedin.com/in/admin-alumniaccel",
-    githubProfile: "https://github.com/admin-alumniaccel",
-    website: "https://alumniaccel.com",
+    bio: "Global platform administrator overseeing all colleges and operations.",
+    location: "Global",
     preferences: {
       emailNotifications: true,
       smsNotifications: false,
@@ -35,19 +144,20 @@ const sampleUsers = [
       newsletterSubscription: true,
     },
   },
+
+  // Tech University Users
   {
-    email: "coordinator@alumniaccel.com",
-    password: "Coord@123",
-    firstName: "Sarah",
+    email: "admin@techuniversity.edu",
+    password: "TechAdmin@123",
+    firstName: "Dr. Sarah",
     lastName: "Johnson",
-    role: UserRole.COORDINATOR,
+    role: UserRole.COLLEGE_ADMIN,
     status: UserStatus.ACTIVE,
-    phone: "+1-555-0101",
+    phone: "+1-555-0001",
     isEmailVerified: true,
     isPhoneVerified: true,
-    bio: "Alumni relations coordinator with 5+ years of experience",
-    location: "New York, NY",
-    linkedinProfile: "https://linkedin.com/in/sarah-johnson",
+    bio: "College Administrator for Tech University.",
+    location: "Tech City, TC",
     preferences: {
       emailNotifications: true,
       smsNotifications: true,
@@ -56,19 +166,101 @@ const sampleUsers = [
     },
   },
   {
-    email: "alumni1@alumniaccel.com",
-    password: "Alumni@123",
-    firstName: "Michael",
+    email: "cs-hod@techuniversity.edu",
+    password: "CSHOD@1234",
+    firstName: "Dr. Michael",
     lastName: "Chen",
-    role: UserRole.ALUMNI,
-    status: UserStatus.VERIFIED,
-    phone: "+1-555-0102",
+    role: UserRole.HOD,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0002",
     isEmailVerified: true,
     isPhoneVerified: true,
-    bio: "Software engineer at Google with expertise in AI/ML",
+    bio: "Head of Computer Science Department.",
+    location: "Tech City, TC",
+    department: "Computer Science",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "eng-hod@techuniversity.edu",
+    password: "EngHOD@1234",
+    firstName: "Dr. Lisa",
+    lastName: "Wang",
+    role: UserRole.HOD,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0003",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Head of Engineering Department.",
+    location: "Tech City, TC",
+    department: "Engineering",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "staff1@techuniversity.edu",
+    password: "TechStaff@1234",
+    firstName: "Emily",
+    lastName: "Rodriguez",
+    role: UserRole.STAFF,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0004",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Administrative staff member.",
+    location: "Tech City, TC",
+    department: "Administration",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "staff2@techuniversity.edu",
+    password: "TechStaff@1234",
+    firstName: "David",
+    lastName: "Kim",
+    role: UserRole.STAFF,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0005",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Student affairs coordinator.",
+    location: "Tech City, TC",
+    department: "Student Affairs",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "alumni1@techuniversity.edu",
+    password: "TechAlumni@1234",
+    firstName: "Alex",
+    lastName: "Thompson",
+    role: UserRole.ALUMNI,
+    status: UserStatus.VERIFIED,
+    phone: "+1-555-0006",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Software engineer at Google.",
     location: "Mountain View, CA",
-    linkedinProfile: "https://linkedin.com/in/michael-chen",
-    githubProfile: "https://github.com/michaelchen",
+    graduationYear: 2020,
+    department: "Computer Science",
+    currentCompany: "Google",
+    currentPosition: "Senior Software Engineer",
     preferences: {
       emailNotifications: true,
       smsNotifications: false,
@@ -77,38 +269,315 @@ const sampleUsers = [
     },
   },
   {
-    email: "alumni2@alumniaccel.com",
-    password: "Alumni@123",
-    firstName: "Emily",
+    email: "alumni2@techuniversity.edu",
+    password: "TechAlumni@1234",
+    firstName: "Maria",
+    lastName: "Garcia",
+    role: UserRole.ALUMNI,
+    status: UserStatus.VERIFIED,
+    phone: "+1-555-0007",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Product manager at Microsoft.",
+    location: "Seattle, WA",
+    graduationYear: 2019,
+    department: "Engineering",
+    currentCompany: "Microsoft",
+    currentPosition: "Product Manager",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: false,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+
+  // Business School Users
+  {
+    email: "admin@businessschool.edu",
+    password: "BusinessAdmin@123",
+    firstName: "Prof. Michael",
+    lastName: "Brown",
+    role: UserRole.COLLEGE_ADMIN,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0008",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "College Administrator for Business School.",
+    location: "Business District, BD",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "mba-hod@businessschool.edu",
+    password: "MBAHOD@1234",
+    firstName: "Dr. Jennifer",
+    lastName: "Davis",
+    role: UserRole.HOD,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0009",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Head of MBA Program.",
+    location: "Business District, BD",
+    department: "MBA",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "finance-hod@businessschool.edu",
+    password: "FinanceHOD@1234",
+    firstName: "Dr. Robert",
+    lastName: "Wilson",
+    role: UserRole.HOD,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0010",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Head of Finance Department.",
+    location: "Business District, BD",
+    department: "Finance",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "staff1@businessschool.edu",
+    password: "BusinessStaff@1234",
+    firstName: "Sarah",
+    lastName: "Miller",
+    role: UserRole.STAFF,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0011",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Career services coordinator.",
+    location: "Business District, BD",
+    department: "Career Services",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "staff2@businessschool.edu",
+    password: "BusinessStaff@1234",
+    firstName: "James",
+    lastName: "Taylor",
+    role: UserRole.STAFF,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0012",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Administrative assistant.",
+    location: "Business District, BD",
+    department: "Administration",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "alumni1@businessschool.edu",
+    password: "BusinessAlumni@1234",
+    firstName: "Jessica",
+    lastName: "Lee",
+    role: UserRole.ALUMNI,
+    status: UserStatus.VERIFIED,
+    phone: "+1-555-0013",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Investment banker at Goldman Sachs.",
+    location: "New York, NY",
+    graduationYear: 2018,
+    department: "Finance",
+    currentCompany: "Goldman Sachs",
+    currentPosition: "Investment Banker",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: false,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "alumni2@businessschool.edu",
+    password: "BusinessAlumni@1234",
+    firstName: "Kevin",
+    lastName: "Anderson",
+    role: UserRole.ALUMNI,
+    status: UserStatus.VERIFIED,
+    phone: "+1-555-0014",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Marketing director at Coca-Cola.",
+    location: "Atlanta, GA",
+    graduationYear: 2019,
+    department: "Marketing",
+    currentCompany: "Coca-Cola",
+    currentPosition: "Marketing Director",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: false,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+
+  // Medical Institute Users
+  {
+    email: "admin@medicalinstitute.edu",
+    password: "MedicalAdmin@123",
+    firstName: "Dr. Elizabeth",
+    lastName: "Martinez",
+    role: UserRole.COLLEGE_ADMIN,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0015",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "College Administrator for Medical Institute.",
+    location: "Medical Center, MC",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "medicine-hod@medicalinstitute.edu",
+    password: "MedicineHOD@1234",
+    firstName: "Dr. William",
+    lastName: "Johnson",
+    role: UserRole.HOD,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0016",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Head of Medicine Department.",
+    location: "Medical Center, MC",
+    department: "Medicine",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "nursing-hod@medicalinstitute.edu",
+    password: "NursingHOD@1234",
+    firstName: "Dr. Patricia",
+    lastName: "Garcia",
+    role: UserRole.HOD,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0017",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Head of Nursing Department.",
+    location: "Medical Center, MC",
+    department: "Nursing",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "staff1@medicalinstitute.edu",
+    password: "MedicalStaff@1234",
+    firstName: "Rachel",
+    lastName: "White",
+    role: UserRole.STAFF,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0018",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Clinical coordinator.",
+    location: "Medical Center, MC",
+    department: "Clinical Services",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "staff2@medicalinstitute.edu",
+    password: "MedicalStaff@1234",
+    firstName: "Mark",
+    lastName: "Thompson",
+    role: UserRole.STAFF,
+    status: UserStatus.ACTIVE,
+    phone: "+1-555-0019",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Student affairs coordinator.",
+    location: "Medical Center, MC",
+    department: "Student Affairs",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: true,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "alumni1@medicalinstitute.edu",
+    password: "MedicalAlumni@1234",
+    firstName: "Dr. Amanda",
+    lastName: "Clark",
+    role: UserRole.ALUMNI,
+    status: UserStatus.VERIFIED,
+    phone: "+1-555-0020",
+    isEmailVerified: true,
+    isPhoneVerified: true,
+    bio: "Cardiologist at Mayo Clinic.",
+    location: "Rochester, MN",
+    graduationYear: 2017,
+    department: "Medicine",
+    currentCompany: "Mayo Clinic",
+    currentPosition: "Cardiologist",
+    preferences: {
+      emailNotifications: true,
+      smsNotifications: false,
+      pushNotifications: true,
+      newsletterSubscription: true,
+    },
+  },
+  {
+    email: "alumni2@medicalinstitute.edu",
+    password: "MedicalAlumni@1234",
+    firstName: "Dr. Christopher",
     lastName: "Rodriguez",
     role: UserRole.ALUMNI,
     status: UserStatus.VERIFIED,
-    phone: "+1-555-0103",
+    phone: "+1-555-0021",
     isEmailVerified: true,
     isPhoneVerified: true,
-    bio: "Product manager at Microsoft, passionate about edtech",
-    location: "Seattle, WA",
-    linkedinProfile: "https://linkedin.com/in/emily-rodriguez",
-    preferences: {
-      emailNotifications: true,
-      smsNotifications: true,
-      pushNotifications: false,
-      newsletterSubscription: true,
-    },
-  },
-  {
-    email: "student1@alumniaccel.com",
-    password: "Student@123",
-    firstName: "David",
-    lastName: "Kim",
-    role: UserRole.ALUMNI,
-    status: UserStatus.ACTIVE,
-    phone: "+1-555-0104",
-    isEmailVerified: true,
-    isPhoneVerified: false,
-    bio: "Computer Science student, graduating in 2024",
-    location: "Boston, MA",
-    githubProfile: "https://github.com/davidkim",
+    bio: "Nurse practitioner at Johns Hopkins.",
+    location: "Baltimore, MD",
+    graduationYear: 2018,
+    department: "Nursing",
+    currentCompany: "Johns Hopkins",
+    currentPosition: "Nurse Practitioner",
     preferences: {
       emailNotifications: true,
       smsNotifications: false,
@@ -116,359 +585,7 @@ const sampleUsers = [
       newsletterSubscription: true,
     },
   },
-  {
-    email: "student2@alumniaccel.com",
-    password: "Student@123",
-    firstName: "Lisa",
-    lastName: "Wang",
-    role: UserRole.ALUMNI,
-    status: UserStatus.ACTIVE,
-    phone: "+1-555-0105",
-    isEmailVerified: true,
-    isPhoneVerified: false,
-    bio: "Business Administration student, interested in entrepreneurship",
-    location: "Chicago, IL",
-    linkedinProfile: "https://linkedin.com/in/lisa-wang",
-    preferences: {
-      emailNotifications: true,
-      smsNotifications: true,
-      pushNotifications: true,
-      newsletterSubscription: false,
-    },
-  },
-  {
-    email: "batchrep@alumniaccel.com",
-    password: "Batch@123",
-    firstName: "Alex",
-    lastName: "Thompson",
-    role: UserRole.BATCH_REP,
-    status: UserStatus.ACTIVE,
-    phone: "+1-555-0106",
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    bio: "Batch representative for Class of 2020, organizing reunions",
-    location: "Austin, TX",
-    linkedinProfile: "https://linkedin.com/in/alex-thompson",
-    preferences: {
-      emailNotifications: true,
-      smsNotifications: true,
-      pushNotifications: true,
-      newsletterSubscription: true,
-    },
-  },
 ];
-
-// Sample alumni profiles data
-const sampleAlumniProfiles = [
-  {
-    userId: "", // Will be set after user creation
-    batchYear: 2018,
-    graduationYear: 2020,
-    department: "Computer Science",
-    specialization: "Artificial Intelligence",
-    rollNumber: "CS18B001",
-    studentId: "STU2020001",
-    currentCompany: "Google",
-    currentPosition: "Senior Software Engineer",
-    currentLocation: "Mountain View, CA",
-    experience: 3,
-    salary: 150000,
-    currency: "USD",
-    skills: [
-      "Python",
-      "TensorFlow",
-      "Machine Learning",
-      "Deep Learning",
-      "Google Cloud",
-    ],
-    achievements: [
-      "Google Scholar Award 2020",
-      "Best Thesis Award",
-      "Hackathon Winner 2019",
-    ],
-    certifications: [
-      {
-        name: "Google Cloud Professional Data Engineer",
-        issuer: "Google",
-        date: new Date("2022-06-15"),
-        credentialId: "GCP-DE-2022-001",
-      },
-    ],
-    education: [
-      {
-        degree: "Master of Science in Computer Science",
-        institution: "Stanford University",
-        year: 2020,
-        gpa: 3.9,
-      },
-    ],
-    careerTimeline: [
-      {
-        company: "Google",
-        position: "Software Engineer",
-        startDate: new Date("2020-08-01"),
-        isCurrent: true,
-        description: "Working on AI/ML infrastructure projects",
-      },
-    ],
-    isHiring: true,
-    availableForMentorship: true,
-    mentorshipDomains: ["AI/ML", "Software Engineering", "Career Development"],
-    availableSlots: [
-      {
-        day: "saturday",
-        timeSlots: ["10:00", "14:00", "16:00"],
-      },
-    ],
-    testimonials: [
-      {
-        content: "Great platform for connecting with fellow alumni!",
-        author: "Michael Chen",
-        date: new Date("2023-12-01"),
-      },
-    ],
-    photos: [],
-  },
-  {
-    userId: "", // Will be set after user creation
-    batchYear: 2017,
-    graduationYear: 2019,
-    department: "Business Administration",
-    specialization: "Marketing",
-    rollNumber: "BA17B002",
-    studentId: "STU2019002",
-    currentCompany: "Microsoft",
-    currentPosition: "Senior Product Manager",
-    currentLocation: "Seattle, WA",
-    experience: 4,
-    salary: 140000,
-    currency: "USD",
-    skills: [
-      "Product Management",
-      "Marketing Strategy",
-      "Data Analysis",
-      "User Research",
-      "Agile",
-    ],
-    achievements: [
-      "Microsoft MVP Award 2022",
-      "Product Launch Success 2021",
-      "Customer Satisfaction Award",
-    ],
-    certifications: [
-      {
-        name: "Certified Scrum Product Owner",
-        issuer: "Scrum Alliance",
-        date: new Date("2021-03-20"),
-        credentialId: "CSPO-2021-001",
-      },
-    ],
-    education: [
-      {
-        degree: "Master of Business Administration",
-        institution: "Harvard Business School",
-        year: 2019,
-        gpa: 3.8,
-      },
-    ],
-    careerTimeline: [
-      {
-        company: "Microsoft",
-        position: "Product Manager",
-        startDate: new Date("2019-07-01"),
-        isCurrent: true,
-        description: "Leading product development for Microsoft Teams",
-      },
-    ],
-    isHiring: false,
-    availableForMentorship: true,
-    mentorshipDomains: ["Product Management", "Marketing", "Career Transition"],
-    availableSlots: [
-      {
-        day: "sunday",
-        timeSlots: ["11:00", "15:00"],
-      },
-    ],
-    testimonials: [
-      {
-        content: "Excellent networking opportunities and mentorship programs.",
-        author: "Emily Rodriguez",
-        date: new Date("2023-11-15"),
-      },
-    ],
-    photos: [],
-  },
-];
-
-// Sample events data
-const sampleEvents = [
-  {
-    title: "Annual Alumni Reunion 2024",
-    description:
-      "Join us for our biggest alumni gathering of the year! Network with fellow graduates, share experiences, and celebrate our community.",
-    type: EventType.REUNION,
-    startDate: new Date("2024-06-15T18:00:00Z"),
-    endDate: new Date("2024-06-15T22:00:00Z"),
-    location: "Grand Hyatt Hotel, San Francisco",
-    isOnline: false,
-    maxAttendees: 200,
-    currentAttendees: 0,
-    organizer: "", // Will be set after user creation
-    tags: ["networking", "reunion", "celebration"],
-    price: 50,
-    speakers: [
-      {
-        name: "Dr. Sarah Johnson",
-        title: "Alumni Relations Director",
-        company: "AlumniAccel University",
-        bio: "Leading alumni engagement initiatives for over 10 years",
-      },
-    ],
-    agenda: [
-      {
-        time: "18:00",
-        title: "Welcome & Registration",
-        description: "Check-in and networking",
-      },
-      {
-        time: "19:00",
-        title: "Keynote Speech",
-        description: "Future of Alumni Networks",
-      },
-      {
-        time: "20:00",
-        title: "Networking & Dinner",
-        description: "Open networking session",
-      },
-    ],
-    attendees: [],
-    photos: [],
-    status: "upcoming",
-  },
-  {
-    title: "Tech Career Workshop",
-    description:
-      "Learn from industry experts about breaking into tech, interview preparation, and career advancement strategies.",
-    type: EventType.WORKSHOP,
-    startDate: new Date("2024-05-20T14:00:00Z"),
-    endDate: new Date("2024-05-20T17:00:00Z"),
-    location: "Virtual Event",
-    isOnline: true,
-    onlineUrl: "https://meet.google.com/tech-workshop-2024",
-    maxAttendees: 100,
-    currentAttendees: 0,
-    organizer: "", // Will be set after user creation
-    tags: ["career", "tech", "workshop", "interview"],
-    price: 0,
-    speakers: [
-      {
-        name: "Michael Chen",
-        title: "Senior Software Engineer",
-        company: "Google",
-        bio: "AI/ML expert with 3+ years at Google",
-      },
-    ],
-    agenda: [
-      {
-        time: "14:00",
-        title: "Introduction to Tech Careers",
-        description: "Overview of different tech roles and paths",
-      },
-      {
-        time: "15:00",
-        title: "Interview Preparation",
-        description: "Technical and behavioral interview tips",
-      },
-      {
-        time: "16:00",
-        title: "Q&A Session",
-        description: "Open discussion and networking",
-      },
-    ],
-    attendees: [],
-    photos: [],
-    status: "upcoming",
-  },
-];
-
-// Sample job posts data
-const sampleJobPosts = [
-  {
-    postedBy: "", // Will be set after user creation
-    company: "Google",
-    position: "Software Engineer - AI/ML",
-    location: "Mountain View, CA",
-    type: "full-time",
-    remote: false,
-    salary: {
-      min: 120000,
-      max: 180000,
-      currency: "USD",
-    },
-    description:
-      "Join our AI/ML team to build cutting-edge machine learning solutions that impact millions of users worldwide.",
-    requirements: [
-      "Bachelor's degree in Computer Science or related field",
-      "3+ years of experience in software development",
-      "Strong knowledge of Python, TensorFlow, and ML algorithms",
-      "Experience with distributed systems and cloud platforms",
-    ],
-    benefits: [
-      "Competitive salary and equity",
-      "Comprehensive health benefits",
-      "Flexible work arrangements",
-      "Professional development opportunities",
-    ],
-    status: JobPostStatus.ACTIVE,
-    applications: [],
-    tags: ["AI/ML", "Python", "Machine Learning", "Google Cloud"],
-    deadline: new Date("2024-07-31"),
-  },
-  {
-    postedBy: "", // Will be set after user creation
-    company: "Microsoft",
-    position: "Product Manager - Teams",
-    location: "Seattle, WA",
-    type: "full-time",
-    remote: true,
-    salary: {
-      min: 110000,
-      max: 160000,
-      currency: "USD",
-    },
-    description:
-      "Lead product development for Microsoft Teams, focusing on user experience and feature innovation.",
-    requirements: [
-      "MBA or equivalent experience in product management",
-      "5+ years of product management experience",
-      "Strong analytical and communication skills",
-      "Experience with SaaS products and collaboration tools",
-    ],
-    benefits: [
-      "Competitive compensation package",
-      "Health and wellness benefits",
-      "Remote work options",
-      "Career growth opportunities",
-    ],
-    status: JobPostStatus.ACTIVE,
-    applications: [],
-    tags: ["Product Management", "SaaS", "Collaboration", "Microsoft Teams"],
-    deadline: new Date("2024-08-15"),
-  },
-];
-
-// Connect to database
-const connectDB = async () => {
-  try {
-    const mongoURI =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/alumni_accel";
-    await mongoose.connect(mongoURI);
-    logger.info("MongoDB connected successfully");
-  } catch (error) {
-    logger.error("MongoDB connection failed:", error);
-    process.exit(1);
-  }
-};
 
 // Clear existing data
 const clearData = async () => {
@@ -477,22 +594,61 @@ const clearData = async () => {
     await AlumniProfile.deleteMany({});
     await Event.deleteMany({});
     await JobPost.deleteMany({});
+    await Tenant.deleteMany({});
     logger.info("Existing data cleared successfully");
   } catch (error) {
     logger.error("Error clearing data:", error);
   }
 };
 
+// Seed tenants (colleges)
+const seedTenants = async () => {
+  try {
+    const createdTenants = [];
+    for (const tenantData of sampleTenants) {
+      const tenant = new Tenant(tenantData);
+      await tenant.save();
+      createdTenants.push(tenant);
+      logger.info(`Created tenant: ${tenant.name}`);
+    }
+    logger.info(`Created ${createdTenants.length} tenants successfully`);
+    return createdTenants;
+  } catch (error) {
+    logger.error("Error seeding tenants:", error);
+    throw error;
+  }
+};
+
 // Seed users
-const seedUsers = async () => {
+const seedUsers = async (tenants: any[]) => {
   try {
     const createdUsers = [];
 
-    for (const userData of sampleUsers) {
-      const user = new User(userData);
-      await user.save();
-      createdUsers.push(user);
-      logger.info(`Created user: ${user.email}`);
+    // Create Super Admin first (no tenant)
+    const superAdminData = sampleUsers[0];
+    const superAdmin = new User(superAdminData);
+    await superAdmin.save();
+    createdUsers.push(superAdmin);
+    logger.info(`Created Super Admin: ${superAdmin.email}`);
+
+    // Create users for each college
+    for (let i = 0; i < tenants.length; i++) {
+      const tenant = tenants[i];
+      const startIndex = 1 + i * 7; // Each college has 7 users
+      const endIndex = startIndex + 7;
+
+      for (let j = startIndex; j < endIndex; j++) {
+        if (j < sampleUsers.length) {
+          const userData = {
+            ...sampleUsers[j],
+            tenantId: tenant._id,
+          };
+          const user = new User(userData);
+          await user.save();
+          createdUsers.push(user);
+          logger.info(`Created user: ${user.email} for ${tenant.name}`);
+        }
+      }
     }
 
     logger.info(`Created ${createdUsers.length} users successfully`);
@@ -503,84 +659,18 @@ const seedUsers = async () => {
   }
 };
 
-// Seed alumni profiles
-const seedAlumniProfiles = async (users: any[]) => {
+// Update tenant superAdminId
+const updateTenantSuperAdmin = async (tenants: any[], superAdmin: any) => {
   try {
-    const alumniUsers = users.filter((user) => user.role === UserRole.ALUMNI);
-    const createdProfiles = [];
-
-    for (
-      let i = 0;
-      i < alumniUsers.length && i < sampleAlumniProfiles.length;
-      i++
-    ) {
-      const profileData = { ...sampleAlumniProfiles[i] };
-      profileData.userId = alumniUsers[i]._id;
-
-      const profile = new AlumniProfile(profileData);
-      await profile.save();
-      createdProfiles.push(profile);
-      logger.info(`Created alumni profile for: ${alumniUsers[i].email}`);
-    }
-
-    logger.info(
-      `Created ${createdProfiles.length} alumni profiles successfully`
-    );
-    return createdProfiles;
-  } catch (error) {
-    logger.error("Error seeding alumni profiles:", error);
-    throw error;
-  }
-};
-
-// Seed events
-const seedEvents = async (users: any[]) => {
-  try {
-    const coordinatorUser = users.find(
-      (user) => user.role === UserRole.COORDINATOR
-    );
-    const createdEvents = [];
-
-    for (const eventData of sampleEvents) {
-      const event = new Event({
-        ...eventData,
-        organizer: coordinatorUser?._id || users[0]._id,
-      });
-      await event.save();
-      createdEvents.push(event);
-      logger.info(`Created event: ${event.title}`);
-    }
-
-    logger.info(`Created ${createdEvents.length} events successfully`);
-    return createdEvents;
-  } catch (error) {
-    logger.error("Error seeding events:", error);
-    throw error;
-  }
-};
-
-// Seed job posts
-const seedJobPosts = async (users: any[]) => {
-  try {
-    const alumniUsers = users.filter((user) => user.role === UserRole.ALUMNI);
-    const createdJobPosts = [];
-
-    for (let i = 0; i < alumniUsers.length && i < sampleJobPosts.length; i++) {
-      const jobData = { ...sampleJobPosts[i] };
-      jobData.postedBy = alumniUsers[i]._id;
-
-      const jobPost = new JobPost(jobData);
-      await jobPost.save();
-      createdJobPosts.push(jobPost);
+    for (const tenant of tenants) {
+      tenant.superAdminId = superAdmin._id;
+      await tenant.save();
       logger.info(
-        `Created job post: ${jobPost.position} at ${jobPost.company}`
+        `Updated tenant ${tenant.name} with super admin: ${superAdmin.email}`
       );
     }
-
-    logger.info(`Created ${createdJobPosts.length} job posts successfully`);
-    return createdJobPosts;
   } catch (error) {
-    logger.error("Error seeding job posts:", error);
+    logger.error("Error updating tenant super admin:", error);
     throw error;
   }
 };
@@ -589,39 +679,72 @@ const seedJobPosts = async (users: any[]) => {
 const seedDatabase = async () => {
   try {
     await connectDB();
-
     logger.info("Starting database seeding...");
 
-    // Clear existing data
     await clearData();
 
-    // Seed users
-    const users = await seedUsers();
+    const tenants = await seedTenants();
+    const users = await seedUsers(tenants);
 
-    // Seed alumni profiles
-    await seedAlumniProfiles(users);
-
-    // Seed events
-    await seedEvents(users);
-
-    // Seed job posts
-    await seedJobPosts(users);
+    const superAdmin = users.find((user) => user.role === UserRole.SUPER_ADMIN);
+    if (superAdmin) {
+      await updateTenantSuperAdmin(tenants, superAdmin);
+    }
 
     logger.info("Database seeding completed successfully! 🎉");
     logger.info("Sample data created:");
+    logger.info(`- ${tenants.length} colleges (tenants)`);
     logger.info(`- ${users.length} users`);
-    logger.info(
-      `- ${users.filter((u) => u.role === UserRole.ALUMNI).length} alumni profiles`
-    );
-    logger.info(`- ${sampleEvents.length} events`);
-    logger.info(`- ${sampleJobPosts.length} job posts`);
 
     // Display login credentials
-    logger.info("\n📋 Sample Login Credentials:");
-    logger.info("Super Admin: admin@alumniaccel.com / Admin@123");
-    logger.info("Coordinator: coordinator@alumniaccel.com / Coord@123");
-    logger.info("Alumni: alumni1@alumniaccel.com / Alumni@123");
-    logger.info("Student: student1@alumniaccel.com / Student@123");
+    logger.info("\n📋 LOGIN CREDENTIALS FOR ALL ROLES:");
+    logger.info("=".repeat(50));
+
+    logger.info("\n🔧 SUPER ADMIN (Global Access):");
+    logger.info("Email: superadmin@alumniaccel.com");
+    logger.info("Password: SuperAdmin@123");
+    logger.info("Access: All colleges, all users, system management");
+
+    logger.info("\n🏫 TECH UNIVERSITY:");
+    logger.info("College Admin: admin@techuniversity.edu / TechAdmin@123");
+    logger.info("CS HOD: cs-hod@techuniversity.edu / CSHOD@1234");
+    logger.info("Engineering HOD: eng-hod@techuniversity.edu / EngHOD@1234");
+    logger.info("Staff 1: staff1@techuniversity.edu / TechStaff@1234");
+    logger.info("Staff 2: staff2@techuniversity.edu / TechStaff@1234");
+    logger.info("Alumni 1: alumni1@techuniversity.edu / TechAlumni@1234");
+    logger.info("Alumni 2: alumni2@techuniversity.edu / TechAlumni@1234");
+
+    logger.info("\n🏢 BUSINESS SCHOOL:");
+    logger.info("College Admin: admin@businessschool.edu / BusinessAdmin@123");
+    logger.info("MBA HOD: mba-hod@businessschool.edu / MBAHOD@1234");
+    logger.info(
+      "Finance HOD: finance-hod@businessschool.edu / FinanceHOD@1234"
+    );
+    logger.info("Staff 1: staff1@businessschool.edu / BusinessStaff@1234");
+    logger.info("Staff 2: staff2@businessschool.edu / BusinessStaff@1234");
+    logger.info("Alumni 1: alumni1@businessschool.edu / BusinessAlumni@1234");
+    logger.info("Alumni 2: alumni2@businessschool.edu / BusinessAlumni@1234");
+
+    logger.info("\n🏥 MEDICAL INSTITUTE:");
+    logger.info("College Admin: admin@medicalinstitute.edu / MedicalAdmin@123");
+    logger.info(
+      "Medicine HOD: medicine-hod@medicalinstitute.edu / MedicineHOD@1234"
+    );
+    logger.info(
+      "Nursing HOD: nursing-hod@medicalinstitute.edu / NursingHOD@1234"
+    );
+    logger.info("Staff 1: staff1@medicalinstitute.edu / MedicalStaff@1234");
+    logger.info("Staff 2: staff2@medicalinstitute.edu / MedicalStaff@1234");
+    logger.info("Alumni 1: alumni1@medicalinstitute.edu / MedicalAlumni@1234");
+    logger.info("Alumni 2: alumni2@medicalinstitute.edu / MedicalAlumni@1234");
+
+    logger.info("\n🎯 TESTING INSTRUCTIONS:");
+    logger.info("1. Start backend: npm run dev (in api folder)");
+    logger.info("2. Start frontend: npm run dev (in client folder)");
+    logger.info("3. Go to http://localhost:8081/login");
+    logger.info("4. Login with any credentials above");
+    logger.info("5. Navigate to /dashboard to see role-specific interface");
+    logger.info("6. Test different roles to see different permissions");
 
     process.exit(0);
   } catch (error) {

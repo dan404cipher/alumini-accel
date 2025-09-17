@@ -103,7 +103,7 @@ export const DeleteNewsDialog = ({
             <h3 className="font-medium text-gray-900 mb-2">{news.title}</h3>
             <p className="text-sm text-gray-600 line-clamp-3">{news.summary}</p>
             <div className="mt-2 text-xs text-gray-500">
-              By {news.author.firstName} {news.author.lastName} •{" "}
+              By {news.author?.firstName} {news.author?.lastName} •{" "}
               {new Date(news.createdAt).toLocaleDateString()}
             </div>
           </div>

@@ -28,6 +28,7 @@ import AlumniProfile from "./components/AlumniProfile";
 import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
 import Connections from "./pages/Connections";
+import Feed from "./pages/Feed";
 import Messages from "./pages/Messages";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => {
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/connections" element={<Connections />} />
+                <Route path="/feed" element={<Feed />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />

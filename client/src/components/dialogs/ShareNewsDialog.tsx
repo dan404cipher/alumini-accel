@@ -149,7 +149,7 @@ export const ShareNewsDialog = ({
               {news.summary.substring(0, 150)}...
             </p>
             <p className="text-xs text-gray-500 mt-2">
-              By {news.author.firstName} {news.author.lastName}
+              By {news.author?.firstName} {news.author?.lastName}
             </p>
           </div>
 

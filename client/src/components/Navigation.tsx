@@ -35,6 +35,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useState } from "react";
+import {
+  canAccessAdmin,
+  canManageUsers,
+  canManageContent,
+  getRoleDisplayName,
+  getRoleColor,
+} from "@/utils/rolePermissions";
 
 interface NavigationProps {
   activeTab: string;
@@ -51,19 +58,29 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   // Check if user has admin permissions
-  const isAdmin =
-    user?.role === "super_admin" ||
-    user?.role === "admin" ||
-    user?.role === "coordinator";
+  const isAdmin = user ? canAccessAdmin(user.role) : false;
+  const canManageUsersAccess = user ? canManageUsers(user.role) : false;
+  const canManageContentAccess = user ? canManageContent(user.role) : false;
 
   const navItems = [
     { id: "dashboard", name: "Dashboard", icon: BarChart3, count: null },
-    ...(isAdmin
-      ? [{ id: "admin", name: "Admin Dashboard", icon: Settings, count: null }]
+    // For Super Admin, everything is in the Dashboard tabs
+    ...(user?.role !== "super_admin" && isAdmin
+      ? [
+          {
+            id: "admin",
+            name: "College Management",
+            icon: Settings,
+            count: null,
+          },
+        ]
+      : []),
+    ...(user?.role !== "super_admin" && canManageUsersAccess
+      ? [{ id: "users", name: "Admin & Staff", icon: UserPlus, count: null }]
       : []),
     {
       id: "alumni",
-      name: "Alumni",
+      name: "Alumni Directory",
       icon: Users,
       count: "2.8K",
     },
@@ -76,10 +93,21 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     { id: "news", name: "News Room", icon: Newspaper, count: null },
     { id: "recognition", name: "Recognition", icon: Award, count: null },
     { id: "gallery", name: "Gallery", icon: Image, count: null },
+    ...(canManageContentAccess
+      ? [
+          {
+            id: "content-management",
+            name: "Content Management",
+            icon: Settings,
+            count: null,
+          },
+        ]
+      : []),
   ];
 
   // Social dropdown items
   const socialItems = [
+    { id: "feed", name: "Feed", icon: Newspaper, count: null },
     { id: "messages", name: "Messages", icon: MessageCircle, count: null },
     { id: "connections", name: "Connections", icon: UserPlus, count: null },
   ];
@@ -91,7 +119,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
   return (
     <nav className="bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-xl sticky top-0 z-50 overflow-hidden">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+      <div className="w-full max-w-8xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12">
         <div className="flex justify-between items-center h-16 sm:h-18 md:h-20 min-w-0">
           {/* Logo */}
           <div
@@ -107,7 +135,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           </div>
 
           {/* Navigation Links - Centered */}
-          <div className="hidden md:flex items-center space-x-1 lg:space-x-2 xl:space-x-3 min-w-0 flex-shrink-0">
+          <div className="flex items-center space-x-0.5 sm:space-x-1 md:space-x-1.5 lg:space-x-2 min-w-0 flex-shrink-0 overflow-x-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -120,14 +148,14 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     onTabChange(item.id);
                     navigate(`/${item.id}`);
                   }}
-                  className={`group flex items-center px-2 md:px-3 lg:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${
+                  className={`group flex items-center px-1.5 sm:px-2 md:px-2.5 lg:px-3 py-1.5 sm:py-2 md:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 ${
                     isActive
                       ? "text-blue-600 bg-blue-50/80 border border-blue-200/50 shadow-lg backdrop-blur-sm"
                       : "text-gray-700 hover:text-blue-600 hover:bg-blue-50/60 hover:shadow-md hover:scale-105 hover:border-blue-200/30"
                   }`}
                 >
                   <Icon className="w-4 h-4 md:w-4 md:h-4 mr-1 md:mr-2" />
-                  <span className="tracking-wide hidden lg:inline">
+                  <span className="tracking-wide hidden sm:inline">
                     {item.name}
                   </span>
                   {item.count && (
@@ -346,8 +374,12 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                           {user.email}
                         </p>
                         {user?.role && (
-                          <Badge variant="secondary" className="w-fit text-xs">
-                            {user.role}
+                          <Badge
+                            className={`w-fit text-xs ${getRoleColor(
+                              user.role
+                            )}`}
+                          >
+                            {getRoleDisplayName(user.role)}
                           </Badge>
                         )}
                       </div>

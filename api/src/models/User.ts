@@ -38,6 +38,14 @@ const userSchema = new Schema<IUser>(
       default: UserRole.ALUMNI,
       required: true,
     },
+    tenantId: {
+      type: Schema.Types.ObjectId,
+      ref: "Tenant",
+      required: function () {
+        // SUPER_ADMIN doesn't need tenantId, all others do
+        return this.role !== UserRole.SUPER_ADMIN;
+      },
+    },
     status: {
       type: String,
       enum: Object.values(UserStatus),
@@ -114,6 +122,11 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
       maxlength: [100, "Location cannot exceed 100 characters"],
+    },
+    department: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Department cannot exceed 100 characters"],
     },
     timezone: {
       type: String,

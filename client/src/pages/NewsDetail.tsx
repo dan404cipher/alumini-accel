@@ -39,7 +39,7 @@ interface News {
   summary: string;
   image?: string;
   isShared: boolean;
-  author: {
+  author?: {
     _id: string;
     firstName: string;
     lastName: string;
@@ -234,7 +234,8 @@ const NewsDetail = () => {
                     <div className="flex items-center space-x-2">
                       <User className="w-4 h-4" />
                       <span>
-                        {news.author.firstName} {news.author.lastName}
+                        {news.author?.firstName || "Unknown"}{" "}
+                        {news.author?.lastName || "Author"}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">

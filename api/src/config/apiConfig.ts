@@ -185,12 +185,11 @@ export const STATUS_CODES = {
 
 // User roles
 export const USER_ROLES = {
-  SUPER_ADMIN: "super_admin",
-  ADMIN: "admin",
-  COORDINATOR: "coordinator",
-  ALUMNI: "alumni",
-  STUDENT: "student",
-  BATCH_REP: "batch_rep",
+  SUPER_ADMIN: "super_admin", // Can manage multiple colleges
+  COLLEGE_ADMIN: "college_admin", // Manages one specific college
+  HOD: "hod", // Head of Department
+  STAFF: "staff", // College staff member
+  ALUMNI: "alumni", // Alumni member
 } as const;
 
 // User statuses

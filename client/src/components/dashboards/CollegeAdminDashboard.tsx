@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { userAPI, alumniAPI, eventAPI, jobAPI } from "@/lib/api";
+import { userAPI, alumniAPI, eventAPI, jobAPI, tenantAPI } from "@/lib/api";
 import AlumniManagement from "../AlumniManagement";
 import CampaignManagement from "../CampaignManagement";
 // Note: College Admin only manages their own college, not all colleges
@@ -48,6 +48,16 @@ const CollegeAdminDashboard = () => {
   const [isCreateHODOpen, setIsCreateHODOpen] = useState(false);
   const [isCreateStaffOpen, setIsCreateStaffOpen] = useState(false);
   const [isCreateAdminOpen, setIsCreateAdminOpen] = useState(false);
+
+  // College Settings state
+  const [collegeLogo, setCollegeLogo] = useState<File | null>(null);
+  const [collegeBanner, setCollegeBanner] = useState<File | null>(null);
+  const [collegeDescription, setCollegeDescription] = useState("");
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [logoLoading, setLogoLoading] = useState(false);
+  const [bannerLoading, setBannerLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
   // Alumni creation is now handled by AlumniManagement component
 
   // Real data states
@@ -443,14 +453,301 @@ const CollegeAdminDashboard = () => {
     }
   };
 
+  // College Settings handlers
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please select an image file (PNG, JPG, SVG)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "Please select an image smaller than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setCollegeLogo(file);
+      const preview = URL.createObjectURL(file);
+      setLogoPreview(preview);
+
+      toast({
+        title: "Logo Selected",
+        description: "Logo ready to upload",
+      });
+    }
+  };
+
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please select an image file (PNG, JPG, SVG)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "Please select an image smaller than 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setCollegeBanner(file);
+      const preview = URL.createObjectURL(file);
+      setBannerPreview(preview);
+
+      toast({
+        title: "Banner Selected",
+        description: "Banner ready to upload",
+      });
+    }
+  };
+
+  const handleSaveCollegeSettings = async () => {
+    console.log("Current user object:", user);
+    console.log("User tenantId:", user?.tenantId);
+    console.log("User role:", user?.role);
+
+    // Check for tenantId in multiple possible locations
+    // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+    const tenantId =
+      user?.tenantId ||
+      (user as any)?.tenant?._id ||
+      (user as any)?.tenantId ||
+      (user?.role === "college_admin" ? user._id : null);
+
+    if (!tenantId) {
+      toast({
+        title: "Error",
+        description: `No college ID found. User: ${user?.firstName} ${user?.lastName}, Role: ${user?.role}. Please contact support to ensure your account is properly linked to a college.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log("Using tenantId:", tenantId);
+
+    setSettingsLoading(true);
+
+    try {
+      // Upload logo to database
+      if (collegeLogo) {
+        setLogoLoading(true);
+        console.log("Uploading logo to database:", collegeLogo.name);
+
+        try {
+          const logoResponse = await tenantAPI.uploadLogo(
+            tenantId,
+            collegeLogo
+          );
+
+          if (logoResponse.success) {
+            console.log(
+              "Logo uploaded successfully to database:",
+              logoResponse.data
+            );
+
+            // Dispatch custom event to notify navbar of logo update
+            window.dispatchEvent(new CustomEvent("collegeLogoUpdated"));
+          } else {
+            throw new Error(logoResponse.message || "Failed to upload logo");
+          }
+        } catch (error) {
+          console.log(
+            "Database upload failed, falling back to localStorage:",
+            error
+          );
+
+          // Fallback to localStorage
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const logoData = e.target?.result as string;
+            localStorage.setItem(`college_logo_${tenantId}`, logoData);
+            console.log("Logo saved to localStorage as fallback");
+
+            // Dispatch custom event to notify navbar of logo update (with small delay)
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent("collegeLogoUpdated"));
+            }, 100);
+          };
+          reader.readAsDataURL(collegeLogo);
+        }
+        setLogoLoading(false);
+      }
+
+      // Upload banner to database
+      if (collegeBanner) {
+        setBannerLoading(true);
+        console.log("Uploading banner to database:", collegeBanner.name);
+
+        try {
+          const bannerResponse = await tenantAPI.uploadBanner(
+            tenantId,
+            collegeBanner
+          );
+
+          if (bannerResponse.success) {
+            console.log(
+              "Banner uploaded successfully to database:",
+              bannerResponse.data
+            );
+          } else {
+            throw new Error(
+              bannerResponse.message || "Failed to upload banner"
+            );
+          }
+        } catch (error) {
+          console.log(
+            "Database upload failed, falling back to localStorage:",
+            error
+          );
+
+          // Fallback to localStorage
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const bannerData = e.target?.result as string;
+            localStorage.setItem(`college_banner_${tenantId}`, bannerData);
+            console.log("Banner saved to localStorage as fallback");
+          };
+          reader.readAsDataURL(collegeBanner);
+        }
+        setBannerLoading(false);
+      }
+
+      // Save college description to database
+      if (collegeDescription.trim()) {
+        console.log("Saving description to database:", collegeDescription);
+
+        const descriptionResponse = await tenantAPI.updateDescription(
+          tenantId,
+          collegeDescription
+        );
+
+        if (!descriptionResponse.success) {
+          throw new Error(
+            descriptionResponse.message || "Failed to save description"
+          );
+        }
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: "College settings have been updated successfully",
+      });
+
+      // Reset form
+      setCollegeLogo(null);
+      setCollegeBanner(null);
+      setLogoPreview(null);
+      setBannerPreview(null);
+    } catch (error) {
+      console.error("Error saving college settings:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to save college settings",
+        variant: "destructive",
+      });
+    } finally {
+      setSettingsLoading(false);
+      setLogoLoading(false);
+      setBannerLoading(false);
+    }
+  };
+
+  // Load college settings from database
+  const loadCollegeSettings = async (tenantId: string) => {
+    try {
+      // Load logo from database
+      try {
+        const logoResponse = await tenantAPI.getLogo(tenantId);
+        if (logoResponse.success && logoResponse.data) {
+          // Convert blob to data URL for preview
+          const logoBlob = logoResponse.data as Blob;
+          const logoUrl = URL.createObjectURL(logoBlob);
+          setLogoPreview(logoUrl);
+        }
+      } catch (error) {
+        console.log("No logo found or error loading logo:", error);
+      }
+
+      // Load banner from database
+      try {
+        const bannerResponse = await tenantAPI.getBanner(tenantId);
+        if (bannerResponse.success && bannerResponse.data) {
+          // Convert blob to data URL for preview
+          const bannerBlob = bannerResponse.data as Blob;
+          const bannerUrl = URL.createObjectURL(bannerBlob);
+          setBannerPreview(bannerUrl);
+        }
+      } catch (error) {
+        console.log("No banner found or error loading banner:", error);
+      }
+
+      // Load description from tenant data
+      try {
+        const tenantResponse = await tenantAPI.getTenantById(tenantId);
+        if (tenantResponse.success && tenantResponse.data) {
+          const tenantData = tenantResponse.data;
+          if (tenantData.description) {
+            setCollegeDescription(tenantData.description);
+          }
+        }
+      } catch (error) {
+        console.log("Error loading tenant description:", error);
+      }
+    } catch (error) {
+      console.error("Error loading college settings:", error);
+    }
+  };
+
   // Alumni creation is now handled by AlumniManagement component
 
   // Load data on component mount
   useEffect(() => {
+    console.log("CollegeAdminDashboard mounted. User:", user);
+    console.log("User tenantId:", user?.tenantId);
+    console.log("User role:", user?.role);
+
     fetchStats();
     fetchPendingAlumni();
     fetchHodStaff();
     fetchRecentEvents();
+
+    // Load existing college settings from database
+    // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+    const tenantId =
+      user?.tenantId ||
+      (user as any)?.tenant?._id ||
+      (user as any)?.tenantId ||
+      (user?.role === "college_admin" ? user._id : null);
+    if (tenantId) {
+      console.log("Loading college settings for tenantId:", tenantId);
+      loadCollegeSettings(tenantId);
+    } else {
+      console.log("No tenantId found, skipping college settings load");
+    }
   }, [fetchStats, fetchPendingAlumni, fetchHodStaff, fetchRecentEvents]);
 
   return (
@@ -698,9 +995,12 @@ const CollegeAdminDashboard = () => {
         <TabsContent value="college" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold">College Settings</h2>
-            <Button>
+            <Button
+              onClick={handleSaveCollegeSettings}
+              disabled={settingsLoading || logoLoading || bannerLoading}
+            >
               <Settings className="w-4 h-4 mr-2" />
-              Save Changes
+              {settingsLoading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
 
@@ -709,19 +1009,57 @@ const CollegeAdminDashboard = () => {
               <CardHeader>
                 <CardTitle>College Logo</CardTitle>
                 <CardDescription>
-                  Upload your college logo (PNG, JPG, SVG)
+                  Upload your college logo (PNG, JPG, SVG, max 5MB)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
-                  <p className="text-sm text-gray-500">
-                    Click to upload or drag and drop
-                  </p>
-                  <Button variant="outline" className="mt-4">
-                    Choose File
-                  </Button>
-                </div>
+                {logoPreview ? (
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <img
+                        src={logoPreview}
+                        alt="Logo Preview"
+                        className="w-full h-32 object-contain border rounded-lg"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => {
+                          setCollegeLogo(null);
+                          setLogoPreview(null);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    <p className="text-sm text-green-600">
+                      ✓ Logo selected: {collegeLogo?.name}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
+                    <p className="text-sm text-gray-500 mb-4">
+                      Click to upload or drag and drop
+                    </p>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      id="logo-upload"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        document.getElementById("logo-upload")?.click()
+                      }
+                    >
+                      Choose File
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -729,19 +1067,57 @@ const CollegeAdminDashboard = () => {
               <CardHeader>
                 <CardTitle>Banner Image</CardTitle>
                 <CardDescription>
-                  Upload a banner image for your college page
+                  Upload a banner image for your college page (max 10MB)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
-                  <p className="text-sm text-gray-500">
-                    Click to upload or drag and drop
-                  </p>
-                  <Button variant="outline" className="mt-4">
-                    Choose File
-                  </Button>
-                </div>
+                {bannerPreview ? (
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <img
+                        src={bannerPreview}
+                        alt="Banner Preview"
+                        className="w-full h-48 object-cover border rounded-lg"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => {
+                          setCollegeBanner(null);
+                          setBannerPreview(null);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    <p className="text-sm text-green-600">
+                      ✓ Banner selected: {collegeBanner?.name}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
+                    <p className="text-sm text-gray-500 mb-4">
+                      Click to upload or drag and drop
+                    </p>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBannerUpload}
+                      className="hidden"
+                      id="banner-upload"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        document.getElementById("banner-upload")?.click()
+                      }
+                    >
+                      Choose File
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -757,6 +1133,8 @@ const CollegeAdminDashboard = () => {
               <textarea
                 className="w-full h-32 p-3 border rounded-lg resize-none"
                 placeholder="Enter a detailed description about your college, its history, achievements, and what makes it special..."
+                value={collegeDescription}
+                onChange={(e) => setCollegeDescription(e.target.value)}
               />
             </CardContent>
           </Card>

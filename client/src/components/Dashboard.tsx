@@ -25,6 +25,7 @@ import heroImage from "@/assets/hero-alumni-network.jpg";
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission } from "@/utils/rolePermissions";
 
 const Dashboard = () => {
   const [isAddAlumniOpen, setIsAddAlumniOpen] = useState(false);
@@ -34,6 +35,9 @@ const Dashboard = () => {
   // Check if user can create content
   const canCreateContent =
     user?.role === "super_admin" || user?.role === "coordinator";
+  const canCreateJobs = user?.role
+    ? hasPermission(user.role, "canCreateJobs")
+    : false;
   return (
     <div className="space-y-8">
       {/* Hero Section */}
@@ -54,10 +58,7 @@ const Dashboard = () => {
               Connect, engage, and empower your alumni community. Build lasting
               relationships that drive institutional growth and student success.
             </p>
-            {canCreateContent && (
-              <div className="flex flex-wrap gap-4">
-              </div>
-            )}
+            {canCreateContent && <div className="flex flex-wrap gap-4"></div>}
           </div>
         </div>
       </div>
@@ -206,10 +207,12 @@ const Dashboard = () => {
                     <Calendar className="w-4 h-4 mr-2" />
                     Schedule Event
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
-                    <Briefcase className="w-4 h-4 mr-2" />
-                    Post Job
-                  </Button>
+                  {canCreateJobs && (
+                    <Button className="w-full justify-start" variant="outline">
+                      <Briefcase className="w-4 h-4 mr-2" />
+                      Post Job
+                    </Button>
+                  )}
                 </>
               ) : (
                 <div className="text-center py-4">

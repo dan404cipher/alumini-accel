@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
   Building2,
@@ -24,6 +23,10 @@ import {
   FileText,
   Shield,
   UserPlus,
+  LayoutDashboard,
+  GraduationCap,
+  UserCheck,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantAPI, userAPI } from "@/lib/api";
@@ -663,741 +666,130 @@ const SuperAdminDashboard = () => {
       : []),
   ].slice(0, 5); // Limit to 5 items
 
+  // Sidebar navigation items
+  const sidebarItems = [
+    {
+      id: "overview",
+      label: "Overview",
+      icon: LayoutDashboard,
+      description: "System statistics and overview",
+    },
+    {
+      id: "colleges",
+      label: "Colleges",
+      icon: Building2,
+      description: "Manage colleges and institutions",
+    },
+    {
+      id: "admin-staff",
+      label: "Admin & Staff",
+      icon: Users,
+      description: "Manage administrators and staff",
+    },
+    {
+      id: "create-users",
+      label: "Create Users",
+      icon: UserPlus,
+      description: "Create new user accounts",
+    },
+    {
+      id: "approvals",
+      label: "Approvals",
+      icon: UserCheck,
+      description: "Approve pending user requests",
+    },
+    {
+      id: "activity",
+      label: "Activity",
+      icon: Activity,
+      description: "View system activity logs",
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Global system overview and management
-          </p>
+    <div className="flex bg-gray-50 h-[calc(100vh-4rem)] mt-16">
+      {/* Left Sidebar */}
+      <div className="w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Super Admin
+              </h2>
+              <p className="text-sm text-gray-500">System Management</p>
+            </div>
+          </div>
         </div>
-        <Badge variant="outline" className="text-sm">
-          <Shield className="w-4 h-4 mr-2" />
-          Super Admin
-        </Badge>
+
+        <nav className="p-4 space-y-2">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                  isActive
+                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <Icon
+                  className={`w-5 h-5 ${
+                    isActive ? "text-blue-600" : "text-gray-500"
+                  }`}
+                />
+                <div className="flex-1">
+                  <div className="font-medium">{item.label}</div>
+                  <div className="text-xs text-gray-500">
+                    {item.description}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Colleges
-            </CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalColleges}</div>
-            <p className="text-xs text-muted-foreground">+2 from last month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.totalUsers.toLocaleString()}
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="p-8 min-h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {sidebarItems.find((item) => item.id === activeTab)?.label ||
+                  "Super Admin Dashboard"}
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {sidebarItems.find((item) => item.id === activeTab)
+                  ?.description || "Global system overview and management"}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              +12% from last month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Funds Raised</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${stats.totalFundsRaised.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">+8% from last month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.activeUsers.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">+5% from last month</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-6"
-      >
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            <span className="hidden sm:inline">Overview</span>
-          </TabsTrigger>
-          <TabsTrigger value="colleges" className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Colleges</span>
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Admin & Staff</span>
-          </TabsTrigger>
-          <TabsTrigger value="create-users" className="flex items-center gap-2">
-            <UserPlus className="w-4 h-4" />
-            <span className="hidden sm:inline">Create Users</span>
-          </TabsTrigger>
-          <TabsTrigger value="approvals" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            <span className="hidden sm:inline">Approvals</span>
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="flex items-center gap-2">
-            <Activity className="w-4 h-4" />
-            <span className="hidden sm:inline">Activity</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">System Overview</h2>
-              <Button variant="outline">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                View Analytics
-              </Button>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Colleges
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.totalColleges}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    +2 from last month
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Users
-                  </CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.totalUsers.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    +12% from last month
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Funds Raised
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    ${(stats.totalFundsRaised / 1000000).toFixed(1)}M
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    +8% from last month
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Active Users
-                  </CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.activeUsers.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    +5% from last month
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest system activities</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="flex items-center space-x-4"
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          activity.type === "success"
-                            ? "bg-green-500"
-                            : activity.type === "warning"
-                            ? "bg-yellow-500"
-                            : "bg-blue-500"
-                        }`}
-                      />
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium">{activity.action}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {activity.college}
-                        </p>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {activity.time}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* College Management */}
-        <TabsContent value="colleges" className="space-y-6">
-          <TenantManagement />
-        </TabsContent>
-
-        {/* User Management */}
-        <TabsContent value="users" className="space-y-6">
-          <UserManagement />
-        </TabsContent>
-
-        {/* Activity Logs */}
-        <TabsContent value="activity" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">System Activity Logs</h2>
-            <Button variant="outline">
-              <FileText className="w-4 h-4 mr-2" />
-              Export Logs
-            </Button>
+            <Badge variant="outline" className="text-sm">
+              <Shield className="w-4 h-4 mr-2" />
+              Super Admin
+            </Badge>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>
-                System-wide activity across all colleges
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          activity.type === "success"
-                            ? "bg-green-500"
-                            : activity.type === "warning"
-                            ? "bg-yellow-500"
-                            : "bg-blue-500"
-                        }`}
-                      />
-                      <div>
-                        <p className="font-medium">{activity.action}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {activity.college}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {activity.time}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Create Users Tab */}
-        <TabsContent value="create-users" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">
-              Create Admin/HOD/Staff Users
-            </h2>
-            <Button variant="outline">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Bulk Import
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Create College Admin */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  College Admin
-                </CardTitle>
-                <CardDescription>
-                  Create a new college administrator
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="admin-college">College</Label>
-                  <select
-                    id="admin-college"
-                    className="w-full p-2 border rounded-md"
-                    disabled={loadingColleges}
-                    value={createAdminForm.collegeId}
-                    onChange={(e) =>
-                      setCreateAdminForm((prev) => ({
-                        ...prev,
-                        collegeId: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select College</option>
-                    {colleges.map((college: any) => (
-                      <option key={college._id} value={college._id}>
-                        {college.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="admin-email">Email</Label>
-                  <Input
-                    id="admin-email"
-                    type="email"
-                    placeholder="admin@college.edu"
-                    value={createAdminForm.email}
-                    onChange={(e) =>
-                      setCreateAdminForm((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="admin-firstname">First Name</Label>
-                  <Input
-                    id="admin-firstname"
-                    type="text"
-                    placeholder="John"
-                    value={createAdminForm.firstName}
-                    onChange={(e) =>
-                      setCreateAdminForm((prev) => ({
-                        ...prev,
-                        firstName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="admin-lastname">Last Name</Label>
-                  <Input
-                    id="admin-lastname"
-                    type="text"
-                    placeholder="Doe"
-                    value={createAdminForm.lastName}
-                    onChange={(e) =>
-                      setCreateAdminForm((prev) => ({
-                        ...prev,
-                        lastName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  onClick={handleCreateAdmin}
-                  disabled={isCreating.admin}
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  {isCreating.admin ? "Creating..." : "Create Admin"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Create HOD */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-green-600" />
-                  Head of Department
-                </CardTitle>
-                <CardDescription>
-                  Create a new HOD for a department
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="hod-college">College</Label>
-                  <select
-                    id="hod-college"
-                    className="w-full p-2 border rounded-md"
-                    disabled={loadingColleges}
-                    value={createHODForm.collegeId}
-                    onChange={(e) =>
-                      setCreateHODForm((prev) => ({
-                        ...prev,
-                        collegeId: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select College</option>
-                    {colleges.map((college: any) => (
-                      <option key={college._id} value={college._id}>
-                        {college.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hod-department">Department</Label>
-                  <select
-                    id="hod-department"
-                    className="w-full p-2 border rounded-md"
-                    value={createHODForm.department}
-                    onChange={(e) =>
-                      setCreateHODForm((prev) => ({
-                        ...prev,
-                        department: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select Department</option>
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="MBA">MBA</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Medicine">Medicine</option>
-                    <option value="Nursing">Nursing</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hod-email">Email</Label>
-                  <Input
-                    id="hod-email"
-                    type="email"
-                    placeholder="hod@college.edu"
-                    value={createHODForm.email}
-                    onChange={(e) =>
-                      setCreateHODForm((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hod-firstname">First Name</Label>
-                  <Input
-                    id="hod-firstname"
-                    type="text"
-                    placeholder="Dr. Jane"
-                    value={createHODForm.firstName}
-                    onChange={(e) =>
-                      setCreateHODForm((prev) => ({
-                        ...prev,
-                        firstName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hod-lastname">Last Name</Label>
-                  <Input
-                    id="hod-lastname"
-                    type="text"
-                    placeholder="Smith"
-                    value={createHODForm.lastName}
-                    onChange={(e) =>
-                      setCreateHODForm((prev) => ({
-                        ...prev,
-                        lastName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  onClick={handleCreateHOD}
-                  disabled={isCreating.hod}
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  {isCreating.hod ? "Creating..." : "Create HOD"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Create Staff */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-purple-600" />
-                  Staff Member
-                </CardTitle>
-                <CardDescription>Create a new staff member</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="staff-college">College</Label>
-                  <select
-                    id="staff-college"
-                    className="w-full p-2 border rounded-md"
-                    disabled={loadingColleges}
-                    value={createStaffForm.collegeId}
-                    onChange={(e) =>
-                      setCreateStaffForm((prev) => ({
-                        ...prev,
-                        collegeId: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select College</option>
-                    {colleges.map((college: any) => (
-                      <option key={college._id} value={college._id}>
-                        {college.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="staff-department">Department</Label>
-                  <select
-                    id="staff-department"
-                    className="w-full p-2 border rounded-md"
-                    value={createStaffForm.department}
-                    onChange={(e) =>
-                      setCreateStaffForm((prev) => ({
-                        ...prev,
-                        department: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select Department</option>
-                    <option value="Administration">Administration</option>
-                    <option value="Student Affairs">Student Affairs</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Admissions">Admissions</option>
-                    <option value="Clinical Affairs">Clinical Affairs</option>
-                    <option value="Research">Research</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="staff-email">Email</Label>
-                  <Input
-                    id="staff-email"
-                    type="email"
-                    placeholder="staff@college.edu"
-                    value={createStaffForm.email}
-                    onChange={(e) =>
-                      setCreateStaffForm((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="staff-firstname">First Name</Label>
-                  <Input
-                    id="staff-firstname"
-                    type="text"
-                    placeholder="Mike"
-                    value={createStaffForm.firstName}
-                    onChange={(e) =>
-                      setCreateStaffForm((prev) => ({
-                        ...prev,
-                        firstName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="staff-lastname">Last Name</Label>
-                  <Input
-                    id="staff-lastname"
-                    type="text"
-                    placeholder="Johnson"
-                    value={createStaffForm.lastName}
-                    onChange={(e) =>
-                      setCreateStaffForm((prev) => ({
-                        ...prev,
-                        lastName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  onClick={handleCreateStaff}
-                  disabled={isCreating.staff}
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  {isCreating.staff ? "Creating..." : "Create Staff"}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Created Users */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recently Created Users</CardTitle>
-              <CardDescription>
-                Users created in the last 7 days
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingRecentUsers ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-sm text-muted-foreground">
-                    Loading recent users...
-                  </div>
-                </div>
-              ) : recentUsers.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-sm text-muted-foreground">
-                    No users created in the last 7 days
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentUsers.map((user: any) => {
-                    const {
-                      icon: Icon,
-                      bgColor,
-                      iconColor,
-                    } = getRoleIconAndColor(user.role);
-                    const roleDisplayName = user.role
-                      .replace("_", " ")
-                      .replace(/\b\w/g, (l) => l.toUpperCase());
-                    const collegeName = user.tenantId?.name || "No College";
-                    const departmentInfo = user.department
-                      ? ` - ${user.department}`
-                      : "";
-
-                    return (
-                      <div
-                        key={user._id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div
-                            className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center`}
-                          >
-                            <Icon className={`w-4 h-4 ${iconColor}`} />
-                          </div>
-                          <div>
-                            <p className="font-medium">
-                              {user.firstName} {user.lastName}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {roleDisplayName} - {collegeName}
-                              {departmentInfo}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">
-                            {getTimeAgo(user.createdAt)}
-                          </p>
-                          <Badge
-                            variant={
-                              user.status === "active" ? "default" : "secondary"
-                            }
-                          >
-                            {user.status.charAt(0).toUpperCase() +
-                              user.status.slice(1)}
-                          </Badge>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Approvals Tab */}
-        <TabsContent value="approvals" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Pending Approvals</h2>
-            <Button variant="outline">
-              <FileText className="w-4 h-4 mr-2" />
-              Export Report
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Alumni Applications
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {loadingUserRequests ? "..." : requestStats.alumni}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Awaiting verification
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Admin Applications
+                  Total Colleges
                 </CardTitle>
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {loadingUserRequests ? "..." : requestStats.admin}
-                </div>
+                <div className="text-2xl font-bold">{stats.totalColleges}</div>
                 <p className="text-xs text-muted-foreground">
-                  New college admins
+                  +2 from last month
                 </p>
               </CardContent>
             </Card>
@@ -1405,16 +797,16 @@ const SuperAdminDashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  HOD Applications
+                  Total Users
                 </CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {loadingUserRequests ? "..." : requestStats.hod}
+                <div className="text-2xl font-bold">
+                  {stats.totalUsers.toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Department heads
+                  +12% from last month
                 </p>
               </CardContent>
             </Card>
@@ -1422,269 +814,912 @@ const SuperAdminDashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Staff Applications
+                  Funds Raised
                 </CardTitle>
-                <Settings className="h-4 w-4 text-muted-foreground" />
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {loadingUserRequests ? "..." : requestStats.staff}
+                <div className="text-2xl font-bold">
+                  ${stats.totalFundsRaised.toLocaleString()}
                 </div>
-                <p className="text-xs text-muted-foreground">Staff members</p>
+                <p className="text-xs text-muted-foreground">
+                  +8% from last month
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Active Users
+                </CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.activeUsers.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  +5% from last month
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Approval Lists */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Alumni Approvals */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  Alumni Applications
-                </CardTitle>
-                <CardDescription>Verify alumni credentials</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {loadingUserRequests ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="text-muted-foreground">
-                      Loading approvals...
+          {/* Main Content Tabs */}
+          {/* Content based on active tab */}
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              <div className="grid gap-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold">System Overview</h2>
+                  <Button variant="outline">
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    View Analytics
+                  </Button>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total Colleges
+                      </CardTitle>
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {stats.totalColleges}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        +2 from last month
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total Users
+                      </CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {stats.totalUsers.toLocaleString()}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        +12% from last month
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Funds Raised
+                      </CardTitle>
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        ${(stats.totalFundsRaised / 1000000).toFixed(1)}M
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        +8% from last month
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Active Users
+                      </CardTitle>
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {stats.activeUsers.toLocaleString()}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        +5% from last month
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Recent Activity */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                    <CardDescription>Latest system activities</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {recentActivity.map((activity) => (
+                        <div
+                          key={activity.id}
+                          className="flex items-center space-x-4"
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              activity.type === "success"
+                                ? "bg-green-500"
+                                : activity.type === "warning"
+                                ? "bg-yellow-500"
+                                : "bg-blue-500"
+                            }`}
+                          />
+                          <div className="flex-1 space-y-1">
+                            <p className="text-sm font-medium">
+                              {activity.action}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {activity.college}
+                            </p>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {activity.time}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ) : pendingUserRequests.filter(
-                    (request: any) => request.role === "alumni"
-                  ).length === 0 ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="text-muted-foreground">
-                      No pending alumni approvals
-                    </div>
-                  </div>
-                ) : (
-                  pendingUserRequests
-                    .filter((request: any) => request.role === "alumni")
-                    .map((request: any) => (
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "colleges" && (
+            <div className="space-y-6">
+              <TenantManagement />
+            </div>
+          )}
+
+          {activeTab === "admin-staff" && (
+            <div className="space-y-6">
+              <UserManagement />
+            </div>
+          )}
+
+          {activeTab === "activity" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">System Activity Logs</h2>
+                <Button variant="outline">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export Logs
+                </Button>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>
+                    System-wide activity across all colleges
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {recentActivity.map((activity) => (
                       <div
-                        key={request.requestId}
+                        key={activity.id}
                         className="flex items-center justify-between p-3 border rounded-lg"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium text-blue-600">
-                              {request.firstName?.[0]}
-                              {request.lastName?.[0]}
-                            </span>
-                          </div>
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              activity.type === "success"
+                                ? "bg-green-500"
+                                : activity.type === "warning"
+                                ? "bg-yellow-500"
+                                : "bg-blue-500"
+                            }`}
+                          />
                           <div>
-                            <p className="font-medium">
-                              {request.firstName} {request.lastName}
-                            </p>
+                            <p className="font-medium">{activity.action}</p>
                             <p className="text-sm text-muted-foreground">
-                              {request.department} -{" "}
-                              {request.graduationYear || "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {request.currentCompany || "N/A"} -{" "}
-                              {request.currentPosition || "N/A"}
+                              {activity.college}
                             </p>
                           </div>
                         </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600"
-                            onClick={() =>
-                              handleRejectUserRequest(
-                                request.requestId,
-                                `${request.firstName} ${request.lastName}`
-                              )
-                            }
-                          >
-                            Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() =>
-                              handleApproveUserRequest(
-                                request.requestId,
-                                `${request.firstName} ${request.lastName}`
-                              )
-                            }
-                          >
-                            Approve
-                          </Button>
-                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {activity.time}
+                        </span>
                       </div>
-                    ))
-                )}
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-            {/* Admin/HOD/Staff Approvals */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-green-600" />
-                  Admin/HOD/Staff Applications
-                </CardTitle>
-                <CardDescription>Approve administrative users</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {loadingUserRequests ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="text-muted-foreground">
-                      Loading approvals...
-                    </div>
-                  </div>
-                ) : pendingUserRequests.filter((request: any) =>
-                    ["college_admin", "hod", "staff"].includes(request.role)
-                  ).length === 0 ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="text-muted-foreground">
-                      No pending admin/staff approvals
-                    </div>
-                  </div>
-                ) : (
-                  pendingUserRequests
-                    .filter((request: any) =>
-                      ["college_admin", "hod", "staff"].includes(request.role)
-                    )
-                    .map((request: any) => (
-                      <div
-                        key={request.requestId}
-                        className="flex items-center justify-between p-3 border rounded-lg"
+          {activeTab === "create-users" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">
+                  Create Admin/HOD/Staff Users
+                </h2>
+                <Button variant="outline">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Bulk Import
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Create College Admin */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-blue-600" />
+                      College Admin
+                    </CardTitle>
+                    <CardDescription>
+                      Create a new college administrator
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-college">College</Label>
+                      <select
+                        id="admin-college"
+                        className="w-full p-2 border rounded-md"
+                        disabled={loadingColleges}
+                        value={createAdminForm.collegeId}
+                        onChange={(e) =>
+                          setCreateAdminForm((prev) => ({
+                            ...prev,
+                            collegeId: e.target.value,
+                          }))
+                        }
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            {request.role === "college_admin" ? (
-                              <Building2 className="w-4 h-4 text-blue-600" />
-                            ) : request.role === "hod" ? (
-                              <Users className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <Settings className="w-4 h-4 text-orange-600" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium">
-                              {request.firstName} {request.lastName}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {request.role === "college_admin"
-                                ? "College Admin"
-                                : request.role === "hod"
-                                ? "HOD"
-                                : "Staff"}{" "}
-                              - {request.department || "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Applied{" "}
-                              {formatTimeAgo(new Date(request.requestedAt))}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600"
-                            onClick={() =>
-                              handleRejectUserRequest(
-                                request.requestId,
-                                `${request.firstName} ${request.lastName}`
-                              )
-                            }
+                        <option value="">Select College</option>
+                        {colleges.map((college: any) => (
+                          <option key={college._id} value={college._id}>
+                            {college.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-email">Email</Label>
+                      <Input
+                        id="admin-email"
+                        type="email"
+                        placeholder="admin@college.edu"
+                        value={createAdminForm.email}
+                        onChange={(e) =>
+                          setCreateAdminForm((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-firstname">First Name</Label>
+                      <Input
+                        id="admin-firstname"
+                        type="text"
+                        placeholder="John"
+                        value={createAdminForm.firstName}
+                        onChange={(e) =>
+                          setCreateAdminForm((prev) => ({
+                            ...prev,
+                            firstName: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-lastname">Last Name</Label>
+                      <Input
+                        id="admin-lastname"
+                        type="text"
+                        placeholder="Doe"
+                        value={createAdminForm.lastName}
+                        onChange={(e) =>
+                          setCreateAdminForm((prev) => ({
+                            ...prev,
+                            lastName: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={handleCreateAdmin}
+                      disabled={isCreating.admin}
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      {isCreating.admin ? "Creating..." : "Create Admin"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Create HOD */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-green-600" />
+                      Head of Department
+                    </CardTitle>
+                    <CardDescription>
+                      Create a new HOD for a department
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="hod-college">College</Label>
+                      <select
+                        id="hod-college"
+                        className="w-full p-2 border rounded-md"
+                        disabled={loadingColleges}
+                        value={createHODForm.collegeId}
+                        onChange={(e) =>
+                          setCreateHODForm((prev) => ({
+                            ...prev,
+                            collegeId: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select College</option>
+                        {colleges.map((college: any) => (
+                          <option key={college._id} value={college._id}>
+                            {college.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hod-department">Department</Label>
+                      <select
+                        id="hod-department"
+                        className="w-full p-2 border rounded-md"
+                        value={createHODForm.department}
+                        onChange={(e) =>
+                          setCreateHODForm((prev) => ({
+                            ...prev,
+                            department: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select Department</option>
+                        <option value="Computer Science">
+                          Computer Science
+                        </option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="MBA">MBA</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Medicine">Medicine</option>
+                        <option value="Nursing">Nursing</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hod-email">Email</Label>
+                      <Input
+                        id="hod-email"
+                        type="email"
+                        placeholder="hod@college.edu"
+                        value={createHODForm.email}
+                        onChange={(e) =>
+                          setCreateHODForm((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hod-firstname">First Name</Label>
+                      <Input
+                        id="hod-firstname"
+                        type="text"
+                        placeholder="Dr. Jane"
+                        value={createHODForm.firstName}
+                        onChange={(e) =>
+                          setCreateHODForm((prev) => ({
+                            ...prev,
+                            firstName: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hod-lastname">Last Name</Label>
+                      <Input
+                        id="hod-lastname"
+                        type="text"
+                        placeholder="Smith"
+                        value={createHODForm.lastName}
+                        onChange={(e) =>
+                          setCreateHODForm((prev) => ({
+                            ...prev,
+                            lastName: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={handleCreateHOD}
+                      disabled={isCreating.hod}
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      {isCreating.hod ? "Creating..." : "Create HOD"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Create Staff */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-purple-600" />
+                      Staff Member
+                    </CardTitle>
+                    <CardDescription>Create a new staff member</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-college">College</Label>
+                      <select
+                        id="staff-college"
+                        className="w-full p-2 border rounded-md"
+                        disabled={loadingColleges}
+                        value={createStaffForm.collegeId}
+                        onChange={(e) =>
+                          setCreateStaffForm((prev) => ({
+                            ...prev,
+                            collegeId: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select College</option>
+                        {colleges.map((college: any) => (
+                          <option key={college._id} value={college._id}>
+                            {college.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-department">Department</Label>
+                      <select
+                        id="staff-department"
+                        className="w-full p-2 border rounded-md"
+                        value={createStaffForm.department}
+                        onChange={(e) =>
+                          setCreateStaffForm((prev) => ({
+                            ...prev,
+                            department: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select Department</option>
+                        <option value="Administration">Administration</option>
+                        <option value="Student Affairs">Student Affairs</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Admissions">Admissions</option>
+                        <option value="Clinical Affairs">
+                          Clinical Affairs
+                        </option>
+                        <option value="Research">Research</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-email">Email</Label>
+                      <Input
+                        id="staff-email"
+                        type="email"
+                        placeholder="staff@college.edu"
+                        value={createStaffForm.email}
+                        onChange={(e) =>
+                          setCreateStaffForm((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-firstname">First Name</Label>
+                      <Input
+                        id="staff-firstname"
+                        type="text"
+                        placeholder="Mike"
+                        value={createStaffForm.firstName}
+                        onChange={(e) =>
+                          setCreateStaffForm((prev) => ({
+                            ...prev,
+                            firstName: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-lastname">Last Name</Label>
+                      <Input
+                        id="staff-lastname"
+                        type="text"
+                        placeholder="Johnson"
+                        value={createStaffForm.lastName}
+                        onChange={(e) =>
+                          setCreateStaffForm((prev) => ({
+                            ...prev,
+                            lastName: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={handleCreateStaff}
+                      disabled={isCreating.staff}
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      {isCreating.staff ? "Creating..." : "Create Staff"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Created Users */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recently Created Users</CardTitle>
+                  <CardDescription>
+                    Users created in the last 7 days
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingRecentUsers ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-sm text-muted-foreground">
+                        Loading recent users...
+                      </div>
+                    </div>
+                  ) : recentUsers.length === 0 ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-sm text-muted-foreground">
+                        No users created in the last 7 days
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentUsers.map((user: any) => {
+                        const {
+                          icon: Icon,
+                          bgColor,
+                          iconColor,
+                        } = getRoleIconAndColor(user.role);
+                        const roleDisplayName = user.role
+                          .replace("_", " ")
+                          .replace(/\b\w/g, (l) => l.toUpperCase());
+                        const collegeName = user.tenantId?.name || "No College";
+                        const departmentInfo = user.department
+                          ? ` - ${user.department}`
+                          : "";
+
+                        return (
+                          <div
+                            key={user._id}
+                            className="flex items-center justify-between p-3 border rounded-lg"
                           >
-                            Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() =>
-                              handleApproveUserRequest(
-                                request.requestId,
-                                `${request.firstName} ${request.lastName}`
-                              )
-                            }
-                          >
-                            Approve
-                          </Button>
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center`}
+                              >
+                                <Icon className={`w-4 h-4 ${iconColor}`} />
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {user.firstName} {user.lastName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {roleDisplayName} - {collegeName}
+                                  {departmentInfo}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium">
+                                {getTimeAgo(user.createdAt)}
+                              </p>
+                              <Badge
+                                variant={
+                                  user.status === "active"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {user.status.charAt(0).toUpperCase() +
+                                  user.status.slice(1)}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === "approvals" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">Pending Approvals</h2>
+                <Button variant="outline">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export Report
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Alumni Applications
+                    </CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {loadingUserRequests ? "..." : requestStats.alumni}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Awaiting verification
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Admin Applications
+                    </CardTitle>
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {loadingUserRequests ? "..." : requestStats.admin}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      New college admins
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      HOD Applications
+                    </CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {loadingUserRequests ? "..." : requestStats.hod}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Department heads
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Staff Applications
+                    </CardTitle>
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {loadingUserRequests ? "..." : requestStats.staff}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Staff members
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Approval Lists */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Alumni Approvals */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      Alumni Applications
+                    </CardTitle>
+                    <CardDescription>Verify alumni credentials</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {loadingUserRequests ? (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="text-muted-foreground">
+                          Loading approvals...
                         </div>
                       </div>
-                    ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                    ) : pendingUserRequests.filter(
+                        (request: any) => request.role === "alumni"
+                      ).length === 0 ? (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="text-muted-foreground">
+                          No pending alumni approvals
+                        </div>
+                      </div>
+                    ) : (
+                      pendingUserRequests
+                        .filter((request: any) => request.role === "alumni")
+                        .map((request: any) => (
+                          <div
+                            key={request.requestId}
+                            className="flex items-center justify-between p-3 border rounded-lg"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="text-sm font-medium text-blue-600">
+                                  {request.firstName?.[0]}
+                                  {request.lastName?.[0]}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {request.firstName} {request.lastName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {request.department} -{" "}
+                                  {request.graduationYear || "N/A"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {request.currentCompany || "N/A"} -{" "}
+                                  {request.currentPosition || "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600"
+                                onClick={() =>
+                                  handleRejectUserRequest(
+                                    request.requestId,
+                                    `${request.firstName} ${request.lastName}`
+                                  )
+                                }
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() =>
+                                  handleApproveUserRequest(
+                                    request.requestId,
+                                    `${request.firstName} ${request.lastName}`
+                                  )
+                                }
+                              >
+                                Approve
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </CardContent>
+                </Card>
 
-        {/* System Settings */}
-        <TabsContent value="system" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">System Settings</h2>
-            <Button>
-              <Settings className="w-4 h-4 mr-2" />
-              Configure
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Health</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Database Status</span>
-                    <Badge variant="default">Healthy</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>API Status</span>
-                    <Badge variant="default">Operational</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Storage Usage</span>
-                    <span className="font-medium">68%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Active Sessions</span>
-                    <span className="font-medium">1,234</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Security Alerts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Failed Login Attempts</span>
-                    <Badge variant="secondary">23</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Suspicious Activity</span>
-                    <Badge variant="destructive">2</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Password Resets</span>
-                    <Badge variant="secondary">45</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Account Lockouts</span>
-                    <Badge variant="secondary">3</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+                {/* Admin/HOD/Staff Approvals */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="w-5 h-5 text-green-600" />
+                      Admin/HOD/Staff Applications
+                    </CardTitle>
+                    <CardDescription>
+                      Approve administrative users
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {loadingUserRequests ? (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="text-muted-foreground">
+                          Loading approvals...
+                        </div>
+                      </div>
+                    ) : pendingUserRequests.filter((request: any) =>
+                        ["college_admin", "hod", "staff"].includes(request.role)
+                      ).length === 0 ? (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="text-muted-foreground">
+                          No pending admin/staff approvals
+                        </div>
+                      </div>
+                    ) : (
+                      pendingUserRequests
+                        .filter((request: any) =>
+                          ["college_admin", "hod", "staff"].includes(
+                            request.role
+                          )
+                        )
+                        .map((request: any) => (
+                          <div
+                            key={request.requestId}
+                            className="flex items-center justify-between p-3 border rounded-lg"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                {request.role === "college_admin" ? (
+                                  <Building2 className="w-4 h-4 text-blue-600" />
+                                ) : request.role === "hod" ? (
+                                  <Users className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <Settings className="w-4 h-4 text-orange-600" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {request.firstName} {request.lastName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {request.role === "college_admin"
+                                    ? "College Admin"
+                                    : request.role === "hod"
+                                    ? "HOD"
+                                    : "Staff"}{" "}
+                                  - {request.department || "N/A"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Applied{" "}
+                                  {formatTimeAgo(new Date(request.requestedAt))}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600"
+                                onClick={() =>
+                                  handleRejectUserRequest(
+                                    request.requestId,
+                                    `${request.firstName} ${request.lastName}`
+                                  )
+                                }
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() =>
+                                  handleApproveUserRequest(
+                                    request.requestId,
+                                    `${request.firstName} ${request.lastName}`
+                                  )
+                                }
+                              >
+                                Approve
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

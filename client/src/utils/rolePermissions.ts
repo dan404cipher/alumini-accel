@@ -86,7 +86,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canDeleteEvents: true,
 
     // Job Management
-    canCreateJobs: true,
+    canCreateJobs: false, // Only alumni can post jobs
     canEditAllJobs: true,
     canDeleteJobs: true,
 
@@ -123,7 +123,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canDeleteEvents: true,
 
     // Job Management
-    canCreateJobs: true,
+    canCreateJobs: false, // Only alumni can post jobs
     canEditAllJobs: true,
     canDeleteJobs: true,
 
@@ -161,7 +161,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canDeleteEvents: false, // Can only delete their own events
 
     // Job Management
-    canCreateJobs: true,
+    canCreateJobs: false, // Only alumni can post jobs
     canEditAllJobs: false, // Can only edit their own jobs
     canDeleteJobs: false, // Can only delete their own jobs
 
@@ -204,7 +204,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canDeleteEvents: false, // Can only delete their own events
 
     // Job Management
-    canCreateJobs: true,
+    canCreateJobs: false, // Only alumni can post jobs
     canEditAllJobs: false, // Can only edit their own jobs
     canDeleteJobs: false, // Can only delete their own jobs
 
@@ -246,9 +246,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canDeleteEvents: false,
 
     // Job Management
-    canCreateJobs: false,
-    canEditAllJobs: false,
-    canDeleteJobs: false,
+    canCreateJobs: true, // Only alumni can post jobs
+    canEditAllJobs: false, // Can only edit their own jobs
+    canDeleteJobs: false, // Can only delete their own jobs
 
     // Analytics & Reports
     canViewAnalytics: false,

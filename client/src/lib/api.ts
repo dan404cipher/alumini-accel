@@ -2180,6 +2180,79 @@ export const tenantAPI = {
       url: `/tenants/${id}/stats`,
     });
   },
+
+  // Upload college logo
+  uploadLogo: async (tenantId: string, logoFile: File) => {
+    const formData = new FormData();
+    formData.append("logo", logoFile);
+
+    return apiRequest({
+      method: "POST",
+      url: `/tenants/${tenantId}/logo`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Get college logo
+  getLogo: async (tenantId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/tenants/${tenantId}/logo`,
+      responseType: "blob", // For image data
+    });
+  },
+
+  // Delete college logo
+  deleteLogo: async (tenantId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/tenants/${tenantId}/logo`,
+    });
+  },
+
+  // Upload college banner
+  uploadBanner: async (tenantId: string, bannerFile: File) => {
+    const formData = new FormData();
+    formData.append("banner", bannerFile);
+
+    return apiRequest({
+      method: "POST",
+      url: `/tenants/${tenantId}/banner`,
+      data: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  // Get college banner
+  getBanner: async (tenantId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/tenants/${tenantId}/banner`,
+      responseType: "blob", // For image data
+    });
+  },
+
+  // Delete college banner
+  deleteBanner: async (tenantId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/tenants/${tenantId}/banner`,
+    });
+  },
+
+  // Update college description
+  updateDescription: async (tenantId: string, description: string) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/tenants/${tenantId}/description`,
+      data: { description },
+    });
+  },
 };
 
 // Campaign API functions

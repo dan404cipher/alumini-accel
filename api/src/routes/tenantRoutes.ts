@@ -7,6 +7,10 @@ import {
   deleteTenant,
   getTenantUsers,
   getTenantStats,
+  uploadTenantLogo,
+  getTenantLogo,
+  uploadTenantBanner,
+  getTenantBanner,
 } from "@/controllers/tenantController";
 import {
   authenticateToken,
@@ -14,6 +18,10 @@ import {
   requireAdmin,
 } from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
+import {
+  uploadTenantLogo as multerUploadLogo,
+  uploadTenantBanner as multerUploadBanner,
+} from "@/config/multer";
 
 const router = express.Router();
 
@@ -66,5 +74,35 @@ router.get("/:id/users", authenticateToken, asyncHandler(getTenantUsers));
 // @desc    Get tenant statistics
 // @access  Private
 router.get("/:id/stats", authenticateToken, asyncHandler(getTenantStats));
+
+// @route   POST /api/v1/tenants/:id/logo
+// @desc    Upload tenant logo
+// @access  Private/Super Admin or College Admin
+router.post(
+  "/:id/logo",
+  authenticateToken,
+  multerUploadLogo.single("logo") as any,
+  asyncHandler(uploadTenantLogo)
+);
+
+// @route   GET /api/v1/tenants/:id/logo
+// @desc    Get tenant logo
+// @access  Private
+router.get("/:id/logo", authenticateToken, asyncHandler(getTenantLogo));
+
+// @route   POST /api/v1/tenants/:id/banner
+// @desc    Upload tenant banner
+// @access  Private/Super Admin or College Admin
+router.post(
+  "/:id/banner",
+  authenticateToken,
+  multerUploadBanner.single("banner") as any,
+  asyncHandler(uploadTenantBanner)
+);
+
+// @route   GET /api/v1/tenants/:id/banner
+// @desc    Get tenant banner
+// @access  Private
+router.get("/:id/banner", authenticateToken, asyncHandler(getTenantBanner));
 
 export default router;

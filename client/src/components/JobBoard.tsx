@@ -49,6 +49,7 @@ import { EditJobDialog } from "./dialogs/EditJobDialog";
 import { ShareJobDialog } from "./dialogs/ShareJobDialog";
 import { jobAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission } from "@/utils/rolePermissions";
 
 interface Job {
   _id: string;
@@ -109,8 +110,26 @@ const JobBoard = () => {
   const fetchJobsRef = useRef<typeof fetchJobs>();
 
   // Check if user can edit jobs
-  const canEditJobs =
-    user?.role === "super_admin" || user?.role === "coordinator";
+  const canEditAllJobs = user?.role
+    ? hasPermission(user.role, "canEditAllJobs")
+    : false;
+  const canDeleteJobs = user?.role
+    ? hasPermission(user.role, "canDeleteJobs")
+    : false;
+
+  // Helper function to check if user can edit a specific job
+  const canEditJob = (job: Job) => {
+    if (!user) return false;
+    // Can edit if they have permission to edit all jobs OR if they own the job
+    return canEditAllJobs || job.postedBy === user._id;
+  };
+
+  // Helper function to check if user can delete a specific job
+  const canDeleteJob = (job: Job) => {
+    if (!user) return false;
+    // Can delete if they have permission to delete all jobs OR if they own the job
+    return canDeleteJobs || job.postedBy === user._id;
+  };
 
   // Debounce search query
   useEffect(() => {
@@ -407,8 +426,9 @@ const JobBoard = () => {
   };
 
   // Check if user can create jobs
-  const canCreateJobs =
-    user?.role === "super_admin" || user?.role === "coordinator";
+  const canCreateJobs = user?.role
+    ? hasPermission(user.role, "canCreateJobs")
+    : false;
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -610,6 +630,13 @@ const JobBoard = () => {
                                     <DollarSign className="w-4 h-4 mr-1" />
                                     {formatSalary(job.salary)}
                                   </div>
+                                  {job.postedBy && (
+                                    <div className="flex items-center">
+                                      <Users className="w-4 h-4 mr-1" />
+                                      Posted by {job.postedBy.firstName}{" "}
+                                      {job.postedBy.lastName}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -639,7 +666,7 @@ const JobBoard = () => {
                                 >
                                   <Bookmark className="w-4 h-4 fill-current" />
                                 </Button>
-                                {canEditJobs && (
+                                {canEditJob(job) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -793,6 +820,13 @@ const JobBoard = () => {
                                 <Clock className="w-4 h-4 mr-1" />
                                 {formatDate(job.createdAt)}
                               </div>
+                              {job.postedBy && (
+                                <div className="flex items-center">
+                                  <Users className="w-4 h-4 mr-1" />
+                                  Posted by {job.postedBy.firstName}{" "}
+                                  {job.postedBy.lastName}
+                                </div>
+                              )}
                               {job.deadline && (
                                 <div className="flex items-center text-orange-600">
                                   <Clock className="w-4 h-4 mr-1" />
@@ -918,7 +952,7 @@ const JobBoard = () => {
                                 }`}
                               />
                             </Button>
-                            {canEditJobs && (
+                            {canEditJob(job) && (
                               <Button
                                 variant="ghost"
                                 size="sm"

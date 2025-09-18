@@ -430,6 +430,192 @@ export const getTenantStats = asyncHandler(
   }
 );
 
+// @desc    Upload tenant logo
+// @route   POST /api/v1/tenants/:id/logo
+// @access  Private/Super Admin or College Admin
+export const uploadTenantLogo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const tenantId = req.params.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No logo file provided",
+      });
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.",
+      });
+    }
+
+    // Validate file size (2MB max for logos)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (req.file.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: "File too large. Maximum size is 2MB for logos.",
+      });
+    }
+
+    // Find tenant
+    const tenant = await Tenant.findById(tenantId);
+    if (!tenant) {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found",
+      });
+    }
+
+    // Update tenant logo
+    tenant.logo = `/uploads/tenant-logos/${req.file.filename}`;
+    await tenant.save();
+
+    return res.json({
+      success: true,
+      message: "Logo uploaded successfully",
+      data: {
+        logo: tenant.logo,
+      },
+    });
+  }
+);
+
+// @desc    Get tenant logo
+// @route   GET /api/v1/tenants/:id/logo
+// @access  Private
+export const getTenantLogo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const tenant = await Tenant.findById(req.params.id);
+
+    if (!tenant) {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found",
+      });
+    }
+
+    if (!tenant.logo) {
+      return res.status(404).json({
+        success: false,
+        message: "No logo found for this tenant",
+      });
+    }
+
+    // For now, return the logo URL
+    // In production, you might want to serve the actual file
+    return res.json({
+      success: true,
+      data: tenant.logo,
+    });
+  }
+);
+
+// @desc    Upload tenant banner
+// @route   POST /api/v1/tenants/:id/banner
+// @access  Private/Super Admin or College Admin
+export const uploadTenantBanner = asyncHandler(
+  async (req: Request, res: Response) => {
+    const tenantId = req.params.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No banner file provided",
+      });
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.",
+      });
+    }
+
+    // Validate file size (5MB max for banners)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (req.file.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: "File too large. Maximum size is 5MB for banners.",
+      });
+    }
+
+    // Find tenant
+    const tenant = await Tenant.findById(tenantId);
+    if (!tenant) {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found",
+      });
+    }
+
+    // Update tenant banner
+    tenant.banner = `/uploads/tenant-banners/${req.file.filename}`;
+    await tenant.save();
+
+    return res.json({
+      success: true,
+      message: "Banner uploaded successfully",
+      data: {
+        banner: tenant.banner,
+      },
+    });
+  }
+);
+
+// @desc    Get tenant banner
+// @route   GET /api/v1/tenants/:id/banner
+// @access  Private
+export const getTenantBanner = asyncHandler(
+  async (req: Request, res: Response) => {
+    const tenant = await Tenant.findById(req.params.id);
+
+    if (!tenant) {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found",
+      });
+    }
+
+    if (!tenant.banner) {
+      return res.status(404).json({
+        success: false,
+        message: "No banner found for this tenant",
+      });
+    }
+
+    // For now, return the banner URL
+    // In production, you might want to serve the actual file
+    return res.json({
+      success: true,
+      data: tenant.banner,
+    });
+  }
+);
+
 export default {
   getAllTenants,
   getTenantById,
@@ -438,4 +624,8 @@ export default {
   deleteTenant,
   getTenantUsers,
   getTenantStats,
+  uploadTenantLogo,
+  getTenantLogo,
+  uploadTenantBanner,
+  getTenantBanner,
 };

@@ -34,7 +34,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useState } from "react";
+import { tenantAPI } from "@/lib/api";
+import { useState, useEffect } from "react";
 import {
   canAccessAdmin,
   canManageUsers,
@@ -55,6 +56,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const [contentDropdownOpen, setContentDropdownOpen] = useState(false);
   const [socialDropdownOpen, setSocialDropdownOpen] = useState(false);
   const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
+  const [collegeLogo, setCollegeLogo] = useState<string | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   // Check if user has admin permissions
@@ -103,6 +105,110 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     navigate("/login");
   };
 
+  // Load college logo from localStorage and listen for changes
+  useEffect(() => {
+    const loadCollegeLogo = async () => {
+      // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+      const tenantId =
+        user?.tenantId ||
+        (user as any)?.tenant?._id ||
+        (user as any)?.tenantId ||
+        (user?.role === "college_admin" ? user._id : null);
+
+      if (tenantId) {
+        try {
+          console.log(
+            "Loading college logo from database for tenant:",
+            tenantId
+          );
+          const logoResponse = await tenantAPI.getLogo(tenantId);
+
+          if (logoResponse.success && logoResponse.data) {
+            // Convert blob to data URL for display
+            const logoBlob = logoResponse.data as Blob;
+            const logoUrl = URL.createObjectURL(logoBlob);
+            console.log("College logo loaded successfully from database");
+            setCollegeLogo(logoUrl);
+          } else {
+            console.log("No logo found in database, checking localStorage");
+
+            // Fallback to localStorage
+            try {
+              const localLogo = localStorage.getItem(
+                `college_logo_${tenantId}`
+              );
+              console.log(
+                "Checking localStorage for logo:",
+                localLogo ? "Found" : "Not found"
+              );
+              if (localLogo) {
+                console.log("Found logo in localStorage as fallback");
+                setCollegeLogo(localLogo);
+              } else {
+                console.log("No logo found in localStorage either");
+                setCollegeLogo(null);
+              }
+            } catch (localError) {
+              console.log("Error loading from localStorage:", localError);
+              setCollegeLogo(null);
+            }
+          }
+        } catch (error) {
+          console.log("Error loading logo from database:", error);
+
+          // Fallback to localStorage
+          try {
+            const localLogo = localStorage.getItem(`college_logo_${tenantId}`);
+            console.log(
+              "Checking localStorage for logo:",
+              localLogo ? "Found" : "Not found"
+            );
+            if (localLogo) {
+              console.log("Found logo in localStorage as fallback");
+              setCollegeLogo(localLogo);
+            } else {
+              console.log("No logo found in localStorage either");
+              setCollegeLogo(null);
+            }
+          } catch (localError) {
+            console.log("Error loading from localStorage:", localError);
+            setCollegeLogo(null);
+          }
+        }
+      } else {
+        console.log("No tenantId, setting logo to null. User:", user);
+        setCollegeLogo(null);
+      }
+    };
+
+    // Load logo initially
+    loadCollegeLogo();
+
+    // Listen for storage changes (when logo is updated in another tab/component)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `college_logo_${user?.tenantId}`) {
+        loadCollegeLogo();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also listen for custom events (for same-tab updates)
+    const handleCustomStorageChange = () => {
+      loadCollegeLogo();
+    };
+
+    window.addEventListener("collegeLogoUpdated", handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener(
+        "collegeLogoUpdated",
+        handleCustomStorageChange
+      );
+    };
+  }, [user?.tenantId]);
+
   return (
     <nav className="bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -113,9 +219,17 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             onClick={() => navigate("/")}
           >
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">A</span>
-              </div>
+              {collegeLogo ? (
+                <img
+                  src={collegeLogo}
+                  alt="College Logo"
+                  className="w-8 h-8 rounded-lg object-contain"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">A</span>
+                </div>
+              )}
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
                 AlumniAccel
               </h1>

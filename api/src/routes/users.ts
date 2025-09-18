@@ -2,6 +2,7 @@ import express from "express";
 import userController from "@/controllers/userController";
 import {
   validateProfileUpdate,
+  validateUserCreation,
   validateId,
   validateRequest,
 } from "@/middleware/validation";
@@ -32,6 +33,7 @@ router.post(
   "/",
   authenticateToken,
   requireSuperAdmin, // Only Super Admin can create users
+  ...validateRequest(validateUserCreation),
   asyncHandler(userController.createUser)
 );
 

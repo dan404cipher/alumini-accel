@@ -108,7 +108,13 @@ export const createUser = async (req: Request, res: Response) => {
     };
 
     // Add tenantId for non-super-admin users
-    if (role !== UserRole.SUPER_ADMIN && tenantId) {
+    if (role !== UserRole.SUPER_ADMIN) {
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          message: "tenantId is required for non-super-admin users",
+        });
+      }
       userData.tenantId = tenantId;
     }
 

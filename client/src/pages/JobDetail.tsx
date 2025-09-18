@@ -33,6 +33,7 @@ import { jobAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { EditJobDialog } from "@/components/dialogs/EditJobDialog";
 import { ShareJobDialog } from "@/components/dialogs/ShareJobDialog";
+import { hasPermission } from "@/utils/rolePermissions";
 
 interface Job {
   _id: string;
@@ -97,8 +98,16 @@ const JobDetail = () => {
   }, []);
 
   // Check if user can edit jobs
-  const canEditJobs =
-    user?.role === "super_admin" || user?.role === "coordinator";
+  const canEditAllJobs = user?.role
+    ? hasPermission(user.role, "canEditAllJobs")
+    : false;
+
+  // Helper function to check if user can edit this specific job
+  const canEditJob = () => {
+    if (!user || !job) return false;
+    // Can edit if they have permission to edit all jobs OR if they own the job
+    return canEditAllJobs || job.postedBy === user._id;
+  };
 
   // Handle save/unsave job
   const handleSaveJob = () => {
@@ -269,6 +278,12 @@ const JobDetail = () => {
                     <Clock className="w-4 h-4 mr-1" />
                     {formatDate(job.createdAt)}
                   </div>
+                  {job.postedBy && (
+                    <div className="flex items-center">
+                      <Users className="w-4 h-4 mr-1" />
+                      Posted by {job.postedBy.firstName} {job.postedBy.lastName}
+                    </div>
+                  )}
                   {job.deadline && (
                     <div className="flex items-center text-orange-600">
                       <Calendar className="w-4 h-4 mr-1" />
@@ -307,7 +322,7 @@ const JobDetail = () => {
                     <Mail className="w-4 h-4 mr-2" />
                     Share
                   </Button>
-                  {canEditJobs && (
+                  {canEditJob() && (
                     <Button variant="outline" onClick={handleEditJob}>
                       <Briefcase className="w-4 h-4 mr-2" />
                       Edit

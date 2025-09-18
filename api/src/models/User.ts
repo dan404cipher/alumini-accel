@@ -38,6 +38,11 @@ const userSchema = new Schema<IUser>(
       default: UserRole.ALUMNI,
       required: true,
     },
+    roleId: {
+      type: Schema.Types.ObjectId,
+      ref: "Role",
+      required: false, // Optional for backward compatibility
+    },
     tenantId: {
       type: Schema.Types.ObjectId,
       ref: "Tenant",

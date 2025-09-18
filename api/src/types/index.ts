@@ -23,6 +23,75 @@ export enum UserStatus {
   VERIFIED = "verified",
 }
 
+// Role Interface
+export interface IRole extends Document {
+  _id: string;
+  name: string;
+  description: string;
+  permissions: {
+    // User Management
+    canCreateUsers: boolean;
+    canEditUsers: boolean;
+    canDeleteUsers: boolean;
+    canViewUsers: boolean;
+    canApproveUsers: boolean;
+
+    // Content Management
+    canCreatePosts: boolean;
+    canEditPosts: boolean;
+    canDeletePosts: boolean;
+    canViewPosts: boolean;
+    canModeratePosts: boolean;
+
+    // Job Management
+    canCreateJobs: boolean;
+    canEditJobs: boolean;
+    canDeleteJobs: boolean;
+    canViewJobs: boolean;
+    canEditAllJobs: boolean;
+    canDeleteAllJobs: boolean;
+
+    // Event Management
+    canCreateEvents: boolean;
+    canEditEvents: boolean;
+    canDeleteEvents: boolean;
+    canViewEvents: boolean;
+
+    // Fundraising Management
+    canCreateFundraisers: boolean;
+    canEditFundraisers: boolean;
+    canDeleteFundraisers: boolean;
+    canViewFundraisers: boolean;
+
+    // Gallery Management
+    canCreateGalleries: boolean;
+    canEditGalleries: boolean;
+    canDeleteGalleries: boolean;
+    canViewGalleries: boolean;
+
+    // News Management
+    canCreateNews: boolean;
+    canEditNews: boolean;
+    canDeleteNews: boolean;
+    canViewNews: boolean;
+
+    // Analytics & Reports
+    canViewAnalytics: boolean;
+    canExportData: boolean;
+    canViewReports: boolean;
+
+    // System Administration
+    canManageTenants: boolean;
+    canManageRoles: boolean;
+    canManageSettings: boolean;
+    canViewSystemLogs: boolean;
+  };
+  isSystemRole: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Event Types
 export enum EventType {
   REUNION = "reunion",
@@ -77,6 +146,7 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   role: UserRole;
+  roleId?: string;
   tenantId?: string;
   status: UserStatus;
   phone?: string;
@@ -227,6 +297,7 @@ export interface IAlumniProfile extends Document {
 // Job Post Interface
 export interface IJobPost extends Document {
   _id: string;
+  tenantId: string;
   postedBy: string;
   company: string;
   position: string;

@@ -17,8 +17,16 @@ import { AppError } from "@/middleware/errorHandler";
 // Register new user
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, firstName, lastName, role, phone, status } =
-      req.body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      role,
+      phone,
+      status,
+      tenantId,
+    } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -38,7 +46,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Create user
-    const user = new User({
+    const userData: any = {
       email: email.toLowerCase(),
       password,
       firstName,
@@ -46,7 +54,14 @@ export const register = async (req: Request, res: Response) => {
       role: role || UserRole.ALUMNI,
       phone,
       status: userStatus,
-    });
+    };
+
+    // Add tenantId for non-super-admin users
+    if (role && role !== UserRole.SUPER_ADMIN && tenantId) {
+      userData.tenantId = tenantId;
+    }
+
+    const user = new User(userData);
 
     // Generate email verification token
     const emailVerificationToken = crypto.randomBytes(32).toString("hex");

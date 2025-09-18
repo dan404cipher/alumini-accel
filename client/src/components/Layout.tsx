@@ -17,9 +17,9 @@ import { useAuth } from "@/contexts/AuthContext";
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState("dashboard");
-  const { user } = useAuth();
 
   // Update active tab based on current route
   useEffect(() => {
@@ -86,17 +86,29 @@ const Layout = () => {
     }
   };
 
+  // Check if we're rendering the Super Admin Dashboard
+  const isSuperAdminDashboard =
+    activeTab === "dashboard" && user?.role === "super_admin";
+
   return (
     <div
       className="min-h-screen bg-background flex flex-col"
       style={{ overflowY: "auto" }}
     >
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <main
+        className={`flex-1 w-full ${
+          isSuperAdminDashboard
+            ? ""
+            : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        }`}
+      >
         {/* Content */}
-        <div className="animate-fade-in-up">{renderContent()}</div>
+        <div className={isSuperAdminDashboard ? "" : "animate-fade-in-up"}>
+          {renderContent()}
+        </div>
       </main>
-      <Footer />
+      {!isSuperAdminDashboard && <Footer />}
     </div>
   );
 };

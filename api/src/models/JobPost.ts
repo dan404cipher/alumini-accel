@@ -3,6 +3,12 @@ import { IJobPost, JobPostStatus } from "@/types";
 
 const jobPostSchema = new Schema<IJobPost>(
   {
+    tenantId: {
+      type: mongoose.Types.ObjectId as any,
+      ref: "Tenant",
+      required: true,
+      index: true,
+    },
     postedBy: {
       type: mongoose.Types.ObjectId as any,
       ref: "User",
@@ -137,6 +143,7 @@ const jobPostSchema = new Schema<IJobPost>(
 );
 
 // Indexes for better query performance
+jobPostSchema.index({ tenantId: 1, status: 1 });
 jobPostSchema.index({ postedBy: 1 });
 jobPostSchema.index({ status: 1 });
 jobPostSchema.index({ company: 1 });

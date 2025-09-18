@@ -15,6 +15,8 @@ export interface User {
   lastName: string;
   role: string;
   status: string;
+  tenantId?: string;
+  tenantName?: string;
   profilePicture?: string;
   bio?: string;
   location?: string;
@@ -68,6 +70,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (token) {
         try {
           const response = await authAPI.getCurrentUser();
+          console.log("Auth API response:", response);
+
           if (
             response.success &&
             response.data &&
@@ -75,7 +79,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             response.data !== null &&
             "user" in response.data
           ) {
-            setUser((response.data as { user: User }).user);
+            const userData = (response.data as { user: User }).user;
+            console.log("User data from API:", userData);
+            console.log("User tenantId from API:", userData.tenantId);
+            setUser(userData);
           } else {
             // Token is invalid, clear it
             localStorage.removeItem("token");

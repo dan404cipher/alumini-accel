@@ -314,6 +314,7 @@ export const userAPI = {
     role?: string;
     status?: string;
     search?: string;
+    tenantId?: string;
   }) => {
     return apiRequest({
       method: "GET",

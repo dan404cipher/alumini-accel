@@ -216,7 +216,7 @@ const CollegeAdminDashboard = () => {
     try {
       setLoading((prev) => ({ ...prev, staff: true }));
       const response = await userAPI.getAllUsers({
-        role: "hod,staff",
+        role: "college_admin,hod,staff",
         tenantId: user.tenantId,
       });
 

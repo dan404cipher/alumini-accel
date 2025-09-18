@@ -15,12 +15,22 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const filter: any = {};
 
     // 🔒 MULTI-TENANT FILTERING: Only show users from same college (unless super admin)
-    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
       filter.tenantId = req.user.tenantId;
     }
 
     // Apply filters
-    if (req.query.role) filter.role = req.query.role;
+    if (req.query.role) {
+      const roleParam = String(req.query.role);
+      // Handle comma-separated roles (e.g., "hod,staff")
+      if (roleParam.includes(",")) {
+        filter.role = { $in: roleParam.split(",") };
+      } else {
+        filter.role = roleParam;
+      }
+    }
     if (req.query.status) filter.status = req.query.status;
     if (req.query.search) {
       filter.$or = [

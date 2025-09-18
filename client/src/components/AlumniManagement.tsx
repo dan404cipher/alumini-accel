@@ -186,7 +186,9 @@ const AlumniManagement = () => {
   const fetchAlumni = useCallback(async () => {
     try {
       setLoading(true);
-      const alumniData = await alumniAPI.getAllAlumni();
+      const alumniData = await alumniAPI.getAllAlumni({
+        tenantId: user?.tenantId,
+      });
       console.log("Fetched alumni data:", alumniData);
 
       // Ensure alumni is always an array
@@ -211,7 +213,7 @@ const AlumniManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, user?.tenantId]);
 
   useEffect(() => {
     fetchAlumni();
@@ -233,7 +235,7 @@ const AlumniManagement = () => {
         return;
       }
 
-      // Create pending user request (NOT an actual user account)
+      // Create actual user account directly (no approval needed)
       const userData = {
         firstName: newAlumni.firstName.trim(),
         lastName: newAlumni.lastName.trim(),
@@ -244,25 +246,27 @@ const AlumniManagement = () => {
         department: newAlumni.department,
       };
 
-      // Import the userAPI to use the approval system
+      // Import the userAPI to create user directly
       const { userAPI } = await import("@/lib/api");
 
-      // Create pending user request
-      const userResponse = await userAPI.createPendingUserRequest(userData);
+      // Create user account directly
+      console.log("Creating alumni with data:", userData);
+      const userResponse = await userAPI.createUser(userData);
+      console.log("Alumni creation response:", userResponse);
 
       if (!userResponse.success) {
-        console.error("Alumni request creation error:", userResponse);
+        console.error("Alumni creation error:", userResponse);
         throw new Error(
-          userResponse.message || "Failed to create alumni request"
+          userResponse.message || "Failed to create alumni account"
         );
       }
 
-      console.log("Alumni request creation response:", userResponse);
+      console.log("Alumni creation response:", userResponse);
 
-      // Show success message for request submission
+      // Show success message for account creation
       toast({
         title: "Success",
-        description: "Alumni request submitted for approval!",
+        description: "Alumni account created successfully!",
       });
 
       // Reset form
@@ -284,13 +288,12 @@ const AlumniManagement = () => {
       setCreateLoading(false);
       setIsCreateDialogOpen(false);
       fetchAlumni(); // Refresh the alumni list
-      return; // Exit early since we're not creating the profile yet
     } catch (error) {
-      console.error("Error creating alumni request:", error);
+      console.error("Error creating alumni:", error);
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Failed to create alumni request";
+          : "Failed to create alumni account";
       toast({
         title: "Error",
         description: errorMessage,

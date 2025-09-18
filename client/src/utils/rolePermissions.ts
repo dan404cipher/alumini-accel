@@ -241,9 +241,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canFeaturePosts: false,
 
     // Events Management
-    canCreateEvents: false,
-    canEditAllEvents: false,
-    canDeleteEvents: false,
+    canCreateEvents: true, // Alumni can create events
+    canEditAllEvents: false, // Can only edit their own events
+    canDeleteEvents: false, // Can only delete their own events
 
     // Job Management
     canCreateJobs: true, // Only alumni can post jobs

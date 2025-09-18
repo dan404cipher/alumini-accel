@@ -374,6 +374,7 @@ export interface IEvent extends Document {
     date: Date;
   }>;
   status: "upcoming" | "ongoing" | "completed" | "cancelled";
+  tenantId: string; // Multi-tenant support
   createdAt: Date;
   updatedAt: Date;
 }

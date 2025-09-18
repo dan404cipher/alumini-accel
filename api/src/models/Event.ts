@@ -173,6 +173,11 @@ const eventSchema = new Schema<IEvent>(
       enum: ["upcoming", "ongoing", "completed", "cancelled"],
       default: "upcoming",
     },
+    tenantId: {
+      type: mongoose.Types.ObjectId as any,
+      ref: "Tenant",
+      required: true,
+    },
   },
   {
     timestamps: true,

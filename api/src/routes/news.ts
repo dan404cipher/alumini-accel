@@ -1,6 +1,11 @@
 import express from "express";
 import newsController from "@/controllers/newsController";
-import { authenticateToken, requireCoordinator } from "@/middleware/auth";
+import {
+  authenticateToken,
+  requireCoordinator,
+  authorize,
+} from "@/middleware/auth";
+import { UserRole } from "@/types";
 import { asyncHandler } from "@/middleware/errorHandler";
 import multer from "multer";
 
@@ -47,7 +52,13 @@ router.get("/:id", authenticateToken, asyncHandler(newsController.getNewsById));
 router.post(
   "/",
   authenticateToken,
-  requireCoordinator,
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF,
+    UserRole.ALUMNI
+  ),
   asyncHandler(newsController.createNews)
 );
 
@@ -58,7 +69,13 @@ router.post(
   "/with-image",
   upload.single("image") as any,
   authenticateToken,
-  requireCoordinator,
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF,
+    UserRole.ALUMNI
+  ),
   asyncHandler(newsController.createNewsWithImage)
 );
 

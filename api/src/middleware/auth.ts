@@ -58,6 +58,7 @@ export const authenticateToken = async (
     }
 
     req.user = user;
+    req.user.id = user._id; // Add id property for compatibility
 
     // If user is alumni, also fetch alumni profile
     if (user.role === UserRole.ALUMNI) {

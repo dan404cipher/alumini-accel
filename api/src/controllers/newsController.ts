@@ -11,6 +11,13 @@ export const getAllNews = async (req: Request, res: Response) => {
 
     const filter: any = {};
 
+    // 🔒 MULTI-TENANT FILTERING: Only show news from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
     // Apply filters
     if (req.query.isShared !== undefined) {
       filter.isShared = req.query.isShared === "true";
@@ -83,6 +90,7 @@ export const createNews = async (req: Request, res: Response) => {
       summary,
       isShared: isShared || false,
       author: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
     });
 
     await news.save();
@@ -122,6 +130,7 @@ export const createNewsWithImage = async (req: Request, res: Response) => {
       image: imageUrl,
       isShared: isShared || false,
       author: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
     });
 
     await news.save();

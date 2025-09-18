@@ -75,10 +75,12 @@ const NewsRoom = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["news"],
+    queryKey: ["news", user?.tenantId],
     queryFn: async () => {
       try {
-        const response = await newsAPI.getAllNews();
+        const response = await newsAPI.getAllNews({
+          tenantId: user?.tenantId,
+        });
         return response;
       } catch (error) {
         console.error("NewsRoom - Error:", error);
@@ -92,7 +94,12 @@ const NewsRoom = () => {
 
   // Check if user can manage news
   const canManageNews =
-    user?.role === "super_admin" || user?.role === "coordinator";
+    user?.role === "super_admin" ||
+    user?.role === "coordinator" ||
+    user?.role === "college_admin" ||
+    user?.role === "hod" ||
+    user?.role === "staff" ||
+    user?.role === "alumni";
 
   // Handle create news
   const handleCreateNews = () => {
@@ -119,7 +126,7 @@ const NewsRoom = () => {
 
   // Handle news created
   const handleNewsCreated = () => {
-    queryClient.invalidateQueries({ queryKey: ["news"] });
+    queryClient.invalidateQueries({ queryKey: ["news", user?.tenantId] });
     setIsCreateNewsOpen(false);
   };
 

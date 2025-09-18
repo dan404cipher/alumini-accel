@@ -66,6 +66,8 @@ export const createUser = async (req: Request, res: Response) => {
     const { email, firstName, lastName, role, tenantId, department, password } =
       req.body;
 
+    logger.info(`Creating user: ${email}, role: ${role}, status: active`);
+
     // Validate required fields
     if (!email || !firstName || !lastName || !role || !password) {
       return res.status(400).json({
@@ -92,17 +94,13 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Hash password
-    const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || "12");
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create user
+    // Create user (password will be hashed by pre-save hook)
     const userData: any = {
       email,
       firstName,
       lastName,
       role,
-      password: hashedPassword,
+      password: password, // Let the pre-save hook handle hashing
       status: UserStatus.ACTIVE,
       isEmailVerified: true,
     };
@@ -115,6 +113,21 @@ export const createUser = async (req: Request, res: Response) => {
           message: "tenantId is required for non-super-admin users",
         });
       }
+
+      // 🔒 MULTI-TENANT VALIDATION: College Admins can only create users for their own college
+      if (req.user?.role === "college_admin") {
+        const userTenantId = String(req.user?.tenantId);
+        const requestTenantId = String(tenantId);
+
+        if (userTenantId !== requestTenantId) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "College Admins can only create users for their own college",
+          });
+        }
+      }
+
       userData.tenantId = tenantId;
     }
 

@@ -15,6 +15,13 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       role: UserRole.ALUMNI,
     };
 
+    // 🔒 MULTI-TENANT FILTERING: Only show alumni from same college (unless super admin)
+    if (req.query.tenantId) {
+      userFilter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      userFilter.tenantId = req.user.tenantId;
+    }
+
     // Get all users
     const users = await User.find(userFilter)
       .sort({ createdAt: -1 })
@@ -215,6 +222,13 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const filter: any = {};
+
+    // 🔒 MULTI-TENANT FILTERING: Only show alumni from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
 
     // Apply filters
     if (req.query.batchYear)

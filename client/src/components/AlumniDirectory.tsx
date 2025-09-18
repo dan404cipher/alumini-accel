@@ -84,6 +84,7 @@ const AlumniDirectory = () => {
       const response = await alumniAPI.getAllUsersDirectory({
         userType: userTypeFilter,
         limit: 50,
+        tenantId: user?.tenantId,
       });
       if (
         response &&
@@ -106,7 +107,7 @@ const AlumniDirectory = () => {
     } finally {
       setLoading(false);
     }
-  }, [userTypeFilter, toast]);
+  }, [userTypeFilter, toast, user?.tenantId]);
 
   // Fetch users data from API
   useEffect(() => {

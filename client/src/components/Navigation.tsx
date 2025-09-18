@@ -123,8 +123,14 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           );
           const logoResponse = await tenantAPI.getLogo(tenantId);
 
-          if (logoResponse.success && logoResponse.data) {
-            // Convert blob to data URL for display
+          // Check if response is a blob (image file) or JSON
+          if (logoResponse instanceof Blob) {
+            // Direct image blob response
+            const logoUrl = URL.createObjectURL(logoResponse);
+            console.log("College logo loaded successfully from database");
+            setCollegeLogo(logoUrl);
+          } else if (logoResponse.success && logoResponse.data) {
+            // Legacy JSON response format
             const logoBlob = logoResponse.data as Blob;
             const logoUrl = URL.createObjectURL(logoBlob);
             console.log("College logo loaded successfully from database");
@@ -223,7 +229,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 <img
                   src={collegeLogo}
                   alt="College Logo"
-                  className="w-8 h-8 rounded-lg object-contain"
+                  className="w-12 h-12 rounded-lg object-contain"
                 />
               ) : (
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">

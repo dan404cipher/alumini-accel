@@ -96,13 +96,21 @@ export const EducationalDetailsForm = ({
         ? `${apiUrl}/students/profile`
         : `${apiUrl}/alumni/profile`;
 
+      // Ensure numeric fields are properly converted
+      const processedData = {
+        ...data,
+        batchYear: Number(data.batchYear),
+        graduationYear: Number(data.graduationYear),
+        cgpa: data.cgpa ? Number(data.cgpa) : undefined,
+      };
+
       const response = await fetch(endpoint, {
         method: profileData ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(processedData),
       });
 
       // Check if response is ok before parsing JSON

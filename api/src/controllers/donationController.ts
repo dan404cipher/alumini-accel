@@ -5,7 +5,16 @@ import { DonationStatus } from "@/types";
 // Get all donations
 export const getAllDonations = async (req: Request, res: Response) => {
   try {
-    const donations = await Donation.find()
+    const filter: any = {};
+
+    // 🔒 MULTI-TENANT FILTERING: Only show donations from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    const donations = await Donation.find(filter)
       .populate("donorId", "firstName lastName email")
       .populate("recipientId", "firstName lastName email")
       .sort({ createdAt: -1 });

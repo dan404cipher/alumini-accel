@@ -102,6 +102,7 @@ export const register = async (req: Request, res: Response) => {
           lastName: user.lastName,
           role: user.role,
           status: user.status,
+          tenantId: user.tenantId,
         },
         token,
         refreshToken,
@@ -126,6 +127,7 @@ export const login = async (req: Request, res: Response) => {
       "+password"
     );
     if (!user) {
+      logger.info(`Login failed: User not found for email ${email}`);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -135,6 +137,7 @@ export const login = async (req: Request, res: Response) => {
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
+      logger.info(`Login failed: Invalid password for user ${email}`);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -146,6 +149,9 @@ export const login = async (req: Request, res: Response) => {
       user.status !== UserStatus.ACTIVE &&
       user.status !== UserStatus.VERIFIED
     ) {
+      logger.info(
+        `Login failed: Account not active for user ${email}, status: ${user.status}`
+      );
       return res.status(401).json({
         success: false,
         message: "Account is not active. Please verify your email first.",
@@ -171,6 +177,7 @@ export const login = async (req: Request, res: Response) => {
           lastName: user.lastName,
           role: user.role,
           status: user.status,
+          tenantId: user.tenantId,
           isEmailVerified: user.isEmailVerified,
           isPhoneVerified: user.isPhoneVerified,
         },
@@ -371,6 +378,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
           lastName: user.lastName,
           role: user.role,
           status: user.status,
+          tenantId: user.tenantId,
           phone: user.phone,
           profilePicture: user.profilePicture,
           bio: user.bio,

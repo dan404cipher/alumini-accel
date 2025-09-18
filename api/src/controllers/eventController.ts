@@ -13,6 +13,13 @@ export const getAllEvents = async (req: Request, res: Response) => {
 
     const filter: any = {};
 
+    // 🔒 MULTI-TENANT FILTERING: Only show events from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
     // Apply filters
     if (req.query.type) filter.type = req.query.type;
     if (req.query.location)
@@ -127,6 +134,7 @@ export const createEventWithImage = async (req: Request, res: Response) => {
         ? new Date(registrationDeadline)
         : undefined,
       organizer: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
       speakers: speakers || [],
       agenda: agenda || [],
       tags: tags || [],
@@ -197,6 +205,7 @@ export const createEvent = async (req: Request, res: Response) => {
         ? new Date(registrationDeadline)
         : undefined,
       organizer: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
       speakers: speakers || [],
       agenda: agenda || [],
       tags: tags || [],

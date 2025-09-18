@@ -7,6 +7,7 @@ export interface INews extends Document {
   image?: string;
   isShared: boolean;
   author: string;
+  tenantId: string; // Multi-tenant support
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +37,11 @@ const newsSchema = new Schema<INews>(
     author: {
       type: mongoose.Types.ObjectId as any,
       ref: "User",
+      required: true,
+    },
+    tenantId: {
+      type: mongoose.Types.ObjectId as any,
+      ref: "Tenant",
       required: true,
     },
   },

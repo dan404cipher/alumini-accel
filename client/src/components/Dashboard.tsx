@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -26,11 +26,32 @@ import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasPermission } from "@/utils/rolePermissions";
+import { tenantAPI } from "@/lib/api";
 
 const Dashboard = () => {
   const [isAddAlumniOpen, setIsAddAlumniOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Load college banner
+  useEffect(() => {
+    const loadCollegeBanner = async () => {
+      if (user?.tenantId) {
+        try {
+          const bannerResponse = await tenantAPI.getBanner(user.tenantId);
+          if (bannerResponse instanceof Blob) {
+            const bannerUrl = URL.createObjectURL(bannerResponse);
+            setCollegeBanner(bannerUrl);
+          }
+        } catch (error) {
+          console.log("No banner found or error loading banner:", error);
+        }
+      }
+    };
+
+    loadCollegeBanner();
+  }, [user?.tenantId]);
 
   // Check if user can create content
   const canCreateContent =
@@ -44,8 +65,8 @@ const Dashboard = () => {
       <div className="relative overflow-hidden rounded-lg bg-gradient-hero">
         <div className="absolute inset-0">
           <img
-            src={heroImage}
-            alt="Alumni Network"
+            src={collegeBanner || heroImage}
+            alt={collegeBanner ? "College Banner" : "Alumni Network"}
             className="w-full h-full object-cover opacity-20"
           />
         </div>

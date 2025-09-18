@@ -15,6 +15,13 @@ export const getAllJobs = async (req: Request, res: Response) => {
       status: { $in: [JobPostStatus.ACTIVE, JobPostStatus.PENDING] },
     };
 
+    // 🔒 MULTI-TENANT FILTERING: Only show jobs from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
     // Apply filters
     if (req.query.company)
       filter.company = { $regex: req.query.company, $options: "i" };
@@ -102,6 +109,7 @@ export const createJob = async (req: Request, res: Response) => {
 
     const job = new JobPost({
       postedBy: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
       company,
       position,
       location,

@@ -602,8 +602,6 @@ export const userAPI = {
         throw new Error("Request not found");
       }
 
-      console.log("Found request to approve:", request);
-
       // Create the actual user account
       const userData = {
         email: request.email,
@@ -616,7 +614,7 @@ export const userAPI = {
         status: "active", // Create as active user
       };
 
-      console.log("Creating user account with data:", userData);
+      console.log("Creating user with data:", userData);
       const createUserResponse = await apiRequest({
         method: "POST",
         url: "/users",
@@ -624,7 +622,6 @@ export const userAPI = {
       });
 
       console.log("User creation response:", createUserResponse);
-
       if (createUserResponse.success) {
         // Remove the request from localStorage
         const updatedRequests = pendingRequests.filter(
@@ -645,9 +642,11 @@ export const userAPI = {
           },
         };
       } else {
-        throw new Error(
-          createUserResponse.message || "Failed to create user account"
-        );
+        const errorMessage =
+          createUserResponse.message || "Failed to create user account";
+        const errors = createUserResponse.errors || [];
+        console.error("Validation errors:", errors);
+        throw new Error(`${errorMessage}: ${errors.join(", ")}`);
       }
     } catch (error) {
       console.error("Error approving user request:", error);
@@ -671,8 +670,6 @@ export const userAPI = {
       if (!request) {
         throw new Error("Request not found");
       }
-
-      console.log("Found request to reject:", request);
 
       // Remove the request from localStorage (no user account was created)
       const updatedRequests = pendingRequests.filter(
@@ -707,6 +704,7 @@ export const alumniAPI = {
     page?: number;
     limit?: number;
     userType?: "student" | "alumni" | "all";
+    tenantId?: string;
   }) => {
     return apiRequest({
       method: "GET",
@@ -749,6 +747,7 @@ export const alumniAPI = {
     isHiring?: boolean;
     availableForMentorship?: boolean;
     location?: string;
+    tenantId?: string;
   }) => {
     return apiRequest({
       method: "GET",
@@ -846,6 +845,7 @@ export const jobAPI = {
     location?: string;
     type?: string;
     remote?: boolean;
+    tenantId?: string;
   }) => {
     try {
       // Try backend API first
@@ -1133,6 +1133,7 @@ export const eventAPI = {
     limit?: number;
     type?: string;
     location?: string;
+    tenantId?: string;
   }) => {
     try {
       // Try backend API first
@@ -1450,7 +1451,9 @@ export const invitationAPI = {
   // News API
   news: {
     // Get all news
-    getAllNews: async (params?: Record<string, unknown>) => {
+    getAllNews: async (
+      params?: Record<string, unknown> & { tenantId?: string }
+    ) => {
       return apiRequest({
         method: "GET",
         url: "/news",
@@ -2198,11 +2201,17 @@ export const tenantAPI = {
 
   // Get college logo
   getLogo: async (tenantId: string) => {
-    return apiRequest({
-      method: "GET",
-      url: `/tenants/${tenantId}/logo`,
-      responseType: "blob", // For image data
-    });
+    try {
+      const response = await api({
+        method: "GET",
+        url: `/tenants/${tenantId}/logo`,
+        responseType: "blob", // For image data
+      });
+      return response.data; // Return the blob directly
+    } catch (error) {
+      console.error("Error fetching logo:", error);
+      throw error;
+    }
   },
 
   // Delete college logo
@@ -2230,11 +2239,17 @@ export const tenantAPI = {
 
   // Get college banner
   getBanner: async (tenantId: string) => {
-    return apiRequest({
-      method: "GET",
-      url: `/tenants/${tenantId}/banner`,
-      responseType: "blob", // For image data
-    });
+    try {
+      const response = await api({
+        method: "GET",
+        url: `/tenants/${tenantId}/banner`,
+        responseType: "blob", // For image data
+      });
+      return response.data; // Return the blob directly
+    } catch (error) {
+      console.error("Error fetching banner:", error);
+      throw error;
+    }
   },
 
   // Delete college banner

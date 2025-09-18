@@ -106,6 +106,13 @@ const CollegeAdminDashboard = () => {
     password: "",
   });
 
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState({
+    hod: {} as Record<string, string>,
+    staff: {} as Record<string, string>,
+    admin: {} as Record<string, string>,
+  });
+
   // Alumni form state is now handled by AlumniManagement component
 
   const [createLoading, setCreateLoading] = useState({
@@ -308,9 +315,92 @@ const CollegeAdminDashboard = () => {
     }
   };
 
+  // Validation functions
+  const validateForm = (formData: any, formType: "hod" | "staff" | "admin") => {
+    const errors: Record<string, string> = {};
+
+    // First Name validation
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First name is required";
+    } else if (formData.firstName.trim().length < 2) {
+      errors.firstName = "First name must be at least 2 characters";
+    } else if (formData.firstName.trim().length > 50) {
+      errors.firstName = "First name must be less than 50 characters";
+    }
+
+    // Last Name validation
+    if (!formData.lastName.trim()) {
+      errors.lastName = "Last name is required";
+    } else if (formData.lastName.trim().length < 2) {
+      errors.lastName = "Last name must be at least 2 characters";
+    } else if (formData.lastName.trim().length > 50) {
+      errors.lastName = "Last name must be less than 50 characters";
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    // Department validation (for HOD and Staff)
+    if (
+      (formType === "hod" || formType === "staff") &&
+      !formData.department.trim()
+    ) {
+      errors.department = "Department is required";
+    } else if (
+      formData.department.trim() &&
+      formData.department.trim().length < 2
+    ) {
+      errors.department = "Department must be at least 2 characters";
+    } else if (
+      formData.department.trim() &&
+      formData.department.trim().length > 100
+    ) {
+      errors.department = "Department must be less than 100 characters";
+    }
+
+    // Password validation
+    if (!formData.password) {
+      errors.password = "Password is required";
+    } else if (formData.password.length < 8) {
+      errors.password = "Password must be at least 8 characters long";
+    } else if (
+      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(
+        formData.password
+      )
+    ) {
+      errors.password =
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character";
+    }
+
+    return errors;
+  };
+
+  const updateValidationErrors = (
+    formType: "hod" | "staff" | "admin",
+    errors: Record<string, string>
+  ) => {
+    setValidationErrors((prev) => ({
+      ...prev,
+      [formType]: errors,
+    }));
+  };
+
   // HOD/Staff creation functions
   const handleCreateHOD = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate form
+    const errors = validateForm(newHOD, "hod");
+    updateValidationErrors("hod", errors);
+
+    if (Object.keys(errors).length > 0) {
+      return; // Don't submit if there are validation errors
+    }
+
     setCreateLoading((prev) => ({ ...prev, hod: true }));
 
     try {
@@ -324,12 +414,12 @@ const CollegeAdminDashboard = () => {
         department: newHOD.department.trim(),
       };
 
-      const response = await userAPI.createPendingUserRequest(userData);
+      const response = await userAPI.createUser(userData);
 
       if (response.success) {
         toast({
           title: "Success",
-          description: "HOD request submitted for approval",
+          description: "HOD created successfully",
         });
         // Reset form and close dialog
         setNewHOD({
@@ -342,14 +432,15 @@ const CollegeAdminDashboard = () => {
         setIsCreateHODOpen(false);
         // Refresh data
         fetchStats();
+        fetchHodStaff();
       } else {
-        throw new Error(response.message || "Failed to create HOD request");
+        throw new Error(response.message || "Failed to create HOD");
       }
     } catch (error) {
       console.error("Error creating HOD:", error);
       toast({
         title: "Error",
-        description: "Failed to create HOD request",
+        description: "Failed to create HOD",
         variant: "destructive",
       });
     } finally {
@@ -359,6 +450,15 @@ const CollegeAdminDashboard = () => {
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate form
+    const errors = validateForm(newStaff, "staff");
+    updateValidationErrors("staff", errors);
+
+    if (Object.keys(errors).length > 0) {
+      return; // Don't submit if there are validation errors
+    }
+
     setCreateLoading((prev) => ({ ...prev, staff: true }));
 
     try {
@@ -372,12 +472,12 @@ const CollegeAdminDashboard = () => {
         department: newStaff.department.trim(),
       };
 
-      const response = await userAPI.createPendingUserRequest(userData);
+      const response = await userAPI.createUser(userData);
 
       if (response.success) {
         toast({
           title: "Success",
-          description: "Staff request submitted for approval",
+          description: "Staff created successfully",
         });
         // Reset form and close dialog
         setNewStaff({
@@ -390,14 +490,15 @@ const CollegeAdminDashboard = () => {
         setIsCreateStaffOpen(false);
         // Refresh data
         fetchStats();
+        fetchHodStaff();
       } else {
-        throw new Error(response.message || "Failed to create staff request");
+        throw new Error(response.message || "Failed to create staff");
       }
     } catch (error) {
       console.error("Error creating staff:", error);
       toast({
         title: "Error",
-        description: "Failed to create staff request",
+        description: "Failed to create staff",
         variant: "destructive",
       });
     } finally {
@@ -407,6 +508,15 @@ const CollegeAdminDashboard = () => {
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate form
+    const errors = validateForm(newAdmin, "admin");
+    updateValidationErrors("admin", errors);
+
+    if (Object.keys(errors).length > 0) {
+      return; // Don't submit if there are validation errors
+    }
+
     setCreateLoading((prev) => ({ ...prev, admin: true }));
 
     try {
@@ -420,12 +530,12 @@ const CollegeAdminDashboard = () => {
         department: newAdmin.department.trim(),
       };
 
-      const response = await userAPI.createPendingUserRequest(userData);
+      const response = await userAPI.createUser(userData);
 
       if (response.success) {
         toast({
           title: "Success",
-          description: "Admin request submitted for approval",
+          description: "Admin created successfully",
         });
         // Reset form and close dialog
         setNewAdmin({
@@ -438,14 +548,15 @@ const CollegeAdminDashboard = () => {
         setIsCreateAdminOpen(false);
         // Refresh data
         fetchStats();
+        fetchHodStaff();
       } else {
-        throw new Error(response.message || "Failed to create admin request");
+        throw new Error(response.message || "Failed to create admin");
       }
     } catch (error) {
       console.error("Error creating admin:", error);
       toast({
         title: "Error",
-        description: "Failed to create admin request",
+        description: "Failed to create admin",
         variant: "destructive",
       });
     } finally {
@@ -523,10 +634,6 @@ const CollegeAdminDashboard = () => {
   };
 
   const handleSaveCollegeSettings = async () => {
-    console.log("Current user object:", user);
-    console.log("User tenantId:", user?.tenantId);
-    console.log("User role:", user?.role);
-
     // Check for tenantId in multiple possible locations
     // For college_admin, if tenantId is undefined, use the user's _id as tenantId
     const tenantId =
@@ -544,15 +651,12 @@ const CollegeAdminDashboard = () => {
       return;
     }
 
-    console.log("Using tenantId:", tenantId);
-
     setSettingsLoading(true);
 
     try {
       // Upload logo to database
       if (collegeLogo) {
         setLogoLoading(true);
-        console.log("Uploading logo to database:", collegeLogo.name);
 
         try {
           const logoResponse = await tenantAPI.uploadLogo(
@@ -561,28 +665,20 @@ const CollegeAdminDashboard = () => {
           );
 
           if (logoResponse.success) {
-            console.log(
-              "Logo uploaded successfully to database:",
-              logoResponse.data
-            );
-
             // Dispatch custom event to notify navbar of logo update
             window.dispatchEvent(new CustomEvent("collegeLogoUpdated"));
+
+            // Also dispatch event for banner update
+            window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
             throw new Error(logoResponse.message || "Failed to upload logo");
           }
         } catch (error) {
-          console.log(
-            "Database upload failed, falling back to localStorage:",
-            error
-          );
-
           // Fallback to localStorage
           const reader = new FileReader();
           reader.onload = (e) => {
             const logoData = e.target?.result as string;
             localStorage.setItem(`college_logo_${tenantId}`, logoData);
-            console.log("Logo saved to localStorage as fallback");
 
             // Dispatch custom event to notify navbar of logo update (with small delay)
             setTimeout(() => {
@@ -597,7 +693,6 @@ const CollegeAdminDashboard = () => {
       // Upload banner to database
       if (collegeBanner) {
         setBannerLoading(true);
-        console.log("Uploading banner to database:", collegeBanner.name);
 
         try {
           const bannerResponse = await tenantAPI.uploadBanner(
@@ -606,27 +701,24 @@ const CollegeAdminDashboard = () => {
           );
 
           if (bannerResponse.success) {
-            console.log(
-              "Banner uploaded successfully to database:",
-              bannerResponse.data
-            );
+            // Dispatch custom event to notify of banner update
+            window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
             throw new Error(
               bannerResponse.message || "Failed to upload banner"
             );
           }
         } catch (error) {
-          console.log(
-            "Database upload failed, falling back to localStorage:",
-            error
-          );
-
           // Fallback to localStorage
           const reader = new FileReader();
           reader.onload = (e) => {
             const bannerData = e.target?.result as string;
             localStorage.setItem(`college_banner_${tenantId}`, bannerData);
-            console.log("Banner saved to localStorage as fallback");
+
+            // Dispatch custom event to notify of banner update (with small delay)
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
+            }, 100);
           };
           reader.readAsDataURL(collegeBanner);
         }
@@ -635,8 +727,6 @@ const CollegeAdminDashboard = () => {
 
       // Save college description to database
       if (collegeDescription.trim()) {
-        console.log("Saving description to database:", collegeDescription);
-
         const descriptionResponse = await tenantAPI.updateDescription(
           tenantId,
           collegeDescription
@@ -689,20 +779,34 @@ const CollegeAdminDashboard = () => {
           setLogoPreview(logoUrl);
         }
       } catch (error) {
-        console.log("No logo found or error loading logo:", error);
+        // Logo not found or error loading logo
       }
 
       // Load banner from database
       try {
         const bannerResponse = await tenantAPI.getBanner(tenantId);
-        if (bannerResponse.success && bannerResponse.data) {
-          // Convert blob to data URL for preview
+        if (bannerResponse instanceof Blob) {
+          // Direct blob response
+          const bannerUrl = URL.createObjectURL(bannerResponse);
+          setBannerPreview(bannerUrl);
+        } else if (bannerResponse.success && bannerResponse.data) {
+          // Legacy JSON response format
           const bannerBlob = bannerResponse.data as Blob;
           const bannerUrl = URL.createObjectURL(bannerBlob);
           setBannerPreview(bannerUrl);
         }
       } catch (error) {
-        console.log("No banner found or error loading banner:", error);
+        // Check localStorage as fallback
+        try {
+          const storedBanner = localStorage.getItem(
+            `college_banner_${tenantId}`
+          );
+          if (storedBanner) {
+            setBannerPreview(storedBanner);
+          }
+        } catch (localStorageError) {
+          // Error loading banner from localStorage
+        }
       }
 
       // Load description from tenant data
@@ -715,7 +819,7 @@ const CollegeAdminDashboard = () => {
           }
         }
       } catch (error) {
-        console.log("Error loading tenant description:", error);
+        // Error loading tenant description
       }
     } catch (error) {
       console.error("Error loading college settings:", error);
@@ -726,10 +830,6 @@ const CollegeAdminDashboard = () => {
 
   // Load data on component mount
   useEffect(() => {
-    console.log("CollegeAdminDashboard mounted. User:", user);
-    console.log("User tenantId:", user?.tenantId);
-    console.log("User role:", user?.role);
-
     fetchStats();
     fetchPendingAlumni();
     fetchHodStaff();
@@ -743,12 +843,28 @@ const CollegeAdminDashboard = () => {
       (user as any)?.tenantId ||
       (user?.role === "college_admin" ? user._id : null);
     if (tenantId) {
-      console.log("Loading college settings for tenantId:", tenantId);
       loadCollegeSettings(tenantId);
-    } else {
-      console.log("No tenantId found, skipping college settings load");
     }
   }, [fetchStats, fetchPendingAlumni, fetchHodStaff, fetchRecentEvents]);
+
+  // Listen for banner updates
+  useEffect(() => {
+    const handleBannerUpdate = () => {
+      const tenantId =
+        user?.tenantId ||
+        (user as any)?.tenant?._id ||
+        (user as any)?.tenantId ||
+        (user?.role === "college_admin" ? user._id : null);
+      if (tenantId) {
+        loadCollegeSettings(tenantId);
+      }
+    };
+
+    window.addEventListener("collegeBannerUpdated", handleBannerUpdate);
+    return () => {
+      window.removeEventListener("collegeBannerUpdated", handleBannerUpdate);
+    };
+  }, [user?.tenantId]);
 
   return (
     <div className="space-y-6">
@@ -765,6 +881,28 @@ const CollegeAdminDashboard = () => {
           College Admin
         </Badge>
       </div>
+
+      {/* College Banner Display */}
+      {bannerPreview && (
+        <div className="relative overflow-hidden rounded-lg shadow-lg">
+          <img
+            src={bannerPreview}
+            alt="College Banner"
+            className="w-full h-80 object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+          <div className="absolute bottom-0 left-0 right-0 p-8">
+            <div className="max-w-4xl">
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Welcome to {user?.tenantId ? "Your College" : "AlumniAccel"}
+              </h2>
+              <p className="text-xl text-white/90 mb-6 max-w-2xl">
+                Manage your college's alumni network and operations
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="dashboard" className="space-y-6">
@@ -1169,14 +1307,31 @@ const CollegeAdminDashboard = () => {
                         id="admin-firstName"
                         placeholder="John"
                         value={newAdmin.firstName}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewAdmin((prev) => ({
                             ...prev,
                             firstName: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.admin.firstName) {
+                            updateValidationErrors("admin", {
+                              ...validationErrors.admin,
+                              firstName: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.admin.firstName
+                            ? "border-red-500"
+                            : ""
                         }
                         required
                       />
+                      {validationErrors.admin.firstName && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.admin.firstName}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="admin-lastName">Last Name</Label>
@@ -1184,14 +1339,31 @@ const CollegeAdminDashboard = () => {
                         id="admin-lastName"
                         placeholder="Smith"
                         value={newAdmin.lastName}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewAdmin((prev) => ({
                             ...prev,
                             lastName: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.admin.lastName) {
+                            updateValidationErrors("admin", {
+                              ...validationErrors.admin,
+                              lastName: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.admin.lastName
+                            ? "border-red-500"
+                            : ""
                         }
                         required
                       />
+                      {validationErrors.admin.lastName && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.admin.lastName}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="admin-email">Email</Label>
@@ -1200,14 +1372,29 @@ const CollegeAdminDashboard = () => {
                         type="email"
                         placeholder="john.smith@college.edu"
                         value={newAdmin.email}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewAdmin((prev) => ({
                             ...prev,
                             email: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.admin.email) {
+                            updateValidationErrors("admin", {
+                              ...validationErrors.admin,
+                              email: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.admin.email ? "border-red-500" : ""
                         }
                         required
                       />
+                      {validationErrors.admin.email && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.admin.email}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="admin-department">Department</Label>
@@ -1231,14 +1418,31 @@ const CollegeAdminDashboard = () => {
                         type="password"
                         placeholder="Admin@1234"
                         value={newAdmin.password}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewAdmin((prev) => ({
                             ...prev,
                             password: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.admin.password) {
+                            updateValidationErrors("admin", {
+                              ...validationErrors.admin,
+                              password: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.admin.password
+                            ? "border-red-500"
+                            : ""
                         }
                         required
                       />
+                      {validationErrors.admin.password && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.admin.password}
+                        </p>
+                      )}
                     </div>
                     <DialogFooter>
                       <Button
@@ -1277,14 +1481,29 @@ const CollegeAdminDashboard = () => {
                         id="hod-firstName"
                         placeholder="John"
                         value={newHOD.firstName}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewHOD((prev) => ({
                             ...prev,
                             firstName: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.hod.firstName) {
+                            updateValidationErrors("hod", {
+                              ...validationErrors.hod,
+                              firstName: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.hod.firstName ? "border-red-500" : ""
                         }
                         required
                       />
+                      {validationErrors.hod.firstName && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.hod.firstName}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="hod-lastName">Last Name</Label>

@@ -34,7 +34,9 @@ export const validateUserRegistration = [
   body("password")
     .isLength({ min: 8 })
     .withMessage("Password must be at least 8 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
+    )
     .withMessage(
       "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
     ),
@@ -67,7 +69,9 @@ export const validateUserCreation = [
   body("password")
     .isLength({ min: 8 })
     .withMessage("Password must be at least 8 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
+    )
     .withMessage(
       "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
     ),
@@ -84,8 +88,14 @@ export const validateUserCreation = [
     .withMessage("Invalid role"),
   body("tenantId").custom((value, { req }) => {
     const role = req.body.role;
-    if (role && role !== "super_admin" && !value) {
-      throw new Error("tenantId is required for non-super-admin users");
+    if (role && role !== "super_admin") {
+      if (!value) {
+        throw new Error("tenantId is required for non-super-admin users");
+      }
+      // Validate that tenantId is a valid MongoDB ObjectId format (24 hex characters)
+      if (typeof value === "string" && !/^[0-9a-fA-F]{24}$/.test(value)) {
+        throw new Error("tenantId must be a valid ObjectId");
+      }
     }
     return true;
   }),
@@ -131,7 +141,7 @@ export const validateAlumniProfile = [
     .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
     .withMessage("Batch year must be a valid year"),
   body("graduationYear")
-    .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
+    .isInt({ min: 2020, max: new Date().getFullYear() + 5 })
     .withMessage("Graduation year must be a valid year"),
   body("department")
     .trim()
@@ -188,7 +198,7 @@ export const validateAlumniProfileUpdate = [
     .withMessage("Batch year must be a valid year"),
   body("graduationYear")
     .optional()
-    .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
+    .isInt({ min: 2020, max: new Date().getFullYear() + 5 })
     .withMessage("Graduation year must be a valid year"),
   body("department")
     .optional()
@@ -470,7 +480,9 @@ export const validatePasswordReset = [
   body("password")
     .isLength({ min: 8 })
     .withMessage("Password must be at least 8 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
+    )
     .withMessage(
       "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
     ),

@@ -107,11 +107,21 @@ const EventsMeetups = () => {
 
   // Check if user can create events
   const canCreateEvents =
-    user?.role === "super_admin" || user?.role === "coordinator";
+    user?.role === "super_admin" ||
+    user?.role === "coordinator" ||
+    user?.role === "college_admin" ||
+    user?.role === "hod" ||
+    user?.role === "staff" ||
+    user?.role === "alumni";
 
   // Check if user can edit/delete events
   const canManageEvents =
-    user?.role === "super_admin" || user?.role === "coordinator";
+    user?.role === "super_admin" ||
+    user?.role === "coordinator" ||
+    user?.role === "college_admin" ||
+    user?.role === "hod" ||
+    user?.role === "staff" ||
+    user?.role === "alumni";
 
   // Event types for filtering
   const eventTypes = [
@@ -130,13 +140,18 @@ const EventsMeetups = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["events", refreshKey],
-    queryFn: () => eventAPI.getAllEvents({ limit: 100 }), // Fetch up to 100 events
+    queryKey: ["events", refreshKey, user?.tenantId],
+    queryFn: () =>
+      eventAPI.getAllEvents({
+        limit: 100,
+        tenantId: user?.tenantId,
+      }), // Fetch up to 100 events for current college
   });
 
   // Map API events to component format
   const apiEvents =
     (eventsResponse?.data as { events: Event[] } | undefined)?.events || [];
+
   const mappedEvents = apiEvents.map((event: Event): MappedEvent => {
     return {
       id: event._id,

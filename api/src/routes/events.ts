@@ -5,7 +5,13 @@ import {
   validateId,
   validateRequest,
 } from "@/middleware/validation";
-import { authenticateToken, requireCoordinator } from "@/middleware/auth";
+import {
+  authenticateToken,
+  requireCoordinator,
+  requireAlumni,
+  authorize,
+} from "@/middleware/auth";
+import { UserRole } from "@/types";
 import { asyncHandler } from "@/middleware/errorHandler";
 import multer from "multer";
 
@@ -57,7 +63,13 @@ router.get(
 router.post(
   "/",
   authenticateToken,
-  requireCoordinator,
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF,
+    UserRole.ALUMNI
+  ),
   ...validateRequest(validateEvent),
   asyncHandler(eventController.createEvent)
 );
@@ -77,7 +89,13 @@ router.post(
     next();
   },
   authenticateToken,
-  requireCoordinator,
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF,
+    UserRole.ALUMNI
+  ),
   asyncHandler(eventController.createEventWithImage)
 );
 

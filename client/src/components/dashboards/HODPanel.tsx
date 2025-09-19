@@ -351,7 +351,6 @@ const HODPanel = () => {
   const stats = {
     staffUnderHOD: 8,
     alumniEngagement: 78,
-    postsCreated: 15,
     eventsOrganized: 6,
     pendingAlumni: pendingRequests.filter((req: any) => req.role === "alumni")
       .length,
@@ -403,33 +402,6 @@ const HODPanel = () => {
       graduationYear: 2019,
       department: "Computer Science",
       appliedDate: "2024-01-14",
-    },
-  ];
-
-  const recentPosts = [
-    {
-      id: 1,
-      title: "Department Research Opportunities",
-      type: "information",
-      views: 45,
-      comments: 3,
-      date: "2024-01-15",
-    },
-    {
-      id: 2,
-      title: "Alumni Networking Event",
-      type: "event",
-      views: 78,
-      comments: 12,
-      date: "2024-01-12",
-    },
-    {
-      id: 3,
-      title: "Help Request: Industry Mentorship",
-      type: "help",
-      views: 23,
-      comments: 5,
-      date: "2024-01-10",
     },
   ];
 
@@ -525,17 +497,6 @@ const HODPanel = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.alumniEngagement}%</div>
             <p className="text-xs text-muted-foreground">+5% from last month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Posts Created</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.postsCreated}</div>
-            <p className="text-xs text-muted-foreground">+3 this month</p>
           </CardContent>
         </Card>
 
@@ -1062,101 +1023,6 @@ const HODPanel = () => {
                       <Button size="sm">
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Approve
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* Feed Posts */}
-        <TabsContent value="posts" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Feed Posts</h2>
-            <Dialog open={isCreatePostOpen} onOpenChange={setIsCreatePostOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Post
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Create New Post</DialogTitle>
-                  <DialogDescription>
-                    Share information, events, or help requests with alumni.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="post-title">Title</Label>
-                    <Input id="post-title" placeholder="Enter post title" />
-                  </div>
-                  <div>
-                    <Label htmlFor="post-type">Type</Label>
-                    <select
-                      id="post-type"
-                      className="w-full p-2 border rounded-lg"
-                    >
-                      <option value="information">Information</option>
-                      <option value="event">Event</option>
-                      <option value="help">Help Request</option>
-                      <option value="announcement">Announcement</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="post-content">Content</Label>
-                    <Textarea
-                      id="post-content"
-                      placeholder="Write your post content here..."
-                      className="min-h-32"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreatePostOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={() => setIsCreatePostOpen(false)}>
-                    Create Post
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="space-y-4">
-            {recentPosts.map((post) => (
-              <Card key={post.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{post.title}</CardTitle>
-                      <CardDescription>Type: {post.type}</CardDescription>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{post.type}</Badge>
-                      <Badge variant="secondary">{post.date}</Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <span>{post.views} views</span>
-                      <span>{post.comments} comments</span>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        View
                       </Button>
                     </div>
                   </div>

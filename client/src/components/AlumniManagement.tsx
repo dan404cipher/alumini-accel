@@ -189,7 +189,6 @@ const AlumniManagement = () => {
       const alumniData = await alumniAPI.getAllAlumni({
         tenantId: user?.tenantId,
       });
-      console.log("Fetched alumni data:", alumniData);
 
       // Ensure alumni is always an array
       const alumniArray = Array.isArray(alumniData.data)
@@ -250,18 +249,13 @@ const AlumniManagement = () => {
       const { userAPI } = await import("@/lib/api");
 
       // Create user account directly
-      console.log("Creating alumni with data:", userData);
       const userResponse = await userAPI.createUser(userData);
-      console.log("Alumni creation response:", userResponse);
 
       if (!userResponse.success) {
-        console.error("Alumni creation error:", userResponse);
         throw new Error(
           userResponse.message || "Failed to create alumni account"
         );
       }
-
-      console.log("Alumni creation response:", userResponse);
 
       // Show success message for account creation
       toast({

@@ -70,7 +70,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (token) {
         try {
           const response = await authAPI.getCurrentUser();
-          console.log("Auth API response:", response);
 
           if (
             response.success &&
@@ -80,8 +79,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             "user" in response.data
           ) {
             const userData = (response.data as { user: User }).user;
-            console.log("User data from API:", userData);
-            console.log("User tenantId from API:", userData.tenantId);
             setUser(userData);
           } else {
             // Token is invalid, clear it

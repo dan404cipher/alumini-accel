@@ -34,6 +34,8 @@ import {
   FileDown,
   UserPlus,
   Building2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -111,6 +113,13 @@ const CollegeAdminDashboard = () => {
     hod: {} as Record<string, string>,
     staff: {} as Record<string, string>,
     admin: {} as Record<string, string>,
+  });
+
+  // Password visibility state
+  const [passwordVisibility, setPasswordVisibility] = useState({
+    hod: false,
+    staff: false,
+    admin: false,
   });
 
   // Alumni form state is now handled by AlumniManagement component
@@ -368,12 +377,12 @@ const CollegeAdminDashboard = () => {
     } else if (formData.password.length < 8) {
       errors.password = "Password must be at least 8 characters long";
     } else if (
-      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(
+      !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(
         formData.password
       )
     ) {
       errors.password =
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character";
+        "Password must contain at least one uppercase letter, one number, and one special character";
     }
 
     return errors;
@@ -386,6 +395,13 @@ const CollegeAdminDashboard = () => {
     setValidationErrors((prev) => ({
       ...prev,
       [formType]: errors,
+    }));
+  };
+
+  const togglePasswordVisibility = (formType: "hod" | "staff" | "admin") => {
+    setPasswordVisibility((prev) => ({
+      ...prev,
+      [formType]: !prev[formType],
     }));
   };
 
@@ -1413,31 +1429,46 @@ const CollegeAdminDashboard = () => {
                     </div>
                     <div>
                       <Label htmlFor="admin-password">Default Password</Label>
-                      <Input
-                        id="admin-password"
-                        type="password"
-                        placeholder="Admin@1234"
-                        value={newAdmin.password}
-                        onChange={(e) => {
-                          setNewAdmin((prev) => ({
-                            ...prev,
-                            password: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.admin.password) {
-                            updateValidationErrors("admin", {
-                              ...validationErrors.admin,
-                              password: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.admin.password
-                            ? "border-red-500"
-                            : ""
-                        }
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="admin-password"
+                          type={passwordVisibility.admin ? "text" : "password"}
+                          placeholder="Admin@1234"
+                          value={newAdmin.password}
+                          onChange={(e) => {
+                            setNewAdmin((prev) => ({
+                              ...prev,
+                              password: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.admin.password) {
+                              updateValidationErrors("admin", {
+                                ...validationErrors.admin,
+                                password: "",
+                              });
+                            }
+                          }}
+                          className={`pr-10 ${
+                            validationErrors.admin.password
+                              ? "border-red-500"
+                              : ""
+                          }`}
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => togglePasswordVisibility("admin")}
+                        >
+                          {passwordVisibility.admin ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                       {validationErrors.admin.password && (
                         <p className="text-sm text-red-500 mt-1">
                           {validationErrors.admin.password}
@@ -1462,7 +1493,12 @@ const CollegeAdminDashboard = () => {
 
               <Dialog open={isCreateHODOpen} onOpenChange={setIsCreateHODOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateHODOpen(true);
+                    }}
+                  >
                     <UserPlus className="w-4 h-4 mr-2" />
                     Create HOD
                   </Button>
@@ -1511,14 +1547,29 @@ const CollegeAdminDashboard = () => {
                         id="hod-lastName"
                         placeholder="Smith"
                         value={newHOD.lastName}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewHOD((prev) => ({
                             ...prev,
                             lastName: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.hod.lastName) {
+                            updateValidationErrors("hod", {
+                              ...validationErrors.hod,
+                              lastName: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.hod.lastName ? "border-red-500" : ""
                         }
                         required
                       />
+                      {validationErrors.hod.lastName && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.hod.lastName}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="hod-email">Email</Label>
@@ -1527,14 +1578,29 @@ const CollegeAdminDashboard = () => {
                         type="email"
                         placeholder="john.smith@college.edu"
                         value={newHOD.email}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewHOD((prev) => ({
                             ...prev,
                             email: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.hod.email) {
+                            updateValidationErrors("hod", {
+                              ...validationErrors.hod,
+                              email: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.hod.email ? "border-red-500" : ""
                         }
                         required
                       />
+                      {validationErrors.hod.email && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.hod.email}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="hod-department">Department</Label>
@@ -1542,30 +1608,79 @@ const CollegeAdminDashboard = () => {
                         id="hod-department"
                         placeholder="Computer Science"
                         value={newHOD.department}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewHOD((prev) => ({
                             ...prev,
                             department: e.target.value,
-                          }))
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.hod.department) {
+                            updateValidationErrors("hod", {
+                              ...validationErrors.hod,
+                              department: "",
+                            });
+                          }
+                        }}
+                        className={
+                          validationErrors.hod.department
+                            ? "border-red-500"
+                            : ""
                         }
                         required
                       />
+                      {validationErrors.hod.department && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.hod.department}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="hod-password">Default Password</Label>
-                      <Input
-                        id="hod-password"
-                        type="password"
-                        placeholder="HOD@1234"
-                        value={newHOD.password}
-                        onChange={(e) =>
-                          setNewHOD((prev) => ({
-                            ...prev,
-                            password: e.target.value,
-                          }))
-                        }
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="hod-password"
+                          type={passwordVisibility.hod ? "text" : "password"}
+                          placeholder="HOD@1234"
+                          value={newHOD.password}
+                          onChange={(e) => {
+                            setNewHOD((prev) => ({
+                              ...prev,
+                              password: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.hod.password) {
+                              updateValidationErrors("hod", {
+                                ...validationErrors.hod,
+                                password: "",
+                              });
+                            }
+                          }}
+                          className={`pr-10 ${
+                            validationErrors.hod.password
+                              ? "border-red-500"
+                              : ""
+                          }`}
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => togglePasswordVisibility("hod")}
+                        >
+                          {passwordVisibility.hod ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {validationErrors.hod.password && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.hod.password}
+                        </p>
+                      )}
                     </div>
                     <DialogFooter>
                       <Button
@@ -1664,19 +1779,35 @@ const CollegeAdminDashboard = () => {
                     </div>
                     <div>
                       <Label htmlFor="staff-password">Default Password</Label>
-                      <Input
-                        id="staff-password"
-                        type="password"
-                        placeholder="Staff@1234"
-                        value={newStaff.password}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            password: e.target.value,
-                          }))
-                        }
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="staff-password"
+                          type={passwordVisibility.staff ? "text" : "password"}
+                          placeholder="Staff@1234"
+                          value={newStaff.password}
+                          onChange={(e) =>
+                            setNewStaff((prev) => ({
+                              ...prev,
+                              password: e.target.value,
+                            }))
+                          }
+                          className="pr-10"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => togglePasswordVisibility("staff")}
+                        >
+                          {passwordVisibility.staff ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button

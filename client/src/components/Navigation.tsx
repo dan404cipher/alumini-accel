@@ -116,72 +116,47 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
       if (tenantId) {
         try {
-          console.log(
-            "Loading college logo from database for tenant:",
-            tenantId
-          );
           const logoResponse = await tenantAPI.getLogo(tenantId);
 
           // Check if response is a blob (image file) or JSON
           if (logoResponse instanceof Blob) {
             // Direct image blob response
             const logoUrl = URL.createObjectURL(logoResponse);
-            console.log("College logo loaded successfully from database");
             setCollegeLogo(logoUrl);
           } else if (logoResponse.success && logoResponse.data) {
             // Legacy JSON response format
             const logoBlob = logoResponse.data as Blob;
             const logoUrl = URL.createObjectURL(logoBlob);
-            console.log("College logo loaded successfully from database");
             setCollegeLogo(logoUrl);
           } else {
-            console.log("No logo found in database, checking localStorage");
-
             // Fallback to localStorage
             try {
               const localLogo = localStorage.getItem(
                 `college_logo_${tenantId}`
               );
-              console.log(
-                "Checking localStorage for logo:",
-                localLogo ? "Found" : "Not found"
-              );
               if (localLogo) {
-                console.log("Found logo in localStorage as fallback");
                 setCollegeLogo(localLogo);
               } else {
-                console.log("No logo found in localStorage either");
                 setCollegeLogo(null);
               }
             } catch (localError) {
-              console.log("Error loading from localStorage:", localError);
               setCollegeLogo(null);
             }
           }
         } catch (error) {
-          console.log("Error loading logo from database:", error);
-
           // Fallback to localStorage
           try {
             const localLogo = localStorage.getItem(`college_logo_${tenantId}`);
-            console.log(
-              "Checking localStorage for logo:",
-              localLogo ? "Found" : "Not found"
-            );
             if (localLogo) {
-              console.log("Found logo in localStorage as fallback");
               setCollegeLogo(localLogo);
             } else {
-              console.log("No logo found in localStorage either");
               setCollegeLogo(null);
             }
           } catch (localError) {
-            console.log("Error loading from localStorage:", localError);
             setCollegeLogo(null);
           }
         }
       } else {
-        console.log("No tenantId, setting logo to null. User:", user);
         setCollegeLogo(null);
       }
     };

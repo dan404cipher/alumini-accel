@@ -510,8 +510,6 @@ export const userAPI = {
     password: string;
   }) => {
     try {
-      console.log("Creating pending user request with data:", userData);
-
       // Since user-requests endpoint doesn't exist, we'll use a different approach
       // We'll store the request data in localStorage temporarily and use a different endpoint
       // This ensures NO user account is created until approval
@@ -535,8 +533,6 @@ export const userAPI = {
         JSON.stringify(existingRequests)
       );
 
-      console.log("User request stored locally:", requestData);
-
       return {
         success: true,
         message: "User request submitted for approval",
@@ -553,18 +549,9 @@ export const userAPI = {
   // Get pending user requests
   getPendingUserRequests: async () => {
     try {
-      console.log("Fetching pending user requests...");
-
       // Read from localStorage since we're storing requests there
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
-
-      console.log("Pending user requests from localStorage:", pendingRequests);
-      console.log("Number of pending requests:", pendingRequests.length);
-      console.log(
-        "Request IDs:",
-        pendingRequests.map((req: any) => req.requestId)
       );
 
       return {
@@ -580,17 +567,9 @@ export const userAPI = {
   // Approve user request (creates actual user account)
   approveUserRequest: async (requestId: string) => {
     try {
-      console.log("Approving user request:", requestId);
-
       // Get the request from localStorage
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
-
-      console.log("Looking for requestId:", requestId);
-      console.log(
-        "Available requests:",
-        pendingRequests.map((req: any) => req.requestId)
       );
 
       const request = pendingRequests.find(
@@ -598,8 +577,6 @@ export const userAPI = {
       );
 
       if (!request) {
-        console.error("Request not found with ID:", requestId);
-        console.error("Available requests:", pendingRequests);
         throw new Error("Request not found");
       }
 
@@ -615,14 +592,12 @@ export const userAPI = {
         status: "active", // Create as active user
       };
 
-      console.log("Creating user with data:", userData);
       const createUserResponse = await apiRequest({
         method: "POST",
         url: "/users",
         data: userData,
       });
 
-      console.log("User creation response:", createUserResponse);
       if (createUserResponse.success) {
         // Remove the request from localStorage
         const updatedRequests = pendingRequests.filter(
@@ -632,8 +607,6 @@ export const userAPI = {
           "pendingUserRequests",
           JSON.stringify(updatedRequests)
         );
-
-        console.log("Request approved and removed from pending requests");
 
         return {
           success: true,
@@ -658,8 +631,6 @@ export const userAPI = {
   // Reject user request (removes the request)
   rejectUserRequest: async (requestId: string, reason?: string) => {
     try {
-      console.log("Rejecting user request:", requestId);
-
       // Get the request from localStorage
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
@@ -680,8 +651,6 @@ export const userAPI = {
         "pendingUserRequests",
         JSON.stringify(updatedRequests)
       );
-
-      console.log("Request rejected and removed from pending requests");
 
       return {
         success: true,
@@ -857,8 +826,6 @@ export const jobAPI = {
       });
       return response;
     } catch (error) {
-      console.log("Backend jobs API not available, using localStorage data");
-
       // Fallback to localStorage data
       const mockJobs = [
         {
@@ -1002,8 +969,6 @@ export const jobAPI = {
       });
       return response;
     } catch (error) {
-      console.log("Backend job creation API not available, simulating success");
-
       // Simulate successful job creation
       const newJob = {
         _id: `job_${Date.now()}`,
@@ -1145,8 +1110,6 @@ export const eventAPI = {
       });
       return response;
     } catch (error) {
-      console.log("Backend events API not available, using mock data");
-
       // Fallback to mock data
       const mockEvents = [
         {
@@ -1273,10 +1236,6 @@ export const eventAPI = {
       });
       return response;
     } catch (error) {
-      console.log(
-        "Backend event creation API not available, simulating success"
-      );
-
       // Simulate successful event creation
       const newEvent = {
         _id: `event_${Date.now()}`,
@@ -1544,8 +1503,6 @@ export const newsAPI = {
       });
       return response;
     } catch (error) {
-      console.log("Backend news API not available, using mock data");
-
       // Fallback to mock data
       const mockNews = [
         {
@@ -1639,10 +1596,6 @@ export const newsAPI = {
       });
       return response;
     } catch (error) {
-      console.log(
-        "Backend news creation API not available, simulating success"
-      );
-
       // Simulate successful news creation
       const newNews = {
         _id: `news_${Date.now()}`,
@@ -1733,8 +1686,6 @@ export const galleryAPI = {
       });
       return response;
     } catch (error) {
-      console.log("Backend gallery API not available, using mock data");
-
       // Fallback to mock data
       const mockGalleries = [
         {

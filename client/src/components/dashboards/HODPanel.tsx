@@ -49,14 +49,14 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { userAPI, postAPI, campaignAPI } from "@/lib/api";
+import { userAPI, campaignAPI, tenantAPI } from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 
 const HODPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const [isCreateStaffOpen, setIsCreateStaffOpen] = useState(false);
-  const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isCreateFundraiserOpen, setIsCreateFundraiserOpen] = useState(false);
 
   // Real data states
@@ -73,13 +73,6 @@ const HODPanel = () => {
     lastName: "",
     email: "",
     password: "",
-  });
-
-  const [newPost, setNewPost] = useState({
-    title: "",
-    content: "",
-    type: "information",
-    category: "general",
   });
 
   const [newFundraiser, setNewFundraiser] = useState({
@@ -216,54 +209,6 @@ const HODPanel = () => {
     }
   };
 
-  // Create post
-  const handleCreatePost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading((prev) => ({ ...prev, post: true }));
-
-    try {
-      const postData = {
-        title: newPost.title.trim(),
-        content: newPost.content.trim(),
-        type: newPost.type,
-        category: newPost.category,
-        isPublic: true,
-        allowComments: true,
-        targetAudience: {
-          roles: ["alumni", "staff", "hod"],
-          departments: [user?.department || "General"],
-        },
-      };
-
-      const response = await postAPI.createPost(postData);
-
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Post created successfully",
-        });
-        setNewPost({
-          title: "",
-          content: "",
-          type: "information",
-          category: "general",
-        });
-        setIsCreatePostOpen(false);
-      } else {
-        throw new Error(response.message || "Failed to create post");
-      }
-    } catch (error) {
-      console.error("Error creating post:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create post",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading((prev) => ({ ...prev, post: false }));
-    }
-  };
-
   // Create fundraiser
   const handleCreateFundraiser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,6 +272,80 @@ const HODPanel = () => {
   useEffect(() => {
     fetchPendingRequests();
   }, [fetchPendingRequests]);
+
+  // Load college banner
+  useEffect(() => {
+    const loadCollegeBanner = async () => {
+      if (user?.tenantId) {
+        try {
+          const bannerResponse = await tenantAPI.getBanner(user.tenantId);
+          if (bannerResponse instanceof Blob) {
+            const bannerUrl = URL.createObjectURL(bannerResponse);
+            setCollegeBanner(bannerUrl);
+          }
+        } catch (error) {
+          console.log("No banner found or error loading banner:", error);
+
+          // Check localStorage as fallback
+          try {
+            const storedBanner = localStorage.getItem(
+              `college_banner_${user.tenantId}`
+            );
+            if (storedBanner) {
+              setCollegeBanner(storedBanner);
+            }
+          } catch (localStorageError) {
+            console.log(
+              "Error loading banner from localStorage:",
+              localStorageError
+            );
+          }
+        }
+      }
+    };
+
+    loadCollegeBanner();
+  }, [user?.tenantId]);
+
+  // Listen for banner updates
+  useEffect(() => {
+    const handleBannerUpdate = () => {
+      if (user?.tenantId) {
+        const loadCollegeBanner = async () => {
+          try {
+            const bannerResponse = await tenantAPI.getBanner(user.tenantId);
+            if (bannerResponse instanceof Blob) {
+              const bannerUrl = URL.createObjectURL(bannerResponse);
+              setCollegeBanner(bannerUrl);
+            }
+          } catch (error) {
+            console.log("No banner found or error loading banner:", error);
+
+            // Check localStorage as fallback
+            try {
+              const storedBanner = localStorage.getItem(
+                `college_banner_${user.tenantId}`
+              );
+              if (storedBanner) {
+                setCollegeBanner(storedBanner);
+              }
+            } catch (localStorageError) {
+              console.log(
+                "Error loading banner from localStorage:",
+                localStorageError
+              );
+            }
+          }
+        };
+        loadCollegeBanner();
+      }
+    };
+
+    window.addEventListener("collegeBannerUpdated", handleBannerUpdate);
+    return () => {
+      window.removeEventListener("collegeBannerUpdated", handleBannerUpdate);
+    };
+  }, [user?.tenantId]);
 
   // Mock data - replace with actual API calls
   const stats = {
@@ -443,6 +462,28 @@ const HODPanel = () => {
 
   return (
     <div className="space-y-6">
+      {/* College Banner */}
+      {collegeBanner && (
+        <div className="relative overflow-hidden rounded-lg shadow-lg">
+          <img
+            src={collegeBanner}
+            alt="College Banner"
+            className="w-full h-80 object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+          <div className="absolute bottom-0 left-0 right-0 p-8">
+            <div className="max-w-4xl">
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Welcome to Your College HOD Portal
+              </h2>
+              <p className="text-xl text-white/90 mb-6 max-w-2xl">
+                Manage your department, oversee staff, and engage with alumni
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -514,14 +555,10 @@ const HODPanel = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="approvals" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="approvals" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Approvals</span>
-          </TabsTrigger>
-          <TabsTrigger value="posts" className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">Feed Posts</span>
           </TabsTrigger>
           <TabsTrigger value="fundraisers" className="flex items-center gap-2">
             <DollarSign className="w-4 h-4" />
@@ -608,141 +645,6 @@ const HODPanel = () => {
                 </Card>
               ))
             )}
-          </div>
-        </TabsContent>
-
-        {/* Feed Posts */}
-        <TabsContent value="posts" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Feed Posts</h2>
-            <Dialog open={isCreatePostOpen} onOpenChange={setIsCreatePostOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Post
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Create New Post</DialogTitle>
-                  <DialogDescription>
-                    Share information, announcements, or updates with your
-                    department.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreatePost} className="space-y-4">
-                  <div>
-                    <Label htmlFor="post-title">Title</Label>
-                    <Input
-                      id="post-title"
-                      placeholder="Enter post title"
-                      value={newPost.title}
-                      onChange={(e) =>
-                        setNewPost((prev) => ({
-                          ...prev,
-                          title: e.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="post-type">Post Type</Label>
-                    <Select
-                      value={newPost.type}
-                      onValueChange={(value) =>
-                        setNewPost((prev) => ({
-                          ...prev,
-                          type: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select post type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="information">Information</SelectItem>
-                        <SelectItem value="announcement">
-                          Announcement
-                        </SelectItem>
-                        <SelectItem value="event">Event</SelectItem>
-                        <SelectItem value="help">Help Request</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="post-content">Content</Label>
-                    <Textarea
-                      id="post-content"
-                      placeholder="Write your post content..."
-                      rows={6}
-                      value={newPost.content}
-                      onChange={(e) =>
-                        setNewPost((prev) => ({
-                          ...prev,
-                          content: e.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreatePostOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={loading.post}>
-                      {loading.post ? "Creating..." : "Create Post"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="space-y-4">
-            {recentPosts.map((post) => (
-              <Card key={post.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{post.title}</CardTitle>
-                      <CardDescription>
-                        {post.type} • {post.date}
-                      </CardDescription>
-                    </div>
-                    <Badge variant="outline">{post.type}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <span className="flex items-center">
-                        <TrendingUp className="w-4 h-4 mr-1" />
-                        {post.views} views
-                      </span>
-                      <span className="flex items-center">
-                        <MessageSquare className="w-4 h-4 mr-1" />
-                        {post.comments} comments
-                      </span>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                        <Heart className="w-4 h-4 mr-2" />
-                        Like
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <Share2 className="w-4 h-4 mr-2" />
-                        Share
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </TabsContent>
 

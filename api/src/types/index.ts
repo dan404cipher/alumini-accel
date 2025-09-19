@@ -37,11 +37,6 @@ export interface IRole extends Document {
     canApproveUsers: boolean;
 
     // Content Management
-    canCreatePosts: boolean;
-    canEditPosts: boolean;
-    canDeletePosts: boolean;
-    canViewPosts: boolean;
-    canModeratePosts: boolean;
 
     // Job Management
     canCreateJobs: boolean;

@@ -281,32 +281,24 @@ canManageContent(userRole);
 - **Manage Colleges:** Create, edit, delete college entities
 - **View All Colleges:** Access multi-college directory
 
-### 3. Content Management
-
-- **Create Posts:** Publish new content
-- **Edit All Posts:** Modify any post in the system
-- **Delete Posts:** Remove posts from the system
-- **Pin Posts:** Highlight important posts
-- **Feature Posts:** Promote posts to featured status
-
-### 4. Events Management
+### 3. Events Management
 
 - **Create Events:** Schedule new events
 - **Edit All Events:** Modify any event in the system
 - **Delete Events:** Remove events from the system
 
-### 5. Job Management
+### 4. Job Management
 
 - **Create Jobs:** Post new job opportunities
 - **Edit All Jobs:** Modify any job posting
 - **Delete Jobs:** Remove job postings
 
-### 6. Analytics & Reports
+### 5. Analytics & Reports
 
 - **View Analytics:** Access system statistics and reports
 - **Export Data:** Download data in various formats
 
-### 7. System Administration
+### 6. System Administration
 
 - **Manage System:** Configure system settings
 - **View Logs:** Access system logs and audit trails

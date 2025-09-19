@@ -95,7 +95,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
   // Social dropdown items
   const socialItems = [
-    { id: "feed", name: "Feed", icon: Newspaper, count: null },
     { id: "messages", name: "Messages", icon: MessageCircle, count: null },
     { id: "connections", name: "Connections", icon: UserPlus, count: null },
   ];

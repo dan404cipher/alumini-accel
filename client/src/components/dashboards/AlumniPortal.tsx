@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -39,12 +39,87 @@ import {
   Camera,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { tenantAPI } from "@/lib/api";
 
 const AlumniPortal = () => {
   const { user } = useAuth();
-  const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
   const [isUploadPaymentOpen, setIsUploadPaymentOpen] = useState(false);
+  const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
+
+  // Load college banner
+  useEffect(() => {
+    const loadCollegeBanner = async () => {
+      if (user?.tenantId) {
+        try {
+          const bannerResponse = await tenantAPI.getBanner(user.tenantId);
+          if (bannerResponse instanceof Blob) {
+            const bannerUrl = URL.createObjectURL(bannerResponse);
+            setCollegeBanner(bannerUrl);
+          }
+        } catch (error) {
+          console.log("No banner found or error loading banner:", error);
+
+          // Check localStorage as fallback
+          try {
+            const storedBanner = localStorage.getItem(
+              `college_banner_${user.tenantId}`
+            );
+            if (storedBanner) {
+              setCollegeBanner(storedBanner);
+            }
+          } catch (localStorageError) {
+            console.log(
+              "Error loading banner from localStorage:",
+              localStorageError
+            );
+          }
+        }
+      }
+    };
+
+    loadCollegeBanner();
+  }, [user?.tenantId]);
+
+  // Listen for banner updates
+  useEffect(() => {
+    const handleBannerUpdate = () => {
+      if (user?.tenantId) {
+        const loadCollegeBanner = async () => {
+          try {
+            const bannerResponse = await tenantAPI.getBanner(user.tenantId);
+            if (bannerResponse instanceof Blob) {
+              const bannerUrl = URL.createObjectURL(bannerResponse);
+              setCollegeBanner(bannerUrl);
+            }
+          } catch (error) {
+            console.log("No banner found or error loading banner:", error);
+
+            // Check localStorage as fallback
+            try {
+              const storedBanner = localStorage.getItem(
+                `college_banner_${user.tenantId}`
+              );
+              if (storedBanner) {
+                setCollegeBanner(storedBanner);
+              }
+            } catch (localStorageError) {
+              console.log(
+                "Error loading banner from localStorage:",
+                localStorageError
+              );
+            }
+          }
+        };
+        loadCollegeBanner();
+      }
+    };
+
+    window.addEventListener("collegeBannerUpdated", handleBannerUpdate);
+    return () => {
+      window.removeEventListener("collegeBannerUpdated", handleBannerUpdate);
+    };
+  }, [user?.tenantId]);
 
   // Mock data - replace with actual API calls
   const stats = {
@@ -54,48 +129,6 @@ const AlumniPortal = () => {
     postsCreated: 12,
     connections: 45,
   };
-
-  const feedPosts = [
-    {
-      id: 1,
-      author: "Dr. Sarah Johnson",
-      role: "College Admin",
-      title: "Annual Alumni Reunion 2024",
-      content:
-        "Join us for our annual alumni reunion on February 15th. We'll have networking sessions, career workshops, and a gala dinner.",
-      type: "announcement",
-      likes: 45,
-      comments: 12,
-      date: "2024-01-15",
-      isPinned: true,
-    },
-    {
-      id: 2,
-      author: "Mike Chen",
-      role: "Alumni",
-      title: "Success Story: From Startup to IPO",
-      content:
-        "Sharing my journey from founding a small startup to taking it public. Happy to mentor fellow entrepreneurs!",
-      type: "achievement",
-      likes: 78,
-      comments: 23,
-      date: "2024-01-14",
-      isPinned: false,
-    },
-    {
-      id: 3,
-      author: "Emily Rodriguez",
-      role: "Staff",
-      title: "Career Workshop: Tech Industry Trends",
-      content:
-        "Join our upcoming workshop on the latest trends in the tech industry. Industry experts will be speaking.",
-      type: "event",
-      likes: 34,
-      comments: 8,
-      date: "2024-01-13",
-      isPinned: false,
-    },
-  ];
 
   const jobReferrals = [
     {
@@ -160,6 +193,29 @@ const AlumniPortal = () => {
 
   return (
     <div className="space-y-6">
+      {/* College Banner */}
+      {collegeBanner && (
+        <div className="relative overflow-hidden rounded-lg shadow-lg">
+          <img
+            src={collegeBanner}
+            alt="College Banner"
+            className="w-full h-80 object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+          <div className="absolute bottom-0 left-0 right-0 p-8">
+            <div className="max-w-4xl">
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Welcome to Your College Alumni Portal
+              </h2>
+              <p className="text-xl text-white/90 mb-6 max-w-2xl">
+                Connect with fellow alumni, discover opportunities, and stay
+                updated with college news
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -235,127 +291,13 @@ const AlumniPortal = () => {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="feed" className="space-y-6">
+      <Tabs defaultValue="wall" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="feed">Home Feed</TabsTrigger>
           <TabsTrigger value="wall">Information Wall</TabsTrigger>
           <TabsTrigger value="jobs">Job Referrals</TabsTrigger>
           <TabsTrigger value="fundraising">Fundraising</TabsTrigger>
           <TabsTrigger value="profile">My Profile</TabsTrigger>
         </TabsList>
-
-        {/* Home Feed */}
-        <TabsContent value="feed" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Home Feed</h2>
-            <Dialog open={isCreatePostOpen} onOpenChange={setIsCreatePostOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Post
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Create New Post</DialogTitle>
-                  <DialogDescription>
-                    Share your achievements, ideas, or success stories with the
-                    alumni community.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="post-title">Title</Label>
-                    <Input id="post-title" placeholder="Enter post title" />
-                  </div>
-                  <div>
-                    <Label htmlFor="post-type">Type</Label>
-                    <select
-                      id="post-type"
-                      className="w-full p-2 border rounded-lg"
-                    >
-                      <option value="achievement">Achievement</option>
-                      <option value="idea">Idea</option>
-                      <option value="success-story">Success Story</option>
-                      <option value="general">General</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="post-content">Content</Label>
-                    <Textarea
-                      id="post-content"
-                      placeholder="Share your story, achievement, or idea with the alumni community..."
-                      className="min-h-32"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreatePostOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={() => setIsCreatePostOpen(false)}>
-                    Create Post
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="space-y-4">
-            {feedPosts.map((post) => (
-              <Card key={post.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-gray-500" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">{post.author}</CardTitle>
-                        <CardDescription>
-                          {post.role} • {post.date}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {post.isPinned && <Badge variant="default">Pinned</Badge>}
-                      <Badge variant="outline">{post.type}</Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-lg mb-2">
-                        {post.title}
-                      </h3>
-                      <p className="text-gray-700">{post.content}</p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Button variant="ghost" size="sm">
-                          <Heart className="w-4 h-4 mr-2" />
-                          {post.likes}
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <MessageSquare className="w-4 h-4 mr-2" />
-                          {post.comments}
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Share2 className="w-4 h-4 mr-2" />
-                          Share
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
 
         {/* Information Wall */}
         <TabsContent value="wall" className="space-y-6">
@@ -409,54 +351,24 @@ const AlumniPortal = () => {
           </div>
 
           <div className="space-y-4">
-            {feedPosts
-              .filter(
-                (post) => post.type === "achievement" || post.type === "idea"
-              )
-              .map((post) => (
-                <Card key={post.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-gray-500" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">
-                            {post.author}
-                          </CardTitle>
-                          <CardDescription>
-                            {post.role} • {post.date}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <Badge variant="outline">{post.type}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">
-                          {post.title}
-                        </h3>
-                        <p className="text-gray-700">{post.content}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <Button variant="ghost" size="sm">
-                            <Heart className="w-4 h-4 mr-2" />
-                            {post.likes}
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            {post.comments}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="space-y-4">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                    <MessageSquare className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      No posts yet
+                    </h3>
+                    <p className="text-gray-600">
+                      Check back later for announcements, achievements, and
+                      updates from your college community.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 

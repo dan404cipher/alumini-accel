@@ -21,7 +21,6 @@ import {
 import AlumniManagement from "./AlumniManagement";
 import TenantManagement from "./TenantManagement";
 import CampaignManagement from "./CampaignManagement";
-import FeedManagement from "./FeedManagement";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -76,7 +75,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="tenants">Tenants</TabsTrigger>
           )}
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-          <TabsTrigger value="feed">Feed</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -177,14 +175,6 @@ const AdminDashboard = () => {
                 <Button
                   className="w-full justify-start"
                   variant="outline"
-                  onClick={() => setActiveTab("feed")}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Manage Feed
-                </Button>
-                <Button
-                  className="w-full justify-start"
-                  variant="outline"
                   onClick={() => setActiveTab("analytics")}
                 >
                   <BarChart3 className="mr-2 h-4 w-4" />
@@ -220,10 +210,6 @@ const AdminDashboard = () => {
 
         <TabsContent value="campaigns">
           <CampaignManagement />
-        </TabsContent>
-
-        <TabsContent value="feed">
-          <FeedManagement />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

@@ -94,7 +94,7 @@ client/src/components/
 - **Dashboard:** Staff under them, alumni engagement stats
 - **Create/Edit Staff:** Can only manage staff roles
 - **Alumni Verification:** Approve new alumni signups
-- **Post on Feed:** Events, information, help requests
+- **Post Events:** Create and manage events
 - **View Contributions:** Fundraising history & alumni uploads
 
 #### **Key Components:**
@@ -116,7 +116,7 @@ client/src/components/
 
 - **Dashboard:** Total alumni verified, posts made, events posted
 - **Verify Alumni:** Approve alumni requests
-- **Post Feed/Events:** Request help, promote events
+- **Post Events:** Create and promote events
 - **Moderate Posts:** Edit/remove inappropriate posts or comments
 
 #### **Key Components:**
@@ -136,7 +136,7 @@ client/src/components/
 
 #### **Features:**
 
-- **Home Feed:** See college announcements, info posts
+- **Information Wall:** See college announcements and updates
 - **Information Wall:** Post achievements, ideas, success stories with comments
 - **Job Referrals:** Post job openings: Title, Company, Role, Location
 - **Fundraising Section:** View active events → Make payment externally → Upload screenshot with Event ID
@@ -145,7 +145,7 @@ client/src/components/
 
 #### **Key Components:**
 
-- Social feed with interactions
+- Information wall with interactions
 - Job posting system
 - Fundraising interface
 - Profile management
@@ -209,7 +209,7 @@ switch (user.role) {
 
 - **Progress Bars:** For fundraising goals and completion rates
 - **Statistics Cards:** Key metrics with trend indicators
-- **Activity Feeds:** Real-time updates and notifications
+- **Activity Updates:** Real-time notifications
 - **Charts & Graphs:** Analytics and reporting (ready for integration)
 
 ---

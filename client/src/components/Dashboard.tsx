@@ -46,11 +46,66 @@ const Dashboard = () => {
           }
         } catch (error) {
           console.log("No banner found or error loading banner:", error);
+
+          // Check localStorage as fallback
+          try {
+            const storedBanner = localStorage.getItem(
+              `college_banner_${user.tenantId}`
+            );
+            if (storedBanner) {
+              setCollegeBanner(storedBanner);
+            }
+          } catch (localStorageError) {
+            console.log(
+              "Error loading banner from localStorage:",
+              localStorageError
+            );
+          }
         }
       }
     };
 
     loadCollegeBanner();
+  }, [user?.tenantId]);
+
+  // Listen for banner updates
+  useEffect(() => {
+    const handleBannerUpdate = () => {
+      if (user?.tenantId) {
+        const loadCollegeBanner = async () => {
+          try {
+            const bannerResponse = await tenantAPI.getBanner(user.tenantId);
+            if (bannerResponse instanceof Blob) {
+              const bannerUrl = URL.createObjectURL(bannerResponse);
+              setCollegeBanner(bannerUrl);
+            }
+          } catch (error) {
+            console.log("No banner found or error loading banner:", error);
+
+            // Check localStorage as fallback
+            try {
+              const storedBanner = localStorage.getItem(
+                `college_banner_${user.tenantId}`
+              );
+              if (storedBanner) {
+                setCollegeBanner(storedBanner);
+              }
+            } catch (localStorageError) {
+              console.log(
+                "Error loading banner from localStorage:",
+                localStorageError
+              );
+            }
+          }
+        };
+        loadCollegeBanner();
+      }
+    };
+
+    window.addEventListener("collegeBannerUpdated", handleBannerUpdate);
+    return () => {
+      window.removeEventListener("collegeBannerUpdated", handleBannerUpdate);
+    };
   }, [user?.tenantId]);
 
   // Check if user can create content

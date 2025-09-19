@@ -126,6 +126,13 @@ export const requireHOD = authorize(
   UserRole.HOD
 );
 
+export const requireUserCreation = authorize(
+  UserRole.SUPER_ADMIN,
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD,
+  UserRole.STAFF
+);
+
 export const requireStaff = authorize(
   UserRole.SUPER_ADMIN,
   UserRole.COLLEGE_ADMIN,

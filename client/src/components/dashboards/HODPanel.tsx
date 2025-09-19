@@ -46,10 +46,12 @@ import {
   Target,
   Heart,
   Share2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { userAPI, campaignAPI, tenantAPI } from "@/lib/api";
+import { userAPI, campaignAPI, tenantAPI, alumniAPI } from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 
 const HODPanel = () => {
@@ -57,6 +59,7 @@ const HODPanel = () => {
   const { toast } = useToast();
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const [isCreateStaffOpen, setIsCreateStaffOpen] = useState(false);
+  const [isCreateAlumniOpen, setIsCreateAlumniOpen] = useState(false);
   const [isCreateFundraiserOpen, setIsCreateFundraiserOpen] = useState(false);
 
   // Real data states
@@ -72,7 +75,23 @@ const HODPanel = () => {
     firstName: "",
     lastName: "",
     email: "",
+    department: "",
     password: "",
+  });
+
+  const [newAlumni, setNewAlumni] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    collegeId: "",
+    department: "",
+    graduationYear: new Date().getFullYear(),
+    currentCompany: "",
+    currentPosition: "",
+    phoneNumber: "",
+    address: "",
+    bio: "",
   });
 
   const [newFundraiser, setNewFundraiser] = useState({
@@ -90,6 +109,20 @@ const HODPanel = () => {
       person: "",
     },
   });
+
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState({
+    staff: {} as Record<string, string>,
+    alumni: {} as Record<string, string>,
+  });
+
+  // Password visibility state
+  const [passwordVisibility, setPasswordVisibility] = useState({
+    staff: false,
+    alumni: false,
+  });
+
+  // Colleges state removed - HOD can only create alumni for their own college
 
   // Fetch pending requests (Alumni/Staff)
   const fetchPendingRequests = useCallback(async () => {
@@ -168,9 +201,116 @@ const HODPanel = () => {
     }
   };
 
+  // Validation functions
+  const validateForm = (formData: any, formType: "staff" | "alumni") => {
+    const errors: Record<string, string> = {};
+
+    // First Name validation
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First name is required";
+    } else if (formData.firstName.trim().length < 2) {
+      errors.firstName = "First name must be at least 2 characters";
+    } else if (formData.firstName.trim().length > 50) {
+      errors.firstName = "First name must be less than 50 characters";
+    }
+
+    // Last Name validation
+    if (!formData.lastName.trim()) {
+      errors.lastName = "Last name is required";
+    } else if (formData.lastName.trim().length < 2) {
+      errors.lastName = "Last name must be at least 2 characters";
+    } else if (formData.lastName.trim().length > 50) {
+      errors.lastName = "Last name must be less than 50 characters";
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    // Department validation (for Staff and Alumni)
+    if (
+      (formType === "staff" || formType === "alumni") &&
+      !formData.department.trim()
+    ) {
+      errors.department = "Department is required";
+    } else if (
+      formData.department.trim() &&
+      formData.department.trim().length < 2
+    ) {
+      errors.department = "Department must be at least 2 characters";
+    } else if (
+      formData.department.trim() &&
+      formData.department.trim().length > 100
+    ) {
+      errors.department = "Department must be less than 100 characters";
+    }
+
+    // College validation removed - HOD can only create alumni for their own college
+
+    // Graduation year validation (for Alumni)
+    if (formType === "alumni") {
+      const currentYear = new Date().getFullYear();
+      if (!formData.graduationYear) {
+        errors.graduationYear = "Graduation year is required";
+      } else if (
+        formData.graduationYear < 1950 ||
+        formData.graduationYear > currentYear + 5
+      ) {
+        errors.graduationYear = `Graduation year must be between 1950 and ${
+          currentYear + 5
+        }`;
+      }
+    }
+
+    // Password validation
+    if (!formData.password) {
+      errors.password = "Password is required";
+    } else if (formData.password.length < 8) {
+      errors.password = "Password must be at least 8 characters long";
+    } else if (
+      !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(
+        formData.password
+      )
+    ) {
+      errors.password =
+        "Password must contain at least one uppercase letter, one number, and one special character";
+    }
+
+    return errors;
+  };
+
+  const updateValidationErrors = (
+    formType: "staff" | "alumni",
+    errors: Record<string, string>
+  ) => {
+    setValidationErrors((prev) => ({
+      ...prev,
+      [formType]: errors,
+    }));
+  };
+
+  const togglePasswordVisibility = (formType: "staff" | "alumni") => {
+    setPasswordVisibility((prev) => ({
+      ...prev,
+      [formType]: !prev[formType],
+    }));
+  };
+
   // Create staff
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate form
+    const errors = validateForm(newStaff, "staff");
+    updateValidationErrors("staff", errors);
+
+    if (Object.keys(errors).length > 0) {
+      return; // Don't submit if there are validation errors
+    }
+
     setLoading((prev) => ({ ...prev, post: true }));
 
     try {
@@ -181,27 +321,104 @@ const HODPanel = () => {
         password: newStaff.password,
         role: "staff",
         tenantId: user?.tenantId,
-        department: user?.department || "General",
+        department: newStaff.department.trim(),
       };
 
-      const response = await userAPI.createPendingUserRequest(userData);
+      const response = await userAPI.createUser(userData);
 
       if (response.success) {
         toast({
           title: "Success",
-          description: "Staff request submitted for approval",
+          description: "Staff created successfully",
         });
-        setNewStaff({ firstName: "", lastName: "", email: "", password: "" });
+        setNewStaff({
+          firstName: "",
+          lastName: "",
+          email: "",
+          department: "",
+          password: "",
+        });
         setIsCreateStaffOpen(false);
         fetchPendingRequests();
       } else {
-        throw new Error(response.message || "Failed to create staff request");
+        throw new Error(response.message || "Failed to create staff");
       }
     } catch (error) {
       console.error("Error creating staff:", error);
       toast({
         title: "Error",
-        description: "Failed to create staff request",
+        description: "Failed to create staff",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading((prev) => ({ ...prev, post: false }));
+    }
+  };
+
+  // Create alumni
+  const handleCreateAlumni = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate form
+    const errors = validateForm(newAlumni, "alumni");
+    updateValidationErrors("alumni", errors);
+
+    if (Object.keys(errors).length > 0) {
+      return; // Don't submit if there are validation errors
+    }
+
+    setLoading((prev) => ({ ...prev, post: true }));
+
+    try {
+      // First create the user account
+      const userData = {
+        firstName: newAlumni.firstName.trim(),
+        lastName: newAlumni.lastName.trim(),
+        email: newAlumni.email.trim(),
+        password: newAlumni.password,
+        role: "alumni",
+        tenantId: user?.tenantId,
+      };
+
+      console.log("Creating user with data:", userData);
+      const userResponse = await userAPI.createUser(userData);
+      console.log("User creation response:", userResponse);
+
+      if (userResponse.success) {
+        toast({
+          title: "Success",
+          description: "Alumni created successfully",
+        });
+        setNewAlumni({
+          firstName: "",
+          lastName: "",
+          email: "",
+          password: "",
+          collegeId: "", // Not used anymore but keeping for consistency
+          department: "",
+          graduationYear: new Date().getFullYear(),
+          currentCompany: "",
+          currentPosition: "",
+          phoneNumber: "",
+          address: "",
+          bio: "",
+        });
+        setIsCreateAlumniOpen(false);
+        fetchPendingRequests();
+      } else {
+        const errorMessage =
+          userResponse.message || "Failed to create alumni user";
+        const errors = userResponse.errors || [];
+        console.error("User creation validation errors:", errors);
+        throw new Error(`${errorMessage}: ${errors.join(", ")}`);
+      }
+    } catch (error) {
+      console.error("Error creating alumni:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create alumni";
+      toast({
+        title: "Error",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -306,6 +523,8 @@ const HODPanel = () => {
 
     loadCollegeBanner();
   }, [user?.tenantId]);
+
+  // Fetch colleges removed - HOD can only create alumni for their own college
 
   // Listen for banner updates
   useEffect(() => {
@@ -516,7 +735,7 @@ const HODPanel = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="approvals" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="approvals" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Approvals</span>
@@ -528,6 +747,10 @@ const HODPanel = () => {
           <TabsTrigger value="staff" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">Staff</span>
+          </TabsTrigger>
+          <TabsTrigger value="alumni" className="flex items-center gap-2">
+            <GraduationCap className="w-4 h-4" />
+            <span className="hidden sm:inline">Alumni</span>
           </TabsTrigger>
         </TabsList>
 
@@ -904,10 +1127,66 @@ const HODPanel = () => {
                     Add a new staff member to your department.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
+                <form onSubmit={handleCreateStaff} className="space-y-4">
                   <div>
-                    <Label htmlFor="staff-name">Full Name</Label>
-                    <Input id="staff-name" placeholder="Jane Doe" />
+                    <Label htmlFor="staff-firstName">First Name</Label>
+                    <Input
+                      id="staff-firstName"
+                      placeholder="Jane"
+                      value={newStaff.firstName}
+                      onChange={(e) => {
+                        setNewStaff((prev) => ({
+                          ...prev,
+                          firstName: e.target.value,
+                        }));
+                        // Clear error when user starts typing
+                        if (validationErrors.staff.firstName) {
+                          updateValidationErrors("staff", {
+                            ...validationErrors.staff,
+                            firstName: "",
+                          });
+                        }
+                      }}
+                      className={
+                        validationErrors.staff.firstName ? "border-red-500" : ""
+                      }
+                      required
+                    />
+                    {validationErrors.staff.firstName && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {validationErrors.staff.firstName}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="staff-lastName">Last Name</Label>
+                    <Input
+                      id="staff-lastName"
+                      placeholder="Doe"
+                      value={newStaff.lastName}
+                      onChange={(e) => {
+                        setNewStaff((prev) => ({
+                          ...prev,
+                          lastName: e.target.value,
+                        }));
+                        // Clear error when user starts typing
+                        if (validationErrors.staff.lastName) {
+                          updateValidationErrors("staff", {
+                            ...validationErrors.staff,
+                            lastName: "",
+                          });
+                        }
+                      }}
+                      className={
+                        validationErrors.staff.lastName ? "border-red-500" : ""
+                      }
+                      required
+                    />
+                    {validationErrors.staff.lastName && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {validationErrors.staff.lastName}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="staff-email">Email</Label>
@@ -915,32 +1194,124 @@ const HODPanel = () => {
                       id="staff-email"
                       type="email"
                       placeholder="jane.doe@college.edu"
+                      value={newStaff.email}
+                      onChange={(e) => {
+                        setNewStaff((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }));
+                        // Clear error when user starts typing
+                        if (validationErrors.staff.email) {
+                          updateValidationErrors("staff", {
+                            ...validationErrors.staff,
+                            email: "",
+                          });
+                        }
+                      }}
+                      className={
+                        validationErrors.staff.email ? "border-red-500" : ""
+                      }
+                      required
                     />
+                    {validationErrors.staff.email && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {validationErrors.staff.email}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="staff-department">Department</Label>
-                    <Input id="staff-department" placeholder="Administration" />
+                    <Input
+                      id="staff-department"
+                      placeholder="Administration"
+                      value={newStaff.department}
+                      onChange={(e) => {
+                        setNewStaff((prev) => ({
+                          ...prev,
+                          department: e.target.value,
+                        }));
+                        // Clear error when user starts typing
+                        if (validationErrors.staff.department) {
+                          updateValidationErrors("staff", {
+                            ...validationErrors.staff,
+                            department: "",
+                          });
+                        }
+                      }}
+                      className={
+                        validationErrors.staff.department
+                          ? "border-red-500"
+                          : ""
+                      }
+                      required
+                    />
+                    {validationErrors.staff.department && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {validationErrors.staff.department}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="staff-password">Default Password</Label>
-                    <Input
-                      id="staff-password"
-                      type="password"
-                      placeholder="Staff@1234"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="staff-password"
+                        type={passwordVisibility.staff ? "text" : "password"}
+                        placeholder="Staff@1234"
+                        value={newStaff.password}
+                        onChange={(e) => {
+                          setNewStaff((prev) => ({
+                            ...prev,
+                            password: e.target.value,
+                          }));
+                          // Clear error when user starts typing
+                          if (validationErrors.staff.password) {
+                            updateValidationErrors("staff", {
+                              ...validationErrors.staff,
+                              password: "",
+                            });
+                          }
+                        }}
+                        className={`pr-10 ${
+                          validationErrors.staff.password
+                            ? "border-red-500"
+                            : ""
+                        }`}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => togglePasswordVisibility("staff")}
+                      >
+                        {passwordVisibility.staff ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    {validationErrors.staff.password && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {validationErrors.staff.password}
+                      </p>
+                    )}
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreateStaffOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={() => setIsCreateStaffOpen(false)}>
-                    Create Staff
-                  </Button>
-                </DialogFooter>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateStaffOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={loading.post}>
+                      {loading.post ? "Creating..." : "Create Staff"}
+                    </Button>
+                  </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
           </div>
@@ -986,11 +1357,329 @@ const HODPanel = () => {
           </div>
         </TabsContent>
 
-        {/* Alumni Verification */}
+        {/* Alumni Management */}
         <TabsContent value="alumni" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Alumni Verification</h2>
-            <Badge variant="secondary">{stats.pendingAlumni} Pending</Badge>
+            <h2 className="text-2xl font-semibold">Alumni Management</h2>
+            <Dialog
+              open={isCreateAlumniOpen}
+              onOpenChange={setIsCreateAlumniOpen}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Create Alumni
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Alumni Account</DialogTitle>
+                  <DialogDescription>
+                    Create a new alumni account with profile information. Make
+                    sure to use a unique email address that hasn't been
+                    registered before.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateAlumni} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="alumni-firstName">First Name *</Label>
+                      <Input
+                        id="alumni-firstName"
+                        value={newAlumni.firstName}
+                        onChange={(e) => {
+                          setNewAlumni({
+                            ...newAlumni,
+                            firstName: e.target.value,
+                          });
+                          // Clear error when user starts typing
+                          if (validationErrors.alumni.firstName) {
+                            updateValidationErrors("alumni", {
+                              ...validationErrors.alumni,
+                              firstName: "",
+                            });
+                          }
+                        }}
+                        placeholder="Enter first name"
+                        className={
+                          validationErrors.alumni.firstName
+                            ? "border-red-500"
+                            : ""
+                        }
+                      />
+                      {validationErrors.alumni.firstName && (
+                        <p className="text-sm text-red-500">
+                          {validationErrors.alumni.firstName}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="alumni-lastName">Last Name *</Label>
+                      <Input
+                        id="alumni-lastName"
+                        value={newAlumni.lastName}
+                        onChange={(e) => {
+                          setNewAlumni({
+                            ...newAlumni,
+                            lastName: e.target.value,
+                          });
+                          // Clear error when user starts typing
+                          if (validationErrors.alumni.lastName) {
+                            updateValidationErrors("alumni", {
+                              ...validationErrors.alumni,
+                              lastName: "",
+                            });
+                          }
+                        }}
+                        placeholder="Enter last name"
+                        className={
+                          validationErrors.alumni.lastName
+                            ? "border-red-500"
+                            : ""
+                        }
+                      />
+                      {validationErrors.alumni.lastName && (
+                        <p className="text-sm text-red-500">
+                          {validationErrors.alumni.lastName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-email">Email Address *</Label>
+                    <Input
+                      id="alumni-email"
+                      type="email"
+                      value={newAlumni.email}
+                      onChange={(e) => {
+                        setNewAlumni({ ...newAlumni, email: e.target.value });
+                        // Clear error when user starts typing
+                        if (validationErrors.alumni.email) {
+                          updateValidationErrors("alumni", {
+                            ...validationErrors.alumni,
+                            email: "",
+                          });
+                        }
+                      }}
+                      placeholder="Enter email address"
+                      className={
+                        validationErrors.alumni.email ? "border-red-500" : ""
+                      }
+                    />
+                    {validationErrors.alumni.email && (
+                      <p className="text-sm text-red-500">
+                        {validationErrors.alumni.email}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-password">Password *</Label>
+                    <div className="relative">
+                      <Input
+                        id="alumni-password"
+                        type={passwordVisibility.alumni ? "text" : "password"}
+                        value={newAlumni.password}
+                        onChange={(e) => {
+                          setNewAlumni({
+                            ...newAlumni,
+                            password: e.target.value,
+                          });
+                          // Clear error when user starts typing
+                          if (validationErrors.alumni.password) {
+                            updateValidationErrors("alumni", {
+                              ...validationErrors.alumni,
+                              password: "",
+                            });
+                          }
+                        }}
+                        placeholder="Enter password"
+                        className={`pr-10 ${
+                          validationErrors.alumni.password
+                            ? "border-red-500"
+                            : ""
+                        }`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => togglePasswordVisibility("alumni")}
+                      >
+                        {passwordVisibility.alumni ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    {validationErrors.alumni.password && (
+                      <p className="text-sm text-red-500">
+                        {validationErrors.alumni.password}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-department">Department *</Label>
+                    <Input
+                      id="alumni-department"
+                      value={newAlumni.department}
+                      onChange={(e) => {
+                        setNewAlumni({
+                          ...newAlumni,
+                          department: e.target.value,
+                        });
+                        // Clear error when user starts typing
+                        if (validationErrors.alumni.department) {
+                          updateValidationErrors("alumni", {
+                            ...validationErrors.alumni,
+                            department: "",
+                          });
+                        }
+                      }}
+                      placeholder="Enter department"
+                      className={
+                        validationErrors.alumni.department
+                          ? "border-red-500"
+                          : ""
+                      }
+                    />
+                    {validationErrors.alumni.department && (
+                      <p className="text-sm text-red-500">
+                        {validationErrors.alumni.department}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-graduationYear">
+                      Graduation Year *
+                    </Label>
+                    <Input
+                      id="alumni-graduationYear"
+                      type="number"
+                      value={newAlumni.graduationYear}
+                      onChange={(e) => {
+                        setNewAlumni({
+                          ...newAlumni,
+                          graduationYear:
+                            parseInt(e.target.value) ||
+                            new Date().getFullYear(),
+                        });
+                        // Clear error when user starts typing
+                        if (validationErrors.alumni.graduationYear) {
+                          updateValidationErrors("alumni", {
+                            ...validationErrors.alumni,
+                            graduationYear: "",
+                          });
+                        }
+                      }}
+                      placeholder="Enter graduation year"
+                      className={
+                        validationErrors.alumni.graduationYear
+                          ? "border-red-500"
+                          : ""
+                      }
+                    />
+                    {validationErrors.alumni.graduationYear && (
+                      <p className="text-sm text-red-500">
+                        {validationErrors.alumni.graduationYear}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="alumni-currentCompany">
+                        Current Company
+                      </Label>
+                      <Input
+                        id="alumni-currentCompany"
+                        value={newAlumni.currentCompany}
+                        onChange={(e) =>
+                          setNewAlumni({
+                            ...newAlumni,
+                            currentCompany: e.target.value,
+                          })
+                        }
+                        placeholder="Enter current company"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="alumni-currentPosition">
+                        Current Position
+                      </Label>
+                      <Input
+                        id="alumni-currentPosition"
+                        value={newAlumni.currentPosition}
+                        onChange={(e) =>
+                          setNewAlumni({
+                            ...newAlumni,
+                            currentPosition: e.target.value,
+                          })
+                        }
+                        placeholder="Enter current position"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-phoneNumber">Phone Number</Label>
+                    <Input
+                      id="alumni-phoneNumber"
+                      value={newAlumni.phoneNumber}
+                      onChange={(e) =>
+                        setNewAlumni({
+                          ...newAlumni,
+                          phoneNumber: e.target.value,
+                        })
+                      }
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-address">Address</Label>
+                    <Input
+                      id="alumni-address"
+                      value={newAlumni.address}
+                      onChange={(e) =>
+                        setNewAlumni({ ...newAlumni, address: e.target.value })
+                      }
+                      placeholder="Enter address"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-bio">Bio</Label>
+                    <Input
+                      id="alumni-bio"
+                      value={newAlumni.bio}
+                      onChange={(e) =>
+                        setNewAlumni({ ...newAlumni, bio: e.target.value })
+                      }
+                      placeholder="Enter bio"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateAlumniOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={loading.post}>
+                      {loading.post ? "Creating..." : "Create Alumni"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <div className="space-y-4">

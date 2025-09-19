@@ -11,6 +11,8 @@ import {
   requireAdmin,
   requireSuperAdmin,
   requireCollegeAdmin,
+  requireHOD,
+  requireUserCreation,
 } from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
 import { uploadProfileImage } from "@/config/multer";
@@ -28,12 +30,12 @@ router.get(
 );
 
 // @route   POST /api/v1/users
-// @desc    Create new user (Super Admin and College Admin)
-// @access  Private/Super Admin, College Admin
+// @desc    Create new user (Super Admin, College Admin, HOD, and Staff)
+// @access  Private/Super Admin, College Admin, HOD, Staff
 router.post(
   "/",
   authenticateToken,
-  requireCollegeAdmin, // Super Admin and College Admin can create users
+  requireUserCreation, // Super Admin, College Admin, HOD, and Staff can create users
   ...validateRequest(validateUserCreation),
   asyncHandler(userController.createUser)
 );

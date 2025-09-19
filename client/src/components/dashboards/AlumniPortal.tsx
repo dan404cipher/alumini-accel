@@ -303,51 +303,6 @@ const AlumniPortal = () => {
         <TabsContent value="wall" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold">Information Wall</h2>
-            <Dialog open={isCreatePostOpen} onOpenChange={setIsCreatePostOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Share Achievement
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Share Your Achievement</DialogTitle>
-                  <DialogDescription>
-                    Post your achievements, ideas, or success stories with
-                    comments enabled.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="achievement-title">Title</Label>
-                    <Input
-                      id="achievement-title"
-                      placeholder="Enter achievement title"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="achievement-content">Content</Label>
-                    <Textarea
-                      id="achievement-content"
-                      placeholder="Describe your achievement, idea, or success story..."
-                      className="min-h-32"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreatePostOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={() => setIsCreatePostOpen(false)}>
-                    Share Achievement
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
 
           <div className="space-y-4">

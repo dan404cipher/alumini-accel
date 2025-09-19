@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,6 +78,7 @@ const AlumniManagement = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [newAlumni, setNewAlumni] = useState({
     firstName: "",
@@ -217,6 +219,10 @@ const AlumniManagement = () => {
   useEffect(() => {
     fetchAlumni();
   }, [fetchAlumni]);
+
+  const handleAlumniClick = (alumni: AlumniProfile) => {
+    navigate(`/alumni/${alumni.userId._id}`);
+  };
 
   const handleCreateAlumni = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -541,13 +547,40 @@ const AlumniManagement = () => {
             .map((alumni) => (
               <Card
                 key={alumni._id}
-                className="hover:shadow-md transition-shadow"
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => handleAlumniClick(alumni)}
               >
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <GraduationCap className="h-6 w-6 text-blue-600" />
+                      <div className="relative">
+                        <img
+                          src={
+                            alumni.userId?.profilePicture
+                              ? alumni.userId.profilePicture.startsWith("http")
+                                ? alumni.userId.profilePicture
+                                : `${(
+                                    import.meta.env.VITE_API_URL ||
+                                    "http://localhost:3000/api/v1"
+                                  ).replace("/api/v1", "")}${
+                                    alumni.userId.profilePicture
+                                  }`
+                              : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  `${alumni.userId?.firstName || ""} ${
+                                    alumni.userId?.lastName || ""
+                                  }`
+                                )}&background=random`
+                          }
+                          alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
+                          className="w-12 h-12 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              `${alumni.userId?.firstName || ""} ${
+                                alumni.userId?.lastName || ""
+                              }`
+                            )}&background=random`;
+                          }}
+                        />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">

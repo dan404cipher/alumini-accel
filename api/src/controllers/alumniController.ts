@@ -221,34 +221,72 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const filter: any = {};
+    // Build user filter for multi-tenant filtering
+    const userFilter: any = {
+      role: UserRole.ALUMNI,
+    };
 
     // 🔒 MULTI-TENANT FILTERING: Only show alumni from same college (unless super admin)
     if (req.query.tenantId) {
-      filter.tenantId = req.query.tenantId;
+      userFilter.tenantId = req.query.tenantId;
     } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
-      filter.tenantId = req.user.tenantId;
+      userFilter.tenantId = req.user.tenantId;
     }
 
-    // Apply filters
-    if (req.query.batchYear)
-      filter.batchYear = parseInt(req.query.batchYear as string);
-    if (req.query.department)
-      filter.department = { $regex: req.query.department, $options: "i" };
-    if (req.query.isHiring) filter.isHiring = req.query.isHiring === "true";
-    if (req.query.availableForMentorship)
-      filter.availableForMentorship =
-        req.query.availableForMentorship === "true";
-    if (req.query.location)
-      filter.currentLocation = { $regex: req.query.location, $options: "i" };
-
-    const alumni = await AlumniProfile.find(filter)
-      .populate("user", "firstName lastName email profilePicture")
+    // Get alumni users first
+    const alumniUsers = await User.find(userFilter)
+      .select("_id firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await AlumniProfile.countDocuments(filter);
+    // Get total count of alumni users
+    const totalUsers = await User.countDocuments(userFilter);
+
+    // Get alumni profiles for these users
+    const alumniProfileFilter: any = {
+      userId: { $in: alumniUsers.map((user) => user._id) },
+    };
+
+    // Apply additional filters to alumni profiles
+    if (req.query.batchYear)
+      alumniProfileFilter.batchYear = parseInt(req.query.batchYear as string);
+    if (req.query.department)
+      alumniProfileFilter.department = {
+        $regex: req.query.department,
+        $options: "i",
+      };
+    if (req.query.isHiring)
+      alumniProfileFilter.isHiring = req.query.isHiring === "true";
+    if (req.query.availableForMentorship)
+      alumniProfileFilter.availableForMentorship =
+        req.query.availableForMentorship === "true";
+    if (req.query.location)
+      alumniProfileFilter.currentLocation = {
+        $regex: req.query.location,
+        $options: "i",
+      };
+
+    const alumniProfiles = await AlumniProfile.find(alumniProfileFilter)
+      .populate("userId", "firstName lastName email profilePicture")
+      .sort({ createdAt: -1 });
+
+    // Create a map for quick lookup
+    const profileMap = new Map();
+    alumniProfiles.forEach((profile: any) => {
+      profileMap.set(profile.userId._id.toString(), profile);
+    });
+
+    // Combine user data with profile data
+    const alumni = alumniUsers.map((user) => {
+      const profile = profileMap.get(user._id.toString());
+      return {
+        _id: profile?._id || user._id,
+        userId: user,
+        user: user, // For backward compatibility
+        ...profile?.toObject(),
+      };
+    });
 
     res.json({
       success: true,
@@ -257,8 +295,8 @@ export const getAllAlumni = async (req: Request, res: Response) => {
         pagination: {
           page,
           limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+          total: totalUsers,
+          totalPages: Math.ceil(totalUsers / limit),
         },
       },
     });

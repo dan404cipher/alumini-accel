@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -50,6 +51,7 @@ import {
   Eye,
   EyeOff,
   UserPlus,
+  Mail,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -58,16 +60,19 @@ import { userAPI, campaignAPI, tenantAPI, alumniAPI } from "@/lib/api";
 const StaffPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const [isCreateAlumniOpen, setIsCreateAlumniOpen] = useState(false);
   const [isCreateFundraiserOpen, setIsCreateFundraiserOpen] = useState(false);
 
   // Real data states
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [alumni, setAlumni] = useState([]);
   const [loading, setLoading] = useState({
     requests: false,
     post: false,
     fundraiser: false,
+    alumni: false,
   });
 
   // Form states
@@ -138,6 +143,43 @@ const StaffPanel = () => {
       setLoading((prev) => ({ ...prev, requests: false }));
     }
   }, [user?.tenantId, toast]);
+
+  // Fetch alumni data
+  const fetchAlumni = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, alumni: true }));
+      const response = await alumniAPI.getAllAlumni({
+        tenantId: user.tenantId,
+      });
+
+      if (response.success && response.data) {
+        const alumniArray = Array.isArray(response.data)
+          ? response.data
+          : Array.isArray(response.data?.alumni)
+          ? response.data.alumni
+          : Array.isArray(response.data?.profiles)
+          ? response.data.profiles
+          : [];
+        setAlumni(alumniArray);
+      }
+    } catch (error) {
+      console.error("Error fetching alumni:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch alumni data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading((prev) => ({ ...prev, alumni: false }));
+    }
+  }, [user?.tenantId, toast]);
+
+  // Handle alumni click
+  const handleAlumniClick = (alumni: any) => {
+    navigate(`/alumni/${alumni.userId._id}`);
+  };
 
   // Approve user request
   const handleApproveRequest = async (requestId: string) => {
@@ -414,6 +456,10 @@ const StaffPanel = () => {
   useEffect(() => {
     fetchPendingRequests();
   }, [fetchPendingRequests]);
+
+  useEffect(() => {
+    fetchAlumni();
+  }, [fetchAlumni]);
 
   // Load college banner
   useEffect(() => {
@@ -1051,52 +1097,6 @@ const StaffPanel = () => {
           </div>
         </TabsContent>
 
-        {/* Verify Alumni */}
-        <TabsContent value="alumni" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Alumni Verification</h2>
-            <Badge variant="secondary">{stats.pendingAlumni} Pending</Badge>
-          </div>
-
-          <div className="space-y-4">
-            {pendingAlumni.map((alumni) => (
-              <Card key={alumni.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{alumni.name}</CardTitle>
-                      <CardDescription>{alumni.email}</CardDescription>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{alumni.department}</Badge>
-                      <Badge variant="secondary">
-                        Class of {alumni.graduationYear}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      Applied on {alumni.appliedDate}
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject
-                      </Button>
-                      <Button size="sm">
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
         {/* Moderate Posts */}
         <TabsContent value="moderate" className="space-y-6">
           <div className="flex items-center justify-between">
@@ -1598,24 +1598,110 @@ const StaffPanel = () => {
           </div>
 
           <div className="space-y-4">
-            <Card>
-              <CardContent className="p-8 text-center">
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                    <GraduationCap className="w-8 h-8 text-gray-400" />
+            {loading.alumni ? (
+              <div className="text-center py-8">
+                <div className="text-muted-foreground">Loading alumni...</div>
+              </div>
+            ) : alumni.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                      <GraduationCap className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        No alumni found
+                      </h3>
+                      <p className="text-gray-600">
+                        No alumni have been created yet. Use the "Create Alumni"
+                        button above to add new alumni.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Alumni Management
-                    </h3>
-                    <p className="text-gray-600">
-                      Create new alumni accounts and manage existing ones for
-                      your college.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              alumni.map((alumni: any) => (
+                <Card
+                  key={alumni._id}
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => handleAlumniClick(alumni)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4">
+                        <div className="relative">
+                          <img
+                            src={
+                              alumni.userId?.profilePicture
+                                ? alumni.userId.profilePicture.startsWith(
+                                    "http"
+                                  )
+                                  ? alumni.userId.profilePicture
+                                  : `${(
+                                      import.meta.env.VITE_API_URL ||
+                                      "http://localhost:3000/api/v1"
+                                    ).replace("/api/v1", "")}${
+                                      alumni.userId.profilePicture
+                                    }`
+                                : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    `${alumni.userId?.firstName || ""} ${
+                                      alumni.userId?.lastName || ""
+                                    }`
+                                  )}&background=random`
+                            }
+                            alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
+                            className="w-12 h-12 rounded-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                `${alumni.userId?.firstName || ""} ${
+                                  alumni.userId?.lastName || ""
+                                }`
+                              )}&background=random`;
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className="text-lg font-semibold">
+                              {alumni.userId?.firstName}{" "}
+                              {alumni.userId?.lastName}
+                            </h3>
+                            <Badge variant="secondary">Alumni</Badge>
+                          </div>
+                          <div className="space-y-1 text-sm text-muted-foreground">
+                            <div className="flex items-center space-x-2">
+                              <Mail className="h-4 w-4" />
+                              <span>{alumni.userId?.email}</span>
+                            </div>
+                            {alumni.currentCompany && (
+                              <div className="flex items-center space-x-2">
+                                <Building className="h-4 w-4" />
+                                <span>{alumni.currentCompany}</span>
+                                {alumni.currentPosition && (
+                                  <span>• {alumni.currentPosition}</span>
+                                )}
+                              </div>
+                            )}
+                            {alumni.currentLocation && (
+                              <div className="flex items-center space-x-2">
+                                <MapPin className="h-4 w-4" />
+                                <span>{alumni.currentLocation}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <GraduationCap className="h-4 w-4" />
+                              <span>Class of {alumni.graduationYear}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>

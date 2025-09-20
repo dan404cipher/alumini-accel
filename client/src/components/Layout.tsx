@@ -93,6 +93,8 @@ const Layout = () => {
   const isJobBoard = activeTab === "jobs";
   const isEventsPage = activeTab === "events";
   const isNewsPage = activeTab === "news";
+  const isGalleryPage = activeTab === "gallery";
+  const isAlumniPage = activeTab === "alumni";
 
   return (
     <div
@@ -102,7 +104,12 @@ const Layout = () => {
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
         className={`flex-1 w-full ${
-          isSuperAdminDashboard || isJobBoard || isEventsPage || isNewsPage
+          isSuperAdminDashboard ||
+          isJobBoard ||
+          isEventsPage ||
+          isNewsPage ||
+          isGalleryPage ||
+          isAlumniPage
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
@@ -110,7 +117,12 @@ const Layout = () => {
         {/* Content */}
         <div
           className={
-            isSuperAdminDashboard || isJobBoard || isEventsPage || isNewsPage
+            isSuperAdminDashboard ||
+            isJobBoard ||
+            isEventsPage ||
+            isNewsPage ||
+            isGalleryPage ||
+            isAlumniPage
               ? ""
               : "animate-fade-in-up"
           }
@@ -121,7 +133,9 @@ const Layout = () => {
       {!isSuperAdminDashboard &&
         !isJobBoard &&
         !isEventsPage &&
-        !isNewsPage && <Footer />}
+        !isNewsPage &&
+        !isGalleryPage &&
+        !isAlumniPage && <Footer />}
     </div>
   );
 };

@@ -170,35 +170,43 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   }, [user]);
 
   return (
-    <nav className="bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-lg sticky top-0 z-50">
+    <nav className="bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-xl sticky top-0 z-50 transition-all duration-300">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div
-            className="flex items-center group cursor-pointer flex-shrink-0"
+            className="flex items-center group cursor-pointer flex-shrink-0 hover:scale-105 transition-transform duration-200"
             onClick={() => navigate("/")}
           >
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               {collegeLogo ? (
-                <img
-                  src={collegeLogo}
-                  alt="College Logo"
-                  className="w-12 h-12 rounded-lg object-contain"
-                />
+                <div className="relative">
+                  <img
+                    src={collegeLogo}
+                    alt="College Logo"
+                    className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:shadow-lg transition-shadow duration-200"
+                  />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                </div>
               ) : (
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">A</span>
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:from-blue-700 group-hover:to-purple-700">
+                  <span className="text-white font-bold text-lg">A</span>
                 </div>
               )}
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
-                AlumniAccel
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-blue-900 transition-all duration-200">
+                  AlumniAccel
+                </h1>
+                <p className="text-xs text-gray-500 font-medium">
+                  Alumni Network
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Desktop Navigation - Full Screen */}
-          <div className="hidden lg:flex items-center space-x-1 flex-1 justify-center overflow-x-auto scrollbar-none">
-            <div className="flex items-center space-x-1 min-w-max">
+          <div className="hidden lg:flex items-center space-x-2 flex-1 justify-center overflow-x-auto scrollbar-none">
+            <div className="flex items-center space-x-2 min-w-max bg-gray-50/50 rounded-2xl p-1 backdrop-blur-sm">
               {allNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -210,22 +218,48 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                       onTabChange(item.id);
                       navigate(`/${item.id}`);
                     }}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
+                    className={`group flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                       isActive
-                        ? "text-blue-600 bg-blue-50 border border-blue-200"
-                        : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                        ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                        : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
                     }`}
                   >
-                    <Icon className="w-4 h-4 mr-2" />
-                    <span>{item.name}</span>
-                    {item.count && (
-                      <Badge
-                        variant="secondary"
-                        className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700"
-                      >
-                        {item.count}
-                      </Badge>
+                    {/* Background animation for active state */}
+                    {isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
                     )}
+
+                    {/* Content */}
+                    <div className="relative z-10 flex items-center">
+                      <Icon
+                        className={`w-4 h-4 mr-2 transition-transform duration-200 ${
+                          isActive
+                            ? "text-white"
+                            : "text-gray-600 group-hover:text-blue-600 group-hover:scale-110"
+                        }`}
+                      />
+                      <span
+                        className={`transition-colors duration-200 ${
+                          isActive
+                            ? "text-white font-semibold"
+                            : "group-hover:text-blue-600"
+                        }`}
+                      >
+                        {item.name}
+                      </span>
+                      {item.count && (
+                        <Badge
+                          variant="secondary"
+                          className={`ml-2 text-xs px-2 py-0.5 transition-all duration-200 ${
+                            isActive
+                              ? "bg-white/20 text-white border-white/30"
+                              : "bg-blue-100 text-blue-700 group-hover:bg-blue-200 group-hover:scale-105"
+                          }`}
+                        >
+                          {item.count}
+                        </Badge>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -233,20 +267,20 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           </div>
 
           {/* Right side controls */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             {/* Notifications */}
             <Button
               variant="ghost"
               size="sm"
-              className="relative p-2"
+              className="relative p-2.5 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105 group"
               onClick={() => {
                 // TODO: Implement notifications functionality
                 console.log("Notifications clicked");
               }}
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-5 h-5 group-hover:animate-pulse" />
               {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
                 3
               </span>
             </Button>
@@ -264,67 +298,96 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="flex items-center space-x-2"
+                    className="flex items-center space-x-3 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105 group"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:from-blue-700 group-hover:to-purple-700">
                       <span className="text-white font-semibold text-sm">
                         {user.firstName?.[0]}
                         {user.lastName?.[0]}
                       </span>
                     </div>
-                    <span className="hidden md:block text-sm font-medium">
-                      {user.firstName}
-                    </span>
+                    <div className="hidden md:block text-left">
+                      <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
+                        {user.firstName}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {getRoleDisplayName(user.role)}
+                      </p>
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-64 bg-white/95 backdrop-blur-xl border border-gray-200/50 shadow-xl"
+                >
+                  <DropdownMenuLabel className="font-normal p-4">
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-md">
+                          <span className="text-white font-semibold text-lg">
+                            {user.firstName?.[0]}
+                            {user.lastName?.[0]}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <p className="text-sm font-semibold leading-none text-gray-900">
+                            {user.firstName} {user.lastName}
+                          </p>
+                          <p className="text-xs leading-none text-gray-500 mt-1">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
                       {user?.role && (
                         <Badge
-                          className={`w-fit text-xs ${getRoleColor(user.role)}`}
+                          className={`w-fit text-xs ${getRoleColor(
+                            user.role
+                          )} shadow-sm`}
                         >
                           {getRoleDisplayName(user.role)}
                         </Badge>
                       )}
                     </div>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/profile")}>
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
+                  <DropdownMenuSeparator className="bg-gray-200/50" />
+                  <DropdownMenuItem
+                    onClick={() => navigate("/profile")}
+                    className="hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 cursor-pointer"
+                  >
+                    <UserCircle className="mr-3 h-4 w-4" />
+                    <span className="font-medium">Profile</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
+                  <DropdownMenuItem
+                    onClick={() => navigate("/settings")}
+                    className="hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 cursor-pointer"
+                  >
+                    <Settings className="mr-3 h-4 w-4" />
+                    <span className="font-medium">Settings</span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
+                  <DropdownMenuSeparator className="bg-gray-200/50" />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="hover:bg-red-50 hover:text-red-600 transition-colors duration-200 cursor-pointer"
+                  >
+                    <LogOut className="mr-3 h-4 w-4" />
+                    <span className="font-medium">Log out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate("/login")}
-                  className="text-sm"
+                  className="text-sm hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105"
                 >
                   Login
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => navigate("/register")}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
                 >
                   Register
                 </Button>
@@ -337,6 +400,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105"
               >
                 {mobileMenuOpen ? (
                   <X className="w-5 h-5" />
@@ -350,51 +414,70 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white">
-            <div className="px-4 py-4 space-y-2">
+          <div className="lg:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-xl shadow-lg">
+            <div className="px-4 py-6 space-y-3">
               {/* Mobile Notifications */}
               <button
                 onClick={() => {
                   console.log("Mobile notifications clicked");
                   setMobileMenuOpen(false);
                 }}
-                className="flex items-center px-3 py-2 rounded-lg text-sm font-medium w-full transition-colors text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                className="flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:scale-105 group"
               >
-                <Bell className="w-4 h-4 mr-3" />
-                <span className="flex-1 text-left">Notifications</span>
-                <span className="w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                <Bell className="w-5 h-5 mr-3 group-hover:animate-pulse" />
+                <span className="flex-1 text-left font-medium">
+                  Notifications
+                </span>
+                <span className="w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-md">
                   3
                 </span>
               </button>
 
-              {allNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
+              <div className="space-y-2">
+                {allNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
 
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onTabChange(item.id);
-                      navigate(`/${item.id}`);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium w-full transition-colors ${
-                      isActive
-                        ? "text-blue-600 bg-blue-50"
-                        : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 mr-3" />
-                    <span className="flex-1 text-left">{item.name}</span>
-                    {item.count && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        {item.count}
-                      </Badge>
-                    )}
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onTabChange(item.id);
+                        navigate(`/${item.id}`);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 ${
+                        isActive
+                          ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
+                          : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:scale-105"
+                      }`}
+                    >
+                      <Icon
+                        className={`w-5 h-5 mr-3 transition-transform duration-200 ${
+                          isActive
+                            ? "text-white"
+                            : "text-gray-600 group-hover:text-blue-600 group-hover:scale-110"
+                        }`}
+                      />
+                      <span className="flex-1 text-left font-medium">
+                        {item.name}
+                      </span>
+                      {item.count && (
+                        <Badge
+                          variant="secondary"
+                          className={`ml-auto text-xs ${
+                            isActive
+                              ? "bg-white/20 text-white border-white/30"
+                              : "bg-blue-100 text-blue-700 group-hover:bg-blue-200"
+                          }`}
+                        >
+                          {item.count}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

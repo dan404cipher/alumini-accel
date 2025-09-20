@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -33,6 +34,13 @@ import {
   MoreVertical,
   Filter,
   X,
+  Search,
+  Menu,
+  DollarSign,
+  Globe,
+  Building,
+  GraduationCap,
+  Heart,
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { EditEventDialog } from "./dialogs/EditEventDialog";
@@ -103,6 +111,11 @@ const EventsMeetups = () => {
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedEventType, setSelectedEventType] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("all");
+  const [selectedPrice, setSelectedPrice] = useState("all");
+  const [selectedDateRange, setSelectedDateRange] = useState("all");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
 
   // Check if user can create events
@@ -320,7 +333,7 @@ const EventsMeetups = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         {eventsList.map((event) => (
           <Card
             key={event.id}
@@ -394,16 +407,16 @@ const EventsMeetups = () => {
               </div>
             </div>
 
-            <CardContent className="p-6 flex-1 flex flex-col">
+            <CardContent className="p-4 lg:p-6 flex-1 flex flex-col">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold mb-2 line-clamp-2">
+                <h3 className="text-base lg:text-lg font-semibold mb-2 line-clamp-2">
                   {event.title}
                 </h3>
-                <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+                <p className="text-muted-foreground text-xs lg:text-sm mb-4 line-clamp-3">
                   {event.description}
                 </p>
 
-                <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                <div className="space-y-2 text-xs lg:text-sm text-muted-foreground mb-4">
                   <div className="flex items-center">
                     <Calendar className="w-4 h-4 mr-2" />
                     <span>{event.date}</span>
@@ -459,20 +472,21 @@ const EventsMeetups = () => {
                   </span>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleViewEvent(event)}
-                    className="flex-1"
+                    className="flex-1 text-xs lg:text-sm"
                   >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    View Details
+                    <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                    <span className="hidden sm:inline">View Details</span>
+                    <span className="sm:hidden">View</span>
                   </Button>
                   {isRegistrationClosed(event) ? (
                     <Button
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 text-xs lg:text-sm"
                       disabled
                       variant="outline"
                     >
@@ -481,7 +495,7 @@ const EventsMeetups = () => {
                         : "Registration Closed"}
                     </Button>
                   ) : (
-                    <Button size="sm" className="flex-1">
+                    <Button size="sm" className="flex-1 text-xs lg:text-sm">
                       Register
                     </Button>
                   )}
@@ -566,135 +580,317 @@ const EventsMeetups = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Events & Meetups</h1>
-          <p className="text-muted-foreground">
-            Connect, learn, and grow with our alumni community
-          </p>
+    <div className="flex gap-6 h-screen w-full overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Left Sidebar */}
+      <div
+        className={`
+        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
+        w-80 flex-shrink-0 bg-background
+      `}
+      >
+        <div className="sticky top-0 h-screen overflow-y-auto p-6">
+          <Card className="h-fit">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center">
+                  <Filter className="w-5 h-5 mr-2" />
+                  Events & Meetups
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <CardDescription>Find events that interest you</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Search Events */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Search Events</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events, workshops, meetups..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1 h-8 w-8 p-0"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Filters</h3>
+
+                {/* Event Type */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Event Type</label>
+                  <Select
+                    value={selectedEventType}
+                    onValueChange={setSelectedEventType}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select event type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Events</SelectItem>
+                      <SelectItem value="meetup">Meetup</SelectItem>
+                      <SelectItem value="workshop">Workshop</SelectItem>
+                      <SelectItem value="webinar">Webinar</SelectItem>
+                      <SelectItem value="conference">Conference</SelectItem>
+                      <SelectItem value="career_fair">Career Fair</SelectItem>
+                      <SelectItem value="reunion">Reunion</SelectItem>
+                      <SelectItem value="networking">Networking</SelectItem>
+                      <SelectItem value="seminar">Seminar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Location */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Location</label>
+                  <Select
+                    value={selectedLocation}
+                    onValueChange={setSelectedLocation}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Locations</SelectItem>
+                      <SelectItem value="online">Online/Virtual</SelectItem>
+                      <SelectItem value="hybrid">Hybrid</SelectItem>
+                      <SelectItem value="campus">Campus</SelectItem>
+                      <SelectItem value="San Francisco">
+                        San Francisco
+                      </SelectItem>
+                      <SelectItem value="New York">New York</SelectItem>
+                      <SelectItem value="Seattle">Seattle</SelectItem>
+                      <SelectItem value="Los Angeles">Los Angeles</SelectItem>
+                      <SelectItem value="Chicago">Chicago</SelectItem>
+                      <SelectItem value="Boston">Boston</SelectItem>
+                      <SelectItem value="Austin">Austin</SelectItem>
+                      <SelectItem value="London">London</SelectItem>
+                      <SelectItem value="Toronto">Toronto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Price */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Price</label>
+                  <Select
+                    value={selectedPrice}
+                    onValueChange={setSelectedPrice}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select price range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Prices</SelectItem>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="0-25">$0 - $25</SelectItem>
+                      <SelectItem value="25-50">$25 - $50</SelectItem>
+                      <SelectItem value="50-100">$50 - $100</SelectItem>
+                      <SelectItem value="100+">$100+</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date Range */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Date Range</label>
+                  <Select
+                    value={selectedDateRange}
+                    onValueChange={setSelectedDateRange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select date range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Dates</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="tomorrow">Tomorrow</SelectItem>
+                      <SelectItem value="this_week">This Week</SelectItem>
+                      <SelectItem value="next_week">Next Week</SelectItem>
+                      <SelectItem value="this_month">This Month</SelectItem>
+                      <SelectItem value="next_month">Next Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Clear Filters */}
+                {(searchQuery ||
+                  (selectedEventType && selectedEventType !== "all") ||
+                  (selectedLocation && selectedLocation !== "all") ||
+                  (selectedPrice && selectedPrice !== "all") ||
+                  (selectedDateRange && selectedDateRange !== "all")) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedEventType("all");
+                      setSelectedLocation("all");
+                      setSelectedPrice("all");
+                      setSelectedDateRange("all");
+                    }}
+                    className="w-full"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+
+              {/* Quick Actions */}
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="text-sm font-semibold">Quick Actions</h3>
+                <div className="space-y-2">
+                  {canCreateEvents && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setIsCreateEventOpen(true)}
+                      className="w-full justify-start"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Event
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Bookmark className="w-4 h-4 mr-2" />
+                    My Events
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Calendar View
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        {canCreateEvents && (
-          <Button
-            variant="gradient"
-            size="lg"
-            onClick={() => setIsCreateEventOpen(true)}
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Create Event
-          </Button>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="w-4 h-4 mr-2" />
+              Filters
+            </Button>
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold">
+                Events & Meetups
+              </h1>
+              <p className="text-muted-foreground text-sm lg:text-base">
+                Connect, learn, and grow with our alumni community •{" "}
+                {events.length} events
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-8">
+            <div className="text-muted-foreground">Loading events...</div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-8">
+            <div className="text-destructive">
+              Failed to load events. Please try again later.
+            </div>
+          </div>
+        )}
+
+        {/* Events Tabs */}
+        {events.length === 0 && !isLoading && !error ? (
+          <div className="text-center py-12">
+            <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No Events Found</h3>
+            <p className="text-muted-foreground mb-4">
+              There are no events scheduled at the moment.
+            </p>
+            {canCreateEvents && (
+              <Button onClick={() => setIsCreateEventOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Event
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Tabs defaultValue="upcoming" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="upcoming" className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Upcoming ({upcomingEvents.length})
+              </TabsTrigger>
+              <TabsTrigger value="today" className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Today ({todayEvents.length})
+              </TabsTrigger>
+              <TabsTrigger value="past" className="flex items-center gap-2">
+                <Star className="w-4 h-4" />
+                Past ({pastEvents.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upcoming" className="mt-6">
+              {renderEventGrid(upcomingEvents, "No Upcoming Events")}
+            </TabsContent>
+
+            <TabsContent value="today" className="mt-6">
+              {renderEventGrid(todayEvents, "No Events Today")}
+            </TabsContent>
+
+            <TabsContent value="past" className="mt-6">
+              {renderEventGrid(pastEvents, "No Past Events")}
+            </TabsContent>
+          </Tabs>
         )}
       </div>
-
-      {/* Filter Section */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filter by type:</span>
-          </div>
-          <Select
-            value={selectedEventType}
-            onValueChange={setSelectedEventType}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select event type" />
-            </SelectTrigger>
-            <SelectContent>
-              {eventTypes.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Filter Status and Clear Button */}
-        <div className="flex items-center gap-3">
-          {selectedEventType !== "all" && (
-            <>
-              <div className="text-sm text-muted-foreground">
-                Showing{" "}
-                {upcomingEvents.length + todayEvents.length + pastEvents.length}{" "}
-                events
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedEventType("all")}
-                className="flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear Filter
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {isLoading && (
-        <div className="text-center py-8">
-          <div className="text-muted-foreground">Loading events...</div>
-        </div>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <div className="text-center py-8">
-          <div className="text-destructive">
-            Failed to load events. Please try again later.
-          </div>
-        </div>
-      )}
-
-      {/* Events Tabs */}
-      {events.length === 0 && !isLoading && !error ? (
-        <div className="text-center py-12">
-          <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Events Found</h3>
-          <p className="text-muted-foreground mb-4">
-            There are no events scheduled at the moment.
-          </p>
-          {canCreateEvents && (
-            <Button onClick={() => setIsCreateEventOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create First Event
-            </Button>
-          )}
-        </div>
-      ) : (
-        <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upcoming" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Upcoming ({upcomingEvents.length})
-            </TabsTrigger>
-            <TabsTrigger value="today" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Today ({todayEvents.length})
-            </TabsTrigger>
-            <TabsTrigger value="past" className="flex items-center gap-2">
-              <Star className="w-4 h-4" />
-              Past ({pastEvents.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="upcoming" className="mt-6">
-            {renderEventGrid(upcomingEvents, "No Upcoming Events")}
-          </TabsContent>
-
-          <TabsContent value="today" className="mt-6">
-            {renderEventGrid(todayEvents, "No Events Today")}
-          </TabsContent>
-
-          <TabsContent value="past" className="mt-6">
-            {renderEventGrid(pastEvents, "No Past Events")}
-          </TabsContent>
-        </Tabs>
-      )}
 
       {/* Dialogs */}
       <CreateEventDialog

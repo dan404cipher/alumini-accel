@@ -15,21 +15,18 @@ import {
   Award,
   BarChart3,
   Settings,
-  Bell,
-  User,
   LogOut,
   UserCircle,
   Newspaper,
-  Info,
   Menu,
   Image,
-  Instagram,
-  Facebook,
-  Linkedin,
-  ExternalLink,
   X,
   UserPlus,
   MessageCircle,
+  Bell,
+  Users2,
+  GraduationCap,
+  Heart,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -53,9 +50,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [contentDropdownOpen, setContentDropdownOpen] = useState(false);
-  const [socialDropdownOpen, setSocialDropdownOpen] = useState(false);
-  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
   const [collegeLogo, setCollegeLogo] = useState<string | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
@@ -64,7 +58,8 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const canManageUsersAccess = user ? canManageUsers(user.role) : false;
   const canManageContentAccess = user ? canManageContent(user.role) : false;
 
-  const navItems = [
+  // All navigation items in a single array
+  const allNavItems = [
     { id: "dashboard", name: "Dashboard", icon: BarChart3, count: null },
     {
       id: "alumni",
@@ -73,30 +68,15 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       count: "2.8K",
     },
     { id: "jobs", name: "Jobs", icon: Briefcase, count: "47" },
-  ];
-
-  // Content dropdown items
-  const contentItems = [
     { id: "events", name: "Events", icon: Calendar, count: "8" },
     { id: "news", name: "News Room", icon: Newspaper, count: null },
     { id: "recognition", name: "Recognition", icon: Award, count: null },
     { id: "gallery", name: "Gallery", icon: Image, count: null },
-    ...(canManageContentAccess
-      ? [
-          {
-            id: "content-management",
-            name: "Content Management",
-            icon: Settings,
-            count: null,
-          },
-        ]
-      : []),
-  ];
-
-  // Social dropdown items
-  const socialItems = [
     { id: "messages", name: "Messages", icon: MessageCircle, count: null },
     { id: "connections", name: "Connections", icon: UserPlus, count: null },
+    { id: "community", name: "Community", icon: Users2, count: null },
+    { id: "mentorship", name: "Mentorship", icon: GraduationCap, count: null },
+    { id: "donations", name: "Donations", icon: Heart, count: null },
   ];
 
   const handleLogout = async () => {
@@ -110,8 +90,8 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       // For college_admin, if tenantId is undefined, use the user's _id as tenantId
       const tenantId =
         user?.tenantId ||
-        (user as any)?.tenant?._id ||
-        (user as any)?.tenantId ||
+        (user as { tenant?: { _id: string } })?.tenant?._id ||
+        (user as { tenantId?: string })?.tenantId ||
         (user?.role === "college_admin" ? user._id : null);
 
       if (tenantId) {
@@ -187,11 +167,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         handleCustomStorageChange
       );
     };
-  }, [user?.tenantId]);
+  }, [user]);
 
   return (
     <nav className="bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div
@@ -216,170 +196,61 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
+          {/* Desktop Navigation - Full Screen */}
+          <div className="hidden lg:flex items-center space-x-1 flex-1 justify-center overflow-x-auto scrollbar-none">
+            <div className="flex items-center space-x-1 min-w-max">
+              {allNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
 
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    onTabChange(item.id);
-                    navigate(`/${item.id}`);
-                  }}
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? "text-blue-600 bg-blue-50 border border-blue-200"
-                      : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <Icon className="w-4 h-4 mr-2" />
-                  <span>{item.name}</span>
-                  {item.count && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700"
-                    >
-                      {item.count}
-                    </Badge>
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Content Dropdown */}
-            <DropdownMenu
-              open={contentDropdownOpen}
-              onOpenChange={setContentDropdownOpen}
-            >
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-all duration-200">
-                  <Newspaper className="w-4 h-4 mr-2" />
-                  <span>Content</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {contentItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <DropdownMenuItem
-                      key={item.id}
-                      onClick={() => {
-                        onTabChange(item.id);
-                        navigate(`/${item.id}`);
-                      }}
-                      className={`flex items-center ${
-                        isActive ? "bg-blue-50 text-blue-600" : ""
-                      }`}
-                    >
-                      <Icon className="mr-2 h-4 w-4" />
-                      <span>{item.name}</span>
-                      {item.count && (
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {item.count}
-                        </Badge>
-                      )}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Social Dropdown */}
-            <DropdownMenu
-              open={socialDropdownOpen}
-              onOpenChange={setSocialDropdownOpen}
-            >
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-all duration-200">
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  <span>Social</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {socialItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <DropdownMenuItem
-                      key={item.id}
-                      onClick={() => {
-                        onTabChange(item.id);
-                        navigate(`/${item.id}`);
-                      }}
-                      className={`flex items-center ${
-                        isActive ? "bg-blue-50 text-blue-600" : ""
-                      }`}
-                    >
-                      <Icon className="mr-2 h-4 w-4" />
-                      <span>{item.name}</span>
-                      {item.count && (
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {item.count}
-                        </Badge>
-                      )}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* More Dropdown */}
-            <DropdownMenu
-              open={moreDropdownOpen}
-              onOpenChange={setMoreDropdownOpen}
-            >
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-all duration-200">
-                  <Menu className="w-4 h-4 mr-2" />
-                  <span>More</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem
-                  onClick={() =>
-                    window.open("https://instagram.com/yourcollege", "_blank")
-                  }
-                >
-                  <Instagram className="mr-2 h-4 w-4" />
-                  <span>Instagram</span>
-                  <ExternalLink className="ml-auto h-3 w-3" />
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    window.open("https://facebook.com/yourcollege", "_blank")
-                  }
-                >
-                  <Facebook className="mr-2 h-4 w-4" />
-                  <span>Facebook</span>
-                  <ExternalLink className="ml-auto h-3 w-3" />
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    window.open(
-                      "https://linkedin.com/company/yourcollege",
-                      "_blank"
-                    )
-                  }
-                >
-                  <Linkedin className="mr-2 h-4 w-4" />
-                  <span>LinkedIn</span>
-                  <ExternalLink className="ml-auto h-3 w-3" />
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/about")}>
-                  <Info className="mr-2 h-4 w-4" />
-                  <span>About the College</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      onTabChange(item.id);
+                      navigate(`/${item.id}`);
+                    }}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
+                      isActive
+                        ? "text-blue-600 bg-blue-50 border border-blue-200"
+                        : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    <span>{item.name}</span>
+                    {item.count && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700"
+                      >
+                        {item.count}
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Right side controls */}
           <div className="flex items-center space-x-2">
+            {/* Notifications */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative p-2"
+              onClick={() => {
+                // TODO: Implement notifications functionality
+                console.log("Notifications clicked");
+              }}
+            >
+              <Bell className="w-5 h-5" />
+              {/* Notification badge */}
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                3
+              </span>
+            </Button>
+
             {/* Theme Toggle */}
             <ThemeToggle />
 
@@ -481,7 +352,22 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 bg-white">
             <div className="px-4 py-4 space-y-2">
-              {navItems.map((item) => {
+              {/* Mobile Notifications */}
+              <button
+                onClick={() => {
+                  console.log("Mobile notifications clicked");
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center px-3 py-2 rounded-lg text-sm font-medium w-full transition-colors text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+              >
+                <Bell className="w-4 h-4 mr-3" />
+                <span className="flex-1 text-left">Notifications</span>
+                <span className="w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                  3
+                </span>
+              </button>
+
+              {allNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
 
@@ -509,74 +395,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                   </button>
                 );
               })}
-
-              {/* Content Section */}
-              <div className="border-t border-gray-200 pt-2">
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Content
-                </div>
-                {contentItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        onTabChange(item.id);
-                        navigate(`/${item.id}`);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium w-full transition-colors ${
-                        isActive
-                          ? "text-blue-600 bg-blue-50"
-                          : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 mr-3" />
-                      <span className="flex-1 text-left">{item.name}</span>
-                      {item.count && (
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {item.count}
-                        </Badge>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Social Section */}
-              <div className="border-t border-gray-200 pt-2">
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Social
-                </div>
-                {socialItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        onTabChange(item.id);
-                        navigate(`/${item.id}`);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium w-full transition-colors ${
-                        isActive
-                          ? "text-blue-600 bg-blue-50"
-                          : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 mr-3" />
-                      <span className="flex-1 text-left">{item.name}</span>
-                      {item.count && (
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {item.count}
-                        </Badge>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </div>
         )}

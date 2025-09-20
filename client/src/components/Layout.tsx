@@ -90,6 +90,10 @@ const Layout = () => {
   const isSuperAdminDashboard =
     activeTab === "dashboard" && user?.role === "super_admin";
 
+  const isJobBoard = activeTab === "jobs";
+  const isEventsPage = activeTab === "events";
+  const isNewsPage = activeTab === "news";
+
   return (
     <div
       className="min-h-screen bg-background flex flex-col"
@@ -98,17 +102,26 @@ const Layout = () => {
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
         className={`flex-1 w-full ${
-          isSuperAdminDashboard
+          isSuperAdminDashboard || isJobBoard || isEventsPage || isNewsPage
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
       >
         {/* Content */}
-        <div className={isSuperAdminDashboard ? "" : "animate-fade-in-up"}>
+        <div
+          className={
+            isSuperAdminDashboard || isJobBoard || isEventsPage || isNewsPage
+              ? ""
+              : "animate-fade-in-up"
+          }
+        >
           {renderContent()}
         </div>
       </main>
-      {!isSuperAdminDashboard && <Footer />}
+      {!isSuperAdminDashboard &&
+        !isJobBoard &&
+        !isEventsPage &&
+        !isNewsPage && <Footer />}
     </div>
   );
 };

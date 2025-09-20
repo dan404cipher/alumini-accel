@@ -9,6 +9,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +40,16 @@ import {
   Calendar,
   User,
   Image as ImageIcon,
+  Search,
+  Filter,
+  X,
+  Menu,
+  Bookmark,
+  TrendingUp,
+  Globe,
+  Newspaper,
+  Clock,
+  Tag,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,6 +86,11 @@ const NewsRoom = () => {
   const [isDeleteNewsOpen, setIsDeleteNewsOpen] = useState(false);
   const [isShareNewsOpen, setIsShareNewsOpen] = useState(false);
   const [selectedNews, setSelectedNews] = useState<News | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedDateRange, setSelectedDateRange] = useState("all");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Fetch news data
   const {
@@ -224,22 +247,225 @@ const NewsRoom = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="flex gap-6 h-screen w-full overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Left Sidebar */}
+      <div
+        className={`
+        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
+        w-80 flex-shrink-0 bg-background
+      `}
+      >
+        <div className="sticky top-0 h-screen overflow-y-auto p-6">
+          <Card className="h-fit">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center">
+                  <Filter className="w-5 h-5 mr-2" />
+                  News Room
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <CardDescription>Stay updated with latest news</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Search News */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Search News</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search news articles, topics..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-10"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1 h-8 w-8 p-0"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Filters</h3>
+
+                {/* Category */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Category</label>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={setSelectedCategory}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="alumni">Alumni News</SelectItem>
+                      <SelectItem value="career">Career Updates</SelectItem>
+                      <SelectItem value="events">Event Updates</SelectItem>
+                      <SelectItem value="achievements">Achievements</SelectItem>
+                      <SelectItem value="announcements">
+                        Announcements
+                      </SelectItem>
+                      <SelectItem value="industry">Industry News</SelectItem>
+                      <SelectItem value="education">Education</SelectItem>
+                      <SelectItem value="technology">Technology</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Status</label>
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={setSelectedStatus}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="shared">Shared</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date Range */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Date Range</label>
+                  <Select
+                    value={selectedDateRange}
+                    onValueChange={setSelectedDateRange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select date range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Dates</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="this_week">This Week</SelectItem>
+                      <SelectItem value="this_month">This Month</SelectItem>
+                      <SelectItem value="last_month">Last Month</SelectItem>
+                      <SelectItem value="this_year">This Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Clear Filters */}
+                {(searchQuery ||
+                  (selectedCategory && selectedCategory !== "all") ||
+                  (selectedStatus && selectedStatus !== "all") ||
+                  (selectedDateRange && selectedDateRange !== "all")) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory("all");
+                      setSelectedStatus("all");
+                      setSelectedDateRange("all");
+                    }}
+                    className="w-full"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+
+              {/* Quick Actions */}
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="text-sm font-semibold">Quick Actions</h3>
+                <div className="space-y-2">
+                  {canManageNews && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setIsCreateNewsOpen(true)}
+                      className="w-full justify-start"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create News
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Bookmark className="w-4 h-4 mr-2" />
+                    Saved Articles
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Trending News
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Globe className="w-4 h-4 mr-2" />
+                    Global News
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">News Room</h1>
-            <p className="text-gray-600 mt-2">
-              Manage and share news articles with the alumni community
-            </p>
-          </div>
-          {canManageNews && (
-            <Button onClick={handleCreateNews} className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Create News
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="w-4 h-4 mr-2" />
+              Filters
             </Button>
-          )}
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold">News Room</h1>
+              <p className="text-muted-foreground text-sm lg:text-base">
+                Stay updated with latest news • {news.length} articles
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* News Grid */}
@@ -264,7 +490,7 @@ const NewsRoom = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
             {news.map((newsItem) => (
               <Card
                 key={newsItem._id}
@@ -284,15 +510,15 @@ const NewsRoom = () => {
                   </div>
                 )}
 
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 p-4 lg:p-6">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg line-clamp-2 mb-2">
+                        <CardTitle className="text-base lg:text-lg line-clamp-2 mb-2">
                           {newsItem.title}
                         </CardTitle>
-                        <div className="flex items-center space-x-2 text-sm text-gray-500">
-                          <User className="w-4 h-4 flex-shrink-0" />
+                        <div className="flex items-center space-x-2 text-xs lg:text-sm text-gray-500">
+                          <User className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
                           <span className="truncate">
                             {newsItem.author?.firstName || "Unknown"}{" "}
                             {newsItem.author?.lastName || "Author"}
@@ -302,15 +528,15 @@ const NewsRoom = () => {
                     </div>
 
                     {/* Action buttons row */}
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => navigate(`/news/${newsItem._id}`)}
-                          className="flex-shrink-0"
+                          className="flex-shrink-0 text-xs lg:text-sm"
                         >
-                          <Eye className="w-4 h-4 mr-2" />
+                          <Eye className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
                           <span className="hidden sm:inline">View Details</span>
                           <span className="sm:hidden">View</span>
                         </Button>
@@ -318,9 +544,9 @@ const NewsRoom = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => handleShareNews(newsItem)}
-                          className="flex-shrink-0"
+                          className="flex-shrink-0 text-xs lg:text-sm"
                         >
-                          <Share2 className="w-4 h-4 mr-2" />
+                          <Share2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
                           Share
                         </Button>
                       </div>
@@ -363,14 +589,14 @@ const NewsRoom = () => {
                   </div>
                 </CardHeader>
 
-                <CardContent className="pt-0 flex-1 flex flex-col">
-                  <CardDescription className="line-clamp-3 mb-4 flex-1">
+                <CardContent className="pt-0 flex-1 flex flex-col p-4 lg:p-6">
+                  <CardDescription className="line-clamp-3 mb-4 flex-1 text-xs lg:text-sm">
                     {newsItem.summary}
                   </CardDescription>
 
-                  <div className="flex items-center justify-between mt-auto">
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
-                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-auto">
+                    <div className="flex items-center space-x-2 text-xs lg:text-sm text-gray-500">
+                      <Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
                       <span className="truncate">
                         {formatDate(newsItem.createdAt)}
                       </span>
@@ -379,13 +605,16 @@ const NewsRoom = () => {
                       {newsItem.isShared ? (
                         <Badge
                           variant="default"
-                          className="bg-green-100 text-green-800 flex-shrink-0"
+                          className="bg-green-100 text-green-800 flex-shrink-0 text-xs"
                         >
                           <Share2 className="w-3 h-3 mr-1" />
                           Shared
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="flex-shrink-0">
+                        <Badge
+                          variant="secondary"
+                          className="flex-shrink-0 text-xs"
+                        >
                           Draft
                         </Badge>
                       )}
@@ -396,43 +625,43 @@ const NewsRoom = () => {
             ))}
           </div>
         )}
-
-        {/* Create News Dialog */}
-        <CreateNewsDialog
-          open={isCreateNewsOpen}
-          onOpenChange={setIsCreateNewsOpen}
-          onNewsCreated={handleNewsCreated}
-        />
-
-        {/* Edit News Dialog */}
-        {selectedNews && (
-          <EditNewsDialog
-            open={isEditNewsOpen}
-            onOpenChange={setIsEditNewsOpen}
-            news={selectedNews}
-            onNewsUpdated={handleNewsUpdated}
-          />
-        )}
-
-        {/* Delete News Dialog */}
-        {selectedNews && (
-          <DeleteNewsDialog
-            open={isDeleteNewsOpen}
-            onOpenChange={setIsDeleteNewsOpen}
-            news={selectedNews}
-            onNewsDeleted={handleNewsDeleted}
-          />
-        )}
-
-        {/* Share News Dialog */}
-        {selectedNews && (
-          <ShareNewsDialog
-            open={isShareNewsOpen}
-            onOpenChange={setIsShareNewsOpen}
-            news={selectedNews}
-          />
-        )}
       </div>
+
+      {/* Dialogs */}
+      <CreateNewsDialog
+        open={isCreateNewsOpen}
+        onOpenChange={setIsCreateNewsOpen}
+        onNewsCreated={handleNewsCreated}
+      />
+
+      {/* Edit News Dialog */}
+      {selectedNews && (
+        <EditNewsDialog
+          open={isEditNewsOpen}
+          onOpenChange={setIsEditNewsOpen}
+          news={selectedNews}
+          onNewsUpdated={handleNewsUpdated}
+        />
+      )}
+
+      {/* Delete News Dialog */}
+      {selectedNews && (
+        <DeleteNewsDialog
+          open={isDeleteNewsOpen}
+          onOpenChange={setIsDeleteNewsOpen}
+          news={selectedNews}
+          onNewsDeleted={handleNewsDeleted}
+        />
+      )}
+
+      {/* Share News Dialog */}
+      {selectedNews && (
+        <ShareNewsDialog
+          open={isShareNewsOpen}
+          onOpenChange={setIsShareNewsOpen}
+          news={selectedNews}
+        />
+      )}
     </div>
   );
 };

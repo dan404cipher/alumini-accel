@@ -1,9 +1,9 @@
-import { Request, Response } from 'express';
-import Mentorship from '@/models/Mentorship';
-import User from '@/models/User';
-import AlumniProfile from '@/models/AlumniProfile';
-import { logger } from '@/utils/logger';
-import { MentorshipStatus } from '@/types';
+import { Request, Response } from "express";
+import Mentorship from "@/models/Mentorship";
+import User from "@/models/User";
+import AlumniProfile from "@/models/AlumniProfile";
+import { logger } from "@/utils/logger";
+import { MentorshipStatus } from "@/types";
 
 // Get all mentorships
 export const getAllMentorships = async (req: Request, res: Response) => {
@@ -13,14 +13,15 @@ export const getAllMentorships = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const filter: any = {};
-    
+
     // Apply filters
     if (req.query.status) filter.status = req.query.status;
-    if (req.query.domain) filter.domain = { $regex: req.query.domain, $options: 'i' };
+    if (req.query.domain)
+      filter.domain = { $regex: req.query.domain, $options: "i" };
 
     const mentorships = await Mentorship.find(filter)
-      .populate('mentor', 'firstName lastName email profilePicture')
-      .populate('mentee', 'firstName lastName email profilePicture')
+      .populate("mentor", "firstName lastName email profilePicture")
+      .populate("mentee", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -35,15 +36,15 @@ export const getAllMentorships = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get all mentorships error:', error);
+    logger.error("Get all mentorships error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch mentorships'
+      message: "Failed to fetch mentorships",
     });
   }
 };
@@ -52,25 +53,25 @@ export const getAllMentorships = async (req: Request, res: Response) => {
 export const getMentorshipById = async (req: Request, res: Response) => {
   try {
     const mentorship = await Mentorship.findById(req.params.id)
-      .populate('mentor', 'firstName lastName email profilePicture')
-      .populate('mentee', 'firstName lastName email profilePicture');
+      .populate("mentor", "firstName lastName email profilePicture")
+      .populate("mentee", "firstName lastName email profilePicture");
 
     if (!mentorship) {
       return res.status(404).json({
         success: false,
-        message: 'Mentorship not found'
+        message: "Mentorship not found",
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
-      data: { mentorship }
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Get mentorship by ID error:', error);
-    res.status(500).json({
+    logger.error("Get mentorship by ID error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch mentorship'
+      message: "Failed to fetch mentorship",
     });
   }
 };
@@ -84,35 +85,36 @@ export const createMentorship = async (req: Request, res: Response) => {
       description,
       goals,
       preferredSchedule,
-      duration
+      duration,
     } = req.body;
 
     // Check if mentor exists and is available for mentorship
-    const mentorProfile = await AlumniProfile.findOne({ 
+    const mentorProfile = await AlumniProfile.findOne({
       userId: mentorId,
-      availableForMentorship: true 
+      availableForMentorship: true,
     });
 
     if (!mentorProfile) {
       return res.status(400).json({
         success: false,
-        message: 'Mentor is not available for mentorship'
+        message: "Mentor is not available for mentorship",
       });
     }
 
     // Check if there's already a pending or active mentorship between these users
     const existingMentorship = await Mentorship.findOne({
       $or: [
-        { mentor: mentorId, mentee: req.user.id },
-        { mentor: req.user.id, mentee: mentorId }
+        { mentorId: mentorId, menteeId: req.user.id },
+        { mentorId: req.user.id, menteeId: mentorId },
       ],
-      status: { $in: [MentorshipStatus.PENDING, MentorshipStatus.ACTIVE] }
+      status: { $in: [MentorshipStatus.PENDING, MentorshipStatus.ACTIVE] },
     });
 
     if (existingMentorship) {
       return res.status(400).json({
         success: false,
-        message: 'A mentorship request already exists between you and this mentor'
+        message:
+          "A mentorship request already exists between you and this mentor",
       });
     }
 
@@ -124,21 +126,21 @@ export const createMentorship = async (req: Request, res: Response) => {
       goals: goals || [],
       preferredSchedule,
       duration: duration || 3, // Default 3 months
-      status: MentorshipStatus.PENDING
+      status: MentorshipStatus.PENDING,
     });
 
     await mentorship.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'Mentorship request created successfully',
-      data: { mentorship }
+      message: "Mentorship request created successfully",
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Create mentorship error:', error);
-    res.status(500).json({
+    logger.error("Create mentorship error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to create mentorship request'
+      message: "Failed to create mentorship request",
     });
   }
 };
@@ -147,26 +149,26 @@ export const createMentorship = async (req: Request, res: Response) => {
 export const acceptMentorship = async (req: Request, res: Response) => {
   try {
     const mentorship = await Mentorship.findById(req.params.id);
-    
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
-        message: 'Mentorship not found'
+        message: "Mentorship not found",
       });
     }
 
     // Check if user is the mentor
-    if (mentorship.mentor.toString() !== req.user.id) {
+    if (mentorship.mentorId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Only the mentor can accept the mentorship'
+        message: "Only the mentor can accept the mentorship",
       });
     }
 
     if (mentorship.status !== MentorshipStatus.PENDING) {
       return res.status(400).json({
         success: false,
-        message: 'Mentorship is not in pending status'
+        message: "Mentorship is not in pending status",
       });
     }
 
@@ -174,16 +176,16 @@ export const acceptMentorship = async (req: Request, res: Response) => {
     mentorship.acceptedAt = new Date();
     await mentorship.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Mentorship accepted successfully',
-      data: { mentorship }
+      message: "Mentorship accepted successfully",
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Accept mentorship error:', error);
-    res.status(500).json({
+    logger.error("Accept mentorship error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to accept mentorship'
+      message: "Failed to accept mentorship",
     });
   }
 };
@@ -194,26 +196,26 @@ export const rejectMentorship = async (req: Request, res: Response) => {
     const { reason } = req.body;
 
     const mentorship = await Mentorship.findById(req.params.id);
-    
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
-        message: 'Mentorship not found'
+        message: "Mentorship not found",
       });
     }
 
     // Check if user is the mentor
-    if (mentorship.mentor.toString() !== req.user.id) {
+    if (mentorship.mentorId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Only the mentor can reject the mentorship'
+        message: "Only the mentor can reject the mentorship",
       });
     }
 
     if (mentorship.status !== MentorshipStatus.PENDING) {
       return res.status(400).json({
         success: false,
-        message: 'Mentorship is not in pending status'
+        message: "Mentorship is not in pending status",
       });
     }
 
@@ -222,16 +224,16 @@ export const rejectMentorship = async (req: Request, res: Response) => {
     mentorship.rejectionReason = reason;
     await mentorship.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Mentorship rejected successfully',
-      data: { mentorship }
+      message: "Mentorship rejected successfully",
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Reject mentorship error:', error);
-    res.status(500).json({
+    logger.error("Reject mentorship error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to reject mentorship'
+      message: "Failed to reject mentorship",
     });
   }
 };
@@ -240,26 +242,29 @@ export const rejectMentorship = async (req: Request, res: Response) => {
 export const completeMentorship = async (req: Request, res: Response) => {
   try {
     const mentorship = await Mentorship.findById(req.params.id);
-    
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
-        message: 'Mentorship not found'
+        message: "Mentorship not found",
       });
     }
 
     // Check if user is the mentor or mentee
-    if (mentorship.mentor.toString() !== req.user.id && mentorship.mentee.toString() !== req.user.id) {
+    if (
+      mentorship.mentorId.toString() !== req.user.id &&
+      mentorship.menteeId.toString() !== req.user.id
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to complete this mentorship'
+        message: "Not authorized to complete this mentorship",
       });
     }
 
     if (mentorship.status !== MentorshipStatus.ACTIVE) {
       return res.status(400).json({
         success: false,
-        message: 'Mentorship is not active'
+        message: "Mentorship is not active",
       });
     }
 
@@ -267,16 +272,16 @@ export const completeMentorship = async (req: Request, res: Response) => {
     mentorship.completedAt = new Date();
     await mentorship.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Mentorship completed successfully',
-      data: { mentorship }
+      message: "Mentorship completed successfully",
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Complete mentorship error:', error);
-    res.status(500).json({
+    logger.error("Complete mentorship error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to complete mentorship'
+      message: "Failed to complete mentorship",
     });
   }
 };
@@ -284,35 +289,29 @@ export const completeMentorship = async (req: Request, res: Response) => {
 // Add mentorship session
 export const addSession = async (req: Request, res: Response) => {
   try {
-    const {
-      date,
-      duration,
-      topic,
-      notes,
-      meetingLink
-    } = req.body;
+    const { date, duration, topic, notes, meetingLink } = req.body;
 
     const mentorship = await Mentorship.findById(req.params.id);
-    
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
-        message: 'Mentorship not found'
+        message: "Mentorship not found",
       });
     }
 
     // Check if user is the mentor
-    if (mentorship.mentor.toString() !== req.user.id) {
+    if (mentorship.mentorId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Only the mentor can add sessions'
+        message: "Only the mentor can add sessions",
       });
     }
 
     if (mentorship.status !== MentorshipStatus.ACTIVE) {
       return res.status(400).json({
         success: false,
-        message: 'Mentorship is not active'
+        message: "Mentorship is not active",
       });
     }
 
@@ -322,21 +321,21 @@ export const addSession = async (req: Request, res: Response) => {
       topic,
       notes,
       meetingLink,
-      status: 'scheduled'
+      status: "scheduled",
     });
 
     await mentorship.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Session added successfully',
-      data: { mentorship }
+      message: "Session added successfully",
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Add session error:', error);
-    res.status(500).json({
+    logger.error("Add session error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to add session'
+      message: "Failed to add session",
     });
   }
 };
@@ -345,37 +344,32 @@ export const addSession = async (req: Request, res: Response) => {
 export const updateSession = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
-    const {
-      date,
-      duration,
-      topic,
-      notes,
-      meetingLink,
-      status
-    } = req.body;
+    const { date, duration, topic, notes, meetingLink, status } = req.body;
 
     const mentorship = await Mentorship.findById(req.params.id);
-    
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
-        message: 'Mentorship not found'
+        message: "Mentorship not found",
       });
     }
 
     // Check if user is the mentor
-    if (mentorship.mentor.toString() !== req.user.id) {
+    if (mentorship.mentorId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Only the mentor can update sessions'
+        message: "Only the mentor can update sessions",
       });
     }
 
-    const session = mentorship.sessions.id(sessionId);
+    const session = mentorship.sessions.find(
+      (s) => s._id?.toString() === sessionId
+    );
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Session not found'
+        message: "Session not found",
       });
     }
 
@@ -389,16 +383,16 @@ export const updateSession = async (req: Request, res: Response) => {
 
     await mentorship.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Session updated successfully',
-      data: { mentorship }
+      message: "Session updated successfully",
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Update session error:', error);
-    res.status(500).json({
+    logger.error("Update session error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to update session'
+      message: "Failed to update session",
     });
   }
 };
@@ -409,19 +403,22 @@ export const submitFeedback = async (req: Request, res: Response) => {
     const { rating, comment, type } = req.body; // type: 'mentor' or 'mentee'
 
     const mentorship = await Mentorship.findById(req.params.id);
-    
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
-        message: 'Mentorship not found'
+        message: "Mentorship not found",
       });
     }
 
     // Check if user is part of the mentorship
-    if (mentorship.mentor.toString() !== req.user.id && mentorship.mentee.toString() !== req.user.id) {
+    if (
+      mentorship.mentorId.toString() !== req.user.id &&
+      mentorship.menteeId.toString() !== req.user.id
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to submit feedback for this mentorship'
+        message: "Not authorized to submit feedback for this mentorship",
       });
     }
 
@@ -429,42 +426,44 @@ export const submitFeedback = async (req: Request, res: Response) => {
     if (mentorship.status !== MentorshipStatus.COMPLETED) {
       return res.status(400).json({
         success: false,
-        message: 'Mentorship must be completed to submit feedback'
+        message: "Mentorship must be completed to submit feedback",
       });
     }
 
     // Check if user already submitted feedback
     const existingFeedback = mentorship.feedback.find(
-      feedback => feedback.user.toString() === req.user.id && feedback.type === type
+      (feedback) =>
+        feedback.user.toString() === req.user.id && feedback.type === type
     );
 
     if (existingFeedback) {
       return res.status(400).json({
         success: false,
-        message: 'You have already submitted feedback for this mentorship'
+        message: "You have already submitted feedback for this mentorship",
       });
     }
 
     mentorship.feedback.push({
+      from: type as "mentor" | "mentee",
       user: req.user.id,
       type,
       rating,
       comment,
-      submittedAt: new Date()
+      date: new Date(),
     });
 
     await mentorship.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Feedback submitted successfully',
-      data: { mentorship }
+      message: "Feedback submitted successfully",
+      data: { mentorship },
     });
   } catch (error) {
-    logger.error('Submit feedback error:', error);
-    res.status(500).json({
+    logger.error("Submit feedback error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to submit feedback'
+      message: "Failed to submit feedback",
     });
   }
 };
@@ -477,25 +476,19 @@ export const getMyMentorships = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const mentorships = await Mentorship.find({
-      $or: [
-        { mentor: req.user.id },
-        { mentee: req.user.id }
-      ]
+      $or: [{ mentorId: req.user.id }, { menteeId: req.user.id }],
     })
-      .populate('mentor', 'firstName lastName email profilePicture')
-      .populate('mentee', 'firstName lastName email profilePicture')
+      .populate("mentorId", "firstName lastName email profilePicture")
+      .populate("menteeId", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Mentorship.countDocuments({
-      $or: [
-        { mentor: req.user.id },
-        { mentee: req.user.id }
-      ]
+      $or: [{ mentorId: req.user.id }, { menteeId: req.user.id }],
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         mentorships,
@@ -503,15 +496,15 @@ export const getMyMentorships = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get my mentorships error:', error);
-    res.status(500).json({
+    logger.error("Get my mentorships error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch your mentorships'
+      message: "Failed to fetch your mentorships",
     });
   }
 };
@@ -525,23 +518,17 @@ export const getActiveMentorships = async (req: Request, res: Response) => {
 
     const mentorships = await Mentorship.find({
       status: MentorshipStatus.ACTIVE,
-      $or: [
-        { mentor: req.user.id },
-        { mentee: req.user.id }
-      ]
+      $or: [{ mentorId: req.user.id }, { menteeId: req.user.id }],
     })
-      .populate('mentor', 'firstName lastName email profilePicture')
-      .populate('mentee', 'firstName lastName email profilePicture')
+      .populate("mentorId", "firstName lastName email profilePicture")
+      .populate("menteeId", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Mentorship.countDocuments({
       status: MentorshipStatus.ACTIVE,
-      $or: [
-        { mentor: req.user.id },
-        { mentee: req.user.id }
-      ]
+      $or: [{ mentorId: req.user.id }, { menteeId: req.user.id }],
     });
 
     res.json({
@@ -552,15 +539,15 @@ export const getActiveMentorships = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get active mentorships error:', error);
+    logger.error("Get active mentorships error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch active mentorships'
+      message: "Failed to fetch active mentorships",
     });
   }
 };
@@ -574,17 +561,17 @@ export const getPendingMentorships = async (req: Request, res: Response) => {
 
     const mentorships = await Mentorship.find({
       status: MentorshipStatus.PENDING,
-      mentor: req.user.id
+      mentorId: req.user.id,
     })
-      .populate('mentor', 'firstName lastName email profilePicture')
-      .populate('mentee', 'firstName lastName email profilePicture')
+      .populate("mentorId", "firstName lastName email profilePicture")
+      .populate("menteeId", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Mentorship.countDocuments({
       status: MentorshipStatus.PENDING,
-      mentor: req.user.id
+      mentorId: req.user.id,
     });
 
     res.json({
@@ -595,15 +582,15 @@ export const getPendingMentorships = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get pending mentorships error:', error);
+    logger.error("Get pending mentorships error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch pending mentorships'
+      message: "Failed to fetch pending mentorships",
     });
   }
 };
@@ -612,32 +599,38 @@ export const getPendingMentorships = async (req: Request, res: Response) => {
 export const getMentorshipStats = async (req: Request, res: Response) => {
   try {
     const totalMentorships = await Mentorship.countDocuments();
-    const activeMentorships = await Mentorship.countDocuments({ status: MentorshipStatus.ACTIVE });
-    const completedMentorships = await Mentorship.countDocuments({ status: MentorshipStatus.COMPLETED });
-    const pendingMentorships = await Mentorship.countDocuments({ status: MentorshipStatus.PENDING });
+    const activeMentorships = await Mentorship.countDocuments({
+      status: MentorshipStatus.ACTIVE,
+    });
+    const completedMentorships = await Mentorship.countDocuments({
+      status: MentorshipStatus.COMPLETED,
+    });
+    const pendingMentorships = await Mentorship.countDocuments({
+      status: MentorshipStatus.PENDING,
+    });
 
     const domainStats = await Mentorship.aggregate([
       {
         $group: {
-          _id: '$domain',
-          count: { $sum: 1 }
-        }
+          _id: "$domain",
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { count: -1 } }
+      { $sort: { count: -1 } },
     ]);
 
     const monthlyStats = await Mentorship.aggregate([
       {
         $group: {
           _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { '_id.year': -1, '_id.month': -1 } },
-      { $limit: 12 }
+      { $sort: { "_id.year": -1, "_id.month": -1 } },
+      { $limit: 12 },
     ]);
 
     res.json({
@@ -648,14 +641,14 @@ export const getMentorshipStats = async (req: Request, res: Response) => {
         completedMentorships,
         pendingMentorships,
         domainStats,
-        monthlyStats
-      }
+        monthlyStats,
+      },
     });
   } catch (error) {
-    logger.error('Get mentorship stats error:', error);
+    logger.error("Get mentorship stats error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch mentorship statistics'
+      message: "Failed to fetch mentorship statistics",
     });
   }
 };
@@ -673,5 +666,5 @@ export default {
   getMyMentorships,
   getActiveMentorships,
   getPendingMentorships,
-  getMentorshipStats
-}; 
+  getMentorshipStats,
+};

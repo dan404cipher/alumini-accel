@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { logger } from '@/utils/logger';
-import mongoose from 'mongoose';
+import { Request, Response, NextFunction } from "express";
+import { logger } from "@/utils/logger";
+import mongoose from "mongoose";
 
 // Custom error class
 export class AppError extends Error {
@@ -27,24 +27,26 @@ export const errorHandler = (
   error.message = err.message;
 
   // Log error
-  logger.error('Error:', {
+  logger.error("Error:", {
     message: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
     ip: req.ip,
-    userAgent: req.get('User-Agent')
+    userAgent: req.get("User-Agent"),
   });
 
   // Mongoose bad ObjectId
   if (err instanceof mongoose.Error.CastError) {
-    const message = 'Resource not found';
+    const message = "Resource not found";
     error = new AppError(message, 404);
   }
 
   // Mongoose duplicate key
   if (err instanceof mongoose.Error.ValidationError) {
-    const message = Object.values(err.errors).map((val: any) => val.message).join(', ');
+    const message = Object.values(err.errors)
+      .map((val: any) => val.message)
+      .join(", ");
     error = new AppError(message, 400);
   }
 
@@ -56,24 +58,24 @@ export const errorHandler = (
   }
 
   // JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    const message = 'Invalid token';
+  if (err.name === "JsonWebTokenError") {
+    const message = "Invalid token";
     error = new AppError(message, 401);
   }
 
-  if (err.name === 'TokenExpiredError') {
-    const message = 'Token expired';
+  if (err.name === "TokenExpiredError") {
+    const message = "Token expired";
     error = new AppError(message, 401);
   }
 
   // Default error
   const statusCode = (error as AppError).statusCode || 500;
-  const message = (error as AppError).message || 'Server Error';
+  const message = (error as AppError).message || "Server Error";
 
   res.status(statusCode).json({
     success: false,
     message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };
 
@@ -93,7 +95,7 @@ export const notFound = (req: Request, res: Response, next: NextFunction) => {
 // Validation error handler
 export const handleValidationError = (err: mongoose.Error.ValidationError) => {
   const errors = Object.values(err.errors).map((error: any) => error.message);
-  const message = `Invalid input data. ${errors.join('. ')}`;
+  const message = `Invalid input data. ${errors.join(". ")}`;
   return new AppError(message, 400);
 };
 
@@ -112,28 +114,34 @@ export const handleCastError = (err: mongoose.Error.CastError) => {
 
 // JWT error handlers
 export const handleJWTError = () => {
-  return new AppError('Invalid token. Please log in again!', 401);
+  return new AppError("Invalid token. Please log in again!", 401);
 };
 
 export const handleJWTExpiredError = () => {
-  return new AppError('Your token has expired! Please log in again.', 401);
+  return new AppError("Your token has expired! Please log in again.", 401);
 };
 
 // Send error response
-export const sendErrorResponse = (err: AppError, req: Request, res: Response) => {
+export const sendErrorResponse = (
+  err: AppError,
+  req: Request,
+  res: Response
+) => {
+  const statusCode = err.statusCode || 500;
+
   // API errors
-  if (req.originalUrl.startsWith('/api')) {
-    return res.status(err.statusCode).json({
+  if (req.originalUrl.startsWith("/api")) {
+    return res.status(statusCode).json({
       success: false,
       message: err.message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
     });
   }
 
   // Rendered error page
-  return res.status(err.statusCode).render('error', {
-    title: 'Something went wrong!',
-    message: err.message
+  return res.status(statusCode).render("error", {
+    title: "Something went wrong!",
+    message: err.message,
   });
 };
 
@@ -144,20 +152,27 @@ export const globalErrorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  let error = { ...err };
-  error.message = err.message;
+  let error: AppError;
+
+  // If it's already an AppError, use it
+  if (err instanceof AppError) {
+    error = err;
+  } else {
+    // Create a new AppError with default status code
+    error = new AppError(err.message || "Internal Server Error", 500);
+  }
 
   // Log error
-  logger.error('Global Error:', {
+  logger.error("Global Error:", {
     message: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
     ip: req.ip,
-    userAgent: req.get('User-Agent'),
+    userAgent: req.get("User-Agent"),
     body: req.body,
     params: req.params,
-    query: req.query
+    query: req.query,
   });
 
   // Handle specific error types
@@ -173,11 +188,11 @@ export const globalErrorHandler = (
     error = handleDuplicateKeyError(err);
   }
 
-  if (err.name === 'JsonWebTokenError') {
+  if (err.name === "JsonWebTokenError") {
     error = handleJWTError();
   }
 
-  if (err.name === 'TokenExpiredError') {
+  if (err.name === "TokenExpiredError") {
     error = handleJWTExpiredError();
   }
 
@@ -195,5 +210,5 @@ export default {
   handleCastError,
   handleJWTError,
   handleJWTExpiredError,
-  sendErrorResponse
-}; 
+  sendErrorResponse,
+};

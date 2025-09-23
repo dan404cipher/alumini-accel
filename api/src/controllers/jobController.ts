@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
-import JobPost from '@/models/JobPost';
-import User from '@/models/User';
-import { logger } from '@/utils/logger';
-import { JobPostStatus } from '@/types';
+import { Request, Response } from "express";
+import JobPost from "@/models/JobPost";
+import User from "@/models/User";
+import { logger } from "@/utils/logger";
+import { JobPostStatus } from "@/types";
 
 // Get all job posts
 export const getAllJobs = async (req: Request, res: Response) => {
@@ -11,23 +11,34 @@ export const getAllJobs = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const filter: any = { status: JobPostStatus.ACTIVE };
-    
+    const filter: any = {
+      status: { $in: [JobPostStatus.ACTIVE, JobPostStatus.PENDING] },
+    };
+
+    // 🔒 MULTI-TENANT FILTERING: Only show jobs from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
     // Apply filters
-    if (req.query.company) filter.company = { $regex: req.query.company, $options: 'i' };
-    if (req.query.location) filter.location = { $regex: req.query.location, $options: 'i' };
+    if (req.query.company)
+      filter.company = { $regex: req.query.company, $options: "i" };
+    if (req.query.location)
+      filter.location = { $regex: req.query.location, $options: "i" };
     if (req.query.type) filter.type = req.query.type;
-    if (req.query.remote) filter.remote = req.query.remote === 'true';
+    if (req.query.remote) filter.remote = req.query.remote === "true";
 
     const jobs = await JobPost.find(filter)
-      .populate('poster', 'firstName lastName email profilePicture')
+      .populate("poster", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await JobPost.countDocuments(filter);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         jobs,
@@ -35,15 +46,15 @@ export const getAllJobs = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get all jobs error:', error);
-    res.status(500).json({
+    logger.error("Get all jobs error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch jobs'
+      message: "Failed to fetch jobs",
     });
   }
 };
@@ -51,25 +62,27 @@ export const getAllJobs = async (req: Request, res: Response) => {
 // Get job post by ID
 export const getJobById = async (req: Request, res: Response) => {
   try {
-    const job = await JobPost.findById(req.params.id)
-      .populate('poster', 'firstName lastName email profilePicture');
+    const job = await JobPost.findById(req.params.id).populate(
+      "poster",
+      "firstName lastName email profilePicture"
+    );
 
     if (!job) {
       return res.status(404).json({
         success: false,
-        message: 'Job post not found'
+        message: "Job post not found",
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
-      data: { job }
+      data: { job },
     });
   } catch (error) {
-    logger.error('Get job by ID error:', error);
-    res.status(500).json({
+    logger.error("Get job by ID error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch job'
+      message: "Failed to fetch job",
     });
   }
 };
@@ -88,11 +101,15 @@ export const createJob = async (req: Request, res: Response) => {
       requirements,
       benefits,
       tags,
-      deadline
+      deadline,
+      contactEmail,
+      companyWebsite,
+      applicationUrl,
     } = req.body;
 
     const job = new JobPost({
       postedBy: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
       company,
       position,
       location,
@@ -104,21 +121,24 @@ export const createJob = async (req: Request, res: Response) => {
       benefits: benefits || [],
       tags: tags || [],
       deadline: deadline ? new Date(deadline) : undefined,
-      status: JobPostStatus.PENDING
+      contactEmail,
+      companyWebsite,
+      applicationUrl,
+      status: JobPostStatus.PENDING,
     });
 
     await job.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'Job post created successfully',
-      data: { job }
+      message: "Job post created successfully",
+      data: { job },
     });
   } catch (error) {
-    logger.error('Create job error:', error);
-    res.status(500).json({
+    logger.error("Create job error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to create job post'
+      message: "Failed to create job post",
     });
   }
 };
@@ -127,19 +147,19 @@ export const createJob = async (req: Request, res: Response) => {
 export const updateJob = async (req: Request, res: Response) => {
   try {
     const job = await JobPost.findById(req.params.id);
-    
+
     if (!job) {
       return res.status(404).json({
         success: false,
-        message: 'Job post not found'
+        message: "Job post not found",
       });
     }
 
     // Check if user is the poster or admin
-    if (job.postedBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (job.postedBy.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this job post'
+        message: "Not authorized to update this job post",
       });
     }
 
@@ -155,7 +175,7 @@ export const updateJob = async (req: Request, res: Response) => {
       benefits,
       tags,
       deadline,
-      status
+      status,
     } = req.body;
 
     // Update fields if provided
@@ -169,21 +189,22 @@ export const updateJob = async (req: Request, res: Response) => {
     if (requirements !== undefined) job.requirements = requirements;
     if (benefits !== undefined) job.benefits = benefits;
     if (tags !== undefined) job.tags = tags;
-    if (deadline !== undefined) job.deadline = deadline ? new Date(deadline) : undefined;
+    if (deadline !== undefined)
+      job.deadline = deadline ? new Date(deadline) : undefined;
     if (status !== undefined) job.status = status;
 
     await job.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Job post updated successfully',
-      data: { job }
+      message: "Job post updated successfully",
+      data: { job },
     });
   } catch (error) {
-    logger.error('Update job error:', error);
-    res.status(500).json({
+    logger.error("Update job error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to update job post'
+      message: "Failed to update job post",
     });
   }
 };
@@ -192,33 +213,33 @@ export const updateJob = async (req: Request, res: Response) => {
 export const deleteJob = async (req: Request, res: Response) => {
   try {
     const job = await JobPost.findById(req.params.id);
-    
+
     if (!job) {
       return res.status(404).json({
         success: false,
-        message: 'Job post not found'
+        message: "Job post not found",
       });
     }
 
     // Check if user is the poster or admin
-    if (job.postedBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (job.postedBy.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to delete this job post'
+        message: "Not authorized to delete this job post",
       });
     }
 
     await JobPost.findByIdAndDelete(req.params.id);
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Job post deleted successfully'
+      message: "Job post deleted successfully",
     });
   } catch (error) {
-    logger.error('Delete job error:', error);
-    res.status(500).json({
+    logger.error("Delete job error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to delete job post'
+      message: "Failed to delete job post",
     });
   }
 };
@@ -229,50 +250,52 @@ export const applyForJob = async (req: Request, res: Response) => {
     const { resume, coverLetter } = req.body;
 
     const job = await JobPost.findById(req.params.id);
-    
+
     if (!job) {
       return res.status(404).json({
         success: false,
-        message: 'Job post not found'
+        message: "Job post not found",
       });
     }
 
     if (job.status !== JobPostStatus.ACTIVE) {
       return res.status(400).json({
         success: false,
-        message: 'Job post is not active'
+        message: "Job post is not active",
       });
     }
 
     // Check if user has already applied
     const existingApplication = job.applications.find(
-      app => app.applicantId.toString() === req.user.id
+      (app) => app.applicantId.toString() === req.user.id
     );
 
     if (existingApplication) {
       return res.status(400).json({
         success: false,
-        message: 'You have already applied for this job'
+        message: "You have already applied for this job",
       });
     }
 
     job.applications.push({
       applicantId: req.user.id,
+      appliedAt: new Date(),
+      status: "pending",
       resume,
-      coverLetter
+      coverLetter,
     });
 
     await job.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Application submitted successfully'
+      message: "Application submitted successfully",
     });
   } catch (error) {
-    logger.error('Apply for job error:', error);
-    res.status(500).json({
+    logger.error("Apply for job error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to submit application'
+      message: "Failed to submit application",
     });
   }
 };
@@ -280,27 +303,35 @@ export const applyForJob = async (req: Request, res: Response) => {
 // Search jobs
 export const searchJobs = async (req: Request, res: Response) => {
   try {
-    const { q, company, location, type, remote, page = 1, limit = 10 } = req.query;
+    const {
+      q,
+      company,
+      location,
+      type,
+      remote,
+      page = 1,
+      limit = 10,
+    } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
     const filter: any = { status: JobPostStatus.ACTIVE };
-    
+
     if (q) {
       filter.$or = [
-        { position: { $regex: q, $options: 'i' } },
-        { company: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
-        { tags: { $in: [new RegExp(q as string, 'i')] } }
+        { position: { $regex: q, $options: "i" } },
+        { company: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+        { tags: { $in: [new RegExp(q as string, "i")] } },
       ];
     }
-    
-    if (company) filter.company = { $regex: company, $options: 'i' };
-    if (location) filter.location = { $regex: location, $options: 'i' };
+
+    if (company) filter.company = { $regex: company, $options: "i" };
+    if (location) filter.location = { $regex: location, $options: "i" };
     if (type) filter.type = type;
-    if (remote) filter.remote = remote === 'true';
+    if (remote) filter.remote = remote === "true";
 
     const jobs = await JobPost.find(filter)
-      .populate('poster', 'firstName lastName email profilePicture')
+      .populate("poster", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit as string));
@@ -315,15 +346,15 @@ export const searchJobs = async (req: Request, res: Response) => {
           page: parseInt(page as string),
           limit: parseInt(limit as string),
           total,
-          totalPages: Math.ceil(total / parseInt(limit as string))
-        }
-      }
+          totalPages: Math.ceil(total / parseInt(limit as string)),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Search jobs error:', error);
+    logger.error("Search jobs error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to search jobs'
+      message: "Failed to search jobs",
     });
   }
 };
@@ -336,18 +367,18 @@ export const getJobsByCompany = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const jobs = await JobPost.find({ 
-      company: { $regex: company, $options: 'i' },
-      status: JobPostStatus.ACTIVE 
+    const jobs = await JobPost.find({
+      company: { $regex: company, $options: "i" },
+      status: JobPostStatus.ACTIVE,
     })
-      .populate('poster', 'firstName lastName email profilePicture')
+      .populate("poster", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await JobPost.countDocuments({ 
-      company: { $regex: company, $options: 'i' },
-      status: JobPostStatus.ACTIVE 
+    const total = await JobPost.countDocuments({
+      company: { $regex: company, $options: "i" },
+      status: JobPostStatus.ACTIVE,
     });
 
     res.json({
@@ -358,15 +389,15 @@ export const getJobsByCompany = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get jobs by company error:', error);
+    logger.error("Get jobs by company error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch jobs by company'
+      message: "Failed to fetch jobs by company",
     });
   }
 };
@@ -379,18 +410,18 @@ export const getJobsByLocation = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const jobs = await JobPost.find({ 
-      location: { $regex: location, $options: 'i' },
-      status: JobPostStatus.ACTIVE 
+    const jobs = await JobPost.find({
+      location: { $regex: location, $options: "i" },
+      status: JobPostStatus.ACTIVE,
     })
-      .populate('poster', 'firstName lastName email profilePicture')
+      .populate("poster", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await JobPost.countDocuments({ 
-      location: { $regex: location, $options: 'i' },
-      status: JobPostStatus.ACTIVE 
+    const total = await JobPost.countDocuments({
+      location: { $regex: location, $options: "i" },
+      status: JobPostStatus.ACTIVE,
     });
 
     res.json({
@@ -401,15 +432,15 @@ export const getJobsByLocation = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get jobs by location error:', error);
+    logger.error("Get jobs by location error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch jobs by location'
+      message: "Failed to fetch jobs by location",
     });
   }
 };
@@ -422,18 +453,18 @@ export const getJobsByType = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const jobs = await JobPost.find({ 
+    const jobs = await JobPost.find({
       type,
-      status: JobPostStatus.ACTIVE 
+      status: JobPostStatus.ACTIVE,
     })
-      .populate('poster', 'firstName lastName email profilePicture')
+      .populate("poster", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await JobPost.countDocuments({ 
+    const total = await JobPost.countDocuments({
       type,
-      status: JobPostStatus.ACTIVE 
+      status: JobPostStatus.ACTIVE,
     });
 
     res.json({
@@ -444,15 +475,15 @@ export const getJobsByType = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get jobs by type error:', error);
+    logger.error("Get jobs by type error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch jobs by type'
+      message: "Failed to fetch jobs by type",
     });
   }
 };
@@ -465,7 +496,7 @@ export const getMyJobPosts = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const jobs = await JobPost.find({ postedBy: req.user.id })
-      .populate('poster', 'firstName lastName email profilePicture')
+      .populate("poster", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -480,15 +511,15 @@ export const getMyJobPosts = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get my job posts error:', error);
+    logger.error("Get my job posts error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch your job posts'
+      message: "Failed to fetch your job posts",
     });
   }
 };
@@ -497,39 +528,43 @@ export const getMyJobPosts = async (req: Request, res: Response) => {
 export const getJobStats = async (req: Request, res: Response) => {
   try {
     const totalJobs = await JobPost.countDocuments();
-    const activeJobs = await JobPost.countDocuments({ status: JobPostStatus.ACTIVE });
-    const pendingJobs = await JobPost.countDocuments({ status: JobPostStatus.PENDING });
+    const activeJobs = await JobPost.countDocuments({
+      status: JobPostStatus.ACTIVE,
+    });
+    const pendingJobs = await JobPost.countDocuments({
+      status: JobPostStatus.PENDING,
+    });
 
     const companyStats = await JobPost.aggregate([
       {
         $group: {
-          _id: '$company',
-          count: { $sum: 1 }
-        }
+          _id: "$company",
+          count: { $sum: 1 },
+        },
       },
       { $sort: { count: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]);
 
     const locationStats = await JobPost.aggregate([
       {
         $group: {
-          _id: '$location',
-          count: { $sum: 1 }
-        }
+          _id: "$location",
+          count: { $sum: 1 },
+        },
       },
       { $sort: { count: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]);
 
     const typeStats = await JobPost.aggregate([
       {
         $group: {
-          _id: '$type',
-          count: { $sum: 1 }
-        }
+          _id: "$type",
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { count: -1 } }
+      { $sort: { count: -1 } },
     ]);
 
     res.json({
@@ -540,14 +575,14 @@ export const getJobStats = async (req: Request, res: Response) => {
         pendingJobs,
         companyStats,
         locationStats,
-        typeStats
-      }
+        typeStats,
+      },
     });
   } catch (error) {
-    logger.error('Get job stats error:', error);
+    logger.error("Get job stats error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch job statistics'
+      message: "Failed to fetch job statistics",
     });
   }
 };
@@ -564,5 +599,5 @@ export default {
   getJobsByLocation,
   getJobsByType,
   getMyJobPosts,
-  getJobStats
-}; 
+  getJobStats,
+};

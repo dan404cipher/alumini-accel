@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
-import Event from '@/models/Event';
-import User from '@/models/User';
-import { logger } from '@/utils/logger';
-import { EventType } from '@/types';
+import { Request, Response } from "express";
+import Event from "@/models/Event";
+import User from "@/models/User";
+import { logger } from "@/utils/logger";
+import { EventType } from "@/types";
 
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {
@@ -12,24 +12,33 @@ export const getAllEvents = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const filter: any = {};
-    
+
+    // 🔒 MULTI-TENANT FILTERING: Only show events from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
     // Apply filters
     if (req.query.type) filter.type = req.query.type;
-    if (req.query.location) filter.location = { $regex: req.query.location, $options: 'i' };
-    if (req.query.isOnline !== undefined) filter.isOnline = req.query.isOnline === 'true';
+    if (req.query.location)
+      filter.location = { $regex: req.query.location, $options: "i" };
+    if (req.query.isOnline !== undefined)
+      filter.isOnline = req.query.isOnline === "true";
     if (req.query.isUpcoming) {
       filter.startDate = { $gte: new Date() };
     }
 
     const events = await Event.find(filter)
-      .populate('organizer', 'firstName lastName email profilePicture')
+      .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Event.countDocuments(filter);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         events,
@@ -37,15 +46,15 @@ export const getAllEvents = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get all events error:', error);
-    res.status(500).json({
+    logger.error("Get all events error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch events'
+      message: "Failed to fetch events",
     });
   }
 };
@@ -54,32 +63,36 @@ export const getAllEvents = async (req: Request, res: Response) => {
 export const getEventById = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id)
-      .populate('organizer', 'firstName lastName email profilePicture')
-      .populate('attendees.user', 'firstName lastName email profilePicture');
+      .populate("organizer", "firstName lastName email profilePicture")
+      .populate("attendees.userId", "firstName lastName email profilePicture");
 
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found'
+        message: "Event not found",
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
-      data: { event }
+      data: { event },
     });
   } catch (error) {
-    logger.error('Get event by ID error:', error);
-    res.status(500).json({
+    logger.error("Get event by ID error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch event'
+      message: "Failed to fetch event",
     });
   }
 };
 
-// Create event
-export const createEvent = async (req: Request, res: Response) => {
+// Create event with image upload
+export const createEventWithImage = async (req: Request, res: Response) => {
   try {
+    const { eventData } = req.body;
+    const eventInfo = JSON.parse(eventData);
+    const imageFile = req.file;
+
     const {
       title,
       description,
@@ -89,6 +102,85 @@ export const createEvent = async (req: Request, res: Response) => {
       location,
       isOnline,
       onlineUrl,
+      meetingLink,
+      maxAttendees,
+      registrationDeadline,
+      speakers,
+      agenda,
+      tags,
+      price,
+      organizerNotes,
+    } = eventInfo;
+
+    // Handle image upload
+    let imageUrl = "";
+    if (imageFile) {
+      // In a real application, you would upload to cloud storage (AWS S3, Cloudinary, etc.)
+      // For now, we'll just use the original filename
+      imageUrl = `/uploads/events/${imageFile.filename}`;
+    }
+
+    const event = new Event({
+      title,
+      description,
+      type,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      location,
+      isOnline: isOnline || false,
+      meetingLink: meetingLink || onlineUrl,
+      maxAttendees: maxAttendees || 0,
+      registrationDeadline: registrationDeadline
+        ? new Date(registrationDeadline)
+        : undefined,
+      organizer: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
+      speakers: speakers || [],
+      agenda: agenda || [],
+      tags: tags || [],
+      image: imageUrl,
+      price: price || 0,
+      organizerNotes,
+    });
+
+    try {
+      await event.save();
+    } catch (saveError) {
+      console.error("Error saving event to database:", saveError);
+      throw saveError;
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Event created successfully",
+      data: { event },
+    });
+  } catch (error) {
+    console.error("Create event with image error:", error);
+    logger.error("Create event with image error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create event",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Create event
+export const createEvent = async (req: Request, res: Response) => {
+  try {
+    console.log("Received event data:", req.body);
+
+    const {
+      title,
+      description,
+      type,
+      startDate,
+      endDate,
+      location,
+      isOnline,
+      onlineUrl,
+      meetingLink,
       maxAttendees,
       registrationDeadline,
       speakers,
@@ -96,7 +188,7 @@ export const createEvent = async (req: Request, res: Response) => {
       tags,
       image,
       price,
-      organizerNotes
+      organizerNotes,
     } = req.body;
 
     const event = new Event({
@@ -107,30 +199,49 @@ export const createEvent = async (req: Request, res: Response) => {
       endDate: new Date(endDate),
       location,
       isOnline: isOnline || false,
-      onlineUrl,
+      meetingLink: meetingLink || onlineUrl, // Use meetingLink if provided, fallback to onlineUrl
       maxAttendees: maxAttendees || 0,
-      registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : undefined,
+      registrationDeadline: registrationDeadline
+        ? new Date(registrationDeadline)
+        : undefined,
       organizer: req.user.id,
+      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
       speakers: speakers || [],
       agenda: agenda || [],
       tags: tags || [],
       image,
       price: price || 0,
-      organizerNotes
+      organizerNotes,
     });
 
     await event.save();
 
-    res.status(201).json({
+    console.log("Event saved to database:", {
+      id: event._id,
+      title: event.title,
+      type: event.type,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      location: event.location,
+      isOnline: event.isOnline,
+      meetingLink: event.meetingLink,
+      maxAttendees: event.maxAttendees,
+      tags: event.tags,
+      image: event.image,
+      price: event.price,
+      organizer: event.organizer,
+    });
+
+    return res.status(201).json({
       success: true,
-      message: 'Event created successfully',
-      data: { event }
+      message: "Event created successfully",
+      data: { event },
     });
   } catch (error) {
-    logger.error('Create event error:', error);
-    res.status(500).json({
+    logger.error("Create event error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to create event'
+      message: "Failed to create event",
     });
   }
 };
@@ -139,19 +250,22 @@ export const createEvent = async (req: Request, res: Response) => {
 export const updateEvent = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id);
-    
+
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found'
+        message: "Event not found",
       });
     }
 
     // Check if user is the organizer or admin
-    if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (
+      event.organizer.toString() !== req.user.id &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this event'
+        message: "Not authorized to update this event",
       });
     }
 
@@ -171,7 +285,7 @@ export const updateEvent = async (req: Request, res: Response) => {
       tags,
       image,
       price,
-      organizerNotes
+      organizerNotes,
     } = req.body;
 
     // Update fields if provided
@@ -184,7 +298,10 @@ export const updateEvent = async (req: Request, res: Response) => {
     if (isOnline !== undefined) event.isOnline = isOnline;
     if (onlineUrl !== undefined) event.onlineUrl = onlineUrl;
     if (maxAttendees !== undefined) event.maxAttendees = maxAttendees;
-    if (registrationDeadline !== undefined) event.registrationDeadline = registrationDeadline ? new Date(registrationDeadline) : undefined;
+    if (registrationDeadline !== undefined)
+      event.registrationDeadline = registrationDeadline
+        ? new Date(registrationDeadline)
+        : undefined;
     if (speakers !== undefined) event.speakers = speakers;
     if (agenda !== undefined) event.agenda = agenda;
     if (tags !== undefined) event.tags = tags;
@@ -194,16 +311,108 @@ export const updateEvent = async (req: Request, res: Response) => {
 
     await event.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Event updated successfully',
-      data: { event }
+      message: "Event updated successfully",
+      data: { event },
     });
   } catch (error) {
-    logger.error('Update event error:', error);
-    res.status(500).json({
+    logger.error("Update event error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to update event'
+      message: "Failed to update event",
+    });
+  }
+};
+
+// Update event with image upload
+export const updateEventWithImage = async (req: Request, res: Response) => {
+  try {
+    const { eventData } = req.body;
+    const eventInfo = JSON.parse(eventData);
+    const imageFile = req.file;
+
+    const {
+      title,
+      description,
+      type,
+      startDate,
+      endDate,
+      location,
+      isOnline,
+      onlineUrl,
+      meetingLink,
+      maxAttendees,
+      registrationDeadline,
+      speakers,
+      agenda,
+      tags,
+      price,
+      organizerNotes,
+    } = eventInfo;
+
+    // Find the existing event
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check if user is the organizer or admin
+    if (
+      event.organizer.toString() !== req.user.id &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this event",
+      });
+    }
+
+    // Handle image upload
+    let imageUrl = event.image; // Keep existing image by default
+    if (imageFile) {
+      // In a real application, you would upload to cloud storage (AWS S3, Cloudinary, etc.)
+      // For now, we'll just use the original filename
+      imageUrl = `/uploads/events/${imageFile.filename}`;
+    }
+
+    // Update event fields
+    if (title !== undefined) event.title = title;
+    if (description !== undefined) event.description = description;
+    if (type !== undefined) event.type = type;
+    if (startDate !== undefined) event.startDate = new Date(startDate);
+    if (endDate !== undefined) event.endDate = new Date(endDate);
+    if (location !== undefined) event.location = location;
+    if (isOnline !== undefined) event.isOnline = isOnline;
+    if (meetingLink !== undefined) event.meetingLink = meetingLink;
+    if (onlineUrl !== undefined) event.onlineUrl = onlineUrl;
+    if (maxAttendees !== undefined) event.maxAttendees = maxAttendees;
+    if (registrationDeadline !== undefined) {
+      event.registrationDeadline = new Date(registrationDeadline);
+    }
+    if (speakers !== undefined) event.speakers = speakers;
+    if (agenda !== undefined) event.agenda = agenda;
+    if (tags !== undefined) event.tags = tags;
+    if (imageUrl !== undefined) event.image = imageUrl;
+    if (price !== undefined) event.price = price;
+    if (organizerNotes !== undefined) event.organizerNotes = organizerNotes;
+
+    await event.save();
+
+    return res.json({
+      success: true,
+      message: "Event updated successfully",
+      data: { event },
+    });
+  } catch (error) {
+    logger.error("Update event with image error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update event",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
@@ -212,33 +421,36 @@ export const updateEvent = async (req: Request, res: Response) => {
 export const deleteEvent = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id);
-    
+
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found'
+        message: "Event not found",
       });
     }
 
     // Check if user is the organizer or admin
-    if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (
+      event.organizer.toString() !== req.user.id &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to delete this event'
+        message: "Not authorized to delete this event",
       });
     }
 
     await Event.findByIdAndDelete(req.params.id);
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Event deleted successfully'
+      message: "Event deleted successfully",
     });
   } catch (error) {
-    logger.error('Delete event error:', error);
-    res.status(500).json({
+    logger.error("Delete event error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to delete event'
+      message: "Failed to delete event",
     });
   }
 };
@@ -247,11 +459,11 @@ export const deleteEvent = async (req: Request, res: Response) => {
 export const registerForEvent = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id);
-    
+
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found'
+        message: "Event not found",
       });
     }
 
@@ -259,46 +471,51 @@ export const registerForEvent = async (req: Request, res: Response) => {
     if (event.registrationDeadline && new Date() > event.registrationDeadline) {
       return res.status(400).json({
         success: false,
-        message: 'Registration deadline has passed'
+        message: "Registration deadline has passed",
       });
     }
 
     // Check if event is full
-    if (event.maxAttendees > 0 && event.attendees.length >= event.maxAttendees) {
+    if (
+      event.maxAttendees &&
+      event.maxAttendees > 0 &&
+      event.attendees.length >= event.maxAttendees
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Event is full'
+        message: "Event is full",
       });
     }
 
     // Check if user is already registered
     const existingRegistration = event.attendees.find(
-      attendee => attendee.user.toString() === req.user.id
+      (attendee) => attendee.userId.toString() === req.user.id
     );
 
     if (existingRegistration) {
       return res.status(400).json({
         success: false,
-        message: 'You are already registered for this event'
+        message: "You are already registered for this event",
       });
     }
 
     event.attendees.push({
-      user: req.user.id,
-      registeredAt: new Date()
+      userId: req.user.id,
+      registeredAt: new Date(),
+      status: "registered",
     });
 
     await event.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Successfully registered for event'
+      message: "Successfully registered for event",
     });
   } catch (error) {
-    logger.error('Register for event error:', error);
-    res.status(500).json({
+    logger.error("Register for event error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to register for event'
+      message: "Failed to register for event",
     });
   }
 };
@@ -307,38 +524,38 @@ export const registerForEvent = async (req: Request, res: Response) => {
 export const unregisterFromEvent = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id);
-    
+
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found'
+        message: "Event not found",
       });
     }
 
     // Find and remove user from attendees
     const attendeeIndex = event.attendees.findIndex(
-      attendee => attendee.user.toString() === req.user.id
+      (attendee) => attendee.userId.toString() === req.user.id
     );
 
     if (attendeeIndex === -1) {
       return res.status(400).json({
         success: false,
-        message: 'You are not registered for this event'
+        message: "You are not registered for this event",
       });
     }
 
     event.attendees.splice(attendeeIndex, 1);
     await event.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Successfully unregistered from event'
+      message: "Successfully unregistered from event",
     });
   } catch (error) {
-    logger.error('Unregister from event error:', error);
-    res.status(500).json({
+    logger.error("Unregister from event error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to unregister from event'
+      message: "Failed to unregister from event",
     });
   }
 };
@@ -349,23 +566,23 @@ export const submitFeedback = async (req: Request, res: Response) => {
     const { rating, comment } = req.body;
 
     const event = await Event.findById(req.params.id);
-    
+
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found'
+        message: "Event not found",
       });
     }
 
     // Check if user attended the event
     const attended = event.attendees.find(
-      attendee => attendee.user.toString() === req.user.id
+      (attendee) => attendee.userId.toString() === req.user.id
     );
 
     if (!attended) {
       return res.status(400).json({
         success: false,
-        message: 'You must attend the event to submit feedback'
+        message: "You must attend the event to submit feedback",
       });
     }
 
@@ -373,40 +590,40 @@ export const submitFeedback = async (req: Request, res: Response) => {
     if (new Date() < event.endDate) {
       return res.status(400).json({
         success: false,
-        message: 'Event has not ended yet'
+        message: "Event has not ended yet",
       });
     }
 
     // Check if user already submitted feedback
     const existingFeedback = event.feedback.find(
-      feedback => feedback.user.toString() === req.user.id
+      (feedback) => feedback.userId.toString() === req.user.id
     );
 
     if (existingFeedback) {
       return res.status(400).json({
         success: false,
-        message: 'You have already submitted feedback for this event'
+        message: "You have already submitted feedback for this event",
       });
     }
 
     event.feedback.push({
-      user: req.user.id,
+      userId: req.user.id,
       rating,
       comment,
-      submittedAt: new Date()
+      date: new Date(),
     });
 
     await event.save();
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Feedback submitted successfully'
+      message: "Feedback submitted successfully",
     });
   } catch (error) {
-    logger.error('Submit feedback error:', error);
-    res.status(500).json({
+    logger.error("Submit feedback error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to submit feedback'
+      message: "Failed to submit feedback",
     });
   }
 };
@@ -419,18 +636,18 @@ export const getUpcomingEvents = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const events = await Event.find({
-      startDate: { $gte: new Date() }
+      startDate: { $gte: new Date() },
     })
-      .populate('organizer', 'firstName lastName email profilePicture')
+      .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Event.countDocuments({
-      startDate: { $gte: new Date() }
+      startDate: { $gte: new Date() },
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         events,
@@ -438,15 +655,15 @@ export const getUpcomingEvents = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get upcoming events error:', error);
-    res.status(500).json({
+    logger.error("Get upcoming events error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch upcoming events'
+      message: "Failed to fetch upcoming events",
     });
   }
 };
@@ -458,28 +675,28 @@ export const searchEvents = async (req: Request, res: Response) => {
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
     const filter: any = {};
-    
+
     if (q) {
       filter.$or = [
-        { title: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
-        { tags: { $in: [new RegExp(q as string, 'i')] } }
+        { title: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+        { tags: { $in: [new RegExp(q as string, "i")] } },
       ];
     }
-    
+
     if (type) filter.type = type;
-    if (location) filter.location = { $regex: location, $options: 'i' };
-    if (isOnline) filter.isOnline = isOnline === 'true';
+    if (location) filter.location = { $regex: location, $options: "i" };
+    if (isOnline) filter.isOnline = isOnline === "true";
 
     const events = await Event.find(filter)
-      .populate('organizer', 'firstName lastName email profilePicture')
+      .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(parseInt(limit as string));
 
     const total = await Event.countDocuments(filter);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         events,
@@ -487,15 +704,15 @@ export const searchEvents = async (req: Request, res: Response) => {
           page: parseInt(page as string),
           limit: parseInt(limit as string),
           total,
-          totalPages: Math.ceil(total / parseInt(limit as string))
-        }
-      }
+          totalPages: Math.ceil(total / parseInt(limit as string)),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Search events error:', error);
-    res.status(500).json({
+    logger.error("Search events error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to search events'
+      message: "Failed to search events",
     });
   }
 };
@@ -508,7 +725,7 @@ export const getMyEvents = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const events = await Event.find({ organizer: req.user.id })
-      .populate('organizer', 'firstName lastName email profilePicture')
+      .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
@@ -523,15 +740,15 @@ export const getMyEvents = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get my events error:', error);
+    logger.error("Get my events error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch your events'
+      message: "Failed to fetch your events",
     });
   }
 };
@@ -544,18 +761,18 @@ export const getMyAttendingEvents = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const events = await Event.find({
-      'attendees.user': req.user.id
+      "attendees.userId": req.user.id,
     })
-      .populate('organizer', 'firstName lastName email profilePicture')
+      .populate("organizer", "firstName lastName email profilePicture")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Event.countDocuments({
-      'attendees.user': req.user.id
+      "attendees.userId": req.user.id,
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         events,
@@ -563,15 +780,15 @@ export const getMyAttendingEvents = async (req: Request, res: Response) => {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit)
-        }
-      }
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
-    logger.error('Get my attending events error:', error);
-    res.status(500).json({
+    logger.error("Get my attending events error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch events you are attending'
+      message: "Failed to fetch events you are attending",
     });
   }
 };
@@ -581,7 +798,7 @@ export const getEventStats = async (req: Request, res: Response) => {
   try {
     const totalEvents = await Event.countDocuments();
     const upcomingEvents = await Event.countDocuments({
-      startDate: { $gte: new Date() }
+      startDate: { $gte: new Date() },
     });
     const onlineEvents = await Event.countDocuments({ isOnline: true });
     const offlineEvents = await Event.countDocuments({ isOnline: false });
@@ -589,28 +806,28 @@ export const getEventStats = async (req: Request, res: Response) => {
     const typeStats = await Event.aggregate([
       {
         $group: {
-          _id: '$type',
-          count: { $sum: 1 }
-        }
+          _id: "$type",
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { count: -1 } }
+      { $sort: { count: -1 } },
     ]);
 
     const monthlyStats = await Event.aggregate([
       {
         $group: {
           _id: {
-            year: { $year: '$startDate' },
-            month: { $month: '$startDate' }
+            year: { $year: "$startDate" },
+            month: { $month: "$startDate" },
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { '_id.year': -1, '_id.month': -1 } },
-      { $limit: 12 }
+      { $sort: { "_id.year": -1, "_id.month": -1 } },
+      { $limit: 12 },
     ]);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         totalEvents,
@@ -618,14 +835,14 @@ export const getEventStats = async (req: Request, res: Response) => {
         onlineEvents,
         offlineEvents,
         typeStats,
-        monthlyStats
-      }
+        monthlyStats,
+      },
     });
   } catch (error) {
-    logger.error('Get event stats error:', error);
-    res.status(500).json({
+    logger.error("Get event stats error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch event statistics'
+      message: "Failed to fetch event statistics",
     });
   }
 };
@@ -634,7 +851,9 @@ export default {
   getAllEvents,
   getEventById,
   createEvent,
+  createEventWithImage,
   updateEvent,
+  updateEventWithImage,
   deleteEvent,
   registerForEvent,
   unregisterFromEvent,
@@ -643,5 +862,5 @@ export default {
   searchEvents,
   getMyEvents,
   getMyAttendingEvents,
-  getEventStats
-}; 
+  getEventStats,
+};

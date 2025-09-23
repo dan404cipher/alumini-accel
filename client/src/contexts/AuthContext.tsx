@@ -1,5 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { authAPI } from '@/lib/api';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { authAPI } from "@/lib/api";
 
 // User interface
 export interface User {
@@ -9,6 +15,8 @@ export interface User {
   lastName: string;
   role: string;
   status: string;
+  tenantId?: string;
+  tenantName?: string;
   profilePicture?: string;
   bio?: string;
   location?: string;
@@ -17,7 +25,7 @@ export interface User {
   twitterHandle?: string;
   githubProfile?: string;
   website?: string;
-  preferences?: any;
+  preferences?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,23 +66,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check if user is authenticated on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (token) {
         try {
           const response = await authAPI.getCurrentUser();
-          if (response.success && response.data) {
-            setUser(response.data.user);
+
+          if (
+            response.success &&
+            response.data &&
+            typeof response.data === "object" &&
+            response.data !== null &&
+            "user" in response.data
+          ) {
+            const userData = (response.data as { user: User }).user;
+            setUser(userData);
           } else {
             // Token is invalid, clear it
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("user");
           }
         } catch (err) {
           // Error fetching user, clear tokens
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
+          localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("user");
         }
       }
       setLoading(false);
@@ -91,22 +107,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const response = await authAPI.login({ email, password });
 
-      if (response.success && response.data) {
-        const { user: userData, token, refreshToken } = response.data;
-        
+      if (
+        response.success &&
+        response.data &&
+        typeof response.data === "object" &&
+        response.data !== null
+      ) {
+        const {
+          user: userData,
+          token,
+          refreshToken,
+        } = response.data as {
+          user: User;
+          token: string;
+          refreshToken: string;
+        };
+
         // Store tokens and user data
-        localStorage.setItem('token', token);
-        localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
+        localStorage.setItem("token", token);
+        localStorage.setItem("refreshToken", refreshToken);
+        localStorage.setItem("user", JSON.stringify(userData));
+
         setUser(userData);
         return true;
       } else {
-        setError(response.message || 'Login failed');
+        setError(response.message || "Login failed");
         return false;
       }
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err: unknown) {
+      // Handle specific error types
+      const error = err as Error & { response?: { status: number } };
+      if (error.name === "RateLimitError") {
+        setError(
+          "Too many login attempts. Please wait a moment before trying again."
+        );
+      } else if (error.response?.status === 429) {
+        setError(
+          "Too many requests. Please wait a moment before trying again."
+        );
+      } else if (error.response?.status === 401) {
+        setError("Invalid email or password.");
+      } else if (error.response?.status === 403) {
+        setError("Account is disabled. Please contact support.");
+      } else if (error.response?.status && error.response.status >= 500) {
+        setError("Server error. Please try again later.");
+      } else {
+        setError(error.message || "Login failed. Please try again.");
+      }
       return false;
     } finally {
       setLoading(false);
@@ -132,11 +179,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setError(null);
         return true;
       } else {
-        setError(response.message || 'Registration failed');
+        setError(response.message || "Registration failed");
         return false;
       }
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || "Registration failed");
       return false;
     } finally {
       setLoading(false);
@@ -152,9 +200,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Ignore logout API errors
     } finally {
       // Clear local storage and state
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
       setUser(null);
       setError(null);
     }
@@ -169,13 +217,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const refreshUser = async (): Promise<void> => {
     try {
       const response = await authAPI.getCurrentUser();
-      if (response.success && response.data) {
-        setUser(response.data.user);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (
+        response.success &&
+        response.data &&
+        typeof response.data === "object" &&
+        response.data !== null &&
+        "user" in response.data
+      ) {
+        const userData = (response.data as { user: User }).user;
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
       }
     } catch (err) {
       // Error refreshing user data
-      console.error('Error refreshing user data:', err);
+      console.error("Error refreshing user data:", err);
     }
   };
 
@@ -190,20 +245,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 // Custom hook to use auth context
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
 
-export default AuthProvider; 
+export default AuthProvider;

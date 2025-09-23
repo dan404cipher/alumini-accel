@@ -1,68 +1,136 @@
-import { Request } from 'express';
-import { Document } from 'mongoose';
+import { Request } from "express";
+import { Document } from "mongoose";
+import mongoose from "mongoose";
+
+// Export connection types
+export * from "./connection";
 
 // User Roles
 export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
-  ADMIN = 'admin',
-  COORDINATOR = 'coordinator',
-  ALUMNI = 'alumni',
-  STUDENT = 'student',
-  BATCH_REP = 'batch_rep'
+  SUPER_ADMIN = "super_admin", // Can manage multiple colleges
+  COLLEGE_ADMIN = "college_admin", // Manages one specific college
+  HOD = "hod", // Head of Department
+  STAFF = "staff", // College staff member
+  ALUMNI = "alumni", // Alumni member
 }
 
 // User Status
 export enum UserStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  PENDING = 'pending',
-  SUSPENDED = 'suspended',
-  VERIFIED = 'verified'
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  PENDING = "pending",
+  SUSPENDED = "suspended",
+  VERIFIED = "verified",
+}
+
+// Role Interface
+export interface IRole extends Document {
+  _id: string;
+  name: string;
+  description: string;
+  permissions: {
+    // User Management
+    canCreateUsers: boolean;
+    canEditUsers: boolean;
+    canDeleteUsers: boolean;
+    canViewUsers: boolean;
+    canApproveUsers: boolean;
+
+    // Content Management
+
+    // Job Management
+    canCreateJobs: boolean;
+    canEditJobs: boolean;
+    canDeleteJobs: boolean;
+    canViewJobs: boolean;
+    canEditAllJobs: boolean;
+    canDeleteAllJobs: boolean;
+
+    // Event Management
+    canCreateEvents: boolean;
+    canEditEvents: boolean;
+    canDeleteEvents: boolean;
+    canViewEvents: boolean;
+
+    // Fundraising Management
+    canCreateFundraisers: boolean;
+    canEditFundraisers: boolean;
+    canDeleteFundraisers: boolean;
+    canViewFundraisers: boolean;
+
+    // Gallery Management
+    canCreateGalleries: boolean;
+    canEditGalleries: boolean;
+    canDeleteGalleries: boolean;
+    canViewGalleries: boolean;
+
+    // News Management
+    canCreateNews: boolean;
+    canEditNews: boolean;
+    canDeleteNews: boolean;
+    canViewNews: boolean;
+
+    // Analytics & Reports
+    canViewAnalytics: boolean;
+    canExportData: boolean;
+    canViewReports: boolean;
+
+    // System Administration
+    canManageTenants: boolean;
+    canManageRoles: boolean;
+    canManageSettings: boolean;
+    canViewSystemLogs: boolean;
+  };
+  isSystemRole: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Event Types
 export enum EventType {
-  REUNION = 'reunion',
-  WORKSHOP = 'workshop',
-  WEBINAR = 'webinar',
-  MEETUP = 'meetup',
-  CONFERENCE = 'conference',
-  CAREER_FAIR = 'career_fair'
+  REUNION = "reunion",
+  WORKSHOP = "workshop",
+  WEBINAR = "webinar",
+  MEETUP = "meetup",
+  CONFERENCE = "conference",
+  CAREER_FAIR = "career_fair",
 }
 
 // Job Post Status
 export enum JobPostStatus {
-  ACTIVE = 'active',
-  CLOSED = 'closed',
-  DRAFT = 'draft',
-  PENDING = 'pending'
+  ACTIVE = "active",
+  CLOSED = "closed",
+  DRAFT = "draft",
+  PENDING = "pending",
 }
 
 // Mentorship Status
 export enum MentorshipStatus {
-  PENDING = 'pending',
-  ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  ACTIVE = "active",
+  REJECTED = "rejected",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
 }
 
 // Donation Status
 export enum DonationStatus {
-  PENDING = 'pending',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled'
+  PENDING = "pending",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
 }
 
 // Badge Types
 export enum BadgeType {
-  MENTOR = 'mentor',
-  SPEAKER = 'speaker',
-  DONOR = 'donor',
-  CHAMPION = 'champion',
-  STAR_ALUMNI = 'star_alumni',
-  RECRUITER = 'recruiter'
+  MENTOR = "mentor",
+  SPEAKER = "speaker",
+  DONOR = "donor",
+  CHAMPION = "champion",
+  STAR_ALUMNI = "star_alumni",
+  RECRUITER = "recruiter",
 }
 
 // Base User Interface
@@ -73,11 +141,13 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   role: UserRole;
+  roleId?: string;
+  tenantId?: string;
   status: UserStatus;
   phone?: string;
   profilePicture?: string;
   dateOfBirth?: Date;
-  gender?: 'male' | 'female' | 'other';
+  gender?: "male" | "female" | "other";
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
@@ -92,6 +162,7 @@ export interface IUser extends Document {
   website?: string;
   bio?: string;
   location?: string;
+  department?: string;
   timezone?: string;
   preferences: {
     emailNotifications: boolean;
@@ -99,12 +170,21 @@ export interface IUser extends Document {
     pushNotifications: boolean;
     newsletterSubscription: boolean;
   };
+  university?: string;
+  isProfileComplete: boolean;
+  profileCompletionPercentage: number;
+
+  // Instance methods
+  comparePassword(candidatePassword: string): Promise<boolean>;
+  getFullName(): string;
 }
 
 // Alumni Profile Interface
 export interface IAlumniProfile extends Document {
   _id: string;
   userId: string;
+  university: string;
+  program: string;
   batchYear: number;
   graduationYear: number;
   department: string;
@@ -119,11 +199,45 @@ export interface IAlumniProfile extends Document {
   currency?: string;
   skills: string[];
   achievements: string[];
+  internshipExperience: Array<{
+    _id?: string;
+    company: string;
+    position: string;
+    description?: string;
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    location?: string;
+    isRemote: boolean;
+    stipend?: {
+      amount: number;
+      currency: string;
+    };
+    skills: string[];
+    certificateFile?: string;
+  }>;
+  researchWork: Array<{
+    _id?: string;
+    title: string;
+    description: string;
+    supervisor?: string;
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    publicationUrl?: string;
+    conferenceUrl?: string;
+    keywords: string[];
+    status: "ongoing" | "completed" | "published" | "presented";
+    publicationFile?: string;
+    conferenceFile?: string;
+  }>;
   certifications: Array<{
+    _id?: string;
     name: string;
     issuer: string;
     date: Date;
     credentialId?: string;
+    credentialFile?: string;
   }>;
   education: Array<{
     degree: string;
@@ -132,12 +246,14 @@ export interface IAlumniProfile extends Document {
     gpa?: number;
   }>;
   careerTimeline: Array<{
+    _id?: string;
     company: string;
     position: string;
     startDate: Date;
     endDate?: Date;
     isCurrent: boolean;
     description?: string;
+    location?: string;
     logo?: string;
   }>;
   isHiring: boolean;
@@ -153,6 +269,22 @@ export interface IAlumniProfile extends Document {
     date: Date;
   }>;
   photos: string[];
+  projects: Array<{
+    _id?: string;
+    title: string;
+    description: string;
+    technologies: string[];
+    startDate: Date;
+    endDate?: Date;
+    isOngoing: boolean;
+    githubUrl?: string;
+    liveUrl?: string;
+    teamMembers: Array<{
+      name: string;
+      role: string;
+    }>;
+  }>;
+  careerInterests: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -160,11 +292,12 @@ export interface IAlumniProfile extends Document {
 // Job Post Interface
 export interface IJobPost extends Document {
   _id: string;
+  tenantId: string;
   postedBy: string;
   company: string;
   position: string;
   location: string;
-  type: 'full-time' | 'part-time' | 'internship' | 'contract';
+  type: "full-time" | "part-time" | "internship" | "contract";
   remote: boolean;
   salary?: {
     min: number;
@@ -178,12 +311,15 @@ export interface IJobPost extends Document {
   applications: Array<{
     applicantId: string;
     appliedAt: Date;
-    status: 'pending' | 'shortlisted' | 'rejected' | 'hired';
+    status: "pending" | "shortlisted" | "rejected" | "hired";
     resume?: string;
     coverLetter?: string;
   }>;
   tags: string[];
   deadline?: Date;
+  companyWebsite?: string;
+  applicationUrl?: string;
+  contactEmail?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -198,10 +334,15 @@ export interface IEvent extends Document {
   endDate: Date;
   location: string;
   isOnline: boolean;
+  onlineUrl?: string;
   meetingLink?: string;
   maxAttendees?: number;
   currentAttendees: number;
   organizer: string;
+  tags?: string[];
+  image?: string;
+  price?: number;
+  organizerNotes?: string;
   speakers: Array<{
     name: string;
     title: string;
@@ -210,7 +351,6 @@ export interface IEvent extends Document {
     photo?: string;
   }>;
   agenda: Array<{
-    time: string;
     title: string;
     speaker?: string;
     description?: string;
@@ -219,7 +359,7 @@ export interface IEvent extends Document {
   attendees: Array<{
     userId: string;
     registeredAt: Date;
-    status: 'registered' | 'attended' | 'cancelled';
+    status: "registered" | "attended" | "cancelled";
   }>;
   photos: string[];
   feedback: Array<{
@@ -228,7 +368,8 @@ export interface IEvent extends Document {
     comment?: string;
     date: Date;
   }>;
-  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  status: "upcoming" | "ongoing" | "completed" | "cancelled";
+  tenantId: string; // Multi-tenant support
   createdAt: Date;
   updatedAt: Date;
 }
@@ -244,15 +385,23 @@ export interface IMentorship extends Document {
   goals: string[];
   startDate: Date;
   endDate?: Date;
+  acceptedAt?: Date;
+  rejectedAt?: Date;
+  rejectionReason?: string;
+  completedAt?: Date;
   sessions: Array<{
+    _id?: string;
     date: Date;
     duration: number;
+    topic?: string;
     notes?: string;
     meetingLink?: string;
-    status: 'scheduled' | 'completed' | 'cancelled';
+    status: "scheduled" | "completed" | "cancelled";
   }>;
   feedback: Array<{
-    from: 'mentor' | 'mentee';
+    from: "mentor" | "mentee";
+    user: string;
+    type: "mentor" | "mentee";
     rating: number;
     comment?: string;
     date: Date;
@@ -300,7 +449,7 @@ export interface INewsletter extends Document {
   sentBy: string;
   recipients: string[];
   sentAt?: Date;
-  status: 'draft' | 'scheduled' | 'sent' | 'failed';
+  status: "draft" | "scheduled" | "sent" | "failed";
   scheduledAt?: Date;
   openRate?: number;
   clickRate?: number;
@@ -333,6 +482,8 @@ export interface IDiscussion extends Document {
 export interface AuthenticatedRequest extends Request {
   user?: IUser;
   alumniProfile?: IAlumniProfile;
+  userId?: string;
+  tenantId?: string;
 }
 
 // API Response Interface
@@ -354,7 +505,7 @@ export interface PaginationQuery {
   page?: number;
   limit?: number;
   sort?: string;
-  order?: 'asc' | 'desc';
+  order?: "asc" | "desc";
 }
 
 // Search Interface
@@ -389,7 +540,7 @@ export interface INotification extends Document {
   userId: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: "info" | "success" | "warning" | "error";
   isRead: boolean;
   actionUrl?: string;
   metadata?: Record<string, any>;
@@ -400,10 +551,10 @@ export interface INotification extends Document {
 // Analytics Interface
 export interface IAnalytics extends Document {
   _id: string;
-  type: 'user' | 'event' | 'job' | 'donation' | 'engagement';
+  type: "user" | "event" | "job" | "donation" | "engagement";
   metrics: Record<string, number>;
   date: Date;
-  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  period: "daily" | "weekly" | "monthly" | "yearly";
   metadata?: Record<string, any>;
   createdAt: Date;
 }
@@ -423,4 +574,14 @@ export interface IAuditLog extends Document {
   metadata?: Record<string, any>;
 }
 
- 
+// News Interface
+export interface INews extends Document {
+  _id: string;
+  title: string;
+  summary: string;
+  image?: string;
+  isShared: boolean;
+  author: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}

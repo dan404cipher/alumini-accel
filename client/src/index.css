@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbars */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* AlumniAccel Design System - Professional education platform with warm community feel */
 
 @layer base {
@@ -55,9 +64,22 @@
     --ring: 217 91% 60%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(270 95% 75%));
-    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(270 95% 75%) 50%, hsl(43 96% 56%) 100%);
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(217 91% 60%),
+      hsl(270 95% 75%)
+    );
+    --gradient-success: linear-gradient(
+      135deg,
+      hsl(142 76% 36%),
+      hsl(142 76% 46%)
+    );
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(217 91% 60%) 0%,
+      hsl(270 95% 75%) 50%,
+      hsl(43 96% 56%) 100%
+    );
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(215 13% 98%));
 
     /* Shadows */
@@ -139,10 +161,27 @@
     --ring: 217 91% 70%;
 
     /* Gradients - Adjusted for dark mode */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 70%), hsl(270 95% 80%));
-    --gradient-success: linear-gradient(135deg, hsl(142 76% 46%), hsl(142 76% 56%));
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 70%) 0%, hsl(270 95% 80%) 50%, hsl(43 96% 66%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(215 28% 11%), hsl(215 13% 13%));
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(217 91% 70%),
+      hsl(270 95% 80%)
+    );
+    --gradient-success: linear-gradient(
+      135deg,
+      hsl(142 76% 46%),
+      hsl(142 76% 56%)
+    );
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(217 91% 70%) 0%,
+      hsl(270 95% 80%) 50%,
+      hsl(43 96% 66%) 100%
+    );
+    --gradient-card: linear-gradient(
+      145deg,
+      hsl(215 28% 11%),
+      hsl(215 13% 13%)
+    );
 
     /* Sidebar */
     --sidebar-background: 215 28% 8%;
@@ -163,5 +202,19 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Prevent horizontal scrolling */
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Ensure all containers respect viewport width */
+  .container,
+  .max-w-8xl {
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 }

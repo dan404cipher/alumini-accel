@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IBadge extends Document {
   name: string;
@@ -29,81 +29,99 @@ export interface IUserBadge extends Document {
   metadata?: Record<string, any>;
 }
 
-const badgeSchema = new Schema<IBadge>({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-    unique: true,
-    index: true
-  },
-  description: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  category: {
-    type: String,
-    required: true,
-    enum: ['mentorship', 'donation', 'event', 'job', 'engagement', 'achievement', 'special'],
-    index: true
-  },
-  icon: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  color: {
-    type: String,
-    required: true,
-    default: '#3B82F6'
-  },
-  criteria: {
-    type: {
+const badgeSchema = new Schema<IBadge>(
+  {
+    name: {
       type: String,
       required: true,
-      enum: ['donations', 'mentorships', 'events', 'jobs', 'engagement', 'manual']
-    },
-    value: {
-      type: Number,
-      required: true,
-      min: 0
+      trim: true,
+      unique: true,
+      index: true,
     },
     description: {
       type: String,
       required: true,
-      trim: true
-    }
+      trim: true,
+    },
+    category: {
+      type: String,
+      required: true,
+      enum: [
+        "mentorship",
+        "donation",
+        "event",
+        "job",
+        "engagement",
+        "achievement",
+        "special",
+      ],
+      index: true,
+    },
+    icon: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    color: {
+      type: String,
+      required: true,
+      default: "#3B82F6",
+    },
+    criteria: {
+      type: {
+        type: String,
+        required: true,
+        enum: [
+          "donations",
+          "mentorships",
+          "events",
+          "jobs",
+          "engagement",
+          "manual",
+        ],
+      },
+      value: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      description: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+    },
+    points: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    isRare: {
+      type: Boolean,
+      default: false,
+    },
+    maxRecipients: {
+      type: Number,
+      min: 0,
+    },
+    currentRecipients: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
-  points: {
-    type: Number,
-    required: true,
-    default: 0,
-    min: 0
-  },
-  isActive: {
-    type: Boolean,
-    default: true,
-    index: true
-  },
-  isRare: {
-    type: Boolean,
-    default: false
-  },
-  maxRecipients: {
-    type: Number,
-    min: 0
-  },
-  currentRecipients: {
-    type: Number,
-    default: 0,
-    min: 0
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+);
 
 // Indexes
 badgeSchema.index({ category: 1, isActive: 1 });
@@ -111,25 +129,26 @@ badgeSchema.index({ points: -1 });
 badgeSchema.index({ isRare: 1 });
 
 // Virtual for rarity percentage
-badgeSchema.virtual('rarityPercentage').get(function() {
+badgeSchema.virtual("rarityPercentage").get(function () {
   if (!this.maxRecipients || this.maxRecipients === 0) return null;
   return (this.currentRecipients / this.maxRecipients) * 100;
 });
 
 // Virtual for availability
-badgeSchema.virtual('isAvailable').get(function() {
+badgeSchema.virtual("isAvailable").get(function () {
   if (!this.isActive) return false;
-  if (this.maxRecipients && this.currentRecipients >= this.maxRecipients) return false;
+  if (this.maxRecipients && this.currentRecipients >= this.maxRecipients)
+    return false;
   return true;
 });
 
 // Instance methods
-badgeSchema.methods.incrementRecipients = function() {
+badgeSchema.methods.incrementRecipients = function () {
   this.currentRecipients += 1;
   return this.save();
 };
 
-badgeSchema.methods.decrementRecipients = function() {
+badgeSchema.methods.decrementRecipients = function () {
   if (this.currentRecipients > 0) {
     this.currentRecipients -= 1;
   }
@@ -137,68 +156,71 @@ badgeSchema.methods.decrementRecipients = function() {
 };
 
 // Static methods
-badgeSchema.statics.getAvailableBadges = function() {
+badgeSchema.statics.getAvailableBadges = function () {
   return this.find({
     isActive: true,
     $or: [
       { maxRecipients: { $exists: false } },
-      { maxRecipients: { $gt: '$currentRecipients' } }
-    ]
+      { maxRecipients: { $gt: "$currentRecipients" } },
+    ],
   }).sort({ points: -1 });
 };
 
-badgeSchema.statics.getBadgesByCategory = function(category: string) {
+badgeSchema.statics.getBadgesByCategory = function (category: string) {
   return this.find({
     category,
-    isActive: true
+    isActive: true,
   }).sort({ points: -1 });
 };
 
-badgeSchema.statics.getRareBadges = function() {
+badgeSchema.statics.getRareBadges = function () {
   return this.find({
     isRare: true,
-    isActive: true
+    isActive: true,
   }).sort({ points: -1 });
 };
 
-const Badge = mongoose.model<IBadge>('Badge', badgeSchema);
+const Badge = mongoose.model<IBadge>("Badge", badgeSchema);
 
 // User Badge Schema
-const userBadgeSchema = new Schema<IUserBadge>({
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    index: true
+const userBadgeSchema = new Schema<IUserBadge>(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    badge: {
+      type: Schema.Types.ObjectId,
+      ref: "Badge",
+      required: true,
+      index: true,
+    },
+    awardedAt: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+    awardedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    reason: {
+      type: String,
+      trim: true,
+    },
+    metadata: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
   },
-  badge: {
-    type: Schema.Types.ObjectId,
-    ref: 'Badge',
-    required: true,
-    index: true
-  },
-  awardedAt: {
-    type: Date,
-    required: true,
-    default: Date.now
-  },
-  awardedBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  reason: {
-    type: String,
-    trim: true
-  },
-  metadata: {
-    type: Schema.Types.Mixed,
-    default: {}
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+);
 
 // Compound index to prevent duplicate badges per user
 userBadgeSchema.index({ user: 1, badge: 1 }, { unique: true });
@@ -208,121 +230,121 @@ userBadgeSchema.index({ awardedAt: -1 });
 userBadgeSchema.index({ user: 1, awardedAt: -1 });
 
 // Virtual for badge details
-userBadgeSchema.virtual('badgeDetails', {
-  ref: 'Badge',
-  localField: 'badge',
-  foreignField: '_id',
-  justOne: true
+userBadgeSchema.virtual("badgeDetails", {
+  ref: "Badge",
+  localField: "badge",
+  foreignField: "_id",
+  justOne: true,
 });
 
 // Virtual for awarded by user
-userBadgeSchema.virtual('awardedByUser', {
-  ref: 'User',
-  localField: 'awardedBy',
-  foreignField: '_id',
+userBadgeSchema.virtual("awardedByUser", {
+  ref: "User",
+  localField: "awardedBy",
+  foreignField: "_id",
   justOne: true,
-  options: { select: 'firstName lastName email' }
+  options: { select: "firstName lastName email" },
 });
 
 // Instance methods
-userBadgeSchema.methods.getFormattedAwardDate = function() {
-  return this.awardedAt.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+userBadgeSchema.methods.getFormattedAwardDate = function () {
+  return this.awardedAt.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 };
 
 // Static methods
-userBadgeSchema.statics.getUserBadges = function(userId: string) {
+userBadgeSchema.statics.getUserBadges = function (userId: string) {
   return this.find({ user: userId })
-    .populate('badge')
-    .populate('awardedBy', 'firstName lastName email')
+    .populate("badge")
+    .populate("awardedBy", "firstName lastName email")
     .sort({ awardedAt: -1 });
 };
 
-userBadgeSchema.statics.getUserBadgeCount = function(userId: string) {
+userBadgeSchema.statics.getUserBadgeCount = function (userId: string) {
   return this.countDocuments({ user: userId });
 };
 
-userBadgeSchema.statics.getUserTotalPoints = function(userId: string) {
+userBadgeSchema.statics.getUserTotalPoints = function (userId: string) {
   return this.aggregate([
     { $match: { user: new mongoose.Types.ObjectId(userId) } },
     {
       $lookup: {
-        from: 'badges',
-        localField: 'badge',
-        foreignField: '_id',
-        as: 'badgeDetails'
-      }
+        from: "badges",
+        localField: "badge",
+        foreignField: "_id",
+        as: "badgeDetails",
+      },
     },
-    { $unwind: '$badgeDetails' },
+    { $unwind: "$badgeDetails" },
     {
       $group: {
         _id: null,
-        totalPoints: { $sum: '$badgeDetails.points' }
-      }
-    }
+        totalPoints: { $sum: "$badgeDetails.points" },
+      },
+    },
   ]);
 };
 
-userBadgeSchema.statics.getBadgeRecipients = function(badgeId: string) {
+userBadgeSchema.statics.getBadgeRecipients = function (badgeId: string) {
   return this.find({ badge: badgeId })
-    .populate('user', 'firstName lastName email profilePicture')
-    .populate('awardedBy', 'firstName lastName email')
+    .populate("user", "firstName lastName email profilePicture")
+    .populate("awardedBy", "firstName lastName email")
     .sort({ awardedAt: -1 });
 };
 
-userBadgeSchema.statics.getRecentAwards = function(limit = 10) {
+userBadgeSchema.statics.getRecentAwards = function (limit = 10) {
   return this.find()
-    .populate('user', 'firstName lastName email profilePicture')
-    .populate('badge')
-    .populate('awardedBy', 'firstName lastName email')
+    .populate("user", "firstName lastName email profilePicture")
+    .populate("badge")
+    .populate("awardedBy", "firstName lastName email")
     .sort({ awardedAt: -1 })
     .limit(limit);
 };
 
-userBadgeSchema.statics.getTopBadgeCollectors = function(limit = 10) {
+userBadgeSchema.statics.getTopBadgeCollectors = function (limit = 10) {
   return this.aggregate([
     {
       $group: {
-        _id: '$user',
+        _id: "$user",
         badgeCount: { $sum: 1 },
-        lastAward: { $max: '$awardedAt' }
-      }
+        lastAward: { $max: "$awardedAt" },
+      },
     },
     { $sort: { badgeCount: -1 } },
     { $limit: limit },
     {
       $lookup: {
-        from: 'users',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'userInfo'
-      }
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "userInfo",
+      },
     },
-    { $unwind: '$userInfo' },
+    { $unwind: "$userInfo" },
     {
       $project: {
         user: {
-          _id: '$userInfo._id',
-          firstName: '$userInfo.firstName',
-          lastName: '$userInfo.lastName',
-          email: '$userInfo.email',
-          profilePicture: '$userInfo.profilePicture'
+          _id: "$userInfo._id",
+          firstName: "$userInfo.firstName",
+          lastName: "$userInfo.lastName",
+          email: "$userInfo.email",
+          profilePicture: "$userInfo.profilePicture",
         },
         badgeCount: 1,
-        lastAward: 1
-      }
-    }
+        lastAward: 1,
+      },
+    },
   ]);
 };
 
 // Pre-save middleware to increment badge recipients
-userBadgeSchema.pre('save', async function(next) {
+userBadgeSchema.pre("save", async function (next) {
   if (this.isNew) {
     try {
-      const Badge = mongoose.model('Badge');
+      const Badge = mongoose.model("Badge");
       const badge = await Badge.findById(this.badge);
       if (badge) {
         await badge.incrementRecipients();
@@ -335,20 +357,24 @@ userBadgeSchema.pre('save', async function(next) {
 });
 
 // Pre-remove middleware to decrement badge recipients
-userBadgeSchema.pre('remove', async function(next) {
-  try {
-    const Badge = mongoose.model('Badge');
-    const badge = await Badge.findById(this.badge);
-    if (badge) {
-      await badge.decrementRecipients();
+userBadgeSchema.pre(
+  "deleteOne",
+  { document: true, query: false },
+  async function (this: any, next: any) {
+    try {
+      const Badge = mongoose.model("Badge");
+      const badge = await Badge.findById(this.badge);
+      if (badge) {
+        await badge.decrementRecipients();
+      }
+    } catch (error) {
+      // Continue without decrementing
     }
-  } catch (error) {
-    // Continue without decrementing
+    next();
   }
-  next();
-});
+);
 
-const UserBadge = mongoose.model<IUserBadge>('UserBadge', userBadgeSchema);
+const UserBadge = mongoose.model<IUserBadge>("UserBadge", userBadgeSchema);
 
 export { Badge, UserBadge };
-export default Badge; 
+export default Badge;

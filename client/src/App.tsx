@@ -172,6 +172,24 @@ const App = () => {
                 />
 
                 <Route
+                  path="/community"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/donations"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/admin"
                   element={
                     <ProtectedRoute>

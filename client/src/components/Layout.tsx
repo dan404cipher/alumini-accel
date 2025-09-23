@@ -9,6 +9,8 @@ import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import NewsRoom from "./NewsRoom";
 import Recognition from "./Recognition";
+import CommunityNew from "./CommunityNew";
+import Donations from "./Donations";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
 import RoleBasedDashboard from "./RoleBasedDashboard";
@@ -66,6 +68,10 @@ const Layout = () => {
         return <NewsRoom />;
       case "recognition":
         return <Recognition />;
+      case "community":
+        return <CommunityNew />;
+      case "donations":
+        return <Donations />;
       case "about":
         // Redirect to the public About Us page
         navigate("/about");
@@ -95,6 +101,8 @@ const Layout = () => {
   const isNewsPage = activeTab === "news";
   const isGalleryPage = activeTab === "gallery";
   const isAlumniPage = activeTab === "alumni";
+  const isCommunityPage = activeTab === "community";
+  const isDonationsPage = activeTab === "donations";
 
   return (
     <div
@@ -109,7 +117,9 @@ const Layout = () => {
           isEventsPage ||
           isNewsPage ||
           isGalleryPage ||
-          isAlumniPage
+          isAlumniPage ||
+          isCommunityPage ||
+          isDonationsPage
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
@@ -122,7 +132,9 @@ const Layout = () => {
             isEventsPage ||
             isNewsPage ||
             isGalleryPage ||
-            isAlumniPage
+            isAlumniPage ||
+            isCommunityPage ||
+            isDonationsPage
               ? ""
               : "animate-fade-in-up"
           }
@@ -135,7 +147,9 @@ const Layout = () => {
         !isEventsPage &&
         !isNewsPage &&
         !isGalleryPage &&
-        !isAlumniPage && <Footer />}
+        !isAlumniPage &&
+        !isCommunityPage &&
+        !isDonationsPage && <Footer />}
     </div>
   );
 };

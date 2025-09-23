@@ -59,6 +59,8 @@ export const authenticateToken = async (
 
     req.user = user;
     req.user.id = user._id; // Add id property for compatibility
+    req.userId = user._id.toString();
+    req.tenantId = user.tenantId;
 
     // If user is alumni, also fetch alumni profile
     if (user.role === UserRole.ALUMNI) {

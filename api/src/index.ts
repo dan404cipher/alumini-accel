@@ -33,6 +33,7 @@ import connectionRoutes from "@/routes/connection";
 import messageRoutes from "@/routes/message";
 import tenantRoutes from "@/routes/tenantRoutes";
 import campaignRoutes from "@/routes/campaignRoutes";
+import communityRoutes from "@/routes/community";
 
 // Load environment variables
 dotenv.config();
@@ -123,7 +124,7 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for authentication and connection endpoints
+    // Skip rate limiting for authentication, connection, and community endpoints
     return (
       req.path === "/v1/auth/me" ||
       req.path.endsWith("/auth/me") ||
@@ -134,7 +135,9 @@ const limiter = rateLimit({
       req.path === "/v1/auth/refresh" ||
       req.path.endsWith("/auth/refresh") ||
       req.path.startsWith("/v1/connections/check/") ||
-      req.path.includes("/connections/check/")
+      req.path.includes("/connections/check/") ||
+      req.path.startsWith("/v1/community/") ||
+      req.path.includes("/community/")
     );
   },
 });
@@ -192,6 +195,7 @@ app.use("/api/v1/connections", connectionRoutes);
 app.use("/api/v1/messages", messageRoutes);
 app.use("/api/v1/tenants", tenantRoutes);
 app.use("/api/v1/campaigns", campaignRoutes);
+app.use("/api/v1/community", communityRoutes);
 
 // Serve static files with CORS headers
 app.use(

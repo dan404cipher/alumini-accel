@@ -177,7 +177,7 @@ const tenantSchema = new Schema<ITenant>(
 );
 
 // Indexes
-tenantSchema.index({ domain: 1 });
+// Note: domain index is automatically created by unique: true
 tenantSchema.index({ superAdminId: 1 });
 tenantSchema.index({ isActive: 1 });
 

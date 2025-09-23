@@ -2343,5 +2343,138 @@ export const campaignAPI = {
   },
 };
 
+// Community API functions
+export const communityAPI = {
+  // Discussion functions
+  getDiscussions: async (params?: {
+    category?: string;
+    sortBy?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/community/discussions?${queryParams.toString()}`,
+    });
+  },
+
+  createDiscussion: async (data: {
+    title: string;
+    content: string;
+    category: string;
+    tags?: string[];
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/community/discussions",
+      data,
+    });
+  },
+
+  likeDiscussion: async (discussionId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/community/discussions/${discussionId}/like`,
+    });
+  },
+
+  // AMA Session functions
+  getAMASessions: async (params?: {
+    category?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/community/ama-sessions?${queryParams.toString()}`,
+    });
+  },
+
+  createAMASession: async (data: {
+    title: string;
+    description: string;
+    scheduledDate: string;
+    duration: number;
+    maxParticipants: number;
+    category: string;
+    tags?: string[];
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/community/ama-sessions",
+      data,
+    });
+  },
+
+  joinAMASession: async (sessionId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/community/ama-sessions/${sessionId}/join`,
+    });
+  },
+
+  // Poll functions
+  getPolls: async (params?: {
+    category?: string;
+    active?: boolean;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.active !== undefined)
+      queryParams.append("active", params.active.toString());
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/community/polls?${queryParams.toString()}`,
+    });
+  },
+
+  createPoll: async (data: {
+    question: string;
+    description?: string;
+    options: string[];
+    category: string;
+    expiresAt?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/community/polls",
+      data,
+    });
+  },
+
+  votePoll: async (pollId: string, optionId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/community/polls/${pollId}/vote/${optionId}`,
+    });
+  },
+
+  // Community stats
+  getCommunityStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/community/stats",
+    });
+  },
+};
+
 // Export the API instance and functions
 export default api;

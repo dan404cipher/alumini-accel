@@ -482,6 +482,8 @@ export interface IDiscussion extends Document {
 export interface AuthenticatedRequest extends Request {
   user?: IUser;
   alumniProfile?: IAlumniProfile;
+  userId?: string;
+  tenantId?: string;
 }
 
 // API Response Interface

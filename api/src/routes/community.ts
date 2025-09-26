@@ -1,20 +1,13 @@
 import express from "express";
 import {
-  getCommunities,
-  getCommunity,
+  getAllCommunities,
+  getCommunityById,
   createCommunity,
   joinCommunity,
   leaveCommunity,
-  approveJoinRequest,
-  getCommunityPosts,
-  createCommunityPost,
-  togglePostLike,
-  getCommunityStats,
-  removeMember,
-  promoteToAdmin,
-  togglePostPin,
-  deletePost,
-  togglePostAnnouncement,
+  getCommunityMembers,
+  getUserCommunities,
+  searchCommunities,
 } from "@/controllers/communityController";
 import {
   authenticateToken as authenticate,
@@ -24,26 +17,15 @@ import {
 const router = express.Router();
 
 // Public routes (no authentication required)
-router.get("/stats", optionalAuth, getCommunityStats);
-router.get("/", optionalAuth, getCommunities);
+router.get("/", optionalAuth, getAllCommunities);
+router.get("/search", optionalAuth, searchCommunities);
+router.get("/:id", optionalAuth, getCommunityById);
 
 // Protected routes (authentication required)
 router.post("/", authenticate, createCommunity);
-router.get("/:id", optionalAuth, getCommunity);
 router.post("/:id/join", authenticate, joinCommunity);
 router.post("/:id/leave", authenticate, leaveCommunity);
-router.post("/:id/approve", authenticate, approveJoinRequest);
-router.post("/:id/remove-member", authenticate, removeMember);
-router.post("/:id/promote-admin", authenticate, promoteToAdmin);
-router.get("/:id/posts", optionalAuth, getCommunityPosts);
-router.post("/:id/posts", authenticate, createCommunityPost);
-router.post("/posts/:postId/like", authenticate, togglePostLike);
-router.post("/posts/:postId/pin", authenticate, togglePostPin);
-router.post(
-  "/posts/:postId/announcement",
-  authenticate,
-  togglePostAnnouncement
-);
-router.delete("/posts/:postId", authenticate, deletePost);
+router.get("/:id/members", optionalAuth, getCommunityMembers);
+router.get("/user/communities", authenticate, getUserCommunities);
 
 export default router;

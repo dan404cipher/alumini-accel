@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -21,6 +21,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -64,6 +65,13 @@ import {
   MoreVertical,
   Trash2,
   Megaphone,
+  Microscope,
+  Sparkles,
+  Target,
+  HandHeart,
+  Telescope,
+  Lightbulb,
+  UserCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,36 +87,59 @@ interface Community {
     | "interest"
     | "professional"
     | "location"
+    | "academic_research"
+    | "professional_career"
+    | "entrepreneurship_startups"
+    | "social_hobby"
+    | "mentorship_guidance"
+    | "events_meetups"
+    | "community_support_volunteering"
+    | "technology_deeptech"
+    | "regional_chapter_based"
     | "other";
   banner?: string;
   logo?: string;
+  coverImage?: string;
   isPublic: boolean;
-  owner: {
+  owner?: {
     _id: string;
     firstName: string;
     lastName: string;
     profileImage?: string;
   };
-  admins: Array<{
+  admins?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
     profileImage?: string;
   }>;
-  members: Array<{
+  members?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
     profileImage?: string;
   }>;
-  pendingRequests: Array<{
+  pendingRequests?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
     profileImage?: string;
+  }>;
+  invitedUsers?: Array<{
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
   }>;
   rules?: string[];
   tags: string[];
+  externalLinks?: {
+    website?: string;
+    github?: string;
+    slack?: string;
+    discord?: string;
+    other?: string;
+  };
   memberCount: number;
   postCount: number;
   isActive: boolean;
@@ -162,6 +193,7 @@ const CommunityNew = () => {
 
   // State management
   const [activeTab, setActiveTab] = useState("communities");
+  const [communityActiveTab, setCommunityActiveTab] = useState("posts"); // Post when inside a community
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -180,6 +212,16 @@ const CommunityNew = () => {
     isPublic: true,
     rules: [] as string[],
     tags: [] as string[],
+    coverImage: null as File | null,
+    logo: null as File | null,
+    invitedUsers: [] as string[],
+    externalLinks: {
+      website: "",
+      github: "",
+      slack: "",
+      discord: "",
+      other: "",
+    },
   });
 
   const [postForm, setPostForm] = useState({
@@ -213,14 +255,53 @@ const CommunityNew = () => {
   const [communityDetails, setCommunityDetails] = useState<Community | null>(
     null
   );
+  const [availableUsers, setAvailableUsers] = useState<
+    Array<{
+      _id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    }>
+  >([]);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const categories = [
     { id: "all", name: "All Categories", icon: Globe },
     { id: "department", name: "Department", icon: Building },
     { id: "batch", name: "Batch", icon: GraduationCap },
     { id: "interest", name: "Interest", icon: Heart },
-    { id: "professional", name: "Professional", icon: Briefcase },
+    // { id: "professional", name: "Professional", icon: Briefcase },
     { id: "location", name: "Location", icon: MapPin },
+    { id: "academic_research", name: "Academic & Research", icon: Microscope },
+    { id: "professional_career", name: "Professional & Career", icon: Target },
+    {
+      id: "entrepreneurship_startups",
+      name: "Entrepreneurship",
+      icon: Sparkles,
+    },
+    { id: "social_hobby", name: "Social & Hobby", icon: Heart },
+    {
+      id: "mentorship_guidance",
+      name: "Mentorship & Guidance",
+      icon: UserCheck,
+    },
+    { id: "events_meetups", name: "Events & Meetups", icon: Calendar },
+    {
+      id: "community_support_volunteering",
+      name: "Community Support",
+      icon: HandHeart,
+    },
+    {
+      id: "technology_deeptech",
+      name: "Technology & DeepTech",
+      icon: Telescope,
+    },
+    {
+      id: "regional_chapter_based",
+      name: "Regional / Chapter-based",
+      icon: MapPin,
+    },
     { id: "other", name: "Other", icon: Star },
   ];
 
@@ -238,10 +319,10 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community?${params}`,
+        }/communities?${params}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -269,10 +350,10 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${communityId}/posts`,
+        }/community-posts/community/${communityId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -300,10 +381,10 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${communityId}`,
+        }/communities/${communityId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -330,6 +411,176 @@ const CommunityNew = () => {
     }
   }, [activeTab, selectedCategory, searchQuery, fetchCommunities]);
 
+  // File upload functions
+  const uploadFile = async (file: File, type: "cover" | "logo") => {
+    try {
+      setUploadingFiles(true);
+      const formData = new FormData();
+      formData.append(type === "cover" ? "coverImage" : "logo", file);
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+        }/upload/community/${type}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        return data.data.url;
+      } else {
+        throw new Error(data.message || "Upload failed");
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload file. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
+
+  // User search function
+  const searchUsers = async (query: string) => {
+    if (query.length < 2) {
+      setAvailableUsers([]);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+        }/users/search?q=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        setAvailableUsers(data.data.users || []);
+      }
+    } catch (error) {
+      console.error("User search error:", error);
+    }
+  };
+
+  // Handle file input changes
+  const handleFileChange = (file: File | null, type: "cover" | "logo") => {
+    if (file) {
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload JPG, PNG, or WebP images only.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "Please upload files smaller than 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setCommunityForm((prev) => ({
+        ...prev,
+        [type === "cover" ? "coverImage" : "logo"]: file,
+      }));
+    }
+  };
+
+  // Add user to invited list
+  const addInvitedUser = (user: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  }) => {
+    if (!communityForm.invitedUsers.includes(user._id)) {
+      setCommunityForm((prev) => ({
+        ...prev,
+        invitedUsers: [...prev.invitedUsers, user._id],
+      }));
+    }
+    setUserSearchQuery("");
+    setAvailableUsers([]);
+  };
+
+  // Remove user from invited list
+  const removeInvitedUser = (userId: string) => {
+    setCommunityForm((prev) => ({
+      ...prev,
+      invitedUsers: prev.invitedUsers.filter((id) => id !== userId),
+    }));
+  };
+
+  // Add rule
+  const addRule = () => {
+    setCommunityForm((prev) => ({
+      ...prev,
+      rules: [...prev.rules, ""],
+    }));
+  };
+
+  // Update rule
+  const updateRule = (index: number, value: string) => {
+    setCommunityForm((prev) => ({
+      ...prev,
+      rules: prev.rules.map((rule, i) => (i === index ? value : rule)),
+    }));
+  };
+
+  // Remove rule
+  const removeRule = (index: number) => {
+    setCommunityForm((prev) => ({
+      ...prev,
+      rules: prev.rules.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Add tag
+  const addTag = (tag: string) => {
+    if (tag.trim() && !communityForm.tags.includes(tag.trim().toLowerCase())) {
+      setCommunityForm((prev) => ({
+        ...prev,
+        tags: [...prev.tags, tag.trim().toLowerCase()],
+      }));
+    }
+  };
+
+  // Remove tag
+  const removeTag = (tag: string) => {
+    setCommunityForm((prev) => ({
+      ...prev,
+      tags: prev.tags.filter((t) => t !== tag),
+    }));
+  };
+
   const handleCreateCommunity = async () => {
     try {
       if (
@@ -345,17 +596,64 @@ const CommunityNew = () => {
         return;
       }
 
+      // Upload files if they exist
+      let coverImageUrl = null;
+      let logoUrl = null;
+
+      if (communityForm.coverImage) {
+        coverImageUrl = await uploadFile(communityForm.coverImage, "cover");
+        if (!coverImageUrl) return;
+      }
+
+      if (communityForm.logo) {
+        logoUrl = await uploadFile(communityForm.logo, "logo");
+        if (!logoUrl) return;
+      }
+
+      // Prepare request body - only include fields that have values
+      const requestBody: {
+        name: string;
+        description: string;
+        type: string;
+        tags: string[];
+        rules: string[];
+        externalLinks: Record<string, string>;
+        invitedUsers: string[];
+        coverImage?: string;
+        logo?: string;
+      } = {
+        name: communityForm.name,
+        description: communityForm.description,
+        type: communityForm.isPublic ? "open" : "closed",
+        tags: communityForm.tags,
+        rules: communityForm.rules.filter((rule) => rule.trim()),
+        externalLinks: Object.fromEntries(
+          Object.entries(communityForm.externalLinks).filter(([_, value]) =>
+            value.trim()
+          )
+        ),
+        invitedUsers: communityForm.invitedUsers,
+      };
+
+      // Only include coverImage and logo if they have values
+      if (coverImageUrl) {
+        requestBody.coverImage = coverImageUrl;
+      }
+      if (logoUrl) {
+        requestBody.logo = logoUrl;
+      }
+
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community`,
+        }/communities`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify(communityForm),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -374,6 +672,16 @@ const CommunityNew = () => {
           isPublic: true,
           rules: [],
           tags: [],
+          coverImage: null,
+          logo: null,
+          invitedUsers: [],
+          externalLinks: {
+            website: "",
+            github: "",
+            slack: "",
+            discord: "",
+            other: "",
+          },
         });
         fetchCommunities(); // Refresh the list
       } else {
@@ -398,11 +706,12 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${communityId}/join`,
+        }/communities/${communityId}/join`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -436,11 +745,12 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${communityId}/leave`,
+        }/communities/${communityId}/leave`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -574,12 +884,12 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${selectedCommunity._id}/posts`,
+        }/community-posts`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify(postData),
         }
@@ -634,7 +944,8 @@ const CommunityNew = () => {
 
   const handleViewCommunity = (community: Community) => {
     setSelectedCommunity(community);
-    setActiveTab("posts");
+    setActiveTab("community"); // Enter community view
+    setCommunityActiveTab("posts"); // Default to posts tab inside community
     fetchCommunityPosts(community._id);
     fetchCommunityDetails(community._id);
   };
@@ -646,14 +957,14 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${selectedCommunity._id}/approve`,
+        }/community-memberships/approve`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
       );
 
@@ -688,14 +999,14 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${selectedCommunity._id}/remove-member`,
+        }/community-memberships/remove`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
       );
 
@@ -730,14 +1041,14 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/${selectedCommunity._id}/promote-admin`,
+        }/community-memberships/promote`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
       );
 
@@ -770,11 +1081,11 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/posts/${postId}/pin`,
+        }/community-posts/${postId}/pin`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -810,11 +1121,11 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/posts/${postId}/announcement`,
+        }/community-posts/${postId}/announcement`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -858,11 +1169,11 @@ const CommunityNew = () => {
       const response = await fetch(
         `${
           import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
-        }/community/posts/${postId}`,
+        }/community-posts/${postId}`,
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
@@ -940,15 +1251,19 @@ const CommunityNew = () => {
   };
 
   const isUserMember = (community: Community) => {
-    if (!user) return false;
-    return community.members.some((member) => member._id === user._id);
+    if (!user || !community) return false;
+    return (
+      community.members &&
+      community.members.some((member) => member._id === user._id)
+    );
   };
 
   const isUserAdmin = (community: Community) => {
-    if (!user) return false;
+    if (!user || !community) return false;
     return (
-      community.admins.some((admin) => admin._id === user._id) ||
-      community.owner._id === user._id
+      (community.admins &&
+        community.admins.some((admin) => admin._id === user._id)) ||
+      (community.owner && community.owner._id === user._id)
     );
   };
 
@@ -1040,119 +1355,492 @@ const CommunityNew = () => {
                             Create Community
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[600px]">
+                        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Create a Community</DialogTitle>
+                            <DialogDescription>
+                              Create a new community to connect with other
+                              alumni and share experiences.
+                            </DialogDescription>
                           </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="community-name">
-                                Community Name *
-                              </Label>
-                              <Input
-                                id="community-name"
-                                placeholder="Enter community name..."
-                                value={communityForm.name}
-                                onChange={(e) =>
-                                  setCommunityForm((prev) => ({
-                                    ...prev,
-                                    name: e.target.value,
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="community-description">
-                                Description *
-                              </Label>
-                              <Textarea
-                                id="community-description"
-                                placeholder="Describe your community..."
-                                rows={3}
-                                value={communityForm.description}
-                                onChange={(e) =>
-                                  setCommunityForm((prev) => ({
-                                    ...prev,
-                                    description: e.target.value,
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-6">
+                            {/* Basic Information */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-semibold">
+                                Basic Information
+                              </h3>
                               <div>
-                                <Label htmlFor="community-category">
-                                  Category *
+                                <Label htmlFor="community-name">
+                                  Community Name *
                                 </Label>
-                                <Select
-                                  value={communityForm.category}
-                                  onValueChange={(value) =>
+                                <Input
+                                  id="community-name"
+                                  placeholder="Enter community name..."
+                                  value={communityForm.name}
+                                  onChange={(e) =>
                                     setCommunityForm((prev) => ({
                                       ...prev,
-                                      category: value,
+                                      name: e.target.value,
                                     }))
                                   }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a category" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="department">
-                                      Department
-                                    </SelectItem>
-                                    <SelectItem value="batch">Batch</SelectItem>
-                                    <SelectItem value="interest">
-                                      Interest
-                                    </SelectItem>
-                                    <SelectItem value="professional">
-                                      Professional
-                                    </SelectItem>
-                                    <SelectItem value="location">
-                                      Location
-                                    </SelectItem>
-                                    <SelectItem value="other">Other</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                />
                               </div>
                               <div>
-                                <Label htmlFor="community-visibility">
-                                  Visibility
+                                <Label htmlFor="community-description">
+                                  Description *
                                 </Label>
-                                <Select
-                                  value={
-                                    communityForm.isPublic
-                                      ? "public"
-                                      : "private"
-                                  }
-                                  onValueChange={(value) =>
+                                <Textarea
+                                  id="community-description"
+                                  placeholder="Describe your community..."
+                                  rows={3}
+                                  value={communityForm.description}
+                                  onChange={(e) =>
                                     setCommunityForm((prev) => ({
                                       ...prev,
-                                      isPublic: value === "public",
+                                      description: e.target.value,
                                     }))
                                   }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select visibility" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="public">
-                                      Public
-                                    </SelectItem>
-                                    <SelectItem value="private">
-                                      Private
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="community-category">
+                                    Category *
+                                  </Label>
+                                  <Select
+                                    value={communityForm.category}
+                                    onValueChange={(value) =>
+                                      setCommunityForm((prev) => ({
+                                        ...prev,
+                                        category: value,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="department">
+                                        Department
+                                      </SelectItem>
+                                      <SelectItem value="batch">
+                                        Batch
+                                      </SelectItem>
+                                      <SelectItem value="interest">
+                                        Interest
+                                      </SelectItem>
+                                      <SelectItem value="professional">
+                                        Professional
+                                      </SelectItem>
+                                      <SelectItem value="location">
+                                        Location
+                                      </SelectItem>
+                                      <SelectItem value="academic_research">
+                                        Academic & Research
+                                      </SelectItem>
+                                      <SelectItem value="professional_career">
+                                        Professional & Career
+                                      </SelectItem>
+                                      <SelectItem value="entrepreneurship_startups">
+                                        Entrepreneurship & Startups
+                                      </SelectItem>
+                                      <SelectItem value="social_hobby">
+                                        Social & Hobby
+                                      </SelectItem>
+                                      <SelectItem value="mentorship_guidance">
+                                        Mentorship & Guidance
+                                      </SelectItem>
+                                      <SelectItem value="events_meetups">
+                                        Events & Meetups
+                                      </SelectItem>
+                                      <SelectItem value="community_support_volunteering">
+                                        Community Support & Volunteering
+                                      </SelectItem>
+                                      <SelectItem value="technology_deeptech">
+                                        Technology & DeepTech
+                                      </SelectItem>
+                                      <SelectItem value="regional_chapter_based">
+                                        Regional / Chapter-based
+                                      </SelectItem>
+                                      <SelectItem value="other">
+                                        Other
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="community-visibility">
+                                    Visibility
+                                  </Label>
+                                  <Select
+                                    value={
+                                      communityForm.isPublic
+                                        ? "public"
+                                        : "private"
+                                    }
+                                    onValueChange={(value) =>
+                                      setCommunityForm((prev) => ({
+                                        ...prev,
+                                        isPublic: value === "public",
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select visibility" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="public">
+                                        Public
+                                      </SelectItem>
+                                      <SelectItem value="private">
+                                        Private
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
                             </div>
-                            <div className="flex justify-end space-x-2">
+
+                            {/* Media Upload */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-semibold">Media</h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="cover-image">
+                                    Cover Image
+                                  </Label>
+                                  <div className="mt-2">
+                                    <Input
+                                      id="cover-image"
+                                      type="file"
+                                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                                      onChange={(e) => {
+                                        const file =
+                                          e.target.files?.[0] || null;
+                                        handleFileChange(file, "cover");
+                                      }}
+                                    />
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                      JPG, PNG, WebP (max 5MB)
+                                    </p>
+                                    {communityForm.coverImage && (
+                                      <div className="mt-2">
+                                        <p className="text-sm text-green-600">
+                                          Selected:{" "}
+                                          {communityForm.coverImage.name}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label htmlFor="logo">Logo</Label>
+                                  <div className="mt-2">
+                                    <Input
+                                      id="logo"
+                                      type="file"
+                                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                                      onChange={(e) => {
+                                        const file =
+                                          e.target.files?.[0] || null;
+                                        handleFileChange(file, "logo");
+                                      }}
+                                    />
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                      JPG, PNG, WebP (max 5MB)
+                                    </p>
+                                    {communityForm.logo && (
+                                      <div className="mt-2">
+                                        <p className="text-sm text-green-600">
+                                          Selected: {communityForm.logo.name}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Tags */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-semibold">Tags</h3>
+                              <div>
+                                <Label htmlFor="tags-input">Add Tags</Label>
+                                <div className="flex gap-2 mt-2">
+                                  <Input
+                                    id="tags-input"
+                                    placeholder="Enter a tag..."
+                                    onKeyPress={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        addTag(e.currentTarget.value);
+                                        e.currentTarget.value = "";
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const input = document.getElementById(
+                                        "tags-input"
+                                      ) as HTMLInputElement;
+                                      if (input.value) {
+                                        addTag(input.value);
+                                        input.value = "";
+                                      }
+                                    }}
+                                  >
+                                    Add
+                                  </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {communityForm.tags.map((tag, index) => (
+                                    <div
+                                      key={index}
+                                      className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm"
+                                    >
+                                      {tag}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeTag(tag)}
+                                        className="text-primary hover:text-primary/70"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Rules & Guidelines */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-semibold">
+                                Rules & Guidelines
+                              </h3>
+                              <div>
+                                <Label>Community Rules</Label>
+                                <div className="space-y-2 mt-2">
+                                  {communityForm.rules.map((rule, index) => (
+                                    <div key={index} className="flex gap-2">
+                                      <Input
+                                        placeholder={`Rule ${index + 1}`}
+                                        value={rule}
+                                        onChange={(e) =>
+                                          updateRule(index, e.target.value)
+                                        }
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => removeRule(index)}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  ))}
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={addRule}
+                                    className="w-full"
+                                  >
+                                    Add Rule
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* External Links */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-semibold">
+                                External Links
+                              </h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="website">Website</Label>
+                                  <Input
+                                    id="website"
+                                    type="url"
+                                    placeholder="https://example.com"
+                                    value={communityForm.externalLinks.website}
+                                    onChange={(e) =>
+                                      setCommunityForm((prev) => ({
+                                        ...prev,
+                                        externalLinks: {
+                                          ...prev.externalLinks,
+                                          website: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="github">GitHub</Label>
+                                  <Input
+                                    id="github"
+                                    type="url"
+                                    placeholder="https://github.com/username"
+                                    value={communityForm.externalLinks.github}
+                                    onChange={(e) =>
+                                      setCommunityForm((prev) => ({
+                                        ...prev,
+                                        externalLinks: {
+                                          ...prev.externalLinks,
+                                          github: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="slack">Slack</Label>
+                                  <Input
+                                    id="slack"
+                                    type="url"
+                                    placeholder="https://workspace.slack.com"
+                                    value={communityForm.externalLinks.slack}
+                                    onChange={(e) =>
+                                      setCommunityForm((prev) => ({
+                                        ...prev,
+                                        externalLinks: {
+                                          ...prev.externalLinks,
+                                          slack: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="discord">Discord</Label>
+                                  <Input
+                                    id="discord"
+                                    type="url"
+                                    placeholder="https://discord.gg/invite"
+                                    value={communityForm.externalLinks.discord}
+                                    onChange={(e) =>
+                                      setCommunityForm((prev) => ({
+                                        ...prev,
+                                        externalLinks: {
+                                          ...prev.externalLinks,
+                                          discord: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <Label htmlFor="other-link">Other Link</Label>
+                                  <Input
+                                    id="other-link"
+                                    type="url"
+                                    placeholder="https://example.com"
+                                    value={communityForm.externalLinks.other}
+                                    onChange={(e) =>
+                                      setCommunityForm((prev) => ({
+                                        ...prev,
+                                        externalLinks: {
+                                          ...prev.externalLinks,
+                                          other: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Invite Users */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-semibold">
+                                Invite Users
+                              </h3>
+                              <div>
+                                <Label htmlFor="user-search">
+                                  Search Users
+                                </Label>
+                                <div className="relative">
+                                  <Input
+                                    id="user-search"
+                                    placeholder="Search by name or email..."
+                                    value={userSearchQuery}
+                                    onChange={(e) => {
+                                      setUserSearchQuery(e.target.value);
+                                      searchUsers(e.target.value);
+                                    }}
+                                  />
+                                  {availableUsers.length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                      {availableUsers.map((user) => (
+                                        <div
+                                          key={user._id}
+                                          className="p-2 hover:bg-gray-100 cursor-pointer"
+                                          onClick={() => addInvitedUser(user)}
+                                        >
+                                          <div className="font-medium">
+                                            {user.firstName} {user.lastName}
+                                          </div>
+                                          <div className="text-sm text-gray-500">
+                                            {user.email}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                {communityForm.invitedUsers.length > 0 && (
+                                  <div className="mt-2">
+                                    <Label>Invited Users</Label>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                      {communityForm.invitedUsers.map(
+                                        (userId) => {
+                                          const user = availableUsers.find(
+                                            (u) => u._id === userId
+                                          );
+                                          return (
+                                            <div
+                                              key={userId}
+                                              className="flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm"
+                                            >
+                                              {user
+                                                ? `${user.firstName} ${user.lastName}`
+                                                : userId}
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  removeInvitedUser(userId)
+                                                }
+                                                className="text-blue-600 hover:text-blue-800"
+                                              >
+                                                ×
+                                              </button>
+                                            </div>
+                                          );
+                                        }
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex justify-end space-x-2 pt-4 border-t">
                               <Button
                                 variant="outline"
                                 onClick={() => setCommunityDialogOpen(false)}
                               >
                                 Cancel
                               </Button>
-                              <Button onClick={handleCreateCommunity}>
-                                Create Community
+                              <Button
+                                onClick={handleCreateCommunity}
+                                disabled={uploadingFiles}
+                              >
+                                {uploadingFiles
+                                  ? "Creating..."
+                                  : "Create Community"}
                               </Button>
                             </div>
                           </div>
@@ -1224,132 +1912,15 @@ const CommunityNew = () => {
               <div className="space-y-3 pt-4 border-t">
                 <h3 className="text-sm font-semibold">Quick Actions</h3>
                 <div className="space-y-2">
-                  <Dialog
-                    open={communityDialogOpen}
-                    onOpenChange={setCommunityDialogOpen}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => setCommunityDialogOpen(true)}
                   >
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="w-full justify-start"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Community
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px]">
-                      <DialogHeader>
-                        <DialogTitle>Create a Community</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="sidebar-community-name">
-                            Community Name *
-                          </Label>
-                          <Input
-                            id="sidebar-community-name"
-                            placeholder="Enter community name..."
-                            value={communityForm.name}
-                            onChange={(e) =>
-                              setCommunityForm((prev) => ({
-                                ...prev,
-                                name: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="sidebar-community-description">
-                            Description *
-                          </Label>
-                          <Textarea
-                            id="sidebar-community-description"
-                            placeholder="Describe your community..."
-                            rows={3}
-                            value={communityForm.description}
-                            onChange={(e) =>
-                              setCommunityForm((prev) => ({
-                                ...prev,
-                                description: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="sidebar-community-category">
-                              Category *
-                            </Label>
-                            <Select
-                              value={communityForm.category}
-                              onValueChange={(value) =>
-                                setCommunityForm((prev) => ({
-                                  ...prev,
-                                  category: value,
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="department">
-                                  Department
-                                </SelectItem>
-                                <SelectItem value="batch">Batch</SelectItem>
-                                <SelectItem value="interest">
-                                  Interest
-                                </SelectItem>
-                                <SelectItem value="professional">
-                                  Professional
-                                </SelectItem>
-                                <SelectItem value="location">
-                                  Location
-                                </SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label htmlFor="sidebar-community-visibility">
-                              Visibility
-                            </Label>
-                            <Select
-                              value={
-                                communityForm.isPublic ? "public" : "private"
-                              }
-                              onValueChange={(value) =>
-                                setCommunityForm((prev) => ({
-                                  ...prev,
-                                  isPublic: value === "public",
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select visibility" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="public">Public</SelectItem>
-                                <SelectItem value="private">Private</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => setCommunityDialogOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button onClick={handleCreateCommunity}>
-                            Create Community
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Community
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -1415,9 +1986,9 @@ const CommunityNew = () => {
           </div>
         )}
 
-        {/* Community Tabs */}
+        {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-1 lg:grid-cols-2">
             <TabsTrigger
               value="communities"
               className="flex items-center gap-2"
@@ -1425,14 +1996,15 @@ const CommunityNew = () => {
               <Users2 className="w-4 h-4" />
               Communities
             </TabsTrigger>
-            <TabsTrigger value="posts" className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              Posts
-            </TabsTrigger>
-            <TabsTrigger value="members" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Members
-            </TabsTrigger>
+            {selectedCommunity && (
+              <TabsTrigger
+                value="community"
+                className="flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                {selectedCommunity.name}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Communities Tab */}
@@ -1446,116 +2018,6 @@ const CommunityNew = () => {
                 <p className="text-gray-500 mb-4">
                   Be the first to create a community!
                 </p>
-                <Dialog
-                  open={communityDialogOpen}
-                  onOpenChange={setCommunityDialogOpen}
-                >
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Community
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px]">
-                    <DialogHeader>
-                      <DialogTitle>Create a Community</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="empty-title">Community Name *</Label>
-                        <Input
-                          id="empty-title"
-                          placeholder="Enter community name..."
-                          value={communityForm.name}
-                          onChange={(e) =>
-                            setCommunityForm((prev) => ({
-                              ...prev,
-                              name: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="empty-description">Description *</Label>
-                        <Textarea
-                          id="empty-description"
-                          placeholder="Describe your community..."
-                          rows={3}
-                          value={communityForm.description}
-                          onChange={(e) =>
-                            setCommunityForm((prev) => ({
-                              ...prev,
-                              description: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="empty-category">Category *</Label>
-                          <Select
-                            value={communityForm.category}
-                            onValueChange={(value) =>
-                              setCommunityForm((prev) => ({
-                                ...prev,
-                                category: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="department">
-                                Department
-                              </SelectItem>
-                              <SelectItem value="batch">Batch</SelectItem>
-                              <SelectItem value="interest">Interest</SelectItem>
-                              <SelectItem value="professional">
-                                Professional
-                              </SelectItem>
-                              <SelectItem value="location">Location</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="empty-visibility">Visibility</Label>
-                          <Select
-                            value={
-                              communityForm.isPublic ? "public" : "private"
-                            }
-                            onValueChange={(value) =>
-                              setCommunityForm((prev) => ({
-                                ...prev,
-                                isPublic: value === "public",
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select visibility" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="public">Public</SelectItem>
-                              <SelectItem value="private">Private</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setCommunityDialogOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button onClick={handleCreateCommunity}>
-                          Create Community
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               </div>
             ) : (
               <div className="grid gap-4">
@@ -1567,67 +2029,69 @@ const CommunityNew = () => {
                   return (
                     <Card
                       key={community._id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
                       onClick={() => handleViewCommunity(community)}
                     >
-                      <CardContent className="p-6">
+                      {/* Community Card Content */}
+                      <CardContent className="p-6 pb-2">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                              <CategoryIcon className="w-6 h-6 text-white" />
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-600 to-purple-600">
+                              {community.logo ? (
+                                <img
+                                  src={community.logo}
+                                  alt={`${community.name} logo`}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <CategoryIcon className="w-6 h-6 text-white" />
+                              )}
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-lg">
-                                  {community.name}
-                                </h3>
-                                <Badge
-                                  variant={
-                                    community.isPublic ? "default" : "secondary"
-                                  }
-                                >
-                                  {community.isPublic ? "Public" : "Private"}
-                                </Badge>
-                                {isAdmin && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Admin
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-gray-600 mb-2">
+                              <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                                {community.name}
+                              </h3>
+                              <p className="text-gray-600 text-sm mb-2 line-clamp-2">
                                 {community.description}
                               </p>
-                              <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
-                                <span>
-                                  by {community.owner.firstName}{" "}
-                                  {community.owner.lastName}
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <CategoryIcon className="w-3 h-3" />
+                                <span className="capitalize">
+                                  {community.category}
                                 </span>
                                 <span>•</span>
-                                <span>{formatDate(community.createdAt)}</span>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <div className="flex items-center gap-1">
-                                  <Users2 className="w-4 h-4" />
-                                  {community.memberCount} members
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <MessageCircle className="w-4 h-4" />
-                                  {community.postCount} posts
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <CategoryIcon className="w-4 h-4" />
-                                  {community.category}
-                                </div>
+                                <span>{community.memberCount} members</span>
+                                {!community.isPublic && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-amber-600">
+                                      Private
+                                    </span>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2">
+                            {isMember && (
+                              <Badge variant="secondary" className="text-xs">
+                                Member
+                              </Badge>
+                            )}
+                            {isAdmin && (
+                              <Badge variant="default" className="text-xs">
+                                Admin
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                          <div className="flex flex-wrap gap-1">
-                            {community.tags.slice(0, 3).map((tag, index) => (
+                        {/* Tags */}
+                        {community.tags && community.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {community.tags.slice(0, 3).map((tag) => (
                               <Badge
-                                key={index}
+                                key={tag}
                                 variant="outline"
                                 className="text-xs"
                               >
@@ -1640,42 +2104,28 @@ const CommunityNew = () => {
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            {isMember ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleLeaveCommunity(community._id);
-                                }}
-                              >
-                                Leave
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleJoinCommunity(community._id);
-                                }}
-                              >
-                                <UserPlus className="w-4 h-4 mr-1" />
-                                Join
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewCommunity(community);
-                              }}
-                            >
-                              View
-                            </Button>
+                        )}
+
+                        {/* Stats */}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <MessageCircle className="w-4 h-4" />
+                              {community.postCount || 0} posts
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>
+                                Active{" "}
+                                {new Date(
+                                  community.createdAt
+                                ).toLocaleDateString()}
+                              </span>
+                            </span>
                           </div>
+                          <Button variant="outline" size="sm">
+                            {isMember ? "View" : "Join"}
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -1685,1135 +2135,12 @@ const CommunityNew = () => {
             )}
           </TabsContent>
 
-          {/* Posts Tab */}
-          <TabsContent value="posts" className="space-y-4">
+          {/* Members Tab Content */}
+          <TabsContent value="members" className="space-y-4">
             {selectedCommunity ? (
               <div>
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setActiveTab("communities")}
-                    >
-                      ← Back to Communities
-                    </Button>
-                    <Dialog
-                      open={postDialogOpen}
-                      onOpenChange={setPostDialogOpen}
-                    >
-                      <DialogTrigger asChild>
-                        <Button>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Post
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Create a Post</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          {/* Post Type Selection */}
-                          <div>
-                            <Label htmlFor="header-post-type">Post Type</Label>
-                            <Select
-                              value={postForm.type}
-                              onValueChange={(
-                                value:
-                                  | "text"
-                                  | "image"
-                                  | "file"
-                                  | "link"
-                                  | "poll"
-                                  | "event"
-                              ) =>
-                                setPostForm((prev) => ({
-                                  ...prev,
-                                  type: value,
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select post type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="text">Text Post</SelectItem>
-                                <SelectItem value="image">
-                                  Image Post
-                                </SelectItem>
-                                <SelectItem value="file">File Post</SelectItem>
-                                <SelectItem value="link">Link Post</SelectItem>
-                                <SelectItem value="poll">Poll</SelectItem>
-                                <SelectItem value="event">Event</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Post Title */}
-                          <div>
-                            <Label htmlFor="header-post-title">
-                              Title (Optional)
-                            </Label>
-                            <Input
-                              id="header-post-title"
-                              placeholder="Enter post title..."
-                              value={postForm.title}
-                              onChange={(e) =>
-                                setPostForm((prev) => ({
-                                  ...prev,
-                                  title: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          {/* Post Content */}
-                          <div>
-                            <Label htmlFor="header-post-content">
-                              Content *
-                            </Label>
-                            <Textarea
-                              id="header-post-content"
-                              placeholder="What's on your mind?"
-                              rows={4}
-                              value={postForm.content}
-                              onChange={(e) =>
-                                setPostForm((prev) => ({
-                                  ...prev,
-                                  content: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          {/* Poll Section */}
-                          {postForm.type === "poll" && (
-                            <div className="space-y-4 border rounded-lg p-4">
-                              <h3 className="font-semibold">Poll Details</h3>
-                              <div>
-                                <Label htmlFor="header-poll-question">
-                                  Poll Question *
-                                </Label>
-                                <Input
-                                  id="header-poll-question"
-                                  placeholder="What would you like to ask?"
-                                  value={postForm.poll.question}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      poll: {
-                                        ...prev.poll,
-                                        question: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label>Poll Options *</Label>
-                                {postForm.poll.options.map((option, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center gap-2 mb-2"
-                                  >
-                                    <Input
-                                      placeholder={`Option ${index + 1}`}
-                                      value={option}
-                                      onChange={(e) =>
-                                        updatePollOption(index, e.target.value)
-                                      }
-                                    />
-                                    {postForm.poll.options.length > 2 && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removePollOption(index)}
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                ))}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={addPollOption}
-                                  className="w-full"
-                                >
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Add Option
-                                </Button>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id="header-allow-multiple"
-                                  checked={postForm.poll.allowMultiple}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      poll: {
-                                        ...prev.poll,
-                                        allowMultiple: e.target.checked,
-                                      },
-                                    }))
-                                  }
-                                />
-                                <Label htmlFor="header-allow-multiple">
-                                  Allow multiple votes
-                                </Label>
-                              </div>
-                              <div>
-                                <Label htmlFor="header-poll-expires">
-                                  Expires At (Optional)
-                                </Label>
-                                <Input
-                                  id="header-poll-expires"
-                                  type="datetime-local"
-                                  value={postForm.poll.expiresAt}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      poll: {
-                                        ...prev.poll,
-                                        expiresAt: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Event Section */}
-                          {postForm.type === "event" && (
-                            <div className="space-y-4 border rounded-lg p-4">
-                              <h3 className="font-semibold">Event Details</h3>
-                              <div>
-                                <Label htmlFor="header-event-title">
-                                  Event Title *
-                                </Label>
-                                <Input
-                                  id="header-event-title"
-                                  placeholder="Enter event title..."
-                                  value={postForm.event.title}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        title: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="header-event-description">
-                                  Event Description *
-                                </Label>
-                                <Textarea
-                                  id="header-event-description"
-                                  placeholder="Describe the event..."
-                                  rows={3}
-                                  value={postForm.event.description}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        description: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor="header-event-start">
-                                    Start Date *
-                                  </Label>
-                                  <Input
-                                    id="header-event-start"
-                                    type="datetime-local"
-                                    value={postForm.event.startDate}
-                                    onChange={(e) =>
-                                      setPostForm((prev) => ({
-                                        ...prev,
-                                        event: {
-                                          ...prev.event,
-                                          startDate: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="header-event-end">
-                                    End Date (Optional)
-                                  </Label>
-                                  <Input
-                                    id="header-event-end"
-                                    type="datetime-local"
-                                    value={postForm.event.endDate}
-                                    onChange={(e) =>
-                                      setPostForm((prev) => ({
-                                        ...prev,
-                                        event: {
-                                          ...prev.event,
-                                          endDate: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <Label htmlFor="header-event-location">
-                                  Location
-                                </Label>
-                                <Input
-                                  id="header-event-location"
-                                  placeholder="Enter event location..."
-                                  value={postForm.event.location}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        location: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id="header-is-online"
-                                  checked={postForm.event.isOnline}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        isOnline: e.target.checked,
-                                      },
-                                    }))
-                                  }
-                                />
-                                <Label htmlFor="header-is-online">
-                                  This is an online event
-                                </Label>
-                              </div>
-                              <div>
-                                <Label htmlFor="header-max-attendees">
-                                  Max Attendees (Optional)
-                                </Label>
-                                <Input
-                                  id="header-max-attendees"
-                                  type="number"
-                                  placeholder="Enter maximum number of attendees..."
-                                  value={postForm.event.maxAttendees}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        maxAttendees: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setPostDialogOpen(false)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button onClick={handleCreatePost}>
-                              Create Post
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                      {React.createElement(
-                        getCategoryIcon(selectedCommunity.category),
-                        {
-                          className: "w-6 h-6 text-white",
-                        }
-                      )}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold">
-                        {selectedCommunity.name}
-                      </h2>
-                      <p className="text-gray-600">
-                        {selectedCommunity.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {communityPosts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No posts yet
-                    </h3>
-                    <p className="text-gray-500 mb-4">
-                      Be the first to post in this community!
-                    </p>
-                    <Dialog
-                      open={postDialogOpen}
-                      onOpenChange={setPostDialogOpen}
-                    >
-                      <DialogTrigger asChild>
-                        <Button>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Post
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Create a Post</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          {/* Post Type Selection */}
-                          <div>
-                            <Label htmlFor="post-type">Post Type</Label>
-                            <Select
-                              value={postForm.type}
-                              onValueChange={(
-                                value:
-                                  | "text"
-                                  | "image"
-                                  | "file"
-                                  | "link"
-                                  | "poll"
-                                  | "event"
-                              ) =>
-                                setPostForm((prev) => ({
-                                  ...prev,
-                                  type: value,
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select post type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="text">Text Post</SelectItem>
-                                <SelectItem value="image">
-                                  Image Post
-                                </SelectItem>
-                                <SelectItem value="file">File Post</SelectItem>
-                                <SelectItem value="link">Link Post</SelectItem>
-                                <SelectItem value="poll">Poll</SelectItem>
-                                <SelectItem value="event">Event</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Post Title */}
-                          <div>
-                            <Label htmlFor="post-title">Title (Optional)</Label>
-                            <Input
-                              id="post-title"
-                              placeholder="Enter post title..."
-                              value={postForm.title}
-                              onChange={(e) =>
-                                setPostForm((prev) => ({
-                                  ...prev,
-                                  title: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          {/* Post Content */}
-                          <div>
-                            <Label htmlFor="post-content">Content *</Label>
-                            <Textarea
-                              id="post-content"
-                              placeholder="What's on your mind?"
-                              rows={4}
-                              value={postForm.content}
-                              onChange={(e) =>
-                                setPostForm((prev) => ({
-                                  ...prev,
-                                  content: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-
-                          {/* Poll Section */}
-                          {postForm.type === "poll" && (
-                            <div className="space-y-4 border rounded-lg p-4">
-                              <h3 className="font-semibold">Poll Details</h3>
-                              <div>
-                                <Label htmlFor="poll-question">
-                                  Poll Question *
-                                </Label>
-                                <Input
-                                  id="poll-question"
-                                  placeholder="What would you like to ask?"
-                                  value={postForm.poll.question}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      poll: {
-                                        ...prev.poll,
-                                        question: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label>Poll Options *</Label>
-                                {postForm.poll.options.map((option, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center gap-2 mb-2"
-                                  >
-                                    <Input
-                                      placeholder={`Option ${index + 1}`}
-                                      value={option}
-                                      onChange={(e) =>
-                                        updatePollOption(index, e.target.value)
-                                      }
-                                    />
-                                    {postForm.poll.options.length > 2 && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removePollOption(index)}
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                ))}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={addPollOption}
-                                  className="w-full"
-                                >
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Add Option
-                                </Button>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id="allow-multiple"
-                                  checked={postForm.poll.allowMultiple}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      poll: {
-                                        ...prev.poll,
-                                        allowMultiple: e.target.checked,
-                                      },
-                                    }))
-                                  }
-                                />
-                                <Label htmlFor="allow-multiple">
-                                  Allow multiple votes
-                                </Label>
-                              </div>
-                              <div>
-                                <Label htmlFor="poll-expires">
-                                  Expires At (Optional)
-                                </Label>
-                                <Input
-                                  id="poll-expires"
-                                  type="datetime-local"
-                                  value={postForm.poll.expiresAt}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      poll: {
-                                        ...prev.poll,
-                                        expiresAt: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Event Section */}
-                          {postForm.type === "event" && (
-                            <div className="space-y-4 border rounded-lg p-4">
-                              <h3 className="font-semibold">Event Details</h3>
-                              <div>
-                                <Label htmlFor="event-title">
-                                  Event Title *
-                                </Label>
-                                <Input
-                                  id="event-title"
-                                  placeholder="Enter event title..."
-                                  value={postForm.event.title}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        title: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="event-description">
-                                  Event Description *
-                                </Label>
-                                <Textarea
-                                  id="event-description"
-                                  placeholder="Describe the event..."
-                                  rows={3}
-                                  value={postForm.event.description}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        description: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor="event-start">
-                                    Start Date *
-                                  </Label>
-                                  <Input
-                                    id="event-start"
-                                    type="datetime-local"
-                                    value={postForm.event.startDate}
-                                    onChange={(e) =>
-                                      setPostForm((prev) => ({
-                                        ...prev,
-                                        event: {
-                                          ...prev.event,
-                                          startDate: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="event-end">
-                                    End Date (Optional)
-                                  </Label>
-                                  <Input
-                                    id="event-end"
-                                    type="datetime-local"
-                                    value={postForm.event.endDate}
-                                    onChange={(e) =>
-                                      setPostForm((prev) => ({
-                                        ...prev,
-                                        event: {
-                                          ...prev.event,
-                                          endDate: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <Label htmlFor="event-location">Location</Label>
-                                <Input
-                                  id="event-location"
-                                  placeholder="Enter event location..."
-                                  value={postForm.event.location}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        location: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id="is-online"
-                                  checked={postForm.event.isOnline}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        isOnline: e.target.checked,
-                                      },
-                                    }))
-                                  }
-                                />
-                                <Label htmlFor="is-online">
-                                  This is an online event
-                                </Label>
-                              </div>
-                              <div>
-                                <Label htmlFor="max-attendees">
-                                  Max Attendees (Optional)
-                                </Label>
-                                <Input
-                                  id="max-attendees"
-                                  type="number"
-                                  placeholder="Enter maximum number of attendees..."
-                                  value={postForm.event.maxAttendees}
-                                  onChange={(e) =>
-                                    setPostForm((prev) => ({
-                                      ...prev,
-                                      event: {
-                                        ...prev.event,
-                                        maxAttendees: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setPostDialogOpen(false)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button onClick={handleCreatePost}>
-                              Create Post
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {communityPosts.map((post) => (
-                      <Card
-                        key={post._id}
-                        className="hover:shadow-md transition-shadow"
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-start space-x-3">
-                              <img
-                                src={
-                                  post.author.profileImage ||
-                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    `${post.author.firstName} ${post.author.lastName}`
-                                  )}&background=random`
-                                }
-                                alt={`${post.author.firstName} ${post.author.lastName}`}
-                                className="w-10 h-10 rounded-full object-cover"
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-semibold text-lg">
-                                    {post.title || "Post"}
-                                  </h3>
-                                  {post.isPinned && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-xs"
-                                    >
-                                      <Pin className="w-3 h-3 mr-1" />
-                                      Pinned
-                                    </Badge>
-                                  )}
-                                  {post.isAnnouncement && (
-                                    <Badge
-                                      variant="default"
-                                      className="text-xs"
-                                    >
-                                      Announcement
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-gray-600 mb-2">
-                                  {post.content}
-                                </p>
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
-                                  <span>
-                                    by {post.author.firstName}{" "}
-                                    {post.author.lastName}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{formatDate(post.createdAt)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <ThumbsUp className="w-4 h-4" />
-                                {post.likes.length}
-                              </div>
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <MessageCircle className="w-4 h-4" />
-                                {post.comments.length}
-                              </div>
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <Share2 className="w-4 h-4" />0
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="outline" size="sm">
-                                <ThumbsUp className="w-4 h-4 mr-1" />
-                                Like
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                <MessageCircle className="w-4 h-4 mr-1" />
-                                Comment
-                              </Button>
-                              <Button variant="ghost" size="sm">
-                                <Share2 className="w-4 h-4" />
-                              </Button>
-                              {/* Moderation Controls */}
-                              {selectedCommunity &&
-                                isUserAdmin(selectedCommunity) && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="sm">
-                                        <MoreVertical className="w-4 h-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          handleTogglePostPin(post._id)
-                                        }
-                                      >
-                                        <Pin className="w-4 h-4 mr-2" />
-                                        {post.isPinned
-                                          ? "Unpin Post"
-                                          : "Pin Post"}
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          handleTogglePostAnnouncement(post._id)
-                                        }
-                                      >
-                                        <Megaphone className="w-4 h-4 mr-2" />
-                                        {post.isAnnouncement
-                                          ? "Remove Announcement"
-                                          : "Mark as Announcement"}
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          handleDeletePost(post._id)
-                                        }
-                                        className="text-red-600"
-                                      >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Delete Post
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Select a Community
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  Choose a community from the Communities tab to view its posts.
-                </p>
-                <Button onClick={() => setActiveTab("communities")}>
-                  Browse Communities
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Members Tab */}
-          <TabsContent value="members" className="space-y-4">
-            {selectedCommunity && communityDetails ? (
-              <div>
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setActiveTab("communities")}
-                    >
-                      ← Back to Communities
-                    </Button>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                        {React.createElement(
-                          getCategoryIcon(selectedCommunity.category),
-                          {
-                            className: "w-6 h-6 text-white",
-                          }
-                        )}
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold">
-                          {selectedCommunity.name} - Members
-                        </h2>
-                        <p className="text-gray-600">
-                          Manage community members and permissions
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pending Requests */}
-                {communityDetails.pendingRequests.length > 0 &&
-                  isUserAdmin(communityDetails) && (
-                    <Card className="mb-6">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <UserPlus className="w-5 h-5" />
-                          Pending Join Requests (
-                          {communityDetails.pendingRequests.length})
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {communityDetails.pendingRequests.map((request) => (
-                            <div
-                              key={request._id}
-                              className="flex items-center justify-between p-3 border rounded-lg"
-                            >
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={
-                                    request.profileImage ||
-                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                      `${request.firstName} ${request.lastName}`
-                                    )}&background=random`
-                                  }
-                                  alt={`${request.firstName} ${request.lastName}`}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                />
-                                <div>
-                                  <h4 className="font-medium">
-                                    {request.firstName} {request.lastName}
-                                  </h4>
-                                  <p className="text-sm text-gray-500">
-                                    Requested to join
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleApproveJoinRequest(request._id)
-                                  }
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleRemoveMember(request._id)
-                                  }
-                                >
-                                  Reject
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                {/* Community Owner */}
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Star className="w-5 h-5 text-yellow-500" />
-                      Community Owner
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-3 p-3 border rounded-lg bg-yellow-50">
-                      <img
-                        src={
-                          communityDetails.owner.profileImage ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            `${communityDetails.owner.firstName} ${communityDetails.owner.lastName}`
-                          )}&background=random`
-                        }
-                        alt={`${communityDetails.owner.firstName} ${communityDetails.owner.lastName}`}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                      <div>
-                        <h4 className="font-semibold text-lg">
-                          {communityDetails.owner.firstName}{" "}
-                          {communityDetails.owner.lastName}
-                        </h4>
-                        <p className="text-sm text-gray-600">Community Owner</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Community Admins */}
-                {communityDetails.admins.length > 0 && (
-                  <Card className="mb-6">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Settings className="w-5 h-5 text-blue-500" />
-                        Community Admins ({communityDetails.admins.length})
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {communityDetails.admins.map((admin) => (
-                          <div
-                            key={admin._id}
-                            className="flex items-center justify-between p-3 border rounded-lg bg-blue-50"
-                          >
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={
-                                  admin.profileImage ||
-                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    `${admin.firstName} ${admin.lastName}`
-                                  )}&background=random`
-                                }
-                                alt={`${admin.firstName} ${admin.lastName}`}
-                                className="w-10 h-10 rounded-full object-cover"
-                              />
-                              <div>
-                                <h4 className="font-medium">
-                                  {admin.firstName} {admin.lastName}
-                                </h4>
-                                <p className="text-sm text-gray-500">
-                                  Community Admin
-                                </p>
-                              </div>
-                            </div>
-                            {isUserAdmin(communityDetails) &&
-                              admin._id !== communityDetails.owner._id && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleRemoveMember(admin._id)}
-                                >
-                                  Remove Admin
-                                </Button>
-                              )}
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Community Members */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="w-5 h-5 text-green-500" />
-                      Community Members ({communityDetails.members.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {communityDetails.members.map((member) => {
-                        const isAdmin = communityDetails.admins.some(
-                          (admin) => admin._id === member._id
-                        );
-                        const isOwner =
-                          communityDetails.owner._id === member._id;
-
-                        if (isOwner || isAdmin) return null; // Skip owners and admins as they're shown above
-
-                        return (
-                          <div
-                            key={member._id}
-                            className="flex items-center justify-between p-3 border rounded-lg"
-                          >
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={
-                                  member.profileImage ||
-                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    `${member.firstName} ${member.lastName}`
-                                  )}&background=random`
-                                }
-                                alt={`${member.firstName} ${member.lastName}`}
-                                className="w-10 h-10 rounded-full object-cover"
-                              />
-                              <div>
-                                <h4 className="font-medium">
-                                  {member.firstName} {member.lastName}
-                                </h4>
-                                <p className="text-sm text-gray-500">
-                                  Community Member
-                                </p>
-                              </div>
-                            </div>
-                            {isUserAdmin(communityDetails) && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handlePromoteToAdmin(member._id)
-                                  }
-                                >
-                                  Promote to Admin
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleRemoveMember(member._id)}
-                                >
-                                  Remove Member
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* Community members would be displayed here */}
+                <p>Members of {selectedCommunity.name}</p>
               </div>
             ) : (
               <div className="text-center py-12">

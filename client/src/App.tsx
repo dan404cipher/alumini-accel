@@ -190,6 +190,15 @@ const App = () => {
                 />
 
                 <Route
+                  path="/mentorship"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/admin"
                   element={
                     <ProtectedRoute>

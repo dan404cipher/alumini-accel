@@ -3,8 +3,11 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface ICommunityPost extends Document {
   communityId: mongoose.Types.ObjectId;
   authorId: mongoose.Types.ObjectId;
+  title: string;
   content: string;
   type: "text" | "image" | "video" | "poll" | "announcement";
+  priority?: "high" | "medium" | "low";
+  category?: string;
   mediaUrls?: string[];
   pollOptions?: {
     option: string;
@@ -35,6 +38,12 @@ const CommunityPostSchema = new Schema<ICommunityPost>(
       ref: "User",
       required: true,
     },
+    title: {
+      type: String,
+      required: [true, "Post title is required"],
+      trim: true,
+      maxlength: [100, "Post title cannot exceed 100 characters"],
+    },
     content: {
       type: String,
       required: [true, "Post content is required"],
@@ -46,6 +55,16 @@ const CommunityPostSchema = new Schema<ICommunityPost>(
       enum: ["text", "image", "video", "poll", "announcement"],
       default: "text",
       required: true,
+    },
+    priority: {
+      type: String,
+      enum: ["high", "medium", "low"],
+      default: "medium",
+    },
+    category: {
+      type: String,
+      trim: true,
+      maxlength: [50, "Category cannot exceed 50 characters"],
     },
     mediaUrls: [
       {
@@ -200,11 +219,31 @@ CommunityPostSchema.statics.findByCommunity = function (
   }
 
   return this.find(query)
-    .populate("authorId", "firstName lastName profileImage")
+    .populate({
+      path: "authorId",
+      select: "firstName lastName profileImage",
+      transform: function (doc: any) {
+        return doc
+          ? {
+              _id: doc._id,
+              firstName: doc.firstName,
+              lastName: doc.lastName,
+              profileImage: doc.profileImage,
+            }
+          : null;
+      },
+    })
     .populate("likes", "firstName lastName")
     .sort({ isPinned: -1, createdAt: -1 })
     .limit(options.limit || 20)
-    .skip(options.skip || 0);
+    .skip(options.skip || 0)
+    .lean()
+    .then((posts: any[]) =>
+      posts.map((post: any) => ({
+        ...post,
+        author: post.authorId,
+      }))
+    );
 };
 
 // Static method to find pinned posts

@@ -750,6 +750,10 @@ export const validateCommunity = [
 
 // Community post validation
 export const validateCommunityPost = [
+  body("title")
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Title must be between 1 and 100 characters"),
   body("content")
     .trim()
     .isLength({ min: 1, max: 2000 })
@@ -763,8 +767,15 @@ export const validateCommunityPost = [
     .withMessage("Media URLs must be an array"),
   body("mediaUrls.*")
     .optional()
-    .isURL()
-    .withMessage("Media URL must be a valid URL"),
+    .custom((value) => {
+      // Allow localhost URLs and standard URLs
+      const urlPattern =
+        /^https?:\/\/(localhost|127\.0\.0\.1|[\w.-]+)(:\d+)?\/.+$/i;
+      if (!urlPattern.test(value)) {
+        throw new Error("Media URL must be a valid URL");
+      }
+      return true;
+    }),
   body("pollOptions")
     .optional()
     .isArray()
@@ -788,6 +799,15 @@ export const validateCommunityPost = [
     .optional()
     .isBoolean()
     .withMessage("isAnnouncement must be a boolean"),
+  body("priority")
+    .optional()
+    .isIn(["high", "medium", "low"])
+    .withMessage("Priority must be high, medium, or low"),
+  body("category")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Category cannot exceed 50 characters"),
   handleValidationErrors,
 ];
 

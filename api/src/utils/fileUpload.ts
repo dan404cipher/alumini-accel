@@ -67,6 +67,11 @@ export const getFileUrl = (filename: string) => {
   return `${baseUrl}/uploads/communities/${filename}`;
 };
 
+// Helper function to get relative file URL (for better cross-origin support)
+export const getRelativeFileUrl = (filename: string) => {
+  return `/uploads/communities/${filename}`;
+};
+
 // Helper function to delete file
 export const deleteFile = (filename: string) => {
   const filePath = path.join(uploadsDir, filename);

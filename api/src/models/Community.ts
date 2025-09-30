@@ -4,6 +4,22 @@ export interface ICommunity extends Document {
   name: string;
   description: string;
   type: "open" | "closed" | "hidden";
+  category:
+    | "department"
+    | "batch"
+    | "interest"
+    | "professional"
+    | "location"
+    | "academic_research"
+    | "professional_career"
+    | "entrepreneurship_startups"
+    | "social_hobby"
+    | "mentorship_guidance"
+    | "events_meetups"
+    | "community_support_volunteering"
+    | "technology_deeptech"
+    | "regional_chapter_based"
+    | "other";
   coverImage?: string;
   logo?: string;
   createdBy: mongoose.Types.ObjectId;
@@ -52,6 +68,27 @@ const CommunitySchema = new Schema<ICommunity>(
       type: String,
       enum: ["open", "closed", "hidden"],
       default: "open",
+      required: true,
+    },
+    category: {
+      type: String,
+      enum: [
+        "department",
+        "batch",
+        "interest",
+        "professional",
+        "location",
+        "academic_research",
+        "professional_career",
+        "entrepreneurship_startups",
+        "social_hobby",
+        "mentorship_guidance",
+        "events_meetups",
+        "community_support_volunteering",
+        "technology_deeptech",
+        "regional_chapter_based",
+        "other",
+      ],
       required: true,
     },
     coverImage: {

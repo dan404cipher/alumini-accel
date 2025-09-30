@@ -13,6 +13,7 @@ import CommunityNew from "./CommunityNew";
 import Donations from "./Donations";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
+import CommunityDetail from "../pages/CommunityDetail";
 import RoleBasedDashboard from "./RoleBasedDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -50,6 +51,15 @@ const Layout = () => {
       location.pathname !== "/events"
     ) {
       return <EventDetail />;
+    }
+
+    // Handle community detail pages
+    if (
+      location.pathname.startsWith("/community/") &&
+      location.pathname !== "/community"
+    ) {
+      console.log("Routing to CommunityDetail for:", location.pathname);
+      return <CommunityDetail />;
     }
 
     switch (activeTab) {

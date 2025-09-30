@@ -29,6 +29,7 @@ import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
 import Connections from "./pages/Connections";
 import Messages from "./pages/Messages";
+import CommunityDetail from "./pages/CommunityDetail";
 
 const queryClient = new QueryClient();
 
@@ -173,6 +174,15 @@ const App = () => {
 
                 <Route
                   path="/community"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/community/:id"
                   element={
                     <ProtectedRoute>
                       <Layout />

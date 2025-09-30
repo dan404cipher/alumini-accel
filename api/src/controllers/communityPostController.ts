@@ -14,6 +14,7 @@ export const createPost = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { communityId } = req.params;
     const {
+      title,
       content,
       type,
       mediaUrls,
@@ -21,6 +22,8 @@ export const createPost = async (req: AuthenticatedRequest, res: Response) => {
       pollEndDate,
       tags,
       isAnnouncement,
+      priority,
+      category,
     } = req.body;
     const userId = req.user?._id;
 
@@ -74,6 +77,7 @@ export const createPost = async (req: AuthenticatedRequest, res: Response) => {
     const post = new CommunityPost({
       communityId: communityId,
       authorId: userId,
+      title,
       content,
       type: type || "text",
       mediaUrls: mediaUrls || [],
@@ -81,6 +85,8 @@ export const createPost = async (req: AuthenticatedRequest, res: Response) => {
       pollEndDate: pollEndDate || null,
       tags: tags || [],
       isAnnouncement: isAnnouncement || false,
+      priority: priority || "medium",
+      category: category || null,
       status,
     });
 

@@ -30,6 +30,7 @@ import Gallery from "./pages/Gallery";
 import Connections from "./pages/Connections";
 import Messages from "./pages/Messages";
 import CommunityDetail from "./pages/CommunityDetail";
+import CommunityDetailNew from "./pages/CommunityDetailNew";
 
 const queryClient = new QueryClient();
 

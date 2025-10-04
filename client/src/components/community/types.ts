@@ -87,6 +87,11 @@ export interface CommunityPost {
   likes: string[];
   comments: string[];
   shares: string[];
+  // Enhanced engagement data
+  likeCount: number;
+  commentCount: number;
+  shareCount: number;
+  isLiked: boolean;
   status: "pending" | "approved" | "rejected" | "deleted";
   isPinned: boolean;
   isAnnouncement: boolean;

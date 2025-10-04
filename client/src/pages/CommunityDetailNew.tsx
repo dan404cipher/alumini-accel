@@ -44,21 +44,34 @@ const CommunityDetailNew: React.FC = () => {
 
   // Fetch community data
   const fetchCommunity = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      console.error("No community ID found in URL params");
+      return;
+    }
+
+    console.log("Fetching community with ID:", id);
+    const url = `http://localhost:3000/api/v1/communities/${id}`;
+    console.log("Fetching from URL:", url);
 
     try {
       setLoading(true);
-      const response = await fetch(
-        `http://localhost:3000/api/v1/communities/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch community");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("API Error Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          errorData,
+        });
+        throw new Error(
+          `Failed to fetch community: ${response.status} ${response.statusText}`
+        );
       }
 
       const data = await response.json();

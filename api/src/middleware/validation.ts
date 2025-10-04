@@ -462,6 +462,18 @@ export const validateCommunityId = [
   handleValidationErrors,
 ];
 
+// Post ID parameter validation
+export const validatePostId = [
+  param("postId").isMongoId().withMessage("Invalid post ID format"),
+  handleValidationErrors,
+];
+
+// Comment ID parameter validation
+export const validateCommentId = [
+  param("commentId").isMongoId().withMessage("Invalid comment ID format"),
+  handleValidationErrors,
+];
+
 // Email validation
 export const validateEmail = [
   body("email")
@@ -886,6 +898,8 @@ export default {
   validatePagination,
   validateSearch,
   validateId,
+  validatePostId,
+  validateCommentId,
   validateEmail,
   validatePasswordReset,
   validateProfileUpdate,

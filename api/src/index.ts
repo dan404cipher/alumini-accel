@@ -39,6 +39,9 @@ import communityPostsRoutes from "@/routes/communityPosts";
 import communityMembershipsRoutes from "@/routes/communityMemberships";
 import communityCommentsRoutes from "@/routes/communityComments";
 import uploadRoutes from "@/routes/upload";
+import likesRoutes from "@/routes/likes";
+import commentsRoutes from "@/routes/comments";
+import sharesRoutes from "@/routes/shares";
 
 // Load environment variables
 dotenv.config();
@@ -217,6 +220,9 @@ app.use("/api/v1/community-posts", communityPostsRoutes);
 app.use("/api/v1/community-memberships", communityMembershipsRoutes);
 app.use("/api/v1/community-comments", communityCommentsRoutes);
 app.use("/api/v1/upload", uploadRoutes);
+app.use("/api/v1", likesRoutes);
+app.use("/api/v1", commentsRoutes);
+app.use("/api/v1", sharesRoutes);
 
 // Serve static files with CORS headers
 app.use(

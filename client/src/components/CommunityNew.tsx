@@ -1755,511 +1755,546 @@ const CommunityNew = () => {
                   <div className="space-y-3 pt-4 border-t">
                     <h3 className="text-sm font-semibold">Quick Actions</h3>
                     <div className="space-y-2">
-                      <Dialog
-                        open={communityDialogOpen}
-                        onOpenChange={setCommunityDialogOpen}
-                      >
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="w-full justify-start"
+                      {/* Only show Create Community button for College Admin, HOD, and Staff */}
+                      {user?.role &&
+                        ["college_admin", "hod", "staff"].includes(
+                          user.role
+                        ) && (
+                          <Dialog
+                            open={communityDialogOpen}
+                            onOpenChange={setCommunityDialogOpen}
                           >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create Community
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Create a Community</DialogTitle>
-                            <DialogDescription>
-                              Create a new community to connect with other
-                              alumni and share experiences.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-6">
-                            {/* Basic Information */}
-                            <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">
-                                Basic Information
-                              </h3>
-                              <div>
-                                <Label htmlFor="community-name">
-                                  Community Name *
-                                </Label>
-                                <Input
-                                  id="community-name"
-                                  placeholder="Enter community name..."
-                                  value={communityForm.name}
-                                  onChange={(e) =>
-                                    setCommunityForm((prev) => ({
-                                      ...prev,
-                                      name: e.target.value,
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="community-description">
-                                  Description *
-                                </Label>
-                                <Textarea
-                                  id="community-description"
-                                  placeholder="Describe your community..."
-                                  rows={3}
-                                  value={communityForm.description}
-                                  onChange={(e) =>
-                                    setCommunityForm((prev) => ({
-                                      ...prev,
-                                      description: e.target.value,
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor="community-category">
-                                    Category *
-                                  </Label>
-                                  <Select
-                                    value={communityForm.category}
-                                    onValueChange={(value) =>
-                                      setCommunityForm((prev) => ({
-                                        ...prev,
-                                        category: value,
-                                      }))
-                                    }
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select a category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="department">
-                                        Department
-                                      </SelectItem>
-                                      <SelectItem value="batch">
-                                        Batch
-                                      </SelectItem>
-                                      <SelectItem value="interest">
-                                        Interest
-                                      </SelectItem>
-                                      <SelectItem value="professional">
-                                        Professional
-                                      </SelectItem>
-                                      <SelectItem value="location">
-                                        Location
-                                      </SelectItem>
-                                      <SelectItem value="academic_research">
-                                        Academic & Research
-                                      </SelectItem>
-                                      <SelectItem value="professional_career">
-                                        Professional & Career
-                                      </SelectItem>
-                                      <SelectItem value="entrepreneurship_startups">
-                                        Entrepreneurship & Startups
-                                      </SelectItem>
-                                      <SelectItem value="social_hobby">
-                                        Social & Hobby
-                                      </SelectItem>
-                                      <SelectItem value="mentorship_guidance">
-                                        Mentorship & Guidance
-                                      </SelectItem>
-                                      <SelectItem value="events_meetups">
-                                        Events & Meetups
-                                      </SelectItem>
-                                      <SelectItem value="community_support_volunteering">
-                                        Community Support & Volunteering
-                                      </SelectItem>
-                                      <SelectItem value="technology_deeptech">
-                                        Technology & DeepTech
-                                      </SelectItem>
-                                      <SelectItem value="regional_chapter_based">
-                                        Regional / Chapter-based
-                                      </SelectItem>
-                                      <SelectItem value="other">
-                                        Other
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="community-visibility">
-                                    Visibility
-                                  </Label>
-                                  <Select
-                                    value={
-                                      communityForm.isPublic
-                                        ? "public"
-                                        : "private"
-                                    }
-                                    onValueChange={(value) =>
-                                      setCommunityForm((prev) => ({
-                                        ...prev,
-                                        isPublic: value === "public",
-                                      }))
-                                    }
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select visibility" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="public">
-                                        Public
-                                      </SelectItem>
-                                      <SelectItem value="private">
-                                        Private
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Media Upload */}
-                            <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">Media</h3>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor="cover-image">
-                                    Cover Image
-                                  </Label>
-                                  <div className="mt-2">
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="w-full justify-start"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create Community
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>Create a Community</DialogTitle>
+                                <DialogDescription>
+                                  Create a new community to connect with other
+                                  alumni and share experiences.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-6">
+                                {/* Basic Information */}
+                                <div className="space-y-4">
+                                  <h3 className="text-lg font-semibold">
+                                    Basic Information
+                                  </h3>
+                                  <div>
+                                    <Label htmlFor="community-name">
+                                      Community Name *
+                                    </Label>
                                     <Input
-                                      id="cover-image"
-                                      type="file"
-                                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                                      onChange={(e) => {
-                                        const file =
-                                          e.target.files?.[0] || null;
-                                        handleFileChange(file, "cover");
-                                      }}
-                                    />
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      JPG, PNG, WebP (max 5MB)
-                                    </p>
-                                    {communityForm.coverImage && (
-                                      <div className="mt-2">
-                                        <p className="text-sm text-green-600">
-                                          Selected:{" "}
-                                          {communityForm.coverImage.name}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div>
-                                  <Label htmlFor="logo">Logo</Label>
-                                  <div className="mt-2">
-                                    <Input
-                                      id="logo"
-                                      type="file"
-                                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                                      onChange={(e) => {
-                                        const file =
-                                          e.target.files?.[0] || null;
-                                        handleFileChange(file, "logo");
-                                      }}
-                                    />
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      JPG, PNG, WebP (max 5MB)
-                                    </p>
-                                    {communityForm.logo && (
-                                      <div className="mt-2">
-                                        <p className="text-sm text-green-600">
-                                          Selected: {communityForm.logo.name}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Tags */}
-                            <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">Tags</h3>
-                              <div>
-                                <Label htmlFor="tags-input">Add Tags</Label>
-                                <div className="flex gap-2 mt-2">
-                                  <Input
-                                    id="tags-input"
-                                    placeholder="Enter a tag..."
-                                    onKeyPress={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.preventDefault();
-                                        addTag(e.currentTarget.value);
-                                        e.currentTarget.value = "";
+                                      id="community-name"
+                                      placeholder="Enter community name..."
+                                      value={communityForm.name}
+                                      onChange={(e) =>
+                                        setCommunityForm((prev) => ({
+                                          ...prev,
+                                          name: e.target.value,
+                                        }))
                                       }
-                                    }}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                      const input = document.getElementById(
-                                        "tags-input"
-                                      ) as HTMLInputElement;
-                                      if (input.value) {
-                                        addTag(input.value);
-                                        input.value = "";
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="community-description">
+                                      Description *
+                                    </Label>
+                                    <Textarea
+                                      id="community-description"
+                                      placeholder="Describe your community..."
+                                      rows={3}
+                                      value={communityForm.description}
+                                      onChange={(e) =>
+                                        setCommunityForm((prev) => ({
+                                          ...prev,
+                                          description: e.target.value,
+                                        }))
                                       }
-                                    }}
-                                  >
-                                    Add
-                                  </Button>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {communityForm.tags.map((tag, index) => (
-                                    <div
-                                      key={index}
-                                      className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm"
-                                    >
-                                      {tag}
-                                      <button
-                                        type="button"
-                                        onClick={() => removeTag(tag)}
-                                        className="text-primary hover:text-primary/70"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Rules & Guidelines */}
-                            <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">
-                                Rules & Guidelines
-                              </h3>
-                              <div>
-                                <Label>Community Rules</Label>
-                                <div className="space-y-2 mt-2">
-                                  {communityForm.rules.map((rule, index) => (
-                                    <div key={index} className="flex gap-2">
-                                      <Input
-                                        placeholder={`Rule ${index + 1}`}
-                                        value={rule}
-                                        onChange={(e) =>
-                                          updateRule(index, e.target.value)
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label htmlFor="community-category">
+                                        Category *
+                                      </Label>
+                                      <Select
+                                        value={communityForm.category}
+                                        onValueChange={(value) =>
+                                          setCommunityForm((prev) => ({
+                                            ...prev,
+                                            category: value,
+                                          }))
                                         }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select a category" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="department">
+                                            Department
+                                          </SelectItem>
+                                          <SelectItem value="batch">
+                                            Batch
+                                          </SelectItem>
+                                          <SelectItem value="interest">
+                                            Interest
+                                          </SelectItem>
+                                          <SelectItem value="professional">
+                                            Professional
+                                          </SelectItem>
+                                          <SelectItem value="location">
+                                            Location
+                                          </SelectItem>
+                                          <SelectItem value="academic_research">
+                                            Academic & Research
+                                          </SelectItem>
+                                          <SelectItem value="professional_career">
+                                            Professional & Career
+                                          </SelectItem>
+                                          <SelectItem value="entrepreneurship_startups">
+                                            Entrepreneurship & Startups
+                                          </SelectItem>
+                                          <SelectItem value="social_hobby">
+                                            Social & Hobby
+                                          </SelectItem>
+                                          <SelectItem value="mentorship_guidance">
+                                            Mentorship & Guidance
+                                          </SelectItem>
+                                          <SelectItem value="events_meetups">
+                                            Events & Meetups
+                                          </SelectItem>
+                                          <SelectItem value="community_support_volunteering">
+                                            Community Support & Volunteering
+                                          </SelectItem>
+                                          <SelectItem value="technology_deeptech">
+                                            Technology & DeepTech
+                                          </SelectItem>
+                                          <SelectItem value="regional_chapter_based">
+                                            Regional / Chapter-based
+                                          </SelectItem>
+                                          <SelectItem value="other">
+                                            Other
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div>
+                                      <Label htmlFor="community-visibility">
+                                        Visibility
+                                      </Label>
+                                      <Select
+                                        value={
+                                          communityForm.isPublic
+                                            ? "public"
+                                            : "private"
+                                        }
+                                        onValueChange={(value) =>
+                                          setCommunityForm((prev) => ({
+                                            ...prev,
+                                            isPublic: value === "public",
+                                          }))
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select visibility" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="public">
+                                            Public
+                                          </SelectItem>
+                                          <SelectItem value="private">
+                                            Private
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Media Upload */}
+                                <div className="space-y-4">
+                                  <h3 className="text-lg font-semibold">
+                                    Media
+                                  </h3>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label htmlFor="cover-image">
+                                        Cover Image
+                                      </Label>
+                                      <div className="mt-2">
+                                        <Input
+                                          id="cover-image"
+                                          type="file"
+                                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                                          onChange={(e) => {
+                                            const file =
+                                              e.target.files?.[0] || null;
+                                            handleFileChange(file, "cover");
+                                          }}
+                                        />
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                          JPG, PNG, WebP (max 5MB)
+                                        </p>
+                                        {communityForm.coverImage && (
+                                          <div className="mt-2">
+                                            <p className="text-sm text-green-600">
+                                              Selected:{" "}
+                                              {communityForm.coverImage.name}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label htmlFor="logo">Logo</Label>
+                                      <div className="mt-2">
+                                        <Input
+                                          id="logo"
+                                          type="file"
+                                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                                          onChange={(e) => {
+                                            const file =
+                                              e.target.files?.[0] || null;
+                                            handleFileChange(file, "logo");
+                                          }}
+                                        />
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                          JPG, PNG, WebP (max 5MB)
+                                        </p>
+                                        {communityForm.logo && (
+                                          <div className="mt-2">
+                                            <p className="text-sm text-green-600">
+                                              Selected:{" "}
+                                              {communityForm.logo.name}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Tags */}
+                                <div className="space-y-4">
+                                  <h3 className="text-lg font-semibold">
+                                    Tags
+                                  </h3>
+                                  <div>
+                                    <Label htmlFor="tags-input">Add Tags</Label>
+                                    <div className="flex gap-2 mt-2">
+                                      <Input
+                                        id="tags-input"
+                                        placeholder="Enter a tag..."
+                                        onKeyPress={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            addTag(e.currentTarget.value);
+                                            e.currentTarget.value = "";
+                                          }
+                                        }}
                                       />
                                       <Button
                                         type="button"
                                         variant="outline"
-                                        size="sm"
-                                        onClick={() => removeRule(index)}
+                                        onClick={() => {
+                                          const input = document.getElementById(
+                                            "tags-input"
+                                          ) as HTMLInputElement;
+                                          if (input.value) {
+                                            addTag(input.value);
+                                            input.value = "";
+                                          }
+                                        }}
                                       >
-                                        Remove
+                                        Add
                                       </Button>
                                     </div>
-                                  ))}
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={addRule}
-                                    className="w-full"
-                                  >
-                                    Add Rule
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* External Links */}
-                            <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">
-                                External Links
-                              </h3>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor="website">Website</Label>
-                                  <Input
-                                    id="website"
-                                    type="url"
-                                    placeholder="https://example.com"
-                                    value={communityForm.externalLinks.website}
-                                    onChange={(e) =>
-                                      setCommunityForm((prev) => ({
-                                        ...prev,
-                                        externalLinks: {
-                                          ...prev.externalLinks,
-                                          website: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="github">GitHub</Label>
-                                  <Input
-                                    id="github"
-                                    type="url"
-                                    placeholder="https://github.com/username"
-                                    value={communityForm.externalLinks.github}
-                                    onChange={(e) =>
-                                      setCommunityForm((prev) => ({
-                                        ...prev,
-                                        externalLinks: {
-                                          ...prev.externalLinks,
-                                          github: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="slack">Slack</Label>
-                                  <Input
-                                    id="slack"
-                                    type="url"
-                                    placeholder="https://workspace.slack.com"
-                                    value={communityForm.externalLinks.slack}
-                                    onChange={(e) =>
-                                      setCommunityForm((prev) => ({
-                                        ...prev,
-                                        externalLinks: {
-                                          ...prev.externalLinks,
-                                          slack: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="discord">Discord</Label>
-                                  <Input
-                                    id="discord"
-                                    type="url"
-                                    placeholder="https://discord.gg/invite"
-                                    value={communityForm.externalLinks.discord}
-                                    onChange={(e) =>
-                                      setCommunityForm((prev) => ({
-                                        ...prev,
-                                        externalLinks: {
-                                          ...prev.externalLinks,
-                                          discord: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div className="col-span-2">
-                                  <Label htmlFor="other-link">Other Link</Label>
-                                  <Input
-                                    id="other-link"
-                                    type="url"
-                                    placeholder="https://example.com"
-                                    value={communityForm.externalLinks.other}
-                                    onChange={(e) =>
-                                      setCommunityForm((prev) => ({
-                                        ...prev,
-                                        externalLinks: {
-                                          ...prev.externalLinks,
-                                          other: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Invite Users */}
-                            <div className="space-y-4">
-                              <h3 className="text-lg font-semibold">
-                                Invite Users
-                              </h3>
-                              <div>
-                                <Label htmlFor="user-search">
-                                  Search Users
-                                </Label>
-                                <div className="relative">
-                                  <Input
-                                    id="user-search"
-                                    placeholder="Search by name or email..."
-                                    value={userSearchQuery}
-                                    onChange={(e) => {
-                                      setUserSearchQuery(e.target.value);
-                                      searchUsers(e.target.value);
-                                    }}
-                                  />
-                                  {availableUsers.length > 0 && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto">
-                                      {availableUsers.map((user) => (
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                      {communityForm.tags.map((tag, index) => (
                                         <div
-                                          key={user._id}
-                                          className="p-2 hover:bg-gray-100 cursor-pointer"
-                                          onClick={() => addInvitedUser(user)}
+                                          key={index}
+                                          className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-md text-sm"
                                         >
-                                          <div className="font-medium">
-                                            {user.firstName} {user.lastName}
-                                          </div>
-                                          <div className="text-sm text-gray-500">
-                                            {user.email}
-                                          </div>
+                                          {tag}
+                                          <button
+                                            type="button"
+                                            onClick={() => removeTag(tag)}
+                                            className="text-primary hover:text-primary/70"
+                                          >
+                                            ×
+                                          </button>
                                         </div>
                                       ))}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
-                                {communityForm.invitedUsers.length > 0 && (
-                                  <div className="mt-2">
-                                    <Label>Invited Users</Label>
-                                    <div className="flex flex-wrap gap-2 mt-1">
-                                      {communityForm.invitedUsers.map(
-                                        (userId) => {
-                                          const user = availableUsers.find(
-                                            (u) => u._id === userId
-                                          );
-                                          return (
-                                            <div
-                                              key={userId}
-                                              className="flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm"
+
+                                {/* Rules & Guidelines */}
+                                <div className="space-y-4">
+                                  <h3 className="text-lg font-semibold">
+                                    Rules & Guidelines
+                                  </h3>
+                                  <div>
+                                    <Label>Community Rules</Label>
+                                    <div className="space-y-2 mt-2">
+                                      {communityForm.rules.map(
+                                        (rule, index) => (
+                                          <div
+                                            key={index}
+                                            className="flex gap-2"
+                                          >
+                                            <Input
+                                              placeholder={`Rule ${index + 1}`}
+                                              value={rule}
+                                              onChange={(e) =>
+                                                updateRule(
+                                                  index,
+                                                  e.target.value
+                                                )
+                                              }
+                                            />
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => removeRule(index)}
                                             >
-                                              {user
-                                                ? `${user.firstName} ${user.lastName}`
-                                                : userId}
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  removeInvitedUser(userId)
-                                                }
-                                                className="text-blue-600 hover:text-blue-800"
-                                              >
-                                                ×
-                                              </button>
-                                            </div>
-                                          );
-                                        }
+                                              Remove
+                                            </Button>
+                                          </div>
+                                        )
                                       )}
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={addRule}
+                                        className="w-full"
+                                      >
+                                        Add Rule
+                                      </Button>
                                     </div>
                                   </div>
-                                )}
-                              </div>
-                            </div>
+                                </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex justify-end space-x-2 pt-4 border-t">
-                              <Button
-                                variant="outline"
-                                onClick={() => setCommunityDialogOpen(false)}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                onClick={handleCreateCommunity}
-                                disabled={uploadingFiles}
-                              >
-                                {uploadingFiles
-                                  ? "Creating..."
-                                  : "Create Community"}
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                                {/* External Links */}
+                                <div className="space-y-4">
+                                  <h3 className="text-lg font-semibold">
+                                    External Links
+                                  </h3>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label htmlFor="website">Website</Label>
+                                      <Input
+                                        id="website"
+                                        type="url"
+                                        placeholder="https://example.com"
+                                        value={
+                                          communityForm.externalLinks.website
+                                        }
+                                        onChange={(e) =>
+                                          setCommunityForm((prev) => ({
+                                            ...prev,
+                                            externalLinks: {
+                                              ...prev.externalLinks,
+                                              website: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor="github">GitHub</Label>
+                                      <Input
+                                        id="github"
+                                        type="url"
+                                        placeholder="https://github.com/username"
+                                        value={
+                                          communityForm.externalLinks.github
+                                        }
+                                        onChange={(e) =>
+                                          setCommunityForm((prev) => ({
+                                            ...prev,
+                                            externalLinks: {
+                                              ...prev.externalLinks,
+                                              github: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor="slack">Slack</Label>
+                                      <Input
+                                        id="slack"
+                                        type="url"
+                                        placeholder="https://workspace.slack.com"
+                                        value={
+                                          communityForm.externalLinks.slack
+                                        }
+                                        onChange={(e) =>
+                                          setCommunityForm((prev) => ({
+                                            ...prev,
+                                            externalLinks: {
+                                              ...prev.externalLinks,
+                                              slack: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor="discord">Discord</Label>
+                                      <Input
+                                        id="discord"
+                                        type="url"
+                                        placeholder="https://discord.gg/invite"
+                                        value={
+                                          communityForm.externalLinks.discord
+                                        }
+                                        onChange={(e) =>
+                                          setCommunityForm((prev) => ({
+                                            ...prev,
+                                            externalLinks: {
+                                              ...prev.externalLinks,
+                                              discord: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div className="col-span-2">
+                                      <Label htmlFor="other-link">
+                                        Other Link
+                                      </Label>
+                                      <Input
+                                        id="other-link"
+                                        type="url"
+                                        placeholder="https://example.com"
+                                        value={
+                                          communityForm.externalLinks.other
+                                        }
+                                        onChange={(e) =>
+                                          setCommunityForm((prev) => ({
+                                            ...prev,
+                                            externalLinks: {
+                                              ...prev.externalLinks,
+                                              other: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Invite Users */}
+                                <div className="space-y-4">
+                                  <h3 className="text-lg font-semibold">
+                                    Invite Users
+                                  </h3>
+                                  <div>
+                                    <Label htmlFor="user-search">
+                                      Search Users
+                                    </Label>
+                                    <div className="relative">
+                                      <Input
+                                        id="user-search"
+                                        placeholder="Search by name or email..."
+                                        value={userSearchQuery}
+                                        onChange={(e) => {
+                                          setUserSearchQuery(e.target.value);
+                                          searchUsers(e.target.value);
+                                        }}
+                                      />
+                                      {availableUsers.length > 0 && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                          {availableUsers.map((user) => (
+                                            <div
+                                              key={user._id}
+                                              className="p-2 hover:bg-gray-100 cursor-pointer"
+                                              onClick={() =>
+                                                addInvitedUser(user)
+                                              }
+                                            >
+                                              <div className="font-medium">
+                                                {user.firstName} {user.lastName}
+                                              </div>
+                                              <div className="text-sm text-gray-500">
+                                                {user.email}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {communityForm.invitedUsers.length > 0 && (
+                                      <div className="mt-2">
+                                        <Label>Invited Users</Label>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                          {communityForm.invitedUsers.map(
+                                            (userId) => {
+                                              const user = availableUsers.find(
+                                                (u) => u._id === userId
+                                              );
+                                              return (
+                                                <div
+                                                  key={userId}
+                                                  className="flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm"
+                                                >
+                                                  {user
+                                                    ? `${user.firstName} ${user.lastName}`
+                                                    : userId}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      removeInvitedUser(userId)
+                                                    }
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                  >
+                                                    ×
+                                                  </button>
+                                                </div>
+                                              );
+                                            }
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex justify-end space-x-2 pt-4 border-t">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                      setCommunityDialogOpen(false)
+                                    }
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    onClick={handleCreateCommunity}
+                                    disabled={uploadingFiles}
+                                  >
+                                    {uploadingFiles
+                                      ? "Creating..."
+                                      : "Create Community"}
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
                     </div>
                   </div>
                 </CardContent>

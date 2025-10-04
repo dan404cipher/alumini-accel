@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import User from "@/models/User";
 import AlumniProfile from "@/models/AlumniProfile";
+import Tenant from "@/models/Tenant";
 import { UserRole, UserStatus } from "@/types";
 import { logger } from "@/utils/logger";
 
@@ -452,6 +453,8 @@ const generateAlumniData = (index: number) => {
     profile: {
       batchYear,
       graduationYear,
+      university: "Alma Mater University",
+      program: getRandomItem(departments),
       department: getRandomItem(departments),
       specialization: getRandomItem([
         "Artificial Intelligence",
@@ -562,19 +565,80 @@ const connectDB = async () => {
 // Clear existing test data
 const clearTestData = async () => {
   try {
-    // Only clear test data (emails ending with @student.edu or @alumni.edu)
+    // Clear all test data including @alumni.com emails
     await User.deleteMany({
-      email: { $regex: /@(student|alumni)\.edu$/ },
+      $or: [
+        { email: { $regex: /@(student|alumni)\.edu$/ } },
+        { email: { $regex: /@alumni\.com$/ } },
+      ],
     });
     await AlumniProfile.deleteMany({});
+    await Tenant.deleteMany({});
     logger.info("Test data cleared successfully");
   } catch (error) {
     logger.error("Error clearing test data:", error);
   }
 };
 
+// Create tenant
+const createTenant = async () => {
+  try {
+    // Create super admin first (will be updated later)
+    const superAdminId = new mongoose.Types.ObjectId();
+
+    const tenant = new Tenant({
+      name: "Alma Mater University",
+      domain: "alma-mater.edu",
+      logo: "",
+      banner: "",
+      about:
+        "A prestigious university fostering excellence in education and innovation.",
+      superAdminId: superAdminId,
+      settings: {
+        allowAlumniRegistration: true,
+        requireApproval: false,
+        allowJobPosting: true,
+        allowFundraising: true,
+        allowMentorship: true,
+        allowEvents: true,
+        emailNotifications: true,
+        whatsappNotifications: true,
+        customBranding: true,
+      },
+      contactInfo: {
+        email: "admin@alma-mater.edu",
+        phone: "+1-555-0123",
+        address: "123 University Avenue, Education City, EC 12345",
+        website: "https://alma-mater.edu",
+      },
+      subscription: {
+        plan: "premium",
+        status: "active",
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+        maxUsers: 1000,
+        features: [
+          "jobBoard",
+          "events",
+          "mentorship",
+          "donations",
+          "alumniDirectory",
+        ],
+      },
+      isActive: true,
+    });
+
+    await tenant.save();
+    logger.info(`Created tenant: ${tenant.name}`);
+    return tenant;
+  } catch (error) {
+    logger.error("Error creating tenant:", error);
+    throw error;
+  }
+};
+
 // Create alumni
-const createAlumni = async () => {
+const createAlumni = async (tenantId: mongoose.Types.ObjectId) => {
   try {
     const alumni = [];
 
@@ -582,7 +646,10 @@ const createAlumni = async () => {
       const alumniData = generateAlumniData(i);
 
       // Create user
-      const user = new User(alumniData.user);
+      const user = new User({
+        ...alumniData.user,
+        tenantId: tenantId,
+      });
       await user.save();
 
       // Create alumni profile
@@ -614,19 +681,191 @@ const generateTestData = async () => {
     // Clear existing test data
     await clearTestData();
 
-    // Create alumni
-    logger.info("🎓 Creating 10 random alumni...");
-    const alumni = await createAlumni();
+    // Create tenant first
+    logger.info("🏢 Creating tenant...");
+    const tenant = await createTenant();
 
-    logger.info("🎉 Test data generation completed successfully!");
+    // Create all user roles for comprehensive testing
+    logger.info("👥 Creating all user roles...");
+
+    // 1. SUPER_ADMIN - Super Administrator
+    const superAdminUser = new User({
+      email: "superadmin@alumni.com",
+      password: "SuperAdmin@123",
+      firstName: "Super",
+      lastName: "Admin",
+      role: UserRole.SUPER_ADMIN,
+      status: UserStatus.VERIFIED,
+      tenantId: tenant._id,
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      phone: "+1-555-0101",
+      bio: "System administrator with full platform access",
+      location: "Global",
+    });
+    await superAdminUser.save();
+    logger.info("✅ Created Super Admin");
+
+    // Update tenant with super admin ID
+    await Tenant.findByIdAndUpdate(tenant._id, {
+      superAdminId: superAdminUser._id,
+    });
+    logger.info("✅ Updated tenant with super admin ID");
+
+    // 2. COLLEGE_ADMIN - College Administrator
+    const collegeAdminUser = new User({
+      email: "collegeadmin@alumni.com",
+      password: "CollegeAdmin@123",
+      firstName: "College",
+      lastName: "Admin",
+      role: UserRole.COLLEGE_ADMIN,
+      status: UserStatus.VERIFIED,
+      tenantId: tenant._id,
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      phone: "+1-555-0102",
+      bio: "College administrator managing Alma Mater University",
+      location: "University Campus",
+    });
+    await collegeAdminUser.save();
+    logger.info("✅ Created College Admin");
+
+    // 3. HOD - Head of Department
+    const hodUser = new User({
+      email: "hod@alumni.com",
+      password: "HodAdmin@123",
+      firstName: "Department",
+      lastName: "Head",
+      role: UserRole.HOD,
+      status: UserStatus.VERIFIED,
+      tenantId: tenant._id,
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      phone: "+1-555-0103",
+      bio: "Head of Computer Science Department",
+      location: "Tech Building",
+      department: "Computer Science",
+    });
+    await hodUser.save();
+    logger.info("✅ Created HOD");
+
+    // 4. STAFF - College Staff
+    const staffUser = new User({
+      email: "staff@alumni.com",
+      password: "StaffUser@123",
+      firstName: "Admin",
+      lastName: "Staff",
+      role: UserRole.STAFF,
+      status: UserStatus.VERIFIED,
+      tenantId: tenant._id,
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      phone: "+1-555-0104",
+      bio: "Administrative staff helping with alumni relations",
+      location: "Admin Building",
+      department: "Administration",
+    });
+    await staffUser.save();
+    logger.info("✅ Created Staff");
+
+    // 5. ALUMNI - Alumni Member
+    const alumniUser = new User({
+      email: "alumni@alumni.com",
+      password: "AlumniUser@123",
+      firstName: "John",
+      lastName: "Doe",
+      role: UserRole.ALUMNI,
+      status: UserStatus.VERIFIED,
+      tenantId: tenant._id,
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      phone: "+1-555-0105",
+      bio: "Experienced software engineer and proud alumni",
+      location: "San Francisco, CA",
+    });
+    await alumniUser.save();
+
+    // Create detailed alumni profile
+    const alumniProfile = new AlumniProfile({
+      userId: alumniUser._id,
+      batchYear: 2020,
+      graduationYear: 2022,
+      university: "Alma Mater University",
+      program: "Computer Science",
+      department: "Computer Science",
+      specialization: "Software Engineering",
+      rollNumber: "CS2020001",
+      studentId: "STU20200001",
+      currentCompany: "Google",
+      currentPosition: "Senior Software Engineer",
+      currentLocation: "San Francisco, CA",
+      experience: 2,
+      salary: 120000,
+      currency: "USD",
+      skills: ["JavaScript", "React", "Node.js", "Python", "AWS"],
+      achievements: ["Top Performer 2023", "Innovation Award Winner"],
+      certifications: [
+        {
+          name: "Google Cloud Professional",
+          issuer: "Google",
+          date: new Date("2023-06-15"),
+          expiry: new Date("2025-06-15"),
+          credentialId: "GCP-123456",
+          url: "https://cloud.google.com/certifications",
+        },
+        {
+          name: "AWS Certified Developer",
+          issuer: "Amazon Web Services",
+          date: new Date("2023-03-20"),
+          expiry: new Date("2026-03-20"),
+          credentialId: "AWS-DEV-789012",
+          url: "https://aws.pluralsight.com/aws-dev-cert",
+        },
+      ],
+      education: [
+        {
+          degree: "Bachelor's in Computer Science",
+          institution: "Alma Mater University",
+          year: 2022,
+          gpa: 3.8,
+        },
+      ],
+      careerTimeline: [
+        {
+          company: "Google",
+          position: "Senior Software Engineer",
+          startDate: new Date("2022-08-01"),
+          isCurrent: true,
+          description:
+            "Leading React and Node.js development for core Google products",
+        },
+      ],
+      isHiring: true,
+      availableForMentorship: true,
+      mentorshipDomains: [
+        "Software Engineering",
+        "Career Development",
+        "Technology Leadership",
+      ],
+    });
+    await alumniProfile.save();
+    logger.info("✅ Created Alumni with detailed profile");
+
+    logger.info("🎉 All user roles created successfully!");
     logger.info(`📊 Summary:`);
-    logger.info(`   - ${alumni.length} alumni created`);
+    logger.info(`   - 1 Super Admin (Level 5) ✅`);
+    logger.info(`   - 1 College Admin (Level 4) 🏫`);
+    logger.info(`   - 1 HOD (Level 3) 👨‍💼`);
+    logger.info(`   - 1 Staff (Level 2) 👥`);
+    logger.info(`   - 1 Alumni (Level 1) 🎓`);
 
     // Display sample credentials
-    logger.info("\n🔑 Sample Login Credentials:");
-    if (alumni.length > 0) {
-      logger.info(`Alumni: ${alumni[0].user.email} / Alumni@123`);
-    }
+    logger.info("\n🔑 Login Credentials:");
+    logger.info("👑 SUPER_ADMIN: superadmin@alumni.com / SuperAdmin@123");
+    logger.info("🏫 COLLEGE_ADMIN: collegeadmin@alumni.com / CollegeAdmin@123");
+    logger.info("👨‍💼 HOD: hod@alumni.com / Hod@123");
+    logger.info("👥 STAFF: staff@alumni.com / Staff@123");
+    logger.info("🎓 ALUMNI: alumni@alumni.com / Alumni@123");
 
     process.exit(0);
   } catch (error) {

@@ -11,6 +11,7 @@ import NewsRoom from "./NewsRoom";
 import Recognition from "./Recognition";
 import CommunityNew from "./CommunityNew";
 import Donations from "./Donations";
+import Mentorship from "./mentorship";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
 import CommunityDetailNew from "../pages/CommunityDetailNew";
@@ -82,6 +83,8 @@ const Layout = () => {
         return <CommunityNew />;
       case "donations":
         return <Donations />;
+      case "mentorship":
+        return <Mentorship />;
       case "about":
         // Redirect to the public About Us page
         navigate("/about");
@@ -113,6 +116,7 @@ const Layout = () => {
   const isAlumniPage = activeTab === "alumni";
   const isCommunityPage = activeTab === "community";
   const isDonationsPage = activeTab === "donations";
+  const isMentorshipPage = activeTab === "mentorship";
 
   return (
     <div
@@ -129,7 +133,8 @@ const Layout = () => {
           isGalleryPage ||
           isAlumniPage ||
           isCommunityPage ||
-          isDonationsPage
+          isDonationsPage ||
+          isMentorshipPage
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
@@ -144,7 +149,8 @@ const Layout = () => {
             isGalleryPage ||
             isAlumniPage ||
             isCommunityPage ||
-            isDonationsPage
+            isDonationsPage ||
+            isMentorshipPage
               ? ""
               : "animate-fade-in-up"
           }
@@ -159,7 +165,8 @@ const Layout = () => {
         !isGalleryPage &&
         !isAlumniPage &&
         !isCommunityPage &&
-        !isDonationsPage && <Footer />}
+        !isDonationsPage &&
+        !isMentorshipPage && <Footer />}
     </div>
   );
 };

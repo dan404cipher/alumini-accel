@@ -1,429 +1,482 @@
 import { Request, Response } from "express";
 import Campaign from "@/models/Campaign";
 import Donation from "@/models/Donation";
-import { logger } from "@/utils/logger";
 import { asyncHandler } from "@/middleware/errorHandler";
+import { logger } from "@/utils/logger";
 
-// @desc    Get all campaigns
-// @route   GET /api/v1/campaigns
-// @access  Private
+// Get all campaigns
 export const getAllCampaigns = asyncHandler(
   async (req: Request, res: Response) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const category = req.query.category as string;
-    const status = req.query.status as string;
-    const featured = req.query.featured as string;
-    const tenantId = req.user?.tenantId;
+    try {
+      const filter: any = { isPublic: true };
 
-    const query: any = {};
+      // Multi-tenant filtering
+      if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+        filter.tenantId = req.user.tenantId;
+      }
 
-    // Filter by tenant if not super admin
-    if (req.user?.role !== "super_admin") {
-      query.tenantId = tenantId;
+      // Filter by status
+      if (req.query.status) {
+        filter.status = req.query.status;
+      }
+
+      // Filter by category
+      if (req.query.category) {
+        filter.category = req.query.category;
+      }
+
+      // Search by title or description
+      if (req.query.search) {
+        filter.$or = [
+          { title: { $regex: req.query.search, $options: "i" } },
+          { description: { $regex: req.query.search, $options: "i" } },
+        ];
+      }
+
+      const campaigns = await Campaign.find(filter)
+        .populate("createdBy", "firstName lastName email")
+        .populate("tenantId", "name")
+        .sort({ createdAt: -1 })
+        .lean();
+
+      // Calculate additional fields for frontend
+      const campaignsWithStats = campaigns.map((campaign) => ({
+        ...campaign,
+        raised: campaign.currentAmount,
+        donors: campaign.statistics.totalDonors,
+        progressPercentage: Math.round(
+          (campaign.currentAmount / campaign.targetAmount) * 100
+        ),
+        daysRemaining: Math.max(
+          0,
+          Math.ceil(
+            (new Date(campaign.endDate).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        ),
+        isActive:
+          campaign.status === "active" &&
+          new Date() >= new Date(campaign.startDate) &&
+          new Date() <= new Date(campaign.endDate),
+        imageUrl: campaign.images?.[0] || "/default-campaign.jpg",
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: campaignsWithStats,
+        count: campaignsWithStats.length,
+      });
+    } catch (error) {
+      logger.error("Error fetching campaigns:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching campaigns",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
-
-    if (category) {
-      query.category = category;
-    }
-
-    if (status) {
-      query.status = status;
-    }
-
-    if (featured === "true") {
-      query.featured = true;
-    }
-
-    const skip = (page - 1) * limit;
-
-    const campaigns = await Campaign.find(query)
-      .populate("createdBy", "firstName lastName email")
-      .populate("tenantId", "name domain")
-      .select("-__v")
-      .sort({ featured: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Campaign.countDocuments(query);
-
-    return res.json({
-      success: true,
-      data: {
-        campaigns,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total,
-          limit,
-        },
-      },
-    });
   }
 );
 
-// @desc    Get campaign by ID
-// @route   GET /api/v1/campaigns/:id
-// @access  Private
+// Get campaign by ID
 export const getCampaignById = asyncHandler(
   async (req: Request, res: Response) => {
-    const campaign = await Campaign.findById(req.params.id)
-      .populate("createdBy", "firstName lastName email")
-      .populate("tenantId", "name domain")
-      .populate("statistics.topDonor.userId", "firstName lastName")
-      .select("-__v");
+    try {
+      const campaign = await Campaign.findById(req.params.id)
+        .populate("createdBy", "firstName lastName email")
+        .populate("tenantId", "name");
 
-    if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        message: "Campaign not found",
-      });
-    }
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
 
-    // Check tenant access
-    if (
-      req.user?.role !== "super_admin" &&
-      campaign.tenantId.toString() !== req.user?.tenantId?.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
-    }
+      // Check if user can view this campaign
+      if (
+        !campaign.isPublic &&
+        campaign.createdBy._id.toString() !== req.user?.id &&
+        req.user?.role !== "super_admin"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
 
-    // Get recent donations
-    const recentDonations = await Donation.find({
-      campaignId: campaign._id,
-      status: "completed",
-    })
-      .populate("donor", "firstName lastName")
-      .select("amount anonymous createdAt message")
-      .sort({ createdAt: -1 })
-      .limit(10);
+      // Get recent donations for this campaign
+      const recentDonations = await Donation.find({ campaignId: campaign._id })
+        .populate("donor", "firstName lastName")
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
 
-    return res.json({
-      success: true,
-      data: {
-        campaign,
+      const campaignWithStats = {
+        ...campaign.toObject(),
+        raised: campaign.currentAmount,
+        donors: campaign.statistics.totalDonors,
+        progressPercentage: Math.round(
+          (campaign.currentAmount / campaign.targetAmount) * 100
+        ),
+        daysRemaining: Math.max(
+          0,
+          Math.ceil(
+            (new Date(campaign.endDate).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        ),
+        isActive:
+          campaign.status === "active" &&
+          new Date() >= new Date(campaign.startDate) &&
+          new Date() <= new Date(campaign.endDate),
+        imageUrl: campaign.images?.[0] || "/default-campaign.jpg",
         recentDonations,
-      },
-    });
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: campaignWithStats,
+      });
+    } catch (error) {
+      logger.error("Error fetching campaign:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching campaign",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   }
 );
 
-// @desc    Create new campaign
-// @route   POST /api/v1/campaigns
-// @access  Private/Admin/HOD/Staff
+// Create new campaign
 export const createCampaign = asyncHandler(
   async (req: Request, res: Response) => {
-    const {
-      title,
-      description,
-      category,
-      targetAmount,
-      currency,
-      startDate,
-      endDate,
-      images,
-      documents,
-      allowAnonymous,
-      featured,
-      tags,
-      location,
-      contactInfo,
-    } = req.body;
+    try {
+      const campaignData = {
+        ...req.body,
+        createdBy: req.user?.id,
+        tenantId: req.user?.tenantId,
+        currentAmount: 0,
+        status: "draft",
+      };
 
-    const campaign = new Campaign({
-      title,
-      description,
-      tenantId: req.user?.tenantId,
-      createdBy: req.user?.id,
-      category,
-      targetAmount,
-      currency: currency || "INR",
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      images: images || [],
-      documents: documents || [],
-      allowAnonymous: allowAnonymous ?? true,
-      featured: featured ?? false,
-      tags: tags || [],
-      location,
-      contactInfo: {
-        email: contactInfo.email,
-        phone: contactInfo.phone,
-        person: contactInfo.person,
-      },
-    });
+      const campaign = new Campaign(campaignData);
+      await campaign.save();
 
-    await campaign.save();
+      await campaign.populate("createdBy", "firstName lastName email");
+      await campaign.populate("tenantId", "name");
 
-    const populatedCampaign = await Campaign.findById(campaign._id)
-      .populate("createdBy", "firstName lastName email")
-      .populate("tenantId", "name domain")
-      .select("-__v");
-
-    return res.status(201).json({
-      success: true,
-      message: "Campaign created successfully",
-      data: populatedCampaign,
-    });
+      return res.status(201).json({
+        success: true,
+        message: "Campaign created successfully",
+        data: campaign,
+      });
+    } catch (error) {
+      logger.error("Error creating campaign:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error creating campaign",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   }
 );
 
-// @desc    Update campaign
-// @route   PUT /api/v1/campaigns/:id
-// @access  Private/Admin/HOD/Staff
+// Update campaign
 export const updateCampaign = asyncHandler(
   async (req: Request, res: Response) => {
-    const campaign = await Campaign.findById(req.params.id);
+    try {
+      const campaign = await Campaign.findById(req.params.id);
 
-    if (!campaign) {
-      return res.status(404).json({
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
+
+      // Check if user can update this campaign
+      if (
+        campaign.createdBy.toString() !== req.user?.id &&
+        req.user?.role !== "super_admin"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      // Prepare update data
+      const updateData = { ...req.body };
+
+      // If updating endDate, ensure it's after startDate
+      if (updateData.endDate && updateData.startDate) {
+        const startDate = new Date(updateData.startDate);
+        const endDate = new Date(updateData.endDate);
+        if (endDate <= startDate) {
+          return res.status(400).json({
+            success: false,
+            message: "End date must be after start date",
+          });
+        }
+      } else if (updateData.endDate && !updateData.startDate) {
+        // If only updating endDate, compare with existing startDate
+        const existingCampaign = await Campaign.findById(req.params.id);
+        if (existingCampaign) {
+          const startDate = new Date(existingCampaign.startDate);
+          const endDate = new Date(updateData.endDate);
+          if (endDate <= startDate) {
+            return res.status(400).json({
+              success: false,
+              message: "End date must be after start date",
+            });
+          }
+        }
+      }
+
+      const updatedCampaign = await Campaign.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true, runValidators: false }
+      )
+        .populate("createdBy", "firstName lastName email")
+        .populate("tenantId", "name");
+
+      return res.status(200).json({
+        success: true,
+        message: "Campaign updated successfully",
+        data: updatedCampaign,
+      });
+    } catch (error) {
+      logger.error("Error updating campaign:", error);
+      return res.status(500).json({
         success: false,
-        message: "Campaign not found",
+        message: "Error updating campaign",
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
-
-    // Check access
-    if (
-      req.user?.role !== "super_admin" &&
-      campaign.tenantId.toString() !== req.user?.tenantId?.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
-    }
-
-    const {
-      title,
-      description,
-      category,
-      targetAmount,
-      currency,
-      startDate,
-      endDate,
-      images,
-      documents,
-      allowAnonymous,
-      featured,
-      tags,
-      location,
-      contactInfo,
-      status,
-    } = req.body;
-
-    // Update fields
-    if (title) campaign.title = title;
-    if (description) campaign.description = description;
-    if (category) campaign.category = category;
-    if (targetAmount) campaign.targetAmount = targetAmount;
-    if (currency) campaign.currency = currency;
-    if (startDate) campaign.startDate = new Date(startDate);
-    if (endDate) campaign.endDate = new Date(endDate);
-    if (images) campaign.images = images;
-    if (documents) campaign.documents = documents;
-    if (allowAnonymous !== undefined) campaign.allowAnonymous = allowAnonymous;
-    if (featured !== undefined) campaign.featured = featured;
-    if (tags) campaign.tags = tags;
-    if (location !== undefined) campaign.location = location;
-    if (contactInfo)
-      campaign.contactInfo = { ...campaign.contactInfo, ...contactInfo };
-    if (status) campaign.status = status;
-
-    await campaign.save();
-
-    const populatedCampaign = await Campaign.findById(campaign._id)
-      .populate("createdBy", "firstName lastName email")
-      .populate("tenantId", "name domain")
-      .select("-__v");
-
-    return res.json({
-      success: true,
-      message: "Campaign updated successfully",
-      data: populatedCampaign,
-    });
   }
 );
 
-// @desc    Delete campaign
-// @route   DELETE /api/v1/campaigns/:id
-// @access  Private/Admin/HOD/Staff
+// Delete campaign
 export const deleteCampaign = asyncHandler(
   async (req: Request, res: Response) => {
-    const campaign = await Campaign.findById(req.params.id);
+    try {
+      const campaign = await Campaign.findById(req.params.id);
 
-    if (!campaign) {
-      return res.status(404).json({
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
+
+      // Check if user can delete this campaign
+      const isCreator = campaign.createdBy.toString() === req.user?.id;
+      const isSuperAdmin = req.user?.role === "super_admin";
+
+      if (!isCreator && !isSuperAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      // Check if campaign has donations
+      const donationCount = await Donation.countDocuments({
+        campaignId: campaign._id,
+      });
+      if (donationCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot delete campaign with existing donations",
+        });
+      }
+
+      await Campaign.findByIdAndDelete(req.params.id);
+
+      return res.status(200).json({
+        success: true,
+        message: "Campaign deleted successfully",
+      });
+    } catch (error) {
+      logger.error("Error deleting campaign:", error);
+      return res.status(500).json({
         success: false,
-        message: "Campaign not found",
+        message: "Error deleting campaign",
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
-
-    // Check access
-    if (
-      req.user?.role !== "super_admin" &&
-      campaign.tenantId.toString() !== req.user?.tenantId?.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
-    }
-
-    await Campaign.findByIdAndDelete(req.params.id);
-
-    return res.json({
-      success: true,
-      message: "Campaign deleted successfully",
-    });
   }
 );
 
-// @desc    Add campaign update
-// @route   POST /api/v1/campaigns/:id/updates
-// @access  Private/Admin/HOD/Staff
-export const addCampaignUpdate = asyncHandler(
+// Get my campaigns
+export const getMyCampaigns = asyncHandler(
   async (req: Request, res: Response) => {
-    const campaign = await Campaign.findById(req.params.id);
+    try {
+      const campaigns = await Campaign.find({ createdBy: req.user?.id })
+        .populate("tenantId", "name")
+        .sort({ createdAt: -1 });
 
-    if (!campaign) {
-      return res.status(404).json({
+      const campaignsWithStats = campaigns.map((campaign) => ({
+        ...campaign.toObject(),
+        raised: campaign.currentAmount,
+        donors: campaign.statistics.totalDonors,
+        progressPercentage: Math.round(
+          (campaign.currentAmount / campaign.targetAmount) * 100
+        ),
+        daysRemaining: Math.max(
+          0,
+          Math.ceil(
+            (new Date(campaign.endDate).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        ),
+        isActive:
+          campaign.status === "active" &&
+          new Date() >= new Date(campaign.startDate) &&
+          new Date() <= new Date(campaign.endDate),
+        imageUrl: campaign.images?.[0] || "/default-campaign.jpg",
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: campaignsWithStats,
+        count: campaignsWithStats.length,
+      });
+    } catch (error) {
+      logger.error("Error fetching my campaigns:", error);
+      return res.status(500).json({
         success: false,
-        message: "Campaign not found",
+        message: "Error fetching my campaigns",
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
-
-    // Check access
-    if (
-      req.user?.role !== "super_admin" &&
-      campaign.tenantId.toString() !== req.user?.tenantId?.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
-    }
-
-    const { title, description } = req.body;
-
-    campaign.updates.push({
-      title,
-      description,
-      createdAt: new Date(),
-      createdBy: req.user?.id,
-    });
-
-    await campaign.save();
-
-    return res.json({
-      success: true,
-      message: "Campaign update added successfully",
-      data: campaign.updates[campaign.updates.length - 1],
-    });
   }
 );
 
-// @desc    Get campaign donations
-// @route   GET /api/v1/campaigns/:id/donations
-// @access  Private
-export const getCampaignDonations = asyncHandler(
+// Get campaign statistics
+export const getCampaignStats = asyncHandler(
   async (req: Request, res: Response) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const status = req.query.status as string;
+    try {
+      const filter: any = {};
 
-    const campaign = await Campaign.findById(req.params.id);
+      // Multi-tenant filtering
+      if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+        filter.tenantId = req.user.tenantId;
+      }
 
-    if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        message: "Campaign not found",
+      const totalCampaigns = await Campaign.countDocuments(filter);
+      const activeCampaigns = await Campaign.countDocuments({
+        ...filter,
+        status: "active",
       });
-    }
-
-    // Check access
-    if (
-      req.user?.role !== "super_admin" &&
-      campaign.tenantId.toString() !== req.user?.tenantId?.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
+      const completedCampaigns = await Campaign.countDocuments({
+        ...filter,
+        status: "completed",
       });
-    }
 
-    const query: any = { campaignId: req.params.id };
+      const totalRaised = await Campaign.aggregate([
+        { $match: filter },
+        { $group: { _id: null, total: { $sum: "$currentAmount" } } },
+      ]);
 
-    if (status) {
-      query.status = status;
-    }
-
-    const skip = (page - 1) * limit;
-
-    const donations = await Donation.find(query)
-      .populate("donor", "firstName lastName email")
-      .select("-__v")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Donation.countDocuments(query);
-
-    return res.json({
-      success: true,
-      data: {
-        donations,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total,
-          limit,
+      const totalDonations = await Donation.aggregate([
+        { $match: { tenantId: req.user?.tenantId } },
+        {
+          $group: { _id: null, count: { $sum: 1 }, total: { $sum: "$amount" } },
         },
-      },
-    });
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalCampaigns,
+          activeCampaigns,
+          completedCampaigns,
+          totalRaised: totalRaised[0]?.total || 0,
+          totalDonations: totalDonations[0]?.count || 0,
+          totalDonationAmount: totalDonations[0]?.total || 0,
+        },
+      });
+    } catch (error) {
+      logger.error("Error fetching campaign statistics:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching campaign statistics",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   }
 );
 
-// @desc    Update campaign statistics
-// @route   PUT /api/v1/campaigns/:id/stats
-// @access  Private
-export const updateCampaignStats = asyncHandler(
+// Upload campaign image
+export const uploadCampaignImage = asyncHandler(
   async (req: Request, res: Response) => {
-    const campaign = await Campaign.findById(req.params.id);
+    try {
+      const campaign = await Campaign.findById(req.params.id);
 
-    if (!campaign) {
-      return res.status(404).json({
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
+
+      // Check if user can update this campaign
+      if (
+        campaign.createdBy.toString() !== req.user?.id &&
+        req.user?.role !== "super_admin"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No image file provided",
+        });
+      }
+
+      // Add image to campaign and update imageUrl to the latest image
+      const imagePath = `/uploads/campaigns/${req.file.filename}`;
+
+      // Use the same approach as updateCampaign - modify the document and save
+      const campaignToUpdate = await Campaign.findById(req.params.id);
+      if (!campaignToUpdate) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
+
+      // Replace the campaign image (set images array to contain only the new image)
+      campaignToUpdate.images = [imagePath];
+
+      // Set imageUrl to the new image
+      campaignToUpdate.imageUrl = imagePath;
+
+      // Save the campaign
+      await campaignToUpdate.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Image uploaded successfully",
+        data: {
+          imageUrl: `/uploads/campaigns/${req.file.filename}`,
+        },
+      });
+    } catch (error) {
+      logger.error("Error uploading campaign image:", error);
+      return res.status(500).json({
         success: false,
-        message: "Campaign not found",
+        message: "Error uploading campaign image",
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
-
-    // Update campaign statistics manually
-    const donations = await Donation.find({
-      campaignId: campaign._id,
-      paymentStatus: "completed",
-    });
-
-    campaign.currentAmount = donations.reduce(
-      (sum, donation) => sum + donation.amount,
-      0
-    );
-    campaign.statistics.totalDonations = donations.length;
-    campaign.statistics.totalDonors = new Set(
-      donations.map((d) => d.donor.toString())
-    ).size;
-    campaign.statistics.averageDonation =
-      donations.length > 0 ? campaign.currentAmount / donations.length : 0;
-
-    await campaign.save();
-
-    return res.json({
-      success: true,
-      message: "Campaign statistics updated successfully",
-      data: campaign.statistics,
-    });
   }
 );
 
@@ -433,7 +486,7 @@ export default {
   createCampaign,
   updateCampaign,
   deleteCampaign,
-  addCampaignUpdate,
-  getCampaignDonations,
-  updateCampaignStats,
+  getMyCampaigns,
+  getCampaignStats,
+  uploadCampaignImage,
 };

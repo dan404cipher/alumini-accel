@@ -113,25 +113,40 @@ export const shareCampaign = async (campaign: any) => {
     const navShare = navigator as Navigator & {
       share?: (data: ShareData) => Promise<void>;
     };
+
+    // Try native sharing first (mobile devices)
     if (typeof navShare.share === "function") {
-      await navShare.share(shareData).catch(() => {});
-    } else if (
+      await navShare.share(shareData).catch(() => {
+        // Fallback to clipboard if native share fails
+        fallbackToClipboard(url);
+      });
+    } else {
+      // Fallback to clipboard for desktop
+      fallbackToClipboard(url);
+    }
+  } catch (err) {
+    console.error("Share failed", err);
+    // Silent fail - don't show alerts
+  }
+};
+
+const fallbackToClipboard = async (url: string) => {
+  try {
+    if (
       navigator.clipboard &&
       typeof navigator.clipboard.writeText === "function"
     ) {
       await navigator.clipboard.writeText(url);
-      alert("Share link copied to clipboard");
     } else {
+      // Legacy fallback for older browsers
       const temp = document.createElement("input");
       temp.value = url;
       document.body.appendChild(temp);
       temp.select();
       document.execCommand("copy");
       document.body.removeChild(temp);
-      alert("Share link copied to clipboard");
     }
   } catch (err) {
-    console.error("Share failed", err);
-    alert("Unable to share right now. Please try again.");
+    console.error("Clipboard copy failed", err);
   }
 };

@@ -1,5 +1,6 @@
 // Donation Management Types
 export interface Campaign {
+  _id?: string; // For API compatibility
   title: string;
   description: string;
   category: string;
@@ -17,6 +18,7 @@ export interface CampaignForm
   > {
   imageFile?: File | null;
   imagePreviewUrl?: string;
+  campaignId?: string; // For editing existing campaigns
 }
 
 export interface ErrorState {

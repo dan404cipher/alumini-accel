@@ -182,7 +182,7 @@ const CampaignManagement: React.FC = () => {
       });
 
       if (response.success) {
-        const campaignsWithProgress = response.data.campaigns.map(
+        const campaignsWithProgress = (response.data as Campaign[]).map(
           (campaign: Campaign) => ({
             ...campaign,
             progressPercentage: Math.round(
@@ -219,7 +219,27 @@ const CampaignManagement: React.FC = () => {
 
   const handleCreateCampaign = async (data: CampaignFormData) => {
     try {
-      const response = await campaignAPI.createCampaign(data);
+      // Ensure all required fields are provided with defaults
+      const campaignData = {
+        title: data.title!,
+        description: data.description!,
+        category: data.category!,
+        targetAmount: data.targetAmount!,
+        currency: data.currency || "INR",
+        startDate: data.startDate!,
+        endDate: data.endDate!,
+        allowAnonymous: data.allowAnonymous ?? true,
+        featured: data.featured ?? false,
+        tags: data.tags || [],
+        location: data.location,
+        contactInfo: {
+          email: data.contactInfo!.email!,
+          phone: data.contactInfo!.phone,
+          person: data.contactInfo!.person,
+        },
+      };
+
+      const response = await campaignAPI.createCampaign(campaignData);
 
       if (response.success) {
         toast({

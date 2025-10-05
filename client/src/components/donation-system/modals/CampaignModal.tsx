@@ -9,6 +9,8 @@ interface CampaignModalState {
     description: string;
     amount: string;
     endDate: string;
+    category: string;
+    imageFile: string;
   };
 }
 
@@ -28,6 +30,8 @@ const defaultErrors = {
   description: "",
   amount: "",
   endDate: "",
+  category: "",
+  imageFile: "",
 };
 
 const categoryOptions = [
@@ -36,6 +40,8 @@ const categoryOptions = [
   "Research & Academics",
   "Sports, Arts & Culture",
   "Community & Social Impact",
+  "Emergency",
+  "Other",
 ];
 
 const CampaignModal: React.FC<CampaignModalProps> = ({
@@ -53,7 +59,11 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
   useEffect(() => {
     if (open && editData) {
       setState({
-        formData: editData,
+        formData: {
+          ...editData,
+          // If editing and there's an existing imageUrl but no imagePreviewUrl, use imageUrl as preview
+          imagePreviewUrl: editData.imagePreviewUrl || editData.imageUrl || "",
+        },
         errors: defaultErrors,
       });
     } else if (open) {
@@ -83,6 +93,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
       setState((prev) => ({
         ...prev,
         formData: { ...prev.formData, imageFile: null, imagePreviewUrl: "" },
+        errors: { ...prev.errors, imageFile: "" }, // Clear image error
       }));
       return;
     }
@@ -93,6 +104,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
       setState((prev) => ({
         ...prev,
         formData: { ...prev.formData, imageFile: file, imagePreviewUrl: url },
+        errors: { ...prev.errors, imageFile: "" }, // Clear image error
       }));
     };
     reader.readAsDataURL(file);
@@ -102,21 +114,79 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
     const { formData } = state;
     const newErrors: Partial<typeof state.errors> = {};
 
+    // Title validation
     if (!formData.title.trim()) {
       newErrors.title = "Campaign title is required";
+    } else if (formData.title.trim().length < 5) {
+      newErrors.title = "Campaign title must be at least 5 characters";
+    } else if (formData.title.trim().length > 100) {
+      newErrors.title = "Campaign title must be less than 100 characters";
     }
+
+    // Description validation
     if (!formData.description.trim()) {
       newErrors.description = "Campaign description is required";
+    } else if (formData.description.trim().length < 20) {
+      newErrors.description =
+        "Campaign description must be at least 20 characters";
+    } else if (formData.description.trim().length > 1000) {
+      newErrors.description =
+        "Campaign description must be less than 1000 characters";
     }
-    if (
-      !formData.amount ||
-      isNaN(Number(formData.amount)) ||
-      Number(formData.amount) <= 0
-    ) {
-      newErrors.amount = "Please enter a valid target amount";
+
+    // Category validation
+    if (!formData.category) {
+      newErrors.category = "Please select a category";
     }
+
+    // Amount validation
+    if (!formData.amount) {
+      newErrors.amount = "Target amount is required";
+    } else if (isNaN(Number(formData.amount))) {
+      newErrors.amount = "Please enter a valid number";
+    } else if (Number(formData.amount) <= 0) {
+      newErrors.amount = "Target amount must be greater than 0";
+    } else if (Number(formData.amount) < 1000) {
+      newErrors.amount = "Target amount must be at least ₹1,000";
+    } else if (Number(formData.amount) > 100000000) {
+      newErrors.amount = "Target amount cannot exceed ₹10,00,00,000";
+    }
+
+    // End date validation
     if (!formData.endDate) {
       newErrors.endDate = "End date is required";
+    } else {
+      const endDate = new Date(formData.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day
+
+      if (endDate <= today) {
+        newErrors.endDate = "End date must be in the future";
+      } else if (
+        endDate > new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000)
+      ) {
+        newErrors.endDate = "End date cannot be more than 1 year from now";
+      }
+    }
+
+    // Image validation (optional but if provided, validate)
+    if (formData.imageFile) {
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (formData.imageFile.size > maxSize) {
+        newErrors.imageFile = "Image size must be less than 5MB";
+      }
+
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(formData.imageFile.type)) {
+        newErrors.imageFile =
+          "Please upload a valid image (JPEG, PNG, GIF, WebP)";
+      }
     }
 
     setState((prev) => ({
@@ -126,6 +196,8 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
         description: newErrors.description || "",
         amount: newErrors.amount || "",
         endDate: newErrors.endDate || "",
+        category: newErrors.category || "",
+        imageFile: newErrors.imageFile || "",
       },
     }));
 
@@ -138,8 +210,13 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
 
     // Emit save event - parent component will handle the actual save
     const customEvent = new CustomEvent("campaignSave", {
-      detail: { formData: state.formData, editIndex },
+      detail: {
+        formData: state.formData,
+        editIndex,
+        campaignId: editData?.campaignId,
+      },
     });
+
     window.dispatchEvent(customEvent);
 
     setState({
@@ -218,13 +295,20 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
                 name="category"
                 value={state.formData.category}
                 onChange={handleChange}
-                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                className={`mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+                  state.errors.category ? "border-red-500" : "border-gray-300"
+                }`}
               >
                 <option value="">Select an option</option>
                 {categoryOptions.map((cat) => (
                   <option key={cat}>{cat}</option>
                 ))}
               </select>
+              {state.errors.category && (
+                <p className="text-red-500 text-xs mt-1">
+                  {state.errors.category}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -278,18 +362,24 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
               type="file"
               accept="image/*"
               onChange={handleImageFileChange}
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+              className={`mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+                state.errors.imageFile ? "border-red-500" : "border-gray-300"
+              }`}
             />
             <p className="text-xs text-gray-500 mt-1">
               Upload a JPG or PNG image. A preview will appear below.
             </p>
+            {state.errors.imageFile && (
+              <p className="text-red-500 text-xs mt-1">
+                {state.errors.imageFile}
+              </p>
+            )}
             {state.formData.imagePreviewUrl && (
               <div className="mt-2">
                 <img
                   src={state.formData.imagePreviewUrl}
                   alt="Preview"
-                  className
-                  the="w-full h-40 object-cover rounded-lg border"
+                  className="w-full h-40 object-cover rounded-lg border"
                 />
               </div>
             )}

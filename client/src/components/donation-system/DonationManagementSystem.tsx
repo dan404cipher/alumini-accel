@@ -14,6 +14,7 @@ import DonationCard from "./components/DonationCard";
 import DonationTable from "./components/DonationTable";
 import CampaignModal from "./modals/CampaignModal";
 import DonationModal from "./modals/DonationModal";
+import ShareModal from "./modals/ShareModal";
 import { formatINR } from "./utils";
 
 const DonationManagementSystem: React.FC = () => {
@@ -26,12 +27,16 @@ const DonationManagementSystem: React.FC = () => {
     categoryFilter,
     menuOpenForCampaign,
     activeTab,
+    loading,
+    error,
     createModalOpen,
     donationModalOpen,
     donationModalCampaign,
     donationModalCampaignIndex,
     editModalOpen,
     selectedCampaignForEdit,
+    shareModalOpen,
+    selectedCampaignForShare,
     filteredActive,
     totalDonated,
     completedDonations,
@@ -41,9 +46,11 @@ const DonationManagementSystem: React.FC = () => {
     setCreateModalOpen,
     setDonationModalOpen,
     setEditModalOpen,
+    setShareModalOpen,
     handleOpenDonationModal,
     handleEditCampaign,
     handleDeleteCampaign,
+    handleShareCampaign,
   } = useDonationManagement();
 
   return (
@@ -279,8 +286,50 @@ const DonationManagementSystem: React.FC = () => {
             </div>
           </div>
 
+          {/* Loading and Error States */}
+          {loading && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">
+                  Loading campaigns and donations...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-md mx-auto p-6">
+                <div className="text-red-600 mb-4">
+                  <svg
+                    className="w-16 h-16 mx-auto"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Error Loading Data
+                </h3>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <p className="text-sm text-gray-500">
+                  Using fallback data. Please check your connection and try
+                  refreshing the page.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Main Content based on active tab */}
-          {activeTab === "campaigns" && (
+          {!loading && !error && activeTab === "campaigns" && (
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -318,6 +367,7 @@ const DonationManagementSystem: React.FC = () => {
                         day: "numeric",
                       })}`}
                       onDonate={() => handleOpenDonationModal(campaign, index)}
+                      onShare={() => handleShareCampaign(campaign)}
                       onEdit={() => handleEditCampaign(campaign, index)}
                       onDelete={() => handleDeleteCampaign(index)}
                     />
@@ -331,7 +381,7 @@ const DonationManagementSystem: React.FC = () => {
             </div>
           )}
 
-          {activeTab === "history" && (
+          {!loading && !error && activeTab === "history" && (
             <div className="bg-white border rounded-lg shadow-sm">
               <div className="p-4">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -382,6 +432,12 @@ const DonationManagementSystem: React.FC = () => {
         onClose={() => setDonationModalOpen(false)}
         campaign={donationModalCampaign}
         campaignIndex={donationModalCampaignIndex}
+      />
+
+      <ShareModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        campaign={selectedCampaignForShare}
       />
     </div>
   );

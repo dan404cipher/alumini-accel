@@ -58,6 +58,10 @@ const donationSchema = new Schema<IDonation>(
       type: String,
       required: true,
       enum: [
+        "UPI",
+        "Credit Card",
+        "Bank Transfer",
+        "Net Banking",
         "credit_card",
         "debit_card",
         "bank_transfer",

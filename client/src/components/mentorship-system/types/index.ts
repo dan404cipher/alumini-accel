@@ -17,6 +17,12 @@ export interface Mentor {
   mentees?: number;
   profile?: string;
   industry?: string;
+  availableSlots?: Array<{
+    day: string;
+    timeSlots: string[];
+    startDate?: string;
+    endDate?: string;
+  }>;
 }
 
 export interface MentorshipRequest {

@@ -129,6 +129,8 @@ const MentorshipSystem: React.FC = () => {
     selectedMentor,
     contentModal,
     filters,
+    loading,
+    error,
 
     // Actions
     handleAddMentor,
@@ -142,6 +144,7 @@ const MentorshipSystem: React.FC = () => {
     setActiveTab,
     setOpenForm,
     setOpenRequestForm,
+    refreshData,
   } = useMentorshipManagement(sampleMentors);
 
   // Get filtered mentors
@@ -398,38 +401,65 @@ const MentorshipSystem: React.FC = () => {
           {/* Tab Content */}
           {activeTab === "discover" && (
             <div>
+              {/* Loading State */}
+              {loading && (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600 text-lg">Loading mentors...</p>
+                </div>
+              )}
+
+              {/* Error State */}
+              {error && !loading && (
+                <div className="text-center py-12">
+                  <div className="text-red-600 text-6xl mb-4">⚠️</div>
+                  <p className="text-red-600 text-lg mb-2">
+                    Failed to load mentors
+                  </p>
+                  <p className="text-gray-500 mb-4">{error}</p>
+                  <button
+                    onClick={refreshData}
+                    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
               {/* Mentor Grid */}
-              <div>
-                {filteredMentors.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 text-lg">
-                      No mentors found matching your criteria
-                    </p>
-                    <p className="text-gray-500 mt-2">
-                      Try adjusting your search or filters
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                    {filteredMentors.map((mentor, index) => (
-                      <MentorCard
-                        key={index}
-                        mentor={mentor}
-                        onShowStyle={(style) =>
-                          handleOpenContentModal("Mentoring Style", style)
-                        }
-                        onShowTestimonial={(testimonial) =>
-                          handleOpenContentModal("Success Story", testimonial)
-                        }
-                        onRequestMentorship={() =>
-                          handleRequestMentorship(mentor)
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              {!loading && !error && (
+                <div>
+                  {filteredMentors.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 text-lg">
+                        No mentors found matching your criteria
+                      </p>
+                      <p className="text-gray-500 mt-2">
+                        Try adjusting your search or filters
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredMentors.map((mentor, index) => (
+                        <MentorCard
+                          key={index}
+                          mentor={mentor}
+                          onShowStyle={(style) =>
+                            handleOpenContentModal("Mentoring Style", style)
+                          }
+                          onShowTestimonial={(testimonial) =>
+                            handleOpenContentModal("Success Story", testimonial)
+                          }
+                          onRequestMentorship={() =>
+                            handleRequestMentorship(mentor)
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

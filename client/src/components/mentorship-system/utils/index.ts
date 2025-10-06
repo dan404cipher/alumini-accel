@@ -10,24 +10,137 @@ import type {
 } from "../types";
 
 /**
- * Validates mentor form data
+ * Validates mentor form data with detailed error messages
+ * @param formData - The mentor form data to validate
+ * @returns object with validation result and specific error messages
+ */
+export const validateMentorFormDetailed = (
+  formData: Mentor
+): {
+  isValid: boolean;
+  errors: { [key: string]: string };
+} => {
+  const errors: { [key: string]: string } = {};
+
+  // Name validation
+  if (!formData.name || formData.name.trim().length === 0) {
+    errors.name = "Full name is required";
+  } else if (formData.name.trim().length < 2) {
+    errors.name = "Name must be at least 2 characters long";
+  } else if (formData.name.trim().length > 50) {
+    errors.name = "Name cannot exceed 50 characters";
+  }
+
+  // Title validation
+  if (!formData.title || formData.title.trim().length === 0) {
+    errors.title = "Job title is required";
+  } else if (formData.title.trim().length < 2) {
+    errors.title = "Job title must be at least 2 characters long";
+  } else if (formData.title.trim().length > 100) {
+    errors.title = "Job title cannot exceed 100 characters";
+  }
+
+  // Company validation
+  if (!formData.company || formData.company.trim().length === 0) {
+    errors.company = "Company name is required";
+  } else if (formData.company.trim().length < 2) {
+    errors.company = "Company name must be at least 2 characters long";
+  } else if (formData.company.trim().length > 100) {
+    errors.company = "Company name cannot exceed 100 characters";
+  }
+
+  // Years of experience validation
+  if (
+    formData.yearsExp === "" ||
+    formData.yearsExp === null ||
+    formData.yearsExp === undefined
+  ) {
+    errors.yearsExp = "Years of experience is required";
+  } else if (typeof formData.yearsExp === "number" && formData.yearsExp < 0) {
+    errors.yearsExp = "Years of experience cannot be negative";
+  } else if (typeof formData.yearsExp === "number" && formData.yearsExp > 50) {
+    errors.yearsExp = "Years of experience cannot exceed 50";
+  }
+
+  // Available slots validation
+  if (
+    formData.slots === "" ||
+    formData.slots === null ||
+    formData.slots === undefined
+  ) {
+    errors.slots = "Available slots is required";
+  } else if (typeof formData.slots === "number" && formData.slots < 1) {
+    errors.slots = "Must have at least 1 available slot";
+  } else if (typeof formData.slots === "number" && formData.slots > 10) {
+    errors.slots = "Cannot have more than 10 slots";
+  }
+
+  // Expertise validation
+  if (!formData.expertise || formData.expertise.length === 0) {
+    errors.expertise = "At least one expertise area is required";
+  } else if (formData.expertise.length > 10) {
+    errors.expertise = "Cannot have more than 10 expertise areas";
+  } else {
+    // Validate each expertise item
+    formData.expertise.forEach((skill, index) => {
+      if (!skill || skill.trim().length === 0) {
+        errors[`expertise_${index}`] = "Expertise area cannot be empty";
+      } else if (skill.trim().length < 2) {
+        errors[`expertise_${index}`] =
+          "Expertise area must be at least 2 characters";
+      } else if (skill.trim().length > 50) {
+        errors[`expertise_${index}`] =
+          "Expertise area cannot exceed 50 characters";
+      }
+    });
+  }
+
+  // Mentoring style validation
+  if (!formData.style || formData.style.trim().length === 0) {
+    errors.style = "Mentoring style is required";
+  } else if (formData.style.trim().length < 10) {
+    errors.style = "Mentoring style must be at least 10 characters long";
+  } else if (formData.style.trim().length > 500) {
+    errors.style = "Mentoring style cannot exceed 500 characters";
+  }
+
+  // Available hours validation
+  if (!formData.hours || formData.hours.trim().length === 0) {
+    errors.hours = "Available hours is required";
+  } else if (formData.hours.trim().length < 3) {
+    errors.hours = "Available hours must be at least 3 characters long";
+  } else if (formData.hours.trim().length > 100) {
+    errors.hours = "Available hours cannot exceed 100 characters";
+  }
+
+  // Timezone validation
+  if (!formData.timezone || formData.timezone.trim().length === 0) {
+    errors.timezone = "Timezone is required";
+  }
+
+  // Testimonial validation
+  if (!formData.testimonial || formData.testimonial.trim().length === 0) {
+    errors.testimonial = "Testimonial is required";
+  } else if (formData.testimonial.trim().length < 20) {
+    errors.testimonial = "Testimonial must be at least 20 characters long";
+  } else if (formData.testimonial.trim().length > 1000) {
+    errors.testimonial = "Testimonial cannot exceed 1000 characters";
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+};
+
+/**
+ * Validates mentor form data (legacy function for backward compatibility)
  * @param formData - The mentor form data to validate
  * @returns boolean indicating if form is valid
  */
-export const validateMentorForm = (formData: Mentor): Boolean => {
-  // Basic validation logic - implement based on your requirements
-  return !!(
-    formData.name &&
-    formData.title &&
-    formData.company &&
-    formData.yearsExp !== "" &&
-    formData.slots !== "" &&
-    formData.expertise.length > 0 &&
-    formData.style &&
-    formData.hours &&
-    formData.timezone &&
-    formData.testimonial
-  );
+export const validateMentorForm = (formData: Mentor): boolean => {
+  const { isValid } = validateMentorFormDetailed(formData);
+  return isValid;
 };
 
 /**
@@ -35,7 +148,7 @@ export const validateMentorForm = (formData: Mentor): Boolean => {
  * @param formData - The request form data to validate
  * @returns boolean indicating if form is valid
  */
-export const validateRequestForm = (formData: RequestFormData): Boolean => {
+export const validateRequestForm = (formData: RequestFormData): boolean => {
   return !!(
     formData.applicantName &&
     formData.applicantEducation &&
@@ -249,6 +362,7 @@ export const getDefaultRequestData = (): RequestFormData => ({
 // Export all utility functions
 export default {
   validateMentorForm,
+  validateMentorFormDetailed,
   validateRequestForm,
   truncateText,
   formatTimeAgo,

@@ -34,7 +34,54 @@ export type PaymentMethod =
   | "Credit Card"
   | "Bank Transfer"
   | "Net Banking"
-  | "credit-card";
+  | "UPI QR"
+  | "Wallet"
+  | "EMI";
+
+export interface DonorInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  country: string;
+  anonymous: boolean;
+}
+
+export interface PaymentDetails {
+  method: PaymentMethod;
+  upiId?: string;
+  cardNumber?: string;
+  expiryDate?: string;
+  cvv?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+}
+
+export interface DonationFormData {
+  amount: number;
+  donorInfo: DonorInfo;
+  paymentDetails: PaymentDetails;
+  taxDeductible: boolean;
+  message?: string;
+  recurring?: boolean;
+  recurringFrequency?: "monthly" | "quarterly" | "yearly";
+}
+
+export interface DonationReceipt {
+  receiptId: string;
+  donorName: string;
+  amount: number;
+  campaignTitle: string;
+  date: string;
+  paymentMethod: PaymentMethod;
+  taxDeductible: boolean;
+  transactionId?: string;
+}
 
 export interface DonationHistoryItem {
   id: string;
@@ -45,6 +92,18 @@ export interface DonationHistoryItem {
   status: DonationStatus;
   method: PaymentMethod;
   taxDeductible: boolean;
+  // Donor information
+  donorInfo?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    anonymous?: boolean;
+  };
 }
 
 export interface DonationCardProps {
@@ -62,6 +121,7 @@ export interface DonationCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onShare?: () => void;
+  onViewDetails?: () => void;
 }
 
 export interface DonationModalProps {

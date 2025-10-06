@@ -427,6 +427,83 @@ export const createProfile = async (req: Request, res: Response) => {
   }
 };
 
+// Register as mentor
+export const registerAsMentor = async (req: Request, res: Response) => {
+  try {
+    const {
+      mentorshipDomains,
+      availableSlots,
+      mentoringStyle,
+      availableHours,
+      timezone,
+      bio,
+      testimonials,
+    } = req.body;
+
+    // Check if user already has an alumni profile
+    let alumniProfile = await AlumniProfile.findOne({
+      userId: req.user.id,
+    });
+
+    if (!alumniProfile) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Alumni profile not found. Please create your alumni profile first.",
+      });
+    }
+
+    // Check if already registered as mentor
+    if (alumniProfile.availableForMentorship) {
+      // Allow updates to existing mentor information
+      alumniProfile.mentorshipDomains =
+        mentorshipDomains || alumniProfile.mentorshipDomains;
+      alumniProfile.availableSlots =
+        availableSlots || alumniProfile.availableSlots;
+
+      // Note: mentoringStyle, availableHours, timezone, and bio are not stored in AlumniProfile model
+      // These fields are only used for the registration process
+
+      // Add testimonials if provided
+      if (testimonials && testimonials.length > 0) {
+        alumniProfile.testimonials = testimonials;
+      }
+
+      await alumniProfile.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Mentor information updated successfully",
+        data: alumniProfile,
+      });
+    }
+
+    // First-time registration
+    alumniProfile.availableForMentorship = true;
+    alumniProfile.mentorshipDomains = mentorshipDomains || [];
+    alumniProfile.availableSlots = availableSlots || [];
+
+    // Add testimonials if provided
+    if (testimonials && testimonials.length > 0) {
+      alumniProfile.testimonials = testimonials;
+    }
+
+    await alumniProfile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully registered as mentor",
+      data: alumniProfile,
+    });
+  } catch (error) {
+    logger.error("Register as mentor error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to register as mentor",
+    });
+  }
+};
+
 // Update alumni profile
 export const updateProfile = async (req: Request, res: Response) => {
   try {
@@ -668,7 +745,7 @@ export const getMentors = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const alumni = await AlumniProfile.find({ availableForMentorship: true })
-      .populate("user", "firstName lastName email profilePicture")
+      .populate("userId", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -1710,6 +1787,7 @@ export default {
   getAlumniById,
   createProfile,
   updateProfile,
+  registerAsMentor,
   updateSkillsInterests,
   searchAlumni,
   getAlumniByBatch,

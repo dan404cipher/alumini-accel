@@ -18,12 +18,16 @@ const DonationCard: React.FC<DonationCardProps> = ({
   onEdit,
   onDelete,
   onShare,
+  onViewDetails,
 }) => {
   const percent = calculateProgressPercentage(raisedAmount, targetAmount);
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="bg-white shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden border h-full flex flex-col">
+    <div
+      className="bg-white shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden border h-full flex flex-col cursor-pointer"
+      onClick={onViewDetails}
+    >
       {/* Image Section */}
       <div className="relative flex-shrink-0">
         <img
@@ -57,14 +61,18 @@ const DonationCard: React.FC<DonationCardProps> = ({
           <div className="relative">
             <button
               className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((v) => !v);
+              }}
             >
               <MoreVertical className="w-5 h-5" />
             </button>
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-36 bg-white border rounded-lg shadow-lg z-10">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setMenuOpen(false);
                     if (onEdit) {
                       onEdit();
@@ -75,7 +83,8 @@ const DonationCard: React.FC<DonationCardProps> = ({
                   <Pencil className="w-4 h-4" /> Edit
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setMenuOpen(false);
                     if (onDelete) {
                       onDelete();
@@ -135,13 +144,19 @@ const DonationCard: React.FC<DonationCardProps> = ({
         {/* Action Buttons */}
         <div className="mt-auto pt-4 sm:pt-6 flex items-center gap-3">
           <button
-            onClick={onDonate}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onDonate) onDonate();
+            }}
             className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold px-3 sm:px-4 py-2 sm:py-3 rounded-xl transition-colors text-xs sm:text-sm"
           >
             <Heart className="w-3 h-3 sm:w-4 sm:h-4" /> Donate
           </button>
           <button
-            onClick={onShare}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onShare) onShare();
+            }}
             className="p-3 rounded-xl border text-gray-600 hover:bg-gray-50"
           >
             <Share2 className="w-4 h-4" />

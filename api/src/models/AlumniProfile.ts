@@ -370,6 +370,16 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
             ],
           },
         ],
+        startDate: {
+          type: Date,
+          required: false,
+          default: null,
+        },
+        endDate: {
+          type: Date,
+          required: false,
+          default: null,
+        },
       },
     ],
     testimonials: [

@@ -19,6 +19,33 @@ router.get(
   asyncHandler(mentorshipController.getAllMentorships)
 );
 
+// @route   GET /api/v1/mentorship/my-mentorships
+// @desc    Get user's mentorships
+// @access  Private
+router.get(
+  "/my-mentorships",
+  authenticateToken,
+  asyncHandler(mentorshipController.getMyMentorships)
+);
+
+// @route   GET /api/v1/mentorship/active
+// @desc    Get active mentorships
+// @access  Private
+router.get(
+  "/active",
+  authenticateToken,
+  asyncHandler(mentorshipController.getActiveMentorships)
+);
+
+// @route   GET /api/v1/mentorship/pending
+// @desc    Get pending mentorships
+// @access  Private
+router.get(
+  "/pending",
+  authenticateToken,
+  asyncHandler(mentorshipController.getPendingMentorships)
+);
+
 // @route   GET /api/v1/mentorship/:id
 // @desc    Get mentorship by ID
 // @access  Private
@@ -97,33 +124,6 @@ router.post(
   authenticateToken,
   ...validateRequest(validateId),
   asyncHandler(mentorshipController.submitFeedback)
-);
-
-// @route   GET /api/v1/mentorship/my-mentorships
-// @desc    Get user's mentorships
-// @access  Private
-router.get(
-  "/my-mentorships",
-  authenticateToken,
-  asyncHandler(mentorshipController.getMyMentorships)
-);
-
-// @route   GET /api/v1/mentorship/active
-// @desc    Get active mentorships
-// @access  Private
-router.get(
-  "/active",
-  authenticateToken,
-  asyncHandler(mentorshipController.getActiveMentorships)
-);
-
-// @route   GET /api/v1/mentorship/pending
-// @desc    Get pending mentorship requests
-// @access  Private
-router.get(
-  "/pending",
-  authenticateToken,
-  asyncHandler(mentorshipController.getPendingMentorships)
 );
 
 export default router;

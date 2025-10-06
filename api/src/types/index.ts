@@ -262,6 +262,8 @@ export interface IAlumniProfile extends Document {
   availableSlots: Array<{
     day: string;
     timeSlots: string[];
+    startDate?: Date;
+    endDate?: Date;
   }>;
   testimonials: Array<{
     content: string;

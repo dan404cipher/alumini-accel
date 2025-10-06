@@ -28,9 +28,9 @@ const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, campaign }) => {
 
   if (!open) return null;
 
-  const shareUrl = `${window.location.origin}${
-    window.location.pathname
-  }?campaign=${encodeURIComponent(campaign.title)}`;
+  const shareUrl = `${window.location.origin}/donations?viewCampaign=${
+    campaign._id || encodeURIComponent(campaign.title)
+  }`;
   const shareText = `Check out this campaign: ${campaign.title}`;
   const shareDescription = campaign.description || "Help make a difference!";
 

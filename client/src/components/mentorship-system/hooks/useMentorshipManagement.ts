@@ -2,7 +2,9 @@
 // Author: AI Assistant
 // Purpose: Centralized state management and business logic for mentorship system
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { mentorshipApi } from "@/services/mentorshipApi";
 import type {
   Mentor,
   MentorshipRequest,
@@ -22,6 +24,8 @@ interface UseMentorshipManagementReturn {
   selectedMentor: Mentor | null;
   contentModal: ContentModalProps;
   filters: MentorshipFilters;
+  loading: boolean;
+  error: string | null;
 
   // Setters
   setMentors: (mentors: Mentor[]) => void;
@@ -47,11 +51,14 @@ interface UseMentorshipManagementReturn {
     totalRequests: number;
     activeMentorships: number;
   };
+  refreshData: () => Promise<void>;
 }
 
 export const useMentorshipManagement = (
   initialMentors: Mentor[] = []
 ): UseMentorshipManagementReturn => {
+  const { toast } = useToast();
+
   // Core state
   const [mentors, setMentors] = useState<Mentor[]>(initialMentors);
   const [requests, setRequests] = useState<MentorshipRequest[]>([]);
@@ -59,6 +66,8 @@ export const useMentorshipManagement = (
   const [openForm, setOpenForm] = useState(false);
   const [openRequestForm, setOpenRequestForm] = useState(false);
   const [selectedMentor, setSelectedMentor] = useState<Mentor | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modal state
   const [contentModal, setContentModal] = useState<ContentModalProps>({
@@ -74,27 +83,259 @@ export const useMentorshipManagement = (
     selectedExperienceLevel: "",
   });
 
-  // Memoized mentor actions
-  const handleAddMentor = useCallback((mentor: Mentor) => {
-    setMentors((prev) => [...prev, mentor]);
-    setOpenForm(false);
+  // Transform API mentor data to frontend format
+  const transformMentorFromApi = (apiMentor: any): Mentor => {
+    return {
+      name:
+        `${apiMentor.firstName || ""} ${apiMentor.lastName || ""}`.trim() ||
+        "Unknown Mentor",
+      title: apiMentor.title || "Professional",
+      company: apiMentor.company || "Unknown Company",
+      yearsExp: apiMentor.yearsOfExperience || 0,
+      slots: apiMentor.availableSlots || 1,
+      expertise: apiMentor.mentorshipDomains || [],
+      style: apiMentor.mentoringStyle || "Collaborative and supportive",
+      hours: apiMentor.availableHours || "Flexible",
+      timezone: apiMentor.timezone || "UTC",
+      testimonial: apiMentor.bio || "Experienced professional ready to help",
+      rating: apiMentor.averageRating || 4.5,
+      mentores: apiMentor.totalMentees || 0,
+    };
+  };
+
+  // Transform API mentorship request to frontend format
+  const transformRequestFromApi = (apiRequest: any): MentorshipRequest => {
+    return {
+      id: apiRequest._id || utils.generateRequestId(),
+      applicantName:
+        `${apiRequest.mentee?.firstName || ""} ${
+          apiRequest.mentee?.lastName || ""
+        }`.trim() || "Unknown Applicant",
+      applicantProfile: apiRequest.mentee?.profilePicture || "",
+      applicantEducation: apiRequest.mentee?.education || "Student",
+      applicantYear: apiRequest.mentee?.graduationYear || "2024",
+      mentorName:
+        `${apiRequest.mentor?.firstName || ""} ${
+          apiRequest.mentor?.lastName || ""
+        }`.trim() || "Unknown Mentor",
+      mentorTitle: apiRequest.mentor?.title || "Professional",
+      mentorCompany: apiRequest.mentor?.company || "Unknown Company",
+      careerGoals: apiRequest.goals || [],
+      challenges: apiRequest.message || "",
+      background: apiRequest.mentee?.bio || "",
+      expectations: apiRequest.expectations || "",
+      timeCommitment: apiRequest.timeCommitment || "Flexible",
+      communicationMethod: apiRequest.communicationMethod || "Email",
+      specificQuestions: apiRequest.questions || [],
+      status:
+        apiRequest.status === "PENDING"
+          ? "Pending"
+          : apiRequest.status === "ACCEPTED"
+          ? "Approved"
+          : apiRequest.status === "REJECTED"
+          ? "Rejected"
+          : "Pending",
+      submittedAt: new Date(apiRequest.createdAt || Date.now()),
+    };
+  };
+
+  // Load mentors from API
+  const loadMentors = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const isApiAvailable = await mentorshipApi.checkApiHealth();
+
+      if (isApiAvailable) {
+        const response = await mentorshipApi.getMentors();
+        if (response.success && response.data) {
+          const mentorsData = response.data.alumni || [];
+          const transformedMentors = mentorsData.map(transformMentorFromApi);
+          setMentors(transformedMentors);
+        }
+      } else {
+        // Fallback to initial mentors if API is not available
+        setMentors(initialMentors);
+      }
+    } catch (error) {
+      console.error("Error loading mentors:", error);
+      setError("Failed to load mentors");
+      // Fallback to initial mentors
+      setMentors(initialMentors);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load mentorship requests from API
+  const loadRequests = async () => {
+    try {
+      const isApiAvailable = await mentorshipApi.checkApiHealth();
+
+      if (isApiAvailable) {
+        const response = await mentorshipApi.getMyMentorships();
+        if (response.success && response.data) {
+          const requestsData = response.data.mentorships || [];
+          const transformedRequests = requestsData.map(transformRequestFromApi);
+          setRequests(transformedRequests);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading mentorship requests:", error);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    loadMentors();
+    loadRequests();
   }, []);
 
-  const handleUpdateMentor = useCallback(
-    (mentorId: string, updatedMentor: Mentor) => {
-      setMentors((prev) =>
-        prev.map((mentor) =>
-          mentor.name === mentorId ? updatedMentor : mentor
-        )
-      );
-      setOpenForm(false);
+  // Refresh all data
+  const refreshData = async () => {
+    await Promise.all([loadMentors(), loadRequests()]);
+  };
+
+  // Memoized mentor actions
+  const handleAddMentor = useCallback(
+    async (mentor: Mentor) => {
+      try {
+        // Transform mentor data to API format
+        const mentorData = {
+          mentorshipDomains: mentor.expertise,
+          mentoringStyle: mentor.style,
+          availableHours: mentor.hours,
+          timezone: mentor.timezone,
+          bio: mentor.testimonial,
+          testimonials: mentor.testimonial
+            ? [
+                {
+                  content: mentor.testimonial,
+                  author: "Self",
+                  date: new Date(),
+                },
+              ]
+            : [],
+          availableSlots: [], // Default empty slots
+        };
+
+        const isApiAvailable = await mentorshipApi.checkApiHealth();
+
+        if (isApiAvailable) {
+          const response = await mentorshipApi.registerAsMentor(mentorData);
+
+          if (response.success) {
+            // Check if this was an update or new registration
+            if (response.message?.includes("updated")) {
+              toast({
+                title: "Mentor Information Updated",
+                description: `${mentor.name}'s mentor profile has been updated successfully.`,
+                duration: 3000,
+              });
+            } else {
+              toast({
+                title: "Mentor Registered",
+                description: `${mentor.name} has been successfully registered as a mentor.`,
+                duration: 3000,
+              });
+            }
+
+            // Refresh mentors to show the updated information
+            await loadMentors();
+          } else {
+            // Handle specific error cases
+            if (response.message?.includes("Alumni profile not found")) {
+              toast({
+                title: "Profile Required",
+                description:
+                  "Please create your alumni profile first before registering as a mentor.",
+                variant: "destructive",
+                duration: 5000,
+              });
+            } else {
+              toast({
+                title: "Registration Failed",
+                description:
+                  response.message ||
+                  "Failed to register as mentor. Please try again.",
+                variant: "destructive",
+                duration: 5000,
+              });
+            }
+          }
+        } else {
+          // Fallback to local state if API is not available
+          setMentors((prev) => [...prev, mentor]);
+          toast({
+            title: "Mentor Added",
+            description: `${mentor.name} has been added to the mentorship program.`,
+            duration: 3000,
+          });
+        }
+
+        setOpenForm(false);
+      } catch (error) {
+        console.error("Error adding mentor:", error);
+        toast({
+          title: "Error",
+          description: "Failed to register as mentor. Please try again.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
     },
-    []
+    [toast, loadMentors]
   );
 
-  const handleDeleteMentor = useCallback((mentorId: string) => {
-    setMentors((prev) => prev.filter((mentor) => mentor.name !== mentorId));
-  }, []);
+  const handleUpdateMentor = useCallback(
+    async (mentorId: string, updatedMentor: Mentor) => {
+      try {
+        setMentors((prev) =>
+          prev.map((mentor) =>
+            mentor.name === mentorId ? updatedMentor : mentor
+          )
+        );
+        setOpenForm(false);
+        toast({
+          title: "Mentor Updated",
+          description: `${updatedMentor.name}'s profile has been updated.`,
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Error updating mentor:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update mentor. Please try again.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
+    },
+    [toast]
+  );
+
+  const handleDeleteMentor = useCallback(
+    async (mentorId: string) => {
+      try {
+        setMentors((prev) => prev.filter((mentor) => mentor.name !== mentorId));
+        toast({
+          title: "Mentor Removed",
+          description: "Mentor has been removed from the program.",
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Error deleting mentor:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove mentor. Please try again.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
+    },
+    [toast]
+  );
 
   // Request management
   const handleRequestMentorship = useCallback((mentor: Mentor) => {
@@ -103,49 +344,169 @@ export const useMentorshipManagement = (
   }, []);
 
   const handleSubmitRequest = useCallback(
-    (formData: RequestFormData, mentor: Mentor) => {
-      const requestData: MentorshipRequest = {
-        id: utils.generateRequestId(),
-        applicantName: formData.applicantName,
-        applicantProfile: formData.applicantProfile,
-        applicantEducation: formData.applicantEducation,
-        applicantYear: formData.applicantYear,
-        mentorName: mentor.name,
-        mentorTitle: mentor.title,
-        mentorCompany: mentor.company,
-        careerGoals: formData.careerGoals,
-        challenges: formData.challenges,
-        background: formData.background,
-        expectations: formData.expectations,
-        timeCommitment: formData.timeCommitment,
-        communicationMethod: formData.communicationMethod,
-        specificQuestions: formData.specificQuestions,
-        status: "Pending",
-        submittedAt: new Date(),
-      };
+    async (formData: RequestFormData, mentor: Mentor) => {
+      try {
+        // Create mentorship request via API
+        const isApiAvailable = await mentorshipApi.checkApiHealth();
 
-      setRequests((prev) => [...prev, requestData]);
-      setOpenRequestForm(false);
-      setSelectedMentor(null);
+        if (isApiAvailable) {
+          const requestData = {
+            mentorId: mentor.name, // This would need to be actual mentor ID from API
+            domain: formData.careerGoals.join(", "),
+            message: formData.challenges,
+            goals: formData.careerGoals,
+            timeCommitment: formData.timeCommitment,
+            communicationMethod: formData.communicationMethod,
+          };
+
+          const response = await mentorshipApi.createMentorship(requestData);
+
+          if (response.success) {
+            toast({
+              title: "Request Submitted",
+              description: `Your mentorship request to ${mentor.name} has been submitted successfully.`,
+              duration: 3000,
+            });
+
+            // Refresh requests to show the new one
+            await loadRequests();
+          }
+        } else {
+          // Fallback to local state if API is not available
+          const requestData: MentorshipRequest = {
+            id: utils.generateRequestId(),
+            applicantName: formData.applicantName,
+            applicantProfile: formData.applicantProfile,
+            applicantEducation: formData.applicantEducation,
+            applicantYear: formData.applicantYear,
+            mentorName: mentor.name,
+            mentorTitle: mentor.title,
+            mentorCompany: mentor.company,
+            careerGoals: formData.careerGoals,
+            challenges: formData.challenges,
+            background: formData.background,
+            expectations: formData.expectations,
+            timeCommitment: formData.timeCommitment,
+            communicationMethod: formData.communicationMethod,
+            specificQuestions: formData.specificQuestions,
+            status: "Pending",
+            submittedAt: new Date(),
+          };
+
+          setRequests((prev) => [...prev, requestData]);
+          toast({
+            title: "Request Submitted",
+            description: `Your mentorship request to ${mentor.name} has been submitted successfully.`,
+            duration: 3000,
+          });
+        }
+
+        setOpenRequestForm(false);
+        setSelectedMentor(null);
+      } catch (error) {
+        console.error("Error submitting request:", error);
+        toast({
+          title: "Error",
+          description: "Failed to submit mentorship request. Please try again.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
     },
-    []
+    [toast]
   );
 
-  const handleApproveRequest = useCallback((requestId: string) => {
-    setRequests((prev) =>
-      prev.map((request) =>
-        request.id === requestId ? { ...request, status: "Approved" } : request
-      )
-    );
-  }, []);
+  const handleApproveRequest = useCallback(
+    async (requestId: string) => {
+      try {
+        const isApiAvailable = await mentorshipApi.checkApiHealth();
 
-  const handleRejectRequest = useCallback((requestId: string) => {
-    setRequests((prev) =>
-      prev.map((request) =>
-        request.id === requestId ? { ...request, status: "Rejected" } : request
-      )
-    );
-  }, []);
+        if (isApiAvailable) {
+          const response = await mentorshipApi.acceptMentorship(requestId);
+
+          if (response.success) {
+            toast({
+              title: "Request Approved",
+              description: "Mentorship request has been approved.",
+              duration: 3000,
+            });
+
+            // Refresh requests to show updated status
+            await loadRequests();
+          }
+        } else {
+          // Fallback to local state
+          setRequests((prev) =>
+            prev.map((request) =>
+              request.id === requestId
+                ? { ...request, status: "Approved" }
+                : request
+            )
+          );
+          toast({
+            title: "Request Approved",
+            description: "Mentorship request has been approved.",
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        console.error("Error approving request:", error);
+        toast({
+          title: "Error",
+          description: "Failed to approve request. Please try again.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
+    },
+    [toast]
+  );
+
+  const handleRejectRequest = useCallback(
+    async (requestId: string) => {
+      try {
+        const isApiAvailable = await mentorshipApi.checkApiHealth();
+
+        if (isApiAvailable) {
+          const response = await mentorshipApi.rejectMentorship(requestId);
+
+          if (response.success) {
+            toast({
+              title: "Request Rejected",
+              description: "Mentorship request has been rejected.",
+              duration: 3000,
+            });
+
+            // Refresh requests to show updated status
+            await loadRequests();
+          }
+        } else {
+          // Fallback to local state
+          setRequests((prev) =>
+            prev.map((request) =>
+              request.id === requestId
+                ? { ...request, status: "Rejected" }
+                : request
+            )
+          );
+          toast({
+            title: "Request Rejected",
+            description: "Mentorship request has been rejected.",
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        console.error("Error rejecting request:", error);
+        toast({
+          title: "Error",
+          description: "Failed to reject request. Please try again.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
+    },
+    [toast]
+  );
 
   // Content modal management
   const handleOpenContentModal = useCallback(
@@ -196,6 +557,8 @@ export const useMentorshipManagement = (
     selectedMentor,
     contentModal,
     filters,
+    loading,
+    error,
 
     // Setters
     setMentors,
@@ -217,6 +580,7 @@ export const useMentorshipManagement = (
     handleCloseContentModal,
     updateFilters,
     getMentorshipStats,
+    refreshData,
   };
 };
 

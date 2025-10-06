@@ -89,7 +89,6 @@ function CustomComponent() {
 - **Campaign Management**: Create, edit, delete fundraising campaigns
 - **Donation Flow**: Complete donation process with multiple payment methods
 - **History Tracking**: View and export donation history
-- **Impact Dashboard**: Track donation impact and statistics
 - **Receipt Management**: Download and manage donation receipts
 - **Category Filtering**: Filter campaigns by category
 - **Responsive Design**: Works on all screen sizes

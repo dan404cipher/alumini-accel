@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Filter, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -11,14 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDonationManagement } from "./hooks/useDonationManagement";
 import DonationCard from "./components/DonationCard";
-import DonationTable from "./components/DonationTable";
+import EnhancedDonationTable from "./components/EnhancedDonationTable";
 import CampaignModal from "./modals/CampaignModal";
-import DonationModal from "./modals/DonationModal";
+import EnhancedDonationModal from "./modals/EnhancedDonationModal";
 import ShareModal from "./modals/ShareModal";
+import CampaignDetailsModal from "./modals/CampaignDetailsModal";
 import { formatINR } from "./utils";
 
 const DonationManagementSystem: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const {
     campaigns,
@@ -37,6 +40,8 @@ const DonationManagementSystem: React.FC = () => {
     selectedCampaignForEdit,
     shareModalOpen,
     selectedCampaignForShare,
+    campaignDetailsModalOpen,
+    selectedCampaignForDetails,
     filteredActive,
     totalDonated,
     completedDonations,
@@ -47,11 +52,31 @@ const DonationManagementSystem: React.FC = () => {
     setDonationModalOpen,
     setEditModalOpen,
     setShareModalOpen,
+    setCampaignDetailsModalOpen,
     handleOpenDonationModal,
     handleEditCampaign,
     handleDeleteCampaign,
     handleShareCampaign,
+    handleViewCampaignDetails,
+    resetDonationData,
+    addTestDonation,
   } = useDonationManagement();
+
+  // Handle viewCampaign URL parameter
+  useEffect(() => {
+    const viewCampaign = searchParams.get("viewCampaign");
+    if (viewCampaign && campaigns.length > 0) {
+      const campaign = campaigns.find(
+        (c) =>
+          c._id === viewCampaign || c.title === decodeURIComponent(viewCampaign)
+      );
+      if (campaign) {
+        handleViewCampaignDetails(campaign);
+        // Remove the parameter from URL after opening modal
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, campaigns, handleViewCampaignDetails, setSearchParams]);
 
   return (
     <div className="flex gap-6 h-screen w-full overflow-hidden">
@@ -113,16 +138,6 @@ const DonationManagementSystem: React.FC = () => {
                     }`}
                   >
                     Donation History
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("impact")}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      activeTab === "impact"
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    Impact Dashboard
                   </button>
                 </div>
               </div>
@@ -221,9 +236,23 @@ const DonationManagementSystem: React.FC = () => {
                   <p className="text-xs sm:text-sm text-gray-600 truncate">
                     Total Donations
                   </p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                    ₹{formatINR(totalDonated)}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                      ₹{formatINR(totalDonated)}
+                    </p>
+                    <div className="flex gap-2">
+                     
+                      {totalDonated > 1000000 && (
+                        <button
+                          onClick={resetDonationData}
+                          className="text-xs text-red-600 hover:text-red-700 underline"
+                          title="Reset corrupted data"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   <p className="text-xs text-gray-500 truncate">
                     {completedDonations} successful donations
                   </p>
@@ -370,6 +399,7 @@ const DonationManagementSystem: React.FC = () => {
                       onShare={() => handleShareCampaign(campaign)}
                       onEdit={() => handleEditCampaign(campaign, index)}
                       onDelete={() => handleDeleteCampaign(index)}
+                      onViewDetails={() => handleViewCampaignDetails(campaign)}
                     />
                   ))}
                 </div>
@@ -387,27 +417,12 @@ const DonationManagementSystem: React.FC = () => {
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   Donation History
                 </h2>
-                <DonationTable
+                <EnhancedDonationTable
                   items={userDonations}
                   campaigns={donationCampaignsArr}
                   categoryFilter={categoryFilter}
                   onCategoryFilterChange={setCategoryFilter}
                 />
-              </div>
-            </div>
-          )}
-
-          {activeTab === "impact" && (
-            <div className="bg-white border rounded-lg shadow-sm">
-              <div className="p-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Impact Dashboard
-                </h2>
-                <div className="text-center py-12">
-                  <div className="text-gray-600">
-                    Impact visualization coming soon
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -427,7 +442,7 @@ const DonationManagementSystem: React.FC = () => {
         editIndex={selectedCampaignForEdit?.editIndex ?? null}
       />
 
-      <DonationModal
+      <EnhancedDonationModal
         open={donationModalOpen}
         onClose={() => setDonationModalOpen(false)}
         campaign={donationModalCampaign}
@@ -438,6 +453,20 @@ const DonationManagementSystem: React.FC = () => {
         open={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
         campaign={selectedCampaignForShare}
+      />
+
+      <CampaignDetailsModal
+        open={campaignDetailsModalOpen}
+        onClose={() => setCampaignDetailsModalOpen(false)}
+        campaign={selectedCampaignForDetails}
+        onDonate={() => {
+          setCampaignDetailsModalOpen(false);
+          handleOpenDonationModal(selectedCampaignForDetails, 0);
+        }}
+        onShare={() => {
+          setCampaignDetailsModalOpen(false);
+          handleShareCampaign(selectedCampaignForDetails);
+        }}
       />
     </div>
   );

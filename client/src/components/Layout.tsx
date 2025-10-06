@@ -8,7 +8,6 @@ import AlumniDirectory from "./AlumniDirectory";
 import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import NewsRoom from "./NewsRoom";
-import Recognition from "./Recognition";
 import CommunityNew from "./CommunityNew";
 import Donations from "./Donations";
 import Mentorship from "./mentorship";
@@ -77,8 +76,6 @@ const Layout = () => {
         return <EventsMeetups />;
       case "news":
         return <NewsRoom />;
-      case "recognition":
-        return <Recognition />;
       case "community":
         return <CommunityNew />;
       case "donations":

@@ -66,10 +66,9 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       name: "Directory",
       icon: Users,
     },
-    { id: "jobs", name: "Jobs", icon: Briefcase, count:null },
-    { id: "events", name: "Events", icon: Calendar, count: null},
+    { id: "jobs", name: "Jobs", icon: Briefcase, count: null },
+    { id: "events", name: "Events", icon: Calendar, count: null },
     { id: "news", name: "News Room", icon: Newspaper, count: null },
-    { id: "recognition", name: "Recognition", icon: Award, count: null },
     { id: "gallery", name: "Gallery", icon: Image, count: null },
     { id: "messages", name: "Messages", icon: MessageCircle, count: null },
     { id: "connections", name: "Connections", icon: UserPlus, count: null },
@@ -170,7 +169,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
   return (
     <nav className="bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-xl sticky top-0 z-50 transition-all duration-300">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-2 sm:px-4 lg:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div
@@ -193,10 +192,10 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 </div>
               )}
               <div className="flex flex-col">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-blue-900 transition-all duration-200">
+                <h1 className="text-lg xl:text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-blue-900 transition-all duration-200">
                   AlumniAccel
                 </h1>
-                <p className="text-xs text-gray-500 font-medium">
+                <p className="text-xs text-gray-500 font-medium hidden xl:block">
                   Alumni Network
                 </p>
               </div>
@@ -204,8 +203,8 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           </div>
 
           {/* Desktop Navigation - Full Screen */}
-          <div className="hidden lg:flex items-center space-x-2 flex-1 justify-center overflow-x-auto scrollbar-none">
-            <div className="flex items-center space-x-2 min-w-max bg-gray-50/50 rounded-2xl p-1 backdrop-blur-sm">
+          <div className="hidden lg:flex items-center space-x-1 flex-1 justify-center max-w-4xl mx-auto">
+            <div className="flex items-center space-x-1 bg-gray-50/50 rounded-2xl p-1 backdrop-blur-sm">
               {allNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -217,7 +216,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                       onTabChange(item.id);
                       navigate(`/${item.id}`);
                     }}
-                    className={`group flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
+                    className={`group flex items-center px-2 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                       isActive
                         ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
                         : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
@@ -305,9 +304,9 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                         {user.lastName?.[0]}
                       </span>
                     </div>
-                    <div className="hidden md:block text-left">
+                    <div className="hidden lg:block text-left">
                       <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
-                        {user.firstName}
+                        {user.firstName} {user.lastName}
                       </span>
                       <p className="text-xs text-gray-500">
                         {getRoleDisplayName(user.role)}

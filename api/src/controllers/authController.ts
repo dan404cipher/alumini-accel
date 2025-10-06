@@ -163,7 +163,7 @@ export const login = async (req: Request, res: Response) => {
     await user.save();
 
     // Generate tokens
-    const token = generateToken(user._id, user.role);
+    const token = generateToken(user._id, user.role, user.tenantId);
     const refreshToken = generateRefreshToken(user._id);
 
     return res.json({

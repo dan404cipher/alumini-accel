@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import CommunityPost from "../models/CommunityPost";
+import User from "../models/User";
 import { IUser } from "@/types";
 
 interface AuthenticatedRequest extends Request {
@@ -121,6 +122,14 @@ export const getAllCommunities = async (
 
     const query: any = { status };
 
+    // 🔒 MULTI-TENANT FILTERING: Only show communities from same college (unless super admin)
+    let tenantFilter: any = {};
+    if (req.query.tenantId) {
+      tenantFilter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      tenantFilter.tenantId = req.user.tenantId;
+    }
+
     if (type) {
       query.type = type;
     }
@@ -139,12 +148,41 @@ export const getAllCommunities = async (
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const communities = await Community.find(query)
-      .populate("createdBy", "firstName lastName profileImage")
-      .populate("moderators", "firstName lastName profileImage")
-      .sort({ createdAt: -1 })
-      .limit(Number(limit))
-      .skip(skip);
+    // If tenant filtering is needed, get users from that tenant first
+    let communities: any[] = [];
+
+    // Apply tenant filtering for non-super-admin users
+    if (req.user?.role !== "super_admin") {
+      // Force tenant filtering - use tenantId from JWT token or user object
+      const userTenantId = req.user?.tenantId;
+
+      if (userTenantId) {
+        const tenantUsers = await User.find({
+          tenantId: userTenantId,
+        }).select("_id");
+        const tenantUserIds = tenantUsers.map((user) => user._id);
+
+        query.createdBy = { $in: tenantUserIds };
+
+        communities = await Community.find(query)
+          .populate("createdBy", "firstName lastName profileImage")
+          .populate("moderators", "firstName lastName profileImage")
+          .sort({ createdAt: -1 })
+          .limit(Number(limit))
+          .skip(skip);
+      } else {
+        // If no tenantId, return empty result for non-super-admin users
+        communities = [];
+      }
+    } else {
+      // Super admin can see all communities
+      communities = await Community.find(query)
+        .populate("createdBy", "firstName lastName profileImage")
+        .populate("moderators", "firstName lastName profileImage")
+        .sort({ createdAt: -1 })
+        .limit(Number(limit))
+        .skip(skip);
+    }
 
     const total = await Community.countDocuments(query);
 
@@ -604,6 +642,14 @@ export const searchCommunities = async (
 
     const query: any = { status: "active" };
 
+    // 🔒 MULTI-TENANT FILTERING: Only show communities from same college (unless super admin)
+    let tenantFilter: any = {};
+    if (req.query.tenantId) {
+      tenantFilter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      tenantFilter.tenantId = req.user.tenantId;
+    }
+
     if (q) {
       query.$or = [
         { name: { $regex: q, $options: "i" } },
@@ -622,12 +668,28 @@ export const searchCommunities = async (
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const communities = await Community.find(query)
-      .populate("createdBy", "firstName lastName profileImage")
-      .populate("moderators", "firstName lastName profileImage")
-      .sort({ memberCount: -1, createdAt: -1 })
-      .limit(Number(limit))
-      .skip(skip);
+    // If tenant filtering is needed, get users from that tenant first
+    let communities;
+    if (Object.keys(tenantFilter).length > 0) {
+      const tenantUsers = await User.find(tenantFilter).select("_id");
+      const tenantUserIds = tenantUsers.map((user) => user._id);
+
+      query.createdBy = { $in: tenantUserIds };
+
+      communities = await Community.find(query)
+        .populate("createdBy", "firstName lastName profileImage")
+        .populate("moderators", "firstName lastName profileImage")
+        .sort({ memberCount: -1, createdAt: -1 })
+        .limit(Number(limit))
+        .skip(skip);
+    } else {
+      communities = await Community.find(query)
+        .populate("createdBy", "firstName lastName profileImage")
+        .populate("moderators", "firstName lastName profileImage")
+        .sort({ memberCount: -1, createdAt: -1 })
+        .limit(Number(limit))
+        .skip(skip);
+    }
 
     const total = await Community.countDocuments(query);
 

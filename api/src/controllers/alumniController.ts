@@ -744,15 +744,39 @@ export const getMentors = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const alumni = await AlumniProfile.find({ availableForMentorship: true })
-      .populate("userId", "firstName lastName email profilePicture")
+    // Build user filter for multi-tenant filtering
+    const userFilter: any = {
+      role: UserRole.ALUMNI,
+    };
+
+    // 🔒 MULTI-TENANT FILTERING: Only show mentors from same college (unless super admin)
+    if (req.query.tenantId) {
+      userFilter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      userFilter.tenantId = req.user.tenantId;
+    }
+
+    // Get alumni users first
+    const alumniUsers = await User.find(userFilter)
+      .select("_id firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await AlumniProfile.countDocuments({
+    // Get total count of alumni users
+    const totalUsers = await User.countDocuments(userFilter);
+
+    // Get alumni profiles for mentors from these users
+    const alumniProfileFilter: any = {
+      userId: { $in: alumniUsers.map((user) => user._id) },
       availableForMentorship: true,
-    });
+    };
+
+    const alumni = await AlumniProfile.find(alumniProfileFilter)
+      .populate("userId", "firstName lastName email profilePicture")
+      .sort({ createdAt: -1 });
+
+    const total = await AlumniProfile.countDocuments(alumniProfileFilter);
 
     res.json({
       success: true,

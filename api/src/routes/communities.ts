@@ -20,13 +20,13 @@ import {
 
 const router = express.Router();
 
-// Public routes
+// Apply authentication to all routes
+router.use(authenticate);
+
+// All routes are now protected
 router.get("/", getAllCommunities);
 router.get("/search", validateCommunitySearch, searchCommunities);
 router.get("/:id", validateId, getCommunityById);
-
-// Protected routes
-router.use(authenticate);
 
 // Community management
 router.post("/", validateCommunity, createCommunity);

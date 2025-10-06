@@ -240,12 +240,12 @@ const Messages = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navigation activeTab="messages" onTabChange={() => {}} />
-      <div className="container mx-auto px-4 py-8 flex-1 flex flex-col min-h-0">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col min-h-0">
         <div className="flex flex-1 bg-white rounded-lg shadow-lg overflow-hidden min-h-0">
           {/* Conversations List */}
-          <div className="w-1/3 border-r border-gray-200 flex flex-col">
+          <div className="w-full lg:w-1/3 border-r border-gray-200 flex flex-col">
             <div className="p-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold mb-4">Messages</h2>
               <div className="relative">
@@ -332,7 +332,7 @@ const Messages = () => {
           </div>
 
           {/* Chat Area */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex-col hidden lg:flex">
             {selectedConversation ? (
               <>
                 {/* Chat Header */}
@@ -459,6 +459,101 @@ const Messages = () => {
             )}
           </div>
         </div>
+
+        {/* Mobile Chat View */}
+        {selectedConversation && (
+          <div className="lg:hidden fixed inset-0 bg-white z-50 flex flex-col">
+            {/* Mobile Chat Header */}
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedConversation(null)}
+                className="mr-3"
+              >
+                ← Back
+              </Button>
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage
+                    src={getImageUrl(
+                      selectedConversation.user.profilePicture,
+                      `${selectedConversation.user.firstName} ${selectedConversation.user.lastName}`
+                    )}
+                  />
+                  <AvatarFallback>
+                    {selectedConversation.user.firstName[0]}
+                    {selectedConversation.user.lastName[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-medium text-gray-900">
+                    {selectedConversation.user.firstName}{" "}
+                    {selectedConversation.user.lastName}
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${
+                    message.sender.id === currentUser?.id
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                      message.sender.id === currentUser?.id
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-900"
+                    }`}
+                  >
+                    <p className="text-sm">{message.content}</p>
+                    <p
+                      className={`text-xs mt-1 ${
+                        message.sender.id === currentUser?.id
+                          ? "text-blue-100"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {new Date(message.createdAt).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Mobile Message Input */}
+            <div className="p-4 border-t border-gray-200">
+              <div className="flex space-x-2">
+                <Input
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sending}
+                  size="sm"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <Footer />
     </div>

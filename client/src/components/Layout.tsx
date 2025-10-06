@@ -114,6 +114,8 @@ const Layout = () => {
   const isCommunityPage = activeTab === "community";
   const isDonationsPage = activeTab === "donations";
   const isMentorshipPage = activeTab === "mentorship";
+  const isMessagesPage = activeTab === "messages";
+  const isConnectionsPage = activeTab === "connections";
 
   // All dashboards should be full-screen
   const isDashboardPage = activeTab === "dashboard";
@@ -134,7 +136,9 @@ const Layout = () => {
           isAlumniPage ||
           isCommunityPage ||
           isDonationsPage ||
-          isMentorshipPage
+          isMentorshipPage ||
+          isMessagesPage ||
+          isConnectionsPage
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
@@ -150,7 +154,9 @@ const Layout = () => {
             isAlumniPage ||
             isCommunityPage ||
             isDonationsPage ||
-            isMentorshipPage
+            isMentorshipPage ||
+            isMessagesPage ||
+            isConnectionsPage
               ? ""
               : "animate-fade-in-up"
           }
@@ -166,7 +172,9 @@ const Layout = () => {
         !isAlumniPage &&
         !isCommunityPage &&
         !isDonationsPage &&
-        !isMentorshipPage && <Footer />}
+        !isMentorshipPage &&
+        !isMessagesPage &&
+        !isConnectionsPage && <Footer />}
     </div>
   );
 };

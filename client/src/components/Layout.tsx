@@ -105,7 +105,7 @@ const Layout = () => {
     }
   };
 
-  // Check if we're rendering the Super Admin Dashboard
+  // Check if we're rendering full-screen pages
   const isSuperAdminDashboard =
     activeTab === "dashboard" && user?.role === "super_admin";
 
@@ -118,6 +118,9 @@ const Layout = () => {
   const isDonationsPage = activeTab === "donations";
   const isMentorshipPage = activeTab === "mentorship";
 
+  // All dashboards should be full-screen
+  const isDashboardPage = activeTab === "dashboard";
+
   return (
     <div
       className="min-h-screen bg-background flex flex-col"
@@ -126,7 +129,7 @@ const Layout = () => {
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
         className={`flex-1 w-full ${
-          isSuperAdminDashboard ||
+          isDashboardPage ||
           isJobBoard ||
           isEventsPage ||
           isNewsPage ||
@@ -142,7 +145,7 @@ const Layout = () => {
         {/* Content */}
         <div
           className={
-            isSuperAdminDashboard ||
+            isDashboardPage ||
             isJobBoard ||
             isEventsPage ||
             isNewsPage ||
@@ -158,7 +161,7 @@ const Layout = () => {
           {renderContent()}
         </div>
       </main>
-      {!isSuperAdminDashboard &&
+      {!isDashboardPage &&
         !isJobBoard &&
         !isEventsPage &&
         !isNewsPage &&

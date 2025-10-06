@@ -883,1021 +883,1048 @@ const CollegeAdminDashboard = () => {
   }, [user?.tenantId]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">College Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage your college's alumni network and operations
-          </p>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">College Admin Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage your college's alumni network and operations
+            </p>
+          </div>
+          <Badge variant="outline" className="text-sm">
+            <Building2 className="w-4 h-4 mr-2" />
+            College Admin
+          </Badge>
         </div>
-        <Badge variant="outline" className="text-sm">
-          <Building2 className="w-4 h-4 mr-2" />
-          College Admin
-        </Badge>
-      </div>
 
-      {/* College Banner Display */}
-      {bannerPreview && (
-        <div className="relative overflow-hidden rounded-lg shadow-lg">
-          <img
-            src={bannerPreview}
-            alt="College Banner"
-            className="w-full h-80 object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-          <div className="absolute bottom-0 left-0 right-0 p-8">
-            <div className="max-w-4xl">
-              <h2 className="text-4xl font-bold text-white mb-4">
-                Welcome to {user?.tenantId ? "Your College" : "AlumniAccel"}
-              </h2>
-              <p className="text-xl text-white/90 mb-6 max-w-2xl">
-                Manage your college's alumni network and operations
-              </p>
+        {/* College Banner Display */}
+        {bannerPreview && (
+          <div className="relative overflow-hidden rounded-lg shadow-lg">
+            <img
+              src={bannerPreview}
+              alt="College Banner"
+              className="w-full h-80 object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+            <div className="absolute bottom-0 left-0 right-0 p-8">
+              <div className="max-w-4xl">
+                <h2 className="text-4xl font-bold text-white mb-4">
+                  Welcome to {user?.tenantId ? "Your College" : "AlumniAccel"}
+                </h2>
+                <p className="text-xl text-white/90 mb-6 max-w-2xl">
+                  Manage your college's alumni network and operations
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="dashboard" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            <span className="hidden sm:inline">Dashboard</span>
-          </TabsTrigger>
-          <TabsTrigger value="college" className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            <span className="hidden sm:inline">College Settings</span>
-          </TabsTrigger>
-          <TabsTrigger value="admin-staff" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Admin & Staff</span>
-          </TabsTrigger>
-          <TabsTrigger value="alumni" className="flex items-center gap-2">
-            <GraduationCap className="w-4 h-4" />
-            <span className="hidden sm:inline">Alumni</span>
-          </TabsTrigger>
-          <TabsTrigger value="fundraisers" className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4" />
-            <span className="hidden sm:inline">Fundraisers</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Dashboard Overview */}
-        <TabsContent value="dashboard" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Dashboard Overview</h2>
-            <Button
-              variant="outline"
-              onClick={() => {
-                fetchStats();
-                fetchPendingAlumni();
-                fetchHodStaff();
-                fetchRecentEvents();
-              }}
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="college" className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              <span className="hidden sm:inline">College Settings</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="admin-staff"
+              className="flex items-center gap-2"
             >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Refresh Data
-            </Button>
-          </div>
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Admin & Staff</span>
+            </TabsTrigger>
+            <TabsTrigger value="alumni" className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4" />
+              <span className="hidden sm:inline">Alumni</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="fundraisers"
+              className="flex items-center gap-2"
+            >
+              <DollarSign className="w-4 h-4" />
+              <span className="hidden sm:inline">Fundraisers</span>
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Quick Stats Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Alumni
-                </CardTitle>
-                <GraduationCap className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading.stats ? "..." : stats.totalAlumni.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  +{stats.pendingAlumni} pending approval
-                </p>
-              </CardContent>
-            </Card>
+          {/* Dashboard Overview */}
+          <TabsContent value="dashboard" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">Dashboard Overview</h2>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  fetchStats();
+                  fetchPendingAlumni();
+                  fetchHodStaff();
+                  fetchRecentEvents();
+                }}
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Refresh Data
+              </Button>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Active Staff
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading.stats ? "..." : stats.activeStaff}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  +{stats.pendingStaff} pending
-                </p>
-              </CardContent>
-            </Card>
+            {/* Quick Stats Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Alumni
+                  </CardTitle>
+                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {loading.stats ? "..." : stats.totalAlumni.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    +{stats.pendingAlumni} pending approval
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Events Posted
-                </CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading.stats ? "..." : stats.eventsPosted}
-                </div>
-                <p className="text-xs text-muted-foreground">+3 this month</p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Active Staff
+                  </CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {loading.stats ? "..." : stats.activeStaff}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    +{stats.pendingStaff} pending
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Funds Raised
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${stats.fundsRaised.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  +15% from last month
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Events Posted
+                  </CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {loading.stats ? "..." : stats.eventsPosted}
+                  </div>
+                  <p className="text-xs text-muted-foreground">+3 this month</p>
+                </CardContent>
+              </Card>
 
-          {/* Recent Activity */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Funds Raised
+                  </CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ${stats.fundsRaised.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    +15% from last month
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Events</CardTitle>
+                  <CardDescription>
+                    Latest events and their performance
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.events ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">
+                          Loading events...
+                        </p>
+                      </div>
+                    ) : recentEvents.length === 0 ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">No events found</p>
+                      </div>
+                    ) : (
+                      recentEvents.map((event: any) => (
+                        <div
+                          key={event._id}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium">{event.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(event.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">
+                              {event.attendees || 0} attendees
+                            </p>
+                            <Badge
+                              variant={
+                                event.status === "completed"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {event.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pending Approvals</CardTitle>
+                  <CardDescription>
+                    Alumni requests awaiting approval
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.alumni ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">
+                          Loading pending requests...
+                        </p>
+                      </div>
+                    ) : pendingAlumni.length === 0 ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">
+                          No pending requests
+                        </p>
+                      </div>
+                    ) : (
+                      pendingAlumni.slice(0, 3).map((alumni: any) => (
+                        <div
+                          key={alumni.requestId}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              {alumni.firstName} {alumni.lastName}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {alumni.email}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                handleRejectAlumni(alumni.requestId)
+                              }
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                handleApproveAlumni(alumni.requestId)
+                              }
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* College Settings - Only for the admin's own college */}
+          <TabsContent value="college" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">College Settings</h2>
+              <Button
+                onClick={handleSaveCollegeSettings}
+                disabled={settingsLoading || logoLoading || bannerLoading}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                {settingsLoading ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>College Logo</CardTitle>
+                  <CardDescription>
+                    Upload your college logo (PNG, JPG, SVG, max 5MB)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {logoPreview ? (
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <img
+                          src={logoPreview}
+                          alt="Logo Preview"
+                          className="w-full h-32 object-contain border rounded-lg"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2"
+                          onClick={() => {
+                            setCollegeLogo(null);
+                            setLogoPreview(null);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <p className="text-sm text-green-600">
+                        ✓ Logo selected: {collegeLogo?.name}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                      <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
+                      <p className="text-sm text-gray-500 mb-4">
+                        Click to upload or drag and drop
+                      </p>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                        id="logo-upload"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          document.getElementById("logo-upload")?.click()
+                        }
+                      >
+                        Choose File
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Banner Image</CardTitle>
+                  <CardDescription>
+                    Upload a banner image for your college page (max 10MB)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {bannerPreview ? (
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <img
+                          src={bannerPreview}
+                          alt="Banner Preview"
+                          className="w-full h-48 object-cover border rounded-lg"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2"
+                          onClick={() => {
+                            setCollegeBanner(null);
+                            setBannerPreview(null);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <p className="text-sm text-green-600">
+                        ✓ Banner selected: {collegeBanner?.name}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                      <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
+                      <p className="text-sm text-gray-500 mb-4">
+                        Click to upload or drag and drop
+                      </p>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleBannerUpload}
+                        className="hidden"
+                        id="banner-upload"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          document.getElementById("banner-upload")?.click()
+                        }
+                      >
+                        Choose File
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
-                <CardTitle>Recent Events</CardTitle>
+                <CardTitle>About College</CardTitle>
                 <CardDescription>
-                  Latest events and their performance
+                  Write a description about your college
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {loading.events ? (
-                    <div className="text-center py-4">
-                      <p className="text-muted-foreground">Loading events...</p>
-                    </div>
-                  ) : recentEvents.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-muted-foreground">No events found</p>
-                    </div>
-                  ) : (
-                    recentEvents.map((event: any) => (
-                      <div
-                        key={event._id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium">{event.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(event.date).toLocaleDateString()}
+                <textarea
+                  className="w-full h-32 p-3 border rounded-lg resize-none"
+                  placeholder="Enter a detailed description about your college, its history, achievements, and what makes it special..."
+                  value={collegeDescription}
+                  onChange={(e) => setCollegeDescription(e.target.value)}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Admin & Staff Management - Only for this college */}
+          <TabsContent value="admin-staff" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">
+                Admin & Staff Management
+              </h2>
+              <div className="flex space-x-2">
+                <Dialog
+                  open={isCreateAdminOpen}
+                  onOpenChange={setIsCreateAdminOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create Admin
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Admin</DialogTitle>
+                      <DialogDescription>
+                        Add a new college admin to your college.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateAdmin} className="space-y-4">
+                      <div>
+                        <Label htmlFor="admin-firstName">First Name</Label>
+                        <Input
+                          id="admin-firstName"
+                          placeholder="John"
+                          value={newAdmin.firstName}
+                          onChange={(e) => {
+                            setNewAdmin((prev) => ({
+                              ...prev,
+                              firstName: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.admin.firstName) {
+                              updateValidationErrors("admin", {
+                                ...validationErrors.admin,
+                                firstName: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.admin.firstName
+                              ? "border-red-500"
+                              : ""
+                          }
+                          required
+                        />
+                        {validationErrors.admin.firstName && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.admin.firstName}
                           </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="admin-lastName">Last Name</Label>
+                        <Input
+                          id="admin-lastName"
+                          placeholder="Smith"
+                          value={newAdmin.lastName}
+                          onChange={(e) => {
+                            setNewAdmin((prev) => ({
+                              ...prev,
+                              lastName: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.admin.lastName) {
+                              updateValidationErrors("admin", {
+                                ...validationErrors.admin,
+                                lastName: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.admin.lastName
+                              ? "border-red-500"
+                              : ""
+                          }
+                          required
+                        />
+                        {validationErrors.admin.lastName && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.admin.lastName}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="admin-email">Email</Label>
+                        <Input
+                          id="admin-email"
+                          type="email"
+                          placeholder="john.smith@college.edu"
+                          value={newAdmin.email}
+                          onChange={(e) => {
+                            setNewAdmin((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.admin.email) {
+                              updateValidationErrors("admin", {
+                                ...validationErrors.admin,
+                                email: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.admin.email ? "border-red-500" : ""
+                          }
+                          required
+                        />
+                        {validationErrors.admin.email && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.admin.email}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="admin-department">Department</Label>
+                        <Input
+                          id="admin-department"
+                          placeholder="Administration"
+                          value={newAdmin.department}
+                          onChange={(e) =>
+                            setNewAdmin((prev) => ({
+                              ...prev,
+                              department: e.target.value,
+                            }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="admin-password">Default Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="admin-password"
+                            type={
+                              passwordVisibility.admin ? "text" : "password"
+                            }
+                            placeholder="Admin@1234"
+                            value={newAdmin.password}
+                            onChange={(e) => {
+                              setNewAdmin((prev) => ({
+                                ...prev,
+                                password: e.target.value,
+                              }));
+                              // Clear error when user starts typing
+                              if (validationErrors.admin.password) {
+                                updateValidationErrors("admin", {
+                                  ...validationErrors.admin,
+                                  password: "",
+                                });
+                              }
+                            }}
+                            className={`pr-10 ${
+                              validationErrors.admin.password
+                                ? "border-red-500"
+                                : ""
+                            }`}
+                            required
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => togglePasswordVisibility("admin")}
+                          >
+                            {passwordVisibility.admin ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">
-                            {event.attendees || 0} attendees
+                        {validationErrors.admin.password && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.admin.password}
                           </p>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCreateAdminOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={createLoading.admin}>
+                          {createLoading.admin ? "Creating..." : "Create Admin"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={isCreateHODOpen}
+                  onOpenChange={setIsCreateHODOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsCreateHODOpen(true);
+                      }}
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create HOD
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New HOD</DialogTitle>
+                      <DialogDescription>
+                        Add a new Head of Department to your college.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateHOD} className="space-y-4">
+                      <div>
+                        <Label htmlFor="hod-firstName">First Name</Label>
+                        <Input
+                          id="hod-firstName"
+                          placeholder="John"
+                          value={newHOD.firstName}
+                          onChange={(e) => {
+                            setNewHOD((prev) => ({
+                              ...prev,
+                              firstName: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.hod.firstName) {
+                              updateValidationErrors("hod", {
+                                ...validationErrors.hod,
+                                firstName: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.hod.firstName
+                              ? "border-red-500"
+                              : ""
+                          }
+                          required
+                        />
+                        {validationErrors.hod.firstName && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.hod.firstName}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="hod-lastName">Last Name</Label>
+                        <Input
+                          id="hod-lastName"
+                          placeholder="Smith"
+                          value={newHOD.lastName}
+                          onChange={(e) => {
+                            setNewHOD((prev) => ({
+                              ...prev,
+                              lastName: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.hod.lastName) {
+                              updateValidationErrors("hod", {
+                                ...validationErrors.hod,
+                                lastName: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.hod.lastName
+                              ? "border-red-500"
+                              : ""
+                          }
+                          required
+                        />
+                        {validationErrors.hod.lastName && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.hod.lastName}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="hod-email">Email</Label>
+                        <Input
+                          id="hod-email"
+                          type="email"
+                          placeholder="john.smith@college.edu"
+                          value={newHOD.email}
+                          onChange={(e) => {
+                            setNewHOD((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.hod.email) {
+                              updateValidationErrors("hod", {
+                                ...validationErrors.hod,
+                                email: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.hod.email ? "border-red-500" : ""
+                          }
+                          required
+                        />
+                        {validationErrors.hod.email && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.hod.email}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="hod-department">Department</Label>
+                        <Input
+                          id="hod-department"
+                          placeholder="Computer Science"
+                          value={newHOD.department}
+                          onChange={(e) => {
+                            setNewHOD((prev) => ({
+                              ...prev,
+                              department: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.hod.department) {
+                              updateValidationErrors("hod", {
+                                ...validationErrors.hod,
+                                department: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.hod.department
+                              ? "border-red-500"
+                              : ""
+                          }
+                          required
+                        />
+                        {validationErrors.hod.department && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.hod.department}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="hod-password">Default Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="hod-password"
+                            type={passwordVisibility.hod ? "text" : "password"}
+                            placeholder="HOD@1234"
+                            value={newHOD.password}
+                            onChange={(e) => {
+                              setNewHOD((prev) => ({
+                                ...prev,
+                                password: e.target.value,
+                              }));
+                              // Clear error when user starts typing
+                              if (validationErrors.hod.password) {
+                                updateValidationErrors("hod", {
+                                  ...validationErrors.hod,
+                                  password: "",
+                                });
+                              }
+                            }}
+                            className={`pr-10 ${
+                              validationErrors.hod.password
+                                ? "border-red-500"
+                                : ""
+                            }`}
+                            required
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => togglePasswordVisibility("hod")}
+                          >
+                            {passwordVisibility.hod ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        {validationErrors.hod.password && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.hod.password}
+                          </p>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCreateHODOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={createLoading.hod}>
+                          {createLoading.hod ? "Creating..." : "Create HOD"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={isCreateStaffOpen}
+                  onOpenChange={setIsCreateStaffOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button>
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create Staff
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Staff Member</DialogTitle>
+                      <DialogDescription>
+                        Add a new staff member to your college.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateStaff} className="space-y-4">
+                      <div>
+                        <Label htmlFor="staff-firstName">First Name</Label>
+                        <Input
+                          id="staff-firstName"
+                          placeholder="Jane"
+                          value={newStaff.firstName}
+                          onChange={(e) =>
+                            setNewStaff((prev) => ({
+                              ...prev,
+                              firstName: e.target.value,
+                            }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="staff-lastName">Last Name</Label>
+                        <Input
+                          id="staff-lastName"
+                          placeholder="Doe"
+                          value={newStaff.lastName}
+                          onChange={(e) =>
+                            setNewStaff((prev) => ({
+                              ...prev,
+                              lastName: e.target.value,
+                            }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="staff-email">Email</Label>
+                        <Input
+                          id="staff-email"
+                          type="email"
+                          placeholder="jane.doe@college.edu"
+                          value={newStaff.email}
+                          onChange={(e) =>
+                            setNewStaff((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="staff-department">Department</Label>
+                        <Input
+                          id="staff-department"
+                          placeholder="Administration"
+                          value={newStaff.department}
+                          onChange={(e) =>
+                            setNewStaff((prev) => ({
+                              ...prev,
+                              department: e.target.value,
+                            }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="staff-password">Default Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="staff-password"
+                            type={
+                              passwordVisibility.staff ? "text" : "password"
+                            }
+                            placeholder="Staff@1234"
+                            value={newStaff.password}
+                            onChange={(e) =>
+                              setNewStaff((prev) => ({
+                                ...prev,
+                                password: e.target.value,
+                              }))
+                            }
+                            className="pr-10"
+                            required
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => togglePasswordVisibility("staff")}
+                          >
+                            {passwordVisibility.staff ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCreateStaffOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={createLoading.staff}>
+                          {createLoading.staff ? "Creating..." : "Create Staff"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {loading.staff ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    Loading HOD and Staff data...
+                  </p>
+                </div>
+              ) : hodStaff.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    No HOD or Staff members found
+                  </p>
+                </div>
+              ) : (
+                hodStaff.map((member: any) => (
+                  <Card key={member._id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">
+                            {member.firstName} {member.lastName}
+                          </CardTitle>
+                          <CardDescription>{member.email}</CardDescription>
+                        </div>
+                        <div className="flex items-center space-x-2">
                           <Badge
                             variant={
-                              event.status === "completed"
+                              member.role === "hod" ? "default" : "secondary"
+                            }
+                          >
+                            {member.role?.toUpperCase()}
+                          </Badge>
+                          <Badge
+                            variant={
+                              member.status === "active"
                                 ? "default"
                                 : "secondary"
                             }
                           >
-                            {event.status}
+                            {member.status}
                           </Badge>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Approvals</CardTitle>
-                <CardDescription>
-                  Alumni requests awaiting approval
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {loading.alumni ? (
-                    <div className="text-center py-4">
-                      <p className="text-muted-foreground">
-                        Loading pending requests...
-                      </p>
-                    </div>
-                  ) : pendingAlumni.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-muted-foreground">
-                        No pending requests
-                      </p>
-                    </div>
-                  ) : (
-                    pendingAlumni.slice(0, 3).map((alumni: any) => (
-                      <div
-                        key={alumni.requestId}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {alumni.firstName} {alumni.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {alumni.email}
-                          </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-muted-foreground">
+                          Department: {member.department || "N/A"}
                         </div>
                         <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRejectAlumni(alumni.requestId)}
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              handleApproveAlumni(alumni.requestId)
-                            }
-                          >
-                            <CheckCircle className="w-4 h-4" />
+                          <Button size="sm" variant="outline">
+                            <Settings className="w-4 h-4 mr-2" />
+                            Manage
                           </Button>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* College Settings - Only for the admin's own college */}
-        <TabsContent value="college" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">College Settings</h2>
-            <Button
-              onClick={handleSaveCollegeSettings}
-              disabled={settingsLoading || logoLoading || bannerLoading}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              {settingsLoading ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>College Logo</CardTitle>
-                <CardDescription>
-                  Upload your college logo (PNG, JPG, SVG, max 5MB)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {logoPreview ? (
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <img
-                        src={logoPreview}
-                        alt="Logo Preview"
-                        className="w-full h-32 object-contain border rounded-lg"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2"
-                        onClick={() => {
-                          setCollegeLogo(null);
-                          setLogoPreview(null);
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                    <p className="text-sm text-green-600">
-                      ✓ Logo selected: {collegeLogo?.name}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
-                    <p className="text-sm text-gray-500 mb-4">
-                      Click to upload or drag and drop
-                    </p>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                      id="logo-upload"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        document.getElementById("logo-upload")?.click()
-                      }
-                    >
-                      Choose File
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Banner Image</CardTitle>
-                <CardDescription>
-                  Upload a banner image for your college page (max 10MB)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {bannerPreview ? (
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <img
-                        src={bannerPreview}
-                        alt="Banner Preview"
-                        className="w-full h-48 object-cover border rounded-lg"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2"
-                        onClick={() => {
-                          setCollegeBanner(null);
-                          setBannerPreview(null);
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                    <p className="text-sm text-green-600">
-                      ✓ Banner selected: {collegeBanner?.name}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
-                    <p className="text-sm text-gray-500 mb-4">
-                      Click to upload or drag and drop
-                    </p>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleBannerUpload}
-                      className="hidden"
-                      id="banner-upload"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        document.getElementById("banner-upload")?.click()
-                      }
-                    >
-                      Choose File
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>About College</CardTitle>
-              <CardDescription>
-                Write a description about your college
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <textarea
-                className="w-full h-32 p-3 border rounded-lg resize-none"
-                placeholder="Enter a detailed description about your college, its history, achievements, and what makes it special..."
-                value={collegeDescription}
-                onChange={(e) => setCollegeDescription(e.target.value)}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Admin & Staff Management - Only for this college */}
-        <TabsContent value="admin-staff" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Admin & Staff Management</h2>
-            <div className="flex space-x-2">
-              <Dialog
-                open={isCreateAdminOpen}
-                onOpenChange={setIsCreateAdminOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create Admin
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Admin</DialogTitle>
-                    <DialogDescription>
-                      Add a new college admin to your college.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateAdmin} className="space-y-4">
-                    <div>
-                      <Label htmlFor="admin-firstName">First Name</Label>
-                      <Input
-                        id="admin-firstName"
-                        placeholder="John"
-                        value={newAdmin.firstName}
-                        onChange={(e) => {
-                          setNewAdmin((prev) => ({
-                            ...prev,
-                            firstName: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.admin.firstName) {
-                            updateValidationErrors("admin", {
-                              ...validationErrors.admin,
-                              firstName: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.admin.firstName
-                            ? "border-red-500"
-                            : ""
-                        }
-                        required
-                      />
-                      {validationErrors.admin.firstName && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.admin.firstName}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="admin-lastName">Last Name</Label>
-                      <Input
-                        id="admin-lastName"
-                        placeholder="Smith"
-                        value={newAdmin.lastName}
-                        onChange={(e) => {
-                          setNewAdmin((prev) => ({
-                            ...prev,
-                            lastName: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.admin.lastName) {
-                            updateValidationErrors("admin", {
-                              ...validationErrors.admin,
-                              lastName: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.admin.lastName
-                            ? "border-red-500"
-                            : ""
-                        }
-                        required
-                      />
-                      {validationErrors.admin.lastName && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.admin.lastName}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="admin-email">Email</Label>
-                      <Input
-                        id="admin-email"
-                        type="email"
-                        placeholder="john.smith@college.edu"
-                        value={newAdmin.email}
-                        onChange={(e) => {
-                          setNewAdmin((prev) => ({
-                            ...prev,
-                            email: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.admin.email) {
-                            updateValidationErrors("admin", {
-                              ...validationErrors.admin,
-                              email: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.admin.email ? "border-red-500" : ""
-                        }
-                        required
-                      />
-                      {validationErrors.admin.email && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.admin.email}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="admin-department">Department</Label>
-                      <Input
-                        id="admin-department"
-                        placeholder="Administration"
-                        value={newAdmin.department}
-                        onChange={(e) =>
-                          setNewAdmin((prev) => ({
-                            ...prev,
-                            department: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="admin-password">Default Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="admin-password"
-                          type={passwordVisibility.admin ? "text" : "password"}
-                          placeholder="Admin@1234"
-                          value={newAdmin.password}
-                          onChange={(e) => {
-                            setNewAdmin((prev) => ({
-                              ...prev,
-                              password: e.target.value,
-                            }));
-                            // Clear error when user starts typing
-                            if (validationErrors.admin.password) {
-                              updateValidationErrors("admin", {
-                                ...validationErrors.admin,
-                                password: "",
-                              });
-                            }
-                          }}
-                          className={`pr-10 ${
-                            validationErrors.admin.password
-                              ? "border-red-500"
-                              : ""
-                          }`}
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => togglePasswordVisibility("admin")}
-                        >
-                          {passwordVisibility.admin ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {validationErrors.admin.password && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.admin.password}
-                        </p>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsCreateAdminOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={createLoading.admin}>
-                        {createLoading.admin ? "Creating..." : "Create Admin"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={isCreateHODOpen} onOpenChange={setIsCreateHODOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsCreateHODOpen(true);
-                    }}
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create HOD
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New HOD</DialogTitle>
-                    <DialogDescription>
-                      Add a new Head of Department to your college.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateHOD} className="space-y-4">
-                    <div>
-                      <Label htmlFor="hod-firstName">First Name</Label>
-                      <Input
-                        id="hod-firstName"
-                        placeholder="John"
-                        value={newHOD.firstName}
-                        onChange={(e) => {
-                          setNewHOD((prev) => ({
-                            ...prev,
-                            firstName: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.hod.firstName) {
-                            updateValidationErrors("hod", {
-                              ...validationErrors.hod,
-                              firstName: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.hod.firstName ? "border-red-500" : ""
-                        }
-                        required
-                      />
-                      {validationErrors.hod.firstName && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.hod.firstName}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="hod-lastName">Last Name</Label>
-                      <Input
-                        id="hod-lastName"
-                        placeholder="Smith"
-                        value={newHOD.lastName}
-                        onChange={(e) => {
-                          setNewHOD((prev) => ({
-                            ...prev,
-                            lastName: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.hod.lastName) {
-                            updateValidationErrors("hod", {
-                              ...validationErrors.hod,
-                              lastName: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.hod.lastName ? "border-red-500" : ""
-                        }
-                        required
-                      />
-                      {validationErrors.hod.lastName && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.hod.lastName}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="hod-email">Email</Label>
-                      <Input
-                        id="hod-email"
-                        type="email"
-                        placeholder="john.smith@college.edu"
-                        value={newHOD.email}
-                        onChange={(e) => {
-                          setNewHOD((prev) => ({
-                            ...prev,
-                            email: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.hod.email) {
-                            updateValidationErrors("hod", {
-                              ...validationErrors.hod,
-                              email: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.hod.email ? "border-red-500" : ""
-                        }
-                        required
-                      />
-                      {validationErrors.hod.email && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.hod.email}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="hod-department">Department</Label>
-                      <Input
-                        id="hod-department"
-                        placeholder="Computer Science"
-                        value={newHOD.department}
-                        onChange={(e) => {
-                          setNewHOD((prev) => ({
-                            ...prev,
-                            department: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.hod.department) {
-                            updateValidationErrors("hod", {
-                              ...validationErrors.hod,
-                              department: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.hod.department
-                            ? "border-red-500"
-                            : ""
-                        }
-                        required
-                      />
-                      {validationErrors.hod.department && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.hod.department}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="hod-password">Default Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="hod-password"
-                          type={passwordVisibility.hod ? "text" : "password"}
-                          placeholder="HOD@1234"
-                          value={newHOD.password}
-                          onChange={(e) => {
-                            setNewHOD((prev) => ({
-                              ...prev,
-                              password: e.target.value,
-                            }));
-                            // Clear error when user starts typing
-                            if (validationErrors.hod.password) {
-                              updateValidationErrors("hod", {
-                                ...validationErrors.hod,
-                                password: "",
-                              });
-                            }
-                          }}
-                          className={`pr-10 ${
-                            validationErrors.hod.password
-                              ? "border-red-500"
-                              : ""
-                          }`}
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => togglePasswordVisibility("hod")}
-                        >
-                          {passwordVisibility.hod ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {validationErrors.hod.password && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.hod.password}
-                        </p>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsCreateHODOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={createLoading.hod}>
-                        {createLoading.hod ? "Creating..." : "Create HOD"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog
-                open={isCreateStaffOpen}
-                onOpenChange={setIsCreateStaffOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create Staff
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Staff Member</DialogTitle>
-                    <DialogDescription>
-                      Add a new staff member to your college.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateStaff} className="space-y-4">
-                    <div>
-                      <Label htmlFor="staff-firstName">First Name</Label>
-                      <Input
-                        id="staff-firstName"
-                        placeholder="Jane"
-                        value={newStaff.firstName}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            firstName: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-lastName">Last Name</Label>
-                      <Input
-                        id="staff-lastName"
-                        placeholder="Doe"
-                        value={newStaff.lastName}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            lastName: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-email">Email</Label>
-                      <Input
-                        id="staff-email"
-                        type="email"
-                        placeholder="jane.doe@college.edu"
-                        value={newStaff.email}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            email: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-department">Department</Label>
-                      <Input
-                        id="staff-department"
-                        placeholder="Administration"
-                        value={newStaff.department}
-                        onChange={(e) =>
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            department: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-password">Default Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="staff-password"
-                          type={passwordVisibility.staff ? "text" : "password"}
-                          placeholder="Staff@1234"
-                          value={newStaff.password}
-                          onChange={(e) =>
-                            setNewStaff((prev) => ({
-                              ...prev,
-                              password: e.target.value,
-                            }))
-                          }
-                          className="pr-10"
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => togglePasswordVisibility("staff")}
-                        >
-                          {passwordVisibility.staff ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsCreateStaffOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={createLoading.staff}>
-                        {createLoading.staff ? "Creating..." : "Create Staff"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
-          </div>
+          </TabsContent>
 
-          <div className="space-y-4">
-            {loading.staff ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  Loading HOD and Staff data...
-                </p>
-              </div>
-            ) : hodStaff.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  No HOD or Staff members found
-                </p>
-              </div>
-            ) : (
-              hodStaff.map((member: any) => (
-                <Card key={member._id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">
-                          {member.firstName} {member.lastName}
-                        </CardTitle>
-                        <CardDescription>{member.email}</CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={
-                            member.role === "hod" ? "default" : "secondary"
-                          }
-                        >
-                          {member.role?.toUpperCase()}
-                        </Badge>
-                        <Badge
-                          variant={
-                            member.status === "active" ? "default" : "secondary"
-                          }
-                        >
-                          {member.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        Department: {member.department || "N/A"}
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          <Settings className="w-4 h-4 mr-2" />
-                          Manage
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </TabsContent>
+          {/* Alumni Management */}
+          <TabsContent value="alumni" className="space-y-6">
+            <AlumniManagement />
+          </TabsContent>
 
-        {/* Alumni Management */}
-        <TabsContent value="alumni" className="space-y-6">
-          <AlumniManagement />
-        </TabsContent>
-
-        {/* Fundraisers Management */}
-        <TabsContent value="fundraisers" className="space-y-6">
-          <CampaignManagement />
-        </TabsContent>
-      </Tabs>
+          {/* Fundraisers Management */}
+          <TabsContent value="fundraisers" className="space-y-6">
+            <CampaignManagement />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

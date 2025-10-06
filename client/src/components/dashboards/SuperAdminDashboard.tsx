@@ -707,9 +707,9 @@ const SuperAdminDashboard = () => {
   ];
 
   return (
-    <div className="flex bg-gray-50 h-[calc(100vh-4rem)] mt-16">
+    <div className="flex bg-gray-50 min-h-screen">
       {/* Left Sidebar */}
-      <div className="w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
+      <div className="w-64 lg:w-64 md:w-56 sm:w-48 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -758,7 +758,7 @@ const SuperAdminDashboard = () => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto bg-gray-50">
-        <div className="p-8 min-h-full">
+        <div className="p-4 sm:p-6 lg:p-8 min-h-full">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>

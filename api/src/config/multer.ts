@@ -12,6 +12,7 @@ const uploadDirs = [
   "uploads/gallery",
   "uploads/tenant-logos",
   "uploads/tenant-banners",
+  "uploads/campaigns",
 ];
 
 uploadDirs.forEach((dir) => {
@@ -224,5 +225,50 @@ export const uploadTenantBanner = multer({
   fileFilter: tenantBannerFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit for banners
+  },
+});
+
+// Configure multer for campaign images
+const campaignImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/campaigns/");
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `campaign-${uniqueSuffix}${ext}`);
+  },
+});
+
+// File filter for campaign images
+const campaignImageFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  const allowedTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed."
+      )
+    );
+  }
+};
+
+// Multer configuration for campaign images
+export const uploadCampaignImage = multer({
+  storage: campaignImageStorage,
+  fileFilter: campaignImageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit for campaign images
   },
 });

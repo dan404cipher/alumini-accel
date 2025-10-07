@@ -385,53 +385,7 @@ const AlumniDirectory = () => {
                 )}
               </div>
 
-              {/* Quick Actions */}
-              <div className="space-y-3 pt-4 border-t">
-                <h3 className="text-sm font-semibold">Quick Actions</h3>
-                <div className="space-y-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setIsAddAlumniOpen(true)}
-                    className="w-full justify-start"
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Add Alumni
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <Heart className="w-4 h-4 mr-2" />
-                    My Connections
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Messages
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Directory
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share Directory
-                  </Button>
-                </div>
-              </div>
+              
 
               {/* View Mode */}
               <div className="space-y-3 pt-4 border-t">
@@ -527,10 +481,7 @@ const AlumniDirectory = () => {
                 <p className="text-gray-600 mb-6">
                   Check back later for new user profiles.
                 </p>
-                <Button onClick={() => setIsAddAlumniOpen(true)}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add First Alumni
-                </Button>
+               
               </div>
             ) : (
               users

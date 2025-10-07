@@ -8,11 +8,12 @@ import AlumniDirectory from "./AlumniDirectory";
 import JobBoard from "./JobBoard";
 import EventsMeetups from "./EventsMeetups";
 import NewsRoom from "./NewsRoom";
-import Recognition from "./Recognition";
 import CommunityNew from "./CommunityNew";
 import Donations from "./Donations";
+import Mentorship from "./mentorship";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
+import CommunityDetailNew from "../pages/CommunityDetailNew";
 import RoleBasedDashboard from "./RoleBasedDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -52,6 +53,15 @@ const Layout = () => {
       return <EventDetail />;
     }
 
+    // Handle community detail pages
+    if (
+      location.pathname.startsWith("/community/") &&
+      location.pathname !== "/community"
+    ) {
+      console.log("Routing to CommunityDetailNew for:", location.pathname);
+      return <CommunityDetailNew />;
+    }
+
     switch (activeTab) {
       case "dashboard":
         return <RoleBasedDashboard />;
@@ -66,12 +76,12 @@ const Layout = () => {
         return <EventsMeetups />;
       case "news":
         return <NewsRoom />;
-      case "recognition":
-        return <Recognition />;
       case "community":
         return <CommunityNew />;
       case "donations":
         return <Donations />;
+      case "mentorship":
+        return <Mentorship />;
       case "about":
         // Redirect to the public About Us page
         navigate("/about");
@@ -92,7 +102,7 @@ const Layout = () => {
     }
   };
 
-  // Check if we're rendering the Super Admin Dashboard
+  // Check if we're rendering full-screen pages
   const isSuperAdminDashboard =
     activeTab === "dashboard" && user?.role === "super_admin";
 
@@ -103,6 +113,12 @@ const Layout = () => {
   const isAlumniPage = activeTab === "alumni";
   const isCommunityPage = activeTab === "community";
   const isDonationsPage = activeTab === "donations";
+  const isMentorshipPage = activeTab === "mentorship";
+  const isMessagesPage = activeTab === "messages";
+  const isConnectionsPage = activeTab === "connections";
+
+  // All dashboards should be full-screen
+  const isDashboardPage = activeTab === "dashboard";
 
   return (
     <div
@@ -112,14 +128,17 @@ const Layout = () => {
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
         className={`flex-1 w-full ${
-          isSuperAdminDashboard ||
+          isDashboardPage ||
           isJobBoard ||
           isEventsPage ||
           isNewsPage ||
           isGalleryPage ||
           isAlumniPage ||
           isCommunityPage ||
-          isDonationsPage
+          isDonationsPage ||
+          isMentorshipPage ||
+          isMessagesPage ||
+          isConnectionsPage
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
@@ -127,14 +146,17 @@ const Layout = () => {
         {/* Content */}
         <div
           className={
-            isSuperAdminDashboard ||
+            isDashboardPage ||
             isJobBoard ||
             isEventsPage ||
             isNewsPage ||
             isGalleryPage ||
             isAlumniPage ||
             isCommunityPage ||
-            isDonationsPage
+            isDonationsPage ||
+            isMentorshipPage ||
+            isMessagesPage ||
+            isConnectionsPage
               ? ""
               : "animate-fade-in-up"
           }
@@ -142,14 +164,17 @@ const Layout = () => {
           {renderContent()}
         </div>
       </main>
-      {!isSuperAdminDashboard &&
+      {!isDashboardPage &&
         !isJobBoard &&
         !isEventsPage &&
         !isNewsPage &&
         !isGalleryPage &&
         !isAlumniPage &&
         !isCommunityPage &&
-        !isDonationsPage && <Footer />}
+        !isDonationsPage &&
+        !isMentorshipPage &&
+        !isMessagesPage &&
+        !isConnectionsPage && <Footer />}
     </div>
   );
 };

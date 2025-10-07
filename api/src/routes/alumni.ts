@@ -43,6 +43,15 @@ router.get("/public", asyncHandler(alumniController.getPublicAlumniDirectory));
 // @access  Private (Alumni or Admin)
 router.get("/", authenticateToken, asyncHandler(alumniController.getAllAlumni));
 
+// @route   GET /api/v1/alumni/mentors
+// @desc    Get alumni mentors
+// @access  Private
+router.get(
+  "/mentors",
+  authenticateToken,
+  asyncHandler(alumniController.getMentors)
+);
+
 // @route   GET /api/v1/alumni/:id
 // @desc    Get alumni profile by ID
 // @access  Private
@@ -73,6 +82,16 @@ router.put(
   requireAlumni,
   ...validateRequest(validateAlumniProfileUpdate),
   asyncHandler(alumniController.updateProfile)
+);
+
+// @route   POST /api/v1/alumni/register-mentor
+// @desc    Register as mentor
+// @access  Private/Alumni
+router.post(
+  "/register-mentor",
+  authenticateToken,
+  requireAlumni,
+  asyncHandler(alumniController.registerAsMentor)
 );
 
 // @route   PUT /api/v1/alumni/profile/skills-interests
@@ -250,15 +269,6 @@ router.get(
   "/hiring",
   authenticateToken,
   asyncHandler(alumniController.getHiringAlumni)
-);
-
-// @route   GET /api/v1/alumni/mentors
-// @desc    Get alumni mentors
-// @access  Private
-router.get(
-  "/mentors",
-  authenticateToken,
-  asyncHandler(alumniController.getMentors)
 );
 
 // Career Timeline routes

@@ -93,8 +93,26 @@ export const API_CONFIG = {
     GET_ALL: "/donations",
     GET_BY_ID: (id: string) => `/donations/${id}`,
     CREATE: "/donations",
+    UPDATE: (id: string) => `/donations/${id}`,
+    DELETE: (id: string) => `/donations/${id}`,
     GET_MY_DONATIONS: "/donations/my-donations",
     GET_STATS: "/donations/stats",
+    GET_BY_DONOR: (donorId: string) => `/donations/donor/${donorId}`,
+    GET_BY_RECIPIENT: (recipientId: string) =>
+      `/donations/recipient/${recipientId}`,
+  },
+
+  // Campaign endpoints
+  CAMPAIGNS: {
+    BASE: "/campaigns",
+    GET_ALL: "/campaigns",
+    GET_BY_ID: (id: string) => `/campaigns/${id}`,
+    CREATE: "/campaigns",
+    UPDATE: (id: string) => `/campaigns/${id}`,
+    DELETE: (id: string) => `/campaigns/${id}`,
+    GET_MY_CAMPAIGNS: "/campaigns/my-campaigns",
+    GET_STATS: "/campaigns/stats",
+    UPLOAD_IMAGE: (id: string) => `/campaigns/${id}/image`,
   },
 
   // File upload endpoints

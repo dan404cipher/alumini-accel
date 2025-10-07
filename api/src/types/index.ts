@@ -262,6 +262,8 @@ export interface IAlumniProfile extends Document {
   availableSlots: Array<{
     day: string;
     timeSlots: string[];
+    startDate?: Date;
+    endDate?: Date;
   }>;
   testimonials: Array<{
     content: string;
@@ -582,6 +584,145 @@ export interface INews extends Document {
   image?: string;
   isShared: boolean;
   author: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Community Types
+export enum CommunityType {
+  OPEN = "open",
+  CLOSED = "closed",
+  HIDDEN = "hidden",
+}
+
+export enum CommunityStatus {
+  ACTIVE = "active",
+  ARCHIVED = "archived",
+  SUSPENDED = "suspended",
+}
+
+export enum CommunityPostType {
+  TEXT = "text",
+  IMAGE = "image",
+  VIDEO = "video",
+  POLL = "poll",
+  ANNOUNCEMENT = "announcement",
+}
+
+export enum CommunityPostStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  DELETED = "deleted",
+}
+
+export enum CommunityMembershipRole {
+  MEMBER = "member",
+  MODERATOR = "moderator",
+  ADMIN = "admin",
+}
+
+export enum CommunityMembershipStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  SUSPENDED = "suspended",
+  LEFT = "left",
+}
+
+export enum CommunityCommentStatus {
+  APPROVED = "approved",
+  PENDING = "pending",
+  REJECTED = "rejected",
+  DELETED = "deleted",
+}
+
+// Community Interface
+export interface ICommunity extends Document {
+  _id: string;
+  name: string;
+  description: string;
+  type: CommunityType;
+  coverImage?: string;
+  createdBy: mongoose.Types.ObjectId;
+  moderators: mongoose.Types.ObjectId[];
+  members: mongoose.Types.ObjectId[];
+  settings: {
+    allowMemberPosts: boolean;
+    requirePostApproval: boolean;
+    allowMediaUploads: boolean;
+    allowComments: boolean;
+    allowPolls: boolean;
+  };
+  status: CommunityStatus;
+  tags: string[];
+  memberCount: number;
+  postCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Community Post Interface
+export interface ICommunityPost extends Document {
+  _id: string;
+  communityId: mongoose.Types.ObjectId;
+  authorId: mongoose.Types.ObjectId;
+  content: string;
+  type: CommunityPostType;
+  mediaUrls?: string[];
+  pollOptions?: {
+    option: string;
+    votes: mongoose.Types.ObjectId[];
+  }[];
+  pollEndDate?: Date;
+  likes: mongoose.Types.ObjectId[];
+  comments: mongoose.Types.ObjectId[];
+  shares: mongoose.Types.ObjectId[];
+  status: CommunityPostStatus;
+  isPinned: boolean;
+  isAnnouncement: boolean;
+  tags: string[];
+  viewCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Community Membership Interface
+export interface ICommunityMembership extends Document {
+  _id: string;
+  communityId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  role: CommunityMembershipRole;
+  status: CommunityMembershipStatus;
+  joinedAt?: Date;
+  leftAt?: Date;
+  invitedBy?: mongoose.Types.ObjectId;
+  approvedBy?: mongoose.Types.ObjectId;
+  suspendedBy?: mongoose.Types.ObjectId;
+  suspensionReason?: string;
+  suspensionEndDate?: Date;
+  permissions: {
+    canPost: boolean;
+    canComment: boolean;
+    canInvite: boolean;
+    canModerate: boolean;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Community Comment Interface
+export interface ICommunityComment extends Document {
+  _id: string;
+  postId: mongoose.Types.ObjectId;
+  authorId: mongoose.Types.ObjectId;
+  content: string;
+  parentCommentId?: mongoose.Types.ObjectId;
+  likes: mongoose.Types.ObjectId[];
+  replies: mongoose.Types.ObjectId[];
+  status: CommunityCommentStatus;
+  isEdited: boolean;
+  editedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

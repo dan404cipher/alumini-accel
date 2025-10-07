@@ -456,6 +456,24 @@ export const validateId = [
   handleValidationErrors,
 ];
 
+// Community ID parameter validation
+export const validateCommunityId = [
+  param("communityId").isMongoId().withMessage("Invalid ID format"),
+  handleValidationErrors,
+];
+
+// Post ID parameter validation
+export const validatePostId = [
+  param("postId").isMongoId().withMessage("Invalid post ID format"),
+  handleValidationErrors,
+];
+
+// Comment ID parameter validation
+export const validateCommentId = [
+  param("commentId").isMongoId().withMessage("Invalid comment ID format"),
+  handleValidationErrors,
+];
+
 // Email validation
 export const validateEmail = [
   body("email")
@@ -624,6 +642,249 @@ export const addCertificationValidation = [
     .withMessage("Invalid credential URL"),
 ];
 
+// Community validation
+export const validateCommunity = [
+  body("name")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Community name must be between 2 and 100 characters"),
+  body("description")
+    .trim()
+    .isLength({ min: 10, max: 500 })
+    .withMessage("Description must be between 10 and 500 characters"),
+  body("type")
+    .isIn(["open", "closed", "hidden"])
+    .withMessage("Community type must be open, closed, or hidden"),
+  body("coverImage")
+    .optional()
+    .custom((value) => {
+      // Allow null, undefined, empty string, or valid URL
+      if (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        value === "null"
+      ) {
+        return true;
+      }
+      // Check if it's a valid URL
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    })
+    .withMessage("Cover image must be a valid URL"),
+  body("logo")
+    .optional()
+    .custom((value) => {
+      // Allow null, undefined, empty string, or valid URL
+      if (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        value === "null"
+      ) {
+        return true;
+      }
+      // Check if it's a valid URL
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    })
+    .withMessage("Logo must be a valid URL"),
+  body("tags").optional().isArray().withMessage("Tags must be an array"),
+  body("tags.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Tag cannot exceed 50 characters"),
+  body("rules").optional().isArray().withMessage("Rules must be an array"),
+  body("rules.*")
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage("Rule cannot exceed 200 characters"),
+  body("externalLinks.website")
+    .optional()
+    .isURL()
+    .withMessage("Website must be a valid URL"),
+  body("externalLinks.github")
+    .optional()
+    .isURL()
+    .withMessage("GitHub must be a valid URL"),
+  body("externalLinks.slack")
+    .optional()
+    .isURL()
+    .withMessage("Slack must be a valid URL"),
+  body("externalLinks.discord")
+    .optional()
+    .isURL()
+    .withMessage("Discord must be a valid URL"),
+  body("externalLinks.other")
+    .optional()
+    .isURL()
+    .withMessage("Other link must be a valid URL"),
+  body("invitedUsers")
+    .optional()
+    .isArray()
+    .withMessage("Invited users must be an array"),
+  body("invitedUsers.*")
+    .optional()
+    .isMongoId()
+    .withMessage("Invited user ID must be a valid MongoDB ObjectId"),
+  body("settings.allowMemberPosts")
+    .optional()
+    .isBoolean()
+    .withMessage("allowMemberPosts must be a boolean"),
+  body("settings.requirePostApproval")
+    .optional()
+    .isBoolean()
+    .withMessage("requirePostApproval must be a boolean"),
+  body("settings.allowMediaUploads")
+    .optional()
+    .isBoolean()
+    .withMessage("allowMediaUploads must be a boolean"),
+  body("settings.allowComments")
+    .optional()
+    .isBoolean()
+    .withMessage("allowComments must be a boolean"),
+  body("settings.allowPolls")
+    .optional()
+    .isBoolean()
+    .withMessage("allowPolls must be a boolean"),
+  handleValidationErrors,
+];
+
+// Community post validation
+export const validateCommunityPost = [
+  body("title")
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Title must be between 1 and 100 characters"),
+  body("content")
+    .trim()
+    .isLength({ min: 1, max: 2000 })
+    .withMessage("Content must be between 1 and 2000 characters"),
+  body("type")
+    .isIn(["text", "image", "video", "poll", "announcement"])
+    .withMessage("Post type must be text, image, video, poll, or announcement"),
+  body("mediaUrls")
+    .optional()
+    .isArray()
+    .withMessage("Media URLs must be an array"),
+  body("mediaUrls.*")
+    .optional()
+    .custom((value) => {
+      // Allow localhost URLs and standard URLs
+      const urlPattern =
+        /^https?:\/\/(localhost|127\.0\.0\.1|[\w.-]+)(:\d+)?\/.+$/i;
+      if (!urlPattern.test(value)) {
+        throw new Error("Media URL must be a valid URL");
+      }
+      return true;
+    }),
+  body("pollOptions")
+    .optional()
+    .isArray()
+    .withMessage("Poll options must be an array"),
+  body("pollOptions.*.option")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Poll option must be between 1 and 100 characters"),
+  body("pollEndDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Poll end date must be a valid date"),
+  body("tags").optional().isArray().withMessage("Tags must be an array"),
+  body("tags.*")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Tag cannot exceed 50 characters"),
+  body("isAnnouncement")
+    .optional()
+    .isBoolean()
+    .withMessage("isAnnouncement must be a boolean"),
+  body("priority")
+    .optional()
+    .isIn(["high", "medium", "low"])
+    .withMessage("Priority must be high, medium, or low"),
+  body("category")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Category cannot exceed 50 characters"),
+  handleValidationErrors,
+];
+
+// Community comment validation
+export const validateCommunityComment = [
+  body("content")
+    .trim()
+    .isLength({ min: 1, max: 500 })
+    .withMessage("Comment content must be between 1 and 500 characters"),
+  body("parentCommentId")
+    .optional()
+    .isMongoId()
+    .withMessage("Parent comment ID must be a valid MongoDB ObjectId"),
+  handleValidationErrors,
+];
+
+// Community membership validation
+export const validateCommunityMembership = [
+  body("userId")
+    .isMongoId()
+    .withMessage("User ID must be a valid MongoDB ObjectId"),
+  body("role")
+    .optional()
+    .isIn(["member", "moderator", "admin"])
+    .withMessage("Role must be member, moderator, or admin"),
+  handleValidationErrors,
+];
+
+// Community membership suspension validation
+export const validateCommunityMembershipSuspension = [
+  body("reason")
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage("Suspension reason must be between 1 and 200 characters"),
+  body("endDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Suspension end date must be a valid date"),
+  handleValidationErrors,
+];
+
+// Community search validation
+export const validateCommunitySearch = [
+  ...validatePagination,
+  query("q")
+    .optional()
+    .isString()
+    .isLength({ min: 1 })
+    .withMessage("Search query must not be empty"),
+  query("type")
+    .optional()
+    .isIn(["open", "closed", "hidden"])
+    .withMessage("Community type must be open, closed, or hidden"),
+  query("tags").optional().isString().withMessage("Tags must be a string"),
+  handleValidationErrors,
+];
+
+// Poll vote validation
+export const validatePollVote = [
+  body("optionIndex")
+    .isInt({ min: 0 })
+    .withMessage("Option index must be a non-negative integer"),
+  handleValidationErrors,
+];
+
 export default {
   handleValidationErrors,
   validateUserRegistration,
@@ -637,10 +898,19 @@ export default {
   validatePagination,
   validateSearch,
   validateId,
+  validatePostId,
+  validateCommentId,
   validateEmail,
   validatePasswordReset,
   validateProfileUpdate,
   addInternshipValidation,
   addResearchValidation,
   addCertificationValidation,
+  validateCommunity,
+  validateCommunityPost,
+  validateCommunityComment,
+  validateCommunityMembership,
+  validateCommunityMembershipSuspension,
+  validateCommunitySearch,
+  validatePollVote,
 };

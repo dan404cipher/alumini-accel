@@ -58,6 +58,10 @@ const donationSchema = new Schema<IDonation>(
       type: String,
       required: true,
       enum: [
+        "UPI",
+        "Credit Card",
+        "Bank Transfer",
+        "Net Banking",
         "credit_card",
         "debit_card",
         "bank_transfer",
@@ -136,10 +140,11 @@ const donationSchema = new Schema<IDonation>(
 );
 
 // Indexes
+// Note: donor, tenantId, campaignId, and paymentStatus indexes are automatically created by index: true
 donationSchema.index({ createdAt: -1 });
 donationSchema.index({ paymentStatus: 1, createdAt: -1 });
 donationSchema.index({ donor: 1, createdAt: -1 });
-donationSchema.index({ campaign: 1, createdAt: -1 });
+donationSchema.index({ campaignId: 1, createdAt: -1 });
 donationSchema.index({ amount: -1 });
 
 // Virtual for formatted amount

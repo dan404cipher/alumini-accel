@@ -1,38 +1,38 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface ICommunityComment extends Document {
+  postId: mongoose.Types.ObjectId;
+  authorId: mongoose.Types.ObjectId;
   content: string;
-  author: mongoose.Types.ObjectId;
-  post: mongoose.Types.ObjectId;
-  parentComment?: mongoose.Types.ObjectId; // For threaded replies
+  parentCommentId?: mongoose.Types.ObjectId; // For nested comments/replies
   likes: mongoose.Types.ObjectId[];
   replies: mongoose.Types.ObjectId[];
-  mentions: mongoose.Types.ObjectId[]; // Tagged users
-  isActive: boolean;
-  tenantId: mongoose.Types.ObjectId;
+  status: "approved" | "pending" | "rejected" | "deleted";
+  isEdited: boolean;
+  editedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const communityCommentSchema = new Schema<ICommunityComment>(
+const CommunityCommentSchema = new Schema<ICommunityComment>(
   {
-    content: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 1000,
-    },
-    author: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    post: {
+    postId: {
       type: Schema.Types.ObjectId,
       ref: "CommunityPost",
       required: true,
     },
-    parentComment: {
+    authorId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    content: {
+      type: String,
+      required: [true, "Comment content is required"],
+      trim: true,
+      maxlength: [500, "Comment content cannot exceed 500 characters"],
+    },
+    parentCommentId: {
       type: Schema.Types.ObjectId,
       ref: "CommunityComment",
       default: null,
@@ -49,80 +49,134 @@ const communityCommentSchema = new Schema<ICommunityComment>(
         ref: "CommunityComment",
       },
     ],
-    mentions: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    isActive: {
-      type: Boolean,
-      default: true,
+    status: {
+      type: String,
+      enum: ["approved", "pending", "rejected", "deleted"],
+      default: "approved",
     },
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: "Tenant",
-      required: true,
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    editedAt: {
+      type: Date,
+      default: null,
     },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// Indexes
-communityCommentSchema.index({ post: 1, createdAt: 1 });
-communityCommentSchema.index({ author: 1 });
-communityCommentSchema.index({ parentComment: 1 });
-communityCommentSchema.index({ tenantId: 1 });
-communityCommentSchema.index({ isActive: 1 });
+// Indexes for better performance
+CommunityCommentSchema.index({ postId: 1, createdAt: 1 });
+CommunityCommentSchema.index({ authorId: 1 });
+CommunityCommentSchema.index({ parentCommentId: 1 });
+CommunityCommentSchema.index({ status: 1 });
 
-// Instance methods
-communityCommentSchema.methods.like = function (
-  userId: mongoose.Types.ObjectId
-): boolean {
-  const index = this.likes.findIndex((id: mongoose.Types.ObjectId) =>
-    id.equals(userId)
-  );
-  if (index === -1) {
-    this.likes.push(userId);
-    return true; // Liked
-  } else {
-    this.likes.splice(index, 1);
-    return false; // Unliked
+// Virtual for like count
+CommunityCommentSchema.virtual("likeCount").get(function () {
+  return this.likes.length;
+});
+
+// Virtual for reply count
+CommunityCommentSchema.virtual("replyCount").get(function () {
+  return this.replies.length;
+});
+
+// Pre-save middleware to set editedAt when content changes
+CommunityCommentSchema.pre("save", function (next) {
+  if (this.isModified("content") && !this.isNew) {
+    this.isEdited = true;
+    this.editedAt = new Date();
   }
-};
-
-communityCommentSchema.methods.isLikedBy = function (
-  userId: mongoose.Types.ObjectId
-): boolean {
-  return this.likes.some((id: mongoose.Types.ObjectId) => id.equals(userId));
-};
-
-communityCommentSchema.methods.addReply = function (
-  replyId: mongoose.Types.ObjectId
-): void {
-  if (!this.replies.some((id: mongoose.Types.ObjectId) => id.equals(replyId))) {
-    this.replies.push(replyId);
-  }
-};
-
-// Pre-save middleware to extract mentions from content
-communityCommentSchema.pre("save", function (next) {
-  // Extract @mentions from content (simple regex for @username)
-  const mentionRegex = /@(\w+)/g;
-  const matches = this.content.match(mentionRegex);
-
-  if (matches) {
-    // In a real implementation, you'd look up users by username
-    // For now, we'll just store the extracted usernames
-    // this.mentions = matches.map(match => match.substring(1));
-  }
-
   next();
 });
 
+// Static method to find comments by post
+CommunityCommentSchema.statics.findByPost = function (
+  postId: string,
+  options: any = {}
+) {
+  const query = {
+    postId,
+    parentCommentId: null, // Only top-level comments
+    status: "approved",
+  };
+
+  return this.find(query)
+    .populate("authorId", "firstName lastName profileImage")
+    .populate("likes", "firstName lastName")
+    .populate({
+      path: "replies",
+      populate: {
+        path: "authorId",
+        select: "firstName lastName profileImage",
+      },
+    })
+    .sort({ createdAt: 1 })
+    .limit(options.limit || 50)
+    .skip(options.skip || 0);
+};
+
+// Static method to find replies to a comment
+CommunityCommentSchema.statics.findReplies = function (
+  parentCommentId: string
+) {
+  return this.find({
+    parentCommentId,
+    status: "approved",
+  })
+    .populate("authorId", "firstName lastName profileImage")
+    .populate("likes", "firstName lastName")
+    .sort({ createdAt: 1 });
+};
+
+// Instance method to like comment
+CommunityCommentSchema.methods.likeComment = function (userId: string) {
+  if (!this.likes.includes(userId)) {
+    this.likes.push(userId);
+  }
+  return this;
+};
+
+// Instance method to unlike comment
+CommunityCommentSchema.methods.unlikeComment = function (userId: string) {
+  this.likes = this.likes.filter(
+    (id: mongoose.Types.ObjectId) => id.toString() !== userId
+  );
+  return this;
+};
+
+// Instance method to add reply
+CommunityCommentSchema.methods.addReply = function (replyId: string) {
+  if (!this.replies.includes(replyId)) {
+    this.replies.push(replyId);
+  }
+  return this;
+};
+
+// Instance method to approve comment
+CommunityCommentSchema.methods.approveComment = function () {
+  this.status = "approved";
+  return this;
+};
+
+// Instance method to reject comment
+CommunityCommentSchema.methods.rejectComment = function () {
+  this.status = "rejected";
+  return this;
+};
+
+// Instance method to delete comment
+CommunityCommentSchema.methods.deleteComment = function () {
+  this.status = "deleted";
+  return this;
+};
+
 export default mongoose.model<ICommunityComment>(
   "CommunityComment",
-  communityCommentSchema
+  CommunityCommentSchema
 );

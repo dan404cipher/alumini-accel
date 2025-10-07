@@ -6,18 +6,20 @@ export interface ICampaign extends Document {
   tenantId: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
   category:
-    | "scholarship"
-    | "infrastructure"
-    | "research"
-    | "event"
-    | "emergency"
-    | "other";
+    | "Infrastructure"
+    | "Scholarships & Student Support"
+    | "Research & Academics"
+    | "Sports, Arts & Culture"
+    | "Community & Social Impact"
+    | "Emergency"
+    | "Other";
   targetAmount: number;
   currentAmount: number;
   currency: string;
   startDate: Date;
   endDate: Date;
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
+  imageUrl: string;
   images: string[];
   documents: string[];
   isPublic: boolean;
@@ -76,12 +78,13 @@ const campaignSchema = new Schema<ICampaign>(
     category: {
       type: String,
       enum: [
-        "scholarship",
-        "infrastructure",
-        "research",
-        "event",
-        "emergency",
-        "other",
+        "Infrastructure",
+        "Scholarships & Student Support",
+        "Research & Academics",
+        "Sports, Arts & Culture",
+        "Community & Social Impact",
+        "Emergency",
+        "Other",
       ],
       required: true,
     },
@@ -118,6 +121,10 @@ const campaignSchema = new Schema<ICampaign>(
       type: String,
       enum: ["draft", "active", "paused", "completed", "cancelled"],
       default: "draft",
+    },
+    imageUrl: {
+      type: String,
+      trim: true,
     },
     images: [
       {

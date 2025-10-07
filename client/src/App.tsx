@@ -29,6 +29,8 @@ import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
 import Connections from "./pages/Connections";
 import Messages from "./pages/Messages";
+import CommunityDetail from "./pages/CommunityDetail";
+import CommunityDetailNew from "./pages/CommunityDetailNew";
 
 const queryClient = new QueryClient();
 
@@ -181,7 +183,25 @@ const App = () => {
                 />
 
                 <Route
+                  path="/community/:id"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/donations"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/mentorship"
                   element={
                     <ProtectedRoute>
                       <Layout />

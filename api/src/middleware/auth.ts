@@ -60,7 +60,15 @@ export const authenticateToken = async (
     req.user = user;
     req.user.id = user._id; // Add id property for compatibility
     req.userId = user._id.toString();
-    req.tenantId = user.tenantId;
+
+    // Extract tenantId from JWT token or user object
+    const userTenantId =
+      decoded.tenantId ||
+      (user.tenantId ? user.tenantId.toString() : undefined);
+    req.tenantId = userTenantId;
+
+    // Ensure req.user has tenantId for easy access
+    req.user.tenantId = userTenantId;
 
     // If user is alumni, also fetch alumni profile
     if (user.role === UserRole.ALUMNI) {
@@ -292,12 +300,22 @@ export const logout = async (
 };
 
 // Generate JWT token
-export const generateToken = (userId: string, role: UserRole): string => {
+export const generateToken = (
+  userId: string,
+  role: UserRole,
+  tenantId?: string
+): string => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error("JWT_SECRET environment variable is not set");
   }
-  return (jwt.sign as any)({ userId, role }, secret, {
+
+  const payload: any = { userId, role };
+  if (tenantId) {
+    payload.tenantId = tenantId;
+  }
+
+  return (jwt.sign as any)(payload, secret, {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 };

@@ -427,6 +427,127 @@ export const createProfile = async (req: Request, res: Response) => {
   }
 };
 
+// Register as mentor
+export const registerAsMentor = async (req: Request, res: Response) => {
+  try {
+    const {
+      mentorshipDomains,
+      availableSlots,
+      mentoringStyle,
+      availableHours,
+      timezone,
+      bio,
+      testimonials,
+      currentPosition,
+      currentCompany,
+      experience,
+    } = req.body;
+
+    // Check if user already has an alumni profile
+    let alumniProfile = await AlumniProfile.findOne({
+      userId: req.user.id,
+    });
+
+    if (!alumniProfile) {
+      // Create a basic alumni profile if one doesn't exist
+      alumniProfile = new AlumniProfile({
+        userId: req.user.id,
+        university: "Not specified",
+        program: "Not specified",
+        batchYear: new Date().getFullYear() - 4, // Default to 4 years ago
+        graduationYear: new Date().getFullYear() - 4,
+        department: "Not specified",
+        specialization: "Not specified",
+        currentCompany: "Not specified",
+        currentPosition: "Not specified",
+        currentLocation: "Not specified",
+        experience: 0,
+        skills: [],
+        achievements: [],
+        certifications: [],
+        education: [],
+        careerTimeline: [],
+        isHiring: false,
+        availableForMentorship: false,
+        mentorshipDomains: [],
+        availableSlots: [],
+        testimonials: [],
+        photos: [],
+      });
+
+      await alumniProfile.save();
+    }
+
+    // Check if already registered as mentor
+    if (alumniProfile.availableForMentorship) {
+      // Allow updates to existing mentor information
+      alumniProfile.mentorshipDomains =
+        mentorshipDomains || alumniProfile.mentorshipDomains;
+      alumniProfile.availableSlots =
+        availableSlots || alumniProfile.availableSlots;
+
+      // Update profile fields with mentor form data
+      if (currentPosition) {
+        alumniProfile.currentPosition = currentPosition;
+      }
+      if (currentCompany) {
+        alumniProfile.currentCompany = currentCompany;
+      }
+      if (experience !== undefined && experience !== null) {
+        alumniProfile.experience = experience;
+      }
+
+      // Add testimonials if provided
+      if (testimonials && testimonials.length > 0) {
+        alumniProfile.testimonials = testimonials;
+      }
+
+      await alumniProfile.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Mentor information updated successfully",
+        data: alumniProfile,
+      });
+    }
+
+    // First-time registration
+    alumniProfile.availableForMentorship = true;
+    alumniProfile.mentorshipDomains = mentorshipDomains || [];
+    alumniProfile.availableSlots = availableSlots || [];
+
+    // Update profile fields with mentor form data
+    if (currentPosition) {
+      alumniProfile.currentPosition = currentPosition;
+    }
+    if (currentCompany) {
+      alumniProfile.currentCompany = currentCompany;
+    }
+    if (experience !== undefined && experience !== null) {
+      alumniProfile.experience = experience;
+    }
+
+    // Add testimonials if provided
+    if (testimonials && testimonials.length > 0) {
+      alumniProfile.testimonials = testimonials;
+    }
+
+    await alumniProfile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully registered as mentor",
+      data: alumniProfile,
+    });
+  } catch (error) {
+    logger.error("Register as mentor error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to register as mentor",
+    });
+  }
+};
+
 // Update alumni profile
 export const updateProfile = async (req: Request, res: Response) => {
   try {
@@ -667,15 +788,39 @@ export const getMentors = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const alumni = await AlumniProfile.find({ availableForMentorship: true })
-      .populate("user", "firstName lastName email profilePicture")
+    // Build user filter for multi-tenant filtering
+    const userFilter: any = {
+      role: UserRole.ALUMNI,
+    };
+
+    // 🔒 MULTI-TENANT FILTERING: Only show mentors from same college (unless super admin)
+    if (req.query.tenantId) {
+      userFilter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      userFilter.tenantId = req.user.tenantId;
+    }
+
+    // Get alumni users first
+    const alumniUsers = await User.find(userFilter)
+      .select("_id firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await AlumniProfile.countDocuments({
+    // Get total count of alumni users
+    const totalUsers = await User.countDocuments(userFilter);
+
+    // Get alumni profiles for mentors from these users
+    const alumniProfileFilter: any = {
+      userId: { $in: alumniUsers.map((user) => user._id) },
       availableForMentorship: true,
-    });
+    };
+
+    const alumni = await AlumniProfile.find(alumniProfileFilter)
+      .populate("userId", "firstName lastName email profilePicture")
+      .sort({ createdAt: -1 });
+
+    const total = await AlumniProfile.countDocuments(alumniProfileFilter);
 
     res.json({
       success: true,
@@ -1710,6 +1855,7 @@ export default {
   getAlumniById,
   createProfile,
   updateProfile,
+  registerAsMentor,
   updateSkillsInterests,
   searchAlumni,
   getAlumniByBatch,

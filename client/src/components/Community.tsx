@@ -170,10 +170,39 @@ const Community = () => {
 
   // Real data from API
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
-
   const [amaSessions, setAMASessions] = useState<AMASession[]>([]);
-
   const [polls, setPolls] = useState<CommunityPoll[]>([]);
+
+  // Right sidebar data
+  interface TopCommunity {
+    id: string;
+    name: string;
+    memberCount: number;
+    postCount: number;
+    category: string;
+    isPublic: boolean;
+    coverImage: string | null;
+    logo: string | null;
+  }
+
+  interface PopularTag {
+    name: string;
+    count: number;
+    color: string;
+  }
+
+  interface APIResponse {
+    success: boolean;
+    data?: {
+      discussions?: Discussion[];
+      amaSessions?: AMASession[];
+      polls?: CommunityPoll[];
+    };
+  }
+
+  const [topCommunities, setTopCommunities] = useState<TopCommunity[]>([]);
+  const [popularTags, setPopularTags] = useState<PopularTag[]>([]);
+  const [loadingSidebar, setLoadingSidebar] = useState(false);
 
   const categories = [
     { id: "all", name: "All Categories", icon: Globe },
@@ -207,8 +236,8 @@ const Community = () => {
             sortBy: selectedSortBy,
           });
 
-          if (response.success) {
-            setDiscussions(response.data.discussions);
+          if (response.success && response.data) {
+            setDiscussions((response as APIResponse).data?.discussions || []);
           } else {
             setError("Failed to fetch discussions");
           }
@@ -217,8 +246,8 @@ const Community = () => {
             category: selectedCategory !== "all" ? selectedCategory : undefined,
           });
 
-          if (response.success) {
-            setAMASessions(response.data.amaSessions);
+          if (response.success && response.data) {
+            setAMASessions((response as APIResponse).data?.amaSessions || []);
           } else {
             setError("Failed to fetch AMA sessions");
           }
@@ -228,8 +257,8 @@ const Community = () => {
             active: true,
           });
 
-          if (response.success) {
-            setPolls(response.data.polls);
+          if (response.success && response.data) {
+            setPolls((response as APIResponse).data?.polls || []);
           } else {
             setError("Failed to fetch polls");
           }
@@ -244,6 +273,120 @@ const Community = () => {
 
     fetchData();
   }, [activeTab, selectedCategory, selectedSortBy]);
+
+  // Fetch top communities and popular tags for right sidebar
+  useEffect(() => {
+    const fetchSidebarData = async () => {
+      try {
+        setLoadingSidebar(true);
+
+        // Fetch top communities (mock data for now - replace with actual API calls)
+        const mockTopCommunities = [
+          {
+            id: "1",
+            name: "Computer Science Alumni",
+            memberCount: 1250,
+            postCount: 89,
+            category: "technology",
+            isPublic: true,
+            coverImage: null,
+            logo: null,
+          },
+          {
+            id: "2",
+            name: "Entrepreneurship Hub",
+            memberCount: 890,
+            postCount: 156,
+            category: "entrepreneurship",
+            isPublic: true,
+            coverImage: null,
+            logo: null,
+          },
+          {
+            id: "3",
+            name: "Career Guidance",
+            memberCount: 2100,
+            postCount: 234,
+            category: "career",
+            isPublic: true,
+            coverImage: null,
+            logo: null,
+          },
+          {
+            id: "4",
+            name: "Batch 2020",
+            memberCount: 450,
+            postCount: 67,
+            category: "batch",
+            isPublic: true,
+            coverImage: null,
+            logo: null,
+          },
+          {
+            id: "5",
+            name: "Research & Development",
+            memberCount: 320,
+            postCount: 45,
+            category: "academic",
+            isPublic: true,
+            coverImage: null,
+            logo: null,
+          },
+        ];
+
+        // Mock popular tags
+        const mockPopularTags = [
+          {
+            name: "job-opportunities",
+            count: 45,
+            color: "bg-blue-100 text-blue-800",
+          },
+          {
+            name: "mentorship",
+            count: 32,
+            color: "bg-green-100 text-green-800",
+          },
+          {
+            name: "startup",
+            count: 28,
+            color: "bg-purple-100 text-purple-800",
+          },
+          {
+            name: "networking",
+            count: 24,
+            color: "bg-orange-100 text-orange-800",
+          },
+          {
+            name: "career-advice",
+            count: 21,
+            color: "bg-pink-100 text-pink-800",
+          },
+          {
+            name: "technology",
+            count: 18,
+            color: "bg-indigo-100 text-indigo-800",
+          },
+          { name: "events", count: 15, color: "bg-red-100 text-red-800" },
+          {
+            name: "alumni-meetup",
+            count: 12,
+            color: "bg-yellow-100 text-yellow-800",
+          },
+          { name: "funding", count: 10, color: "bg-teal-100 text-teal-800" },
+          { name: "internship", count: 8, color: "bg-gray-100 text-gray-800" },
+        ];
+
+        setTopCommunities(mockTopCommunities);
+        setPopularTags(mockPopularTags);
+      } catch (err) {
+        console.error("Error fetching sidebar data:", err);
+      } finally {
+        setLoadingSidebar(false);
+      }
+    };
+
+    fetchSidebarData();
+  }, []);
 
   const handleCreateDiscussion = async () => {
     try {
@@ -1040,6 +1183,28 @@ const Community = () => {
               </p>
             </div>
           </div>
+
+          {/* Mobile Stats - Only show on smaller screens when right sidebar is hidden */}
+          <div className="lg:hidden grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="text-xs text-blue-600 font-medium">
+                Communities
+              </div>
+              <div className="text-lg font-bold text-blue-900">47</div>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <div className="text-xs text-green-600 font-medium">Members</div>
+              <div className="text-lg font-bold text-green-900">2.8K</div>
+            </div>
+            <div className="bg-purple-50 p-3 rounded-lg">
+              <div className="text-xs text-purple-600 font-medium">Posts</div>
+              <div className="text-lg font-bold text-purple-900">156</div>
+            </div>
+            <div className="bg-orange-50 p-3 rounded-lg">
+              <div className="text-xs text-orange-600 font-medium">New</div>
+              <div className="text-lg font-bold text-orange-900">+3</div>
+            </div>
+          </div>
         </div>
 
         {/* Loading and Error States */}
@@ -1740,6 +1905,214 @@ const Community = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Mobile Popular Tags - Show below content on smaller screens */}
+        <div className="lg:hidden mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Star className="w-5 h-5 mr-2" />
+                Popular Tags
+              </CardTitle>
+              <CardDescription>
+                Trending topics in the community
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingSidebar ? (
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    <div
+                      key={i}
+                      className="animate-pulse h-6 bg-gray-200 rounded-full"
+                      style={{ width: `${Math.random() * 60 + 40}px` }}
+                    ></div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {popularTags.slice(0, 8).map((tag, index) => (
+                    <Badge
+                      key={tag.name}
+                      variant="secondary"
+                      className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}
+                      onClick={() => {
+                        // Filter by tag - you can implement this functionality
+                        console.log("Filter by tag:", tag.name);
+                      }}
+                    >
+                      #{tag.name}
+                      <span className="ml-1 text-xs opacity-70">
+                        ({tag.count})
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Right Sidebar - Top Communities & Popular Tags */}
+      <div className="block w-80 flex-shrink-0 bg-gray-50">
+        <div className="sticky top-0 h-screen overflow-y-auto p-4 space-y-6">
+          {/* Top Communities */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2" />
+                Top Communities
+              </CardTitle>
+              <CardDescription>
+                Most active communities this week
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingSidebar ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {topCommunities.map((community, index) => (
+                    <div
+                      key={community.id}
+                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/community/${community.id}`)}
+                    >
+                      <div className="relative">
+                        {community.logo ? (
+                          <img
+                            src={community.logo}
+                            alt={community.name}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                            {community.name.charAt(0)}
+                          </div>
+                        )}
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">
+                            {index + 1}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                          {community.name}
+                        </h4>
+                        <div className="flex items-center space-x-3 text-xs text-gray-500">
+                          <span className="flex items-center">
+                            <Users2 className="w-3 h-3 mr-1" />
+                            {community.memberCount.toLocaleString()}
+                          </span>
+                          <span className="flex items-center">
+                            <MessageCircle className="w-3 h-3 mr-1" />
+                            {community.postCount}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {community.category}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Popular Tags */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Star className="w-5 h-5 mr-2" />
+                Popular Tags
+              </CardTitle>
+              <CardDescription>
+                Trending topics in the community
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingSidebar ? (
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    <div
+                      key={i}
+                      className="animate-pulse h-6 bg-gray-200 rounded-full"
+                      style={{ width: `${Math.random() * 60 + 40}px` }}
+                    ></div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {popularTags.map((tag, index) => (
+                    <Badge
+                      key={tag.name}
+                      variant="secondary"
+                      className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}
+                      onClick={() => {
+                        // Filter by tag - you can implement this functionality
+                        console.log("Filter by tag:", tag.name);
+                      }}
+                    >
+                      #{tag.name}
+                      <span className="ml-1 text-xs opacity-70">
+                        ({tag.count})
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <BarChart3 className="w-5 h-5 mr-2" />
+                Community Stats
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Total Communities
+                  </span>
+                  <span className="text-sm font-semibold">47</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Active Members</span>
+                  <span className="text-sm font-semibold">2.8K</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Posts This Week</span>
+                  <span className="text-sm font-semibold">156</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">New Communities</span>
+                  <span className="text-sm font-semibold text-green-600">
+                    +3
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -3,57 +3,95 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface ICommunity extends Document {
   name: string;
   description: string;
+  type: "open" | "closed" | "hidden";
   category:
     | "department"
     | "batch"
     | "interest"
     | "professional"
     | "location"
+    | "academic_research"
+    | "professional_career"
+    | "entrepreneurship_startups"
+    | "social_hobby"
+    | "mentorship_guidance"
+    | "events_meetups"
+    | "community_support_volunteering"
+    | "technology_deeptech"
+    | "regional_chapter_based"
     | "other";
-  banner?: string;
+  coverImage?: string;
   logo?: string;
-  isPublic: boolean;
-  owner: mongoose.Types.ObjectId;
-  admins: mongoose.Types.ObjectId[];
+  createdBy: mongoose.Types.ObjectId;
+  moderators: mongoose.Types.ObjectId[];
   members: mongoose.Types.ObjectId[];
-  pendingRequests: mongoose.Types.ObjectId[];
-  rules?: string[];
+  invitedUsers: mongoose.Types.ObjectId[];
+  settings: {
+    allowMemberPosts: boolean;
+    requirePostApproval: boolean;
+    allowMediaUploads: boolean;
+    allowComments: boolean;
+    allowPolls: boolean;
+  };
+  status: "active" | "archived" | "suspended";
   tags: string[];
+  rules: string[];
+  externalLinks: {
+    website?: string;
+    github?: string;
+    slack?: string;
+    discord?: string;
+    other?: string;
+  };
   memberCount: number;
   postCount: number;
-  isActive: boolean;
-  tenantId: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const communitySchema = new Schema<ICommunity>(
+const CommunitySchema = new Schema<ICommunity>(
   {
     name: {
       type: String,
-      required: true,
+      required: [true, "Community name is required"],
       trim: true,
-      maxlength: 100,
+      maxlength: [100, "Community name cannot exceed 100 characters"],
+      unique: true,
     },
     description: {
       type: String,
-      required: true,
+      required: [true, "Community description is required"],
       trim: true,
-      maxlength: 500,
+      maxlength: [500, "Community description cannot exceed 500 characters"],
+    },
+    type: {
+      type: String,
+      enum: ["open", "closed", "hidden"],
+      default: "open",
+      required: true,
     },
     category: {
       type: String,
-      required: true,
       enum: [
         "department",
         "batch",
         "interest",
         "professional",
         "location",
+        "academic_research",
+        "professional_career",
+        "entrepreneurship_startups",
+        "social_hobby",
+        "mentorship_guidance",
+        "events_meetups",
+        "community_support_volunteering",
+        "technology_deeptech",
+        "regional_chapter_based",
         "other",
       ],
+      required: true,
     },
-    banner: {
+    coverImage: {
       type: String,
       default: null,
     },
@@ -61,16 +99,12 @@ const communitySchema = new Schema<ICommunity>(
       type: String,
       default: null,
     },
-    isPublic: {
-      type: Boolean,
-      default: true,
-    },
-    owner: {
+    createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    admins: [
+    moderators: [
       {
         type: Schema.Types.ObjectId,
         ref: "User",
@@ -82,10 +116,44 @@ const communitySchema = new Schema<ICommunity>(
         ref: "User",
       },
     ],
-    pendingRequests: [
+    invitedUsers: [
       {
         type: Schema.Types.ObjectId,
         ref: "User",
+      },
+    ],
+    settings: {
+      allowMemberPosts: {
+        type: Boolean,
+        default: true,
+      },
+      requirePostApproval: {
+        type: Boolean,
+        default: false,
+      },
+      allowMediaUploads: {
+        type: Boolean,
+        default: true,
+      },
+      allowComments: {
+        type: Boolean,
+        default: true,
+      },
+      allowPolls: {
+        type: Boolean,
+        default: true,
+      },
+    },
+    status: {
+      type: String,
+      enum: ["active", "archived", "suspended"],
+      default: "active",
+    },
+    tags: [
+      {
+        type: String,
+        trim: true,
+        lowercase: true,
       },
     ],
     rules: [
@@ -94,12 +162,28 @@ const communitySchema = new Schema<ICommunity>(
         trim: true,
       },
     ],
-    tags: [
-      {
+    externalLinks: {
+      website: {
         type: String,
         trim: true,
       },
-    ],
+      github: {
+        type: String,
+        trim: true,
+      },
+      slack: {
+        type: String,
+        trim: true,
+      },
+      discord: {
+        type: String,
+        trim: true,
+      },
+      other: {
+        type: String,
+        trim: true,
+      },
+    },
     memberCount: {
       type: Number,
       default: 0,
@@ -108,79 +192,115 @@ const communitySchema = new Schema<ICommunity>(
       type: Number,
       default: 0,
     },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    tenantId: {
-      type: Schema.Types.ObjectId,
-      ref: "Tenant",
-      required: true,
-    },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// Indexes
-communitySchema.index({ tenantId: 1 });
-communitySchema.index({ category: 1 });
-communitySchema.index({ isPublic: 1 });
-communitySchema.index({ isActive: 1 });
-communitySchema.index({ name: "text", description: "text", tags: "text" });
+// Indexes for better performance
+// Note: name index is automatically created by unique: true
+CommunitySchema.index({ type: 1 });
+CommunitySchema.index({ status: 1 });
+CommunitySchema.index({ tags: 1 });
+CommunitySchema.index({ createdBy: 1 });
+CommunitySchema.index({ members: 1 });
+
+// Virtual for getting community statistics
+CommunitySchema.virtual("statistics").get(function () {
+  return {
+    memberCount: this.memberCount,
+    postCount: this.postCount,
+    moderatorCount: this.moderators.length,
+  };
+});
 
 // Pre-save middleware to update member count
-communitySchema.pre("save", function (next) {
-  this.memberCount = this.members.length;
+CommunitySchema.pre("save", function (next) {
+  if (this.isModified("members")) {
+    this.memberCount = this.members.length;
+  }
   next();
 });
 
-// Instance methods
-communitySchema.methods.isMember = function (
-  userId: mongoose.Types.ObjectId
-): boolean {
-  return this.members.some((id: mongoose.Types.ObjectId) => id.equals(userId));
+// Static method to find communities by type
+CommunitySchema.statics.findByType = function (type: string) {
+  return this.find({ type, status: "active" });
 };
 
-communitySchema.methods.isAdmin = function (
-  userId: mongoose.Types.ObjectId
-): boolean {
-  return (
-    this.admins.some((id: mongoose.Types.ObjectId) => id.equals(userId)) ||
-    this.owner.equals(userId)
-  );
+// Static method to find communities by tags
+CommunitySchema.statics.findByTags = function (tags: string[]) {
+  return this.find({
+    tags: { $in: tags },
+    status: "active",
+  });
 };
 
-communitySchema.methods.canJoin = function (
-  userId: mongoose.Types.ObjectId
-): boolean {
-  if (this.isPublic) return true;
-  return this.pendingRequests.some((id: mongoose.Types.ObjectId) =>
-    id.equals(userId)
-  );
+// Static method to find communities user can join
+CommunitySchema.statics.findJoinableCommunities = function (userId: string) {
+  return this.find({
+    status: "active",
+    $or: [
+      { type: "open" },
+      {
+        type: "closed",
+        members: { $ne: userId },
+      },
+    ],
+  });
 };
 
-communitySchema.methods.addMember = function (
-  userId: mongoose.Types.ObjectId
-): void {
-  if (!this.members.some((id: mongoose.Types.ObjectId) => id.equals(userId))) {
+// Instance method to check if user is member
+CommunitySchema.methods.isMember = function (userId: string) {
+  return this.members.includes(userId);
+};
+
+// Instance method to check if user is moderator
+CommunitySchema.methods.isModerator = function (userId: string) {
+  return this.moderators.includes(userId);
+};
+
+// Instance method to check if user can post
+CommunitySchema.methods.canPost = function (userId: string) {
+  if (!this.isMember(userId)) return false;
+  if (!this.settings.allowMemberPosts) return false;
+  return true;
+};
+
+// Instance method to add member
+CommunitySchema.methods.addMember = function (userId: string) {
+  if (!this.members.includes(userId)) {
     this.members.push(userId);
-    this.pendingRequests = this.pendingRequests.filter(
-      (id: mongoose.Types.ObjectId) => !id.equals(userId)
-    );
+    this.memberCount = this.members.length;
   }
+  return this;
 };
 
-communitySchema.methods.removeMember = function (
-  userId: mongoose.Types.ObjectId
-): void {
+// Instance method to remove member
+CommunitySchema.methods.removeMember = function (userId: string) {
   this.members = this.members.filter(
-    (id: mongoose.Types.ObjectId) => !id.equals(userId)
+    (id: mongoose.Types.ObjectId) => id.toString() !== userId
   );
-  this.admins = this.admins.filter(
-    (id: mongoose.Types.ObjectId) => !id.equals(userId)
-  );
+  this.memberCount = this.members.length;
+  return this;
 };
 
-export default mongoose.model<ICommunity>("Community", communitySchema);
+// Instance method to add moderator
+CommunitySchema.methods.addModerator = function (userId: string) {
+  if (!this.moderators.includes(userId)) {
+    this.moderators.push(userId);
+  }
+  return this;
+};
+
+// Instance method to remove moderator
+CommunitySchema.methods.removeModerator = function (userId: string) {
+  this.moderators = this.moderators.filter(
+    (id: mongoose.Types.ObjectId) => id.toString() !== userId
+  );
+  return this;
+};
+
+export default mongoose.model<ICommunity>("Community", CommunitySchema);

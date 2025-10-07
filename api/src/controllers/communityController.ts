@@ -1,202 +1,384 @@
 import { Request, Response } from "express";
-import mongoose from "mongoose";
-import Community from "@/models/Community";
-import CommunityPost from "@/models/CommunityPost";
-import CommunityComment from "@/models/CommunityComment";
-import User from "@/models/User";
-import { AuthenticatedRequest } from "@/types";
+import Community from "../models/Community";
+import CommunityMembership from "../models/CommunityMembership";
+import CommunityPost from "../models/CommunityPost";
+import User from "../models/User";
+import { IUser } from "@/types";
 
-// Get all communities
-export const getCommunities = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { category, search, page = 1, limit = 10 } = req.query;
-    const tenantId = req.tenantId;
+interface AuthenticatedRequest extends Request {
+  user?: IUser;
+}
 
-    // If no tenantId, return empty communities (for public access)
-    if (!tenantId) {
-      res.json({
-        success: true,
-        data: {
-          communities: [],
-          pagination: {
-            page: 1,
-            limit: 10,
-            total: 0,
-            pages: 0,
-          },
-        },
-      });
-      return;
-    }
-
-    const query: any = { tenantId, isActive: true };
-
-    if (category && category !== "all") {
-      query.category = category;
-    }
-
-    if (search) {
-      query.$text = { $search: search as string };
-    }
-
-    const communities = await Community.find(query)
-      .populate("owner", "firstName lastName profileImage")
-      .populate("admins", "firstName lastName profileImage")
-      .sort({ memberCount: -1, createdAt: -1 })
-      .limit(Number(limit) * 1)
-      .skip((Number(page) - 1) * Number(limit));
-
-    const total = await Community.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: {
-        communities,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit)),
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching communities:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch communities",
-    });
-  }
-};
-
-// Get single community
-export const getCommunity = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const tenantId = req.tenantId;
-
-    if (!tenantId) {
-      res.status(400).json({
-        success: false,
-        message: "Tenant ID is required",
-      });
-      return;
-    }
-
-    const community = await Community.findOne({
-      _id: id,
-      tenantId,
-      isActive: true,
-    })
-      .populate("owner", "firstName lastName profileImage email")
-      .populate("admins", "firstName lastName profileImage email")
-      .populate("members", "firstName lastName profileImage email")
-      .populate("pendingRequests", "firstName lastName profileImage email");
-
-    if (!community) {
-      res.status(404).json({
-        success: false,
-        message: "Community not found",
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      data: { community },
-    });
-  } catch (error) {
-    console.error("Error fetching community:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch community",
-    });
-  }
-};
-
-// Create community
+// Create a new community
 export const createCommunity = async (
   req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
+) => {
   try {
     const {
       name,
       description,
+      type,
       category,
-      banner,
+      coverImage,
       logo,
-      isPublic = true,
-      rules = [],
-      tags = [],
+      tags,
+      rules,
+      externalLinks,
+      invitedUsers,
+      settings,
     } = req.body;
+    const userId = req.user?._id;
 
-    const tenantId = req.tenantId;
-    const userId = req.userId;
-
-    if (!tenantId || !userId) {
-      res.status(400).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "Tenant ID and User ID are required",
+        message: "User not authenticated",
       });
-      return;
     }
 
-    // Check if community name already exists in this tenant
-    const existingCommunity = await Community.findOne({
-      name,
-      tenantId,
-      isActive: true,
-    });
-
-    if (existingCommunity) {
-      res.status(400).json({
+    // Check if user has permission to create communities
+    const userRole = req.user?.role;
+    if (!["college_admin", "hod", "staff"].includes(userRole || "")) {
+      return res.status(403).json({
         success: false,
-        message: "A community with this name already exists",
+        message: "Only College Admin, HOD, and Staff can create communities",
       });
-      return;
+    }
+
+    // Check if community name already exists
+    const existingCommunity = await Community.findOne({ name });
+    if (existingCommunity) {
+      return res.status(400).json({
+        success: false,
+        message: "Community name already exists",
+      });
     }
 
     const community = new Community({
       name,
       description,
+      type: type || "open",
       category,
-      banner,
+      coverImage,
       logo,
-      isPublic,
-      owner: userId,
-      admins: [userId],
-      members: [userId], // Owner is automatically a member
-      rules,
-      tags,
-      tenantId,
+      createdBy: userId,
+      moderators: [userId], // Creator becomes first moderator
+      members: [userId], // Creator becomes first member
+      invitedUsers: invitedUsers || [],
+      tags: tags || [],
+      rules: rules || [],
+      externalLinks: externalLinks || {},
+      settings: {
+        allowMemberPosts: settings?.allowMemberPosts ?? true,
+        requirePostApproval: settings?.requirePostApproval ?? false,
+        allowMediaUploads: settings?.allowMediaUploads ?? true,
+        allowComments: settings?.allowComments ?? true,
+        allowPolls: settings?.allowPolls ?? true,
+      },
     });
 
     await community.save();
 
-    // Populate the created community
-    await community.populate([
-      { path: "owner", select: "firstName lastName profileImage" },
-      { path: "admins", select: "firstName lastName profileImage" },
-      { path: "members", select: "firstName lastName profileImage" },
-    ]);
-
-    res.status(201).json({
-      success: true,
-      data: { community },
-      message: "Community created successfully",
+    // Create membership record for creator
+    const membership = new CommunityMembership({
+      communityId: community._id,
+      userId: userId,
+      role: "admin",
+      status: "approved",
+      joinedAt: new Date(),
     });
-  } catch (error) {
-    console.error("Error creating community:", error);
-    res.status(500).json({
+
+    await membership.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Community created successfully",
+      data: community,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
       success: false,
-      message: "Failed to create community",
+      message: "Error creating community",
+      error: error.message,
+    });
+  }
+};
+
+// Get all communities with pagination and filters
+export const getAllCommunities = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      type,
+      status = "active",
+      search,
+      tags,
+    } = req.query;
+
+    const query: any = { status };
+
+    // 🔒 MULTI-TENANT FILTERING: Only show communities from same college (unless super admin)
+    let tenantFilter: any = {};
+    if (req.query.tenantId) {
+      tenantFilter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      tenantFilter.tenantId = req.user.tenantId;
+    }
+
+    if (type) {
+      query.type = type;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : [tags];
+      query.tags = { $in: tagArray };
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // If tenant filtering is needed, get users from that tenant first
+    let communities: any[] = [];
+
+    // Apply tenant filtering for non-super-admin users
+    if (req.user?.role !== "super_admin") {
+      // Force tenant filtering - use tenantId from JWT token or user object
+      const userTenantId = req.user?.tenantId;
+
+      if (userTenantId) {
+        const tenantUsers = await User.find({
+          tenantId: userTenantId,
+        }).select("_id");
+        const tenantUserIds = tenantUsers.map((user) => user._id);
+
+        query.createdBy = { $in: tenantUserIds };
+
+        communities = await Community.find(query)
+          .populate("createdBy", "firstName lastName profileImage")
+          .populate("moderators", "firstName lastName profileImage")
+          .sort({ createdAt: -1 })
+          .limit(Number(limit))
+          .skip(skip);
+      } else {
+        // If no tenantId, return empty result for non-super-admin users
+        communities = [];
+      }
+    } else {
+      // Super admin can see all communities
+      communities = await Community.find(query)
+        .populate("createdBy", "firstName lastName profileImage")
+        .populate("moderators", "firstName lastName profileImage")
+        .sort({ createdAt: -1 })
+        .limit(Number(limit))
+        .skip(skip);
+    }
+
+    const total = await Community.countDocuments(query);
+
+    return res.json({
+      success: true,
+      data: {
+        communities,
+        pagination: {
+          current: Number(page),
+          pages: Math.ceil(total / Number(limit)),
+          total,
+        },
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching communities",
+      error: error.message,
+    });
+  }
+};
+
+// Get community by ID
+export const getCommunityById = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+
+    const community = await Community.findById(id)
+      .populate("createdBy", "firstName lastName profileImage email")
+      .populate("moderators", "firstName lastName profileImage email")
+      .populate("members", "firstName lastName profileImage email");
+
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Check if user can view this community
+    if (community.type === "hidden" && userId) {
+      const membership = await CommunityMembership.findOne({
+        communityId: id,
+        userId: userId,
+        status: "approved",
+      });
+
+      if (!membership) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied to hidden community",
+        });
+      }
+    }
+
+    // Get recent posts
+    const recentPosts = await (CommunityPost as any).findByCommunity(id, {
+      limit: 10,
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        community,
+        recentPosts,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching community",
+      error: error.message,
+    });
+  }
+};
+
+// Update community
+export const updateCommunity = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+    const updates = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Check if user has permission to update
+    const membership = await CommunityMembership.findOne({
+      communityId: id,
+      userId: userId,
+      status: "approved",
+    });
+
+    const isCreator = community.createdBy.toString() === userId.toString();
+    const isModerator =
+      membership?.role === "moderator" || membership?.role === "admin";
+    const isSuperAdmin = req.user?.role === "super_admin";
+
+    if (!isCreator && !isModerator && !isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to update community",
+      });
+    }
+
+    // Update community
+    Object.keys(updates).forEach((key) => {
+      if (key in community && key !== "_id" && key !== "createdBy") {
+        (community as any)[key] = updates[key];
+      }
+    });
+
+    await community.save();
+
+    return res.json({
+      success: true,
+      message: "Community updated successfully",
+      data: community,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Error updating community",
+      error: error.message,
+    });
+  }
+};
+
+// Delete community
+export const deleteCommunity = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Check if user has permission to delete
+    const isCreator = community.createdBy.toString() === userId.toString();
+    const isSuperAdmin = req.user?.role === "super_admin";
+
+    if (!isCreator && !isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to delete community",
+      });
+    }
+
+    // Soft delete by changing status
+    community.status = "archived";
+    await community.save();
+
+    return res.json({
+      success: true,
+      message: "Community deleted successfully",
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Error deleting community",
+      error: error.message,
     });
   }
 };
@@ -205,70 +387,91 @@ export const createCommunity = async (
 export const joinCommunity = async (
   req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
+) => {
   try {
     const { id } = req.params;
-    const userId = req.userId;
-    const tenantId = req.tenantId;
+    const userId = req.user?._id;
 
-    if (!userId || !tenantId) {
-      res.status(400).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "User ID and Tenant ID are required",
+        message: "User not authenticated",
       });
-      return;
     }
 
-    const community = await Community.findOne({
-      _id: id,
-      tenantId,
-      isActive: true,
-    });
-
+    const community = await Community.findById(id);
     if (!community) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: "Community not found",
       });
-      return;
     }
 
     // Check if user is already a member
-    if ((community as any).isMember(userId)) {
-      res.status(400).json({
-        success: false,
-        message: "You are already a member of this community",
-      });
-      return;
+    const existingMembership = await CommunityMembership.findOne({
+      communityId: id,
+      userId: userId,
+    });
+
+    if (existingMembership) {
+      if (existingMembership.status === "approved") {
+        return res.status(400).json({
+          success: false,
+          message: "Already a member of this community",
+        });
+      } else if (existingMembership.status === "pending") {
+        return res.status(400).json({
+          success: false,
+          message: "Membership request already pending",
+        });
+      }
     }
 
-    if (community.isPublic) {
-      // Public community - join directly
-      (community as any).addMember(new mongoose.Types.ObjectId(userId));
+    let membership;
+
+    if (community.type === "open") {
+      // Direct join for open communities
+      membership = new CommunityMembership({
+        communityId: id,
+        userId: userId,
+        role: "member",
+        status: "approved",
+        joinedAt: new Date(),
+      });
+
+      await membership.save();
+
+      // Add to community members
+      (community as any).addMember(userId);
       await community.save();
 
-      res.json({
+      return res.json({
         success: true,
-        message: "Successfully joined the community",
+        message: "Successfully joined community",
+        data: membership,
       });
     } else {
-      // Private community - add to pending requests
-      const userIdObj = new mongoose.Types.ObjectId(userId);
-      if (!community.pendingRequests.includes(userIdObj)) {
-        community.pendingRequests.push(userIdObj);
-        await community.save();
-      }
+      // Request to join for closed/hidden communities
+      membership = new CommunityMembership({
+        communityId: id,
+        userId: userId,
+        role: "member",
+        status: "pending",
+      });
 
-      res.json({
+      await membership.save();
+
+      return res.json({
         success: true,
-        message: "Join request sent. Waiting for approval.",
+        message: "Membership request sent",
+        data: membership,
       });
     }
-  } catch (error) {
-    console.error("Error joining community:", error);
-    res.status(500).json({
+  } catch (error: any) {
+    return res.status(500).json({
       success: false,
-      message: "Failed to join community",
+      message: "Error joining community",
+      error: error.message,
     });
   }
 };
@@ -277,708 +480,235 @@ export const joinCommunity = async (
 export const leaveCommunity = async (
   req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
+) => {
   try {
     const { id } = req.params;
-    const userId = req.userId;
-    const tenantId = req.tenantId;
+    const userId = req.user?._id;
 
-    if (!userId || !tenantId) {
-      res.status(400).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "User ID and Tenant ID are required",
+        message: "User not authenticated",
       });
-      return;
     }
 
-    const community = await Community.findOne({
-      _id: id,
-      tenantId,
-      isActive: true,
+    const membership = await CommunityMembership.findOne({
+      communityId: id,
+      userId: userId,
+      status: "approved",
     });
 
-    if (!community) {
-      res.status(404).json({
+    if (!membership) {
+      return res.status(404).json({
         success: false,
-        message: "Community not found",
+        message: "Not a member of this community",
       });
-      return;
     }
 
-    // Check if user is the owner
-    if (community.owner.equals(userId)) {
-      res.status(400).json({
-        success: false,
-        message: "Community owner cannot leave the community",
-      });
-      return;
+    // Leave community
+    (membership as any).leaveCommunity();
+    await membership.save();
+
+    // Remove from community members
+    const community = await Community.findById(id);
+    if (community) {
+      (community as any).removeMember(userId);
+      await community.save();
     }
 
-    // Check if user is a member
-    if (!(community as any).isMember(userId)) {
-      res.status(400).json({
-        success: false,
-        message: "You are not a member of this community",
-      });
-      return;
-    }
-
-    (community as any).removeMember(new mongoose.Types.ObjectId(userId));
-    await community.save();
-
-    res.json({
+    return res.json({
       success: true,
-      message: "Successfully left the community",
+      message: "Successfully left community",
     });
-  } catch (error) {
-    console.error("Error leaving community:", error);
-    res.status(500).json({
+  } catch (error: any) {
+    return res.status(500).json({
       success: false,
-      message: "Failed to leave community",
+      message: "Error leaving community",
+      error: error.message,
     });
   }
 };
 
-// Approve join request
-export const approveJoinRequest = async (
+// Get community members
+export const getCommunityMembers = async (
   req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
+) => {
   try {
     const { id } = req.params;
-    const { userId: targetUserId } = req.body;
-    const adminUserId = req.userId;
-    const tenantId = req.tenantId;
+    const { page = 1, limit = 50, role, status = "approved" } = req.query;
 
-    if (!adminUserId || !tenantId || !targetUserId) {
-      res.status(400).json({
-        success: false,
-        message: "Admin User ID, Tenant ID, and Target User ID are required",
-      });
-      return;
-    }
+    const skip = (Number(page) - 1) * Number(limit);
 
-    const community = await Community.findOne({
-      _id: id,
-      tenantId,
-      isActive: true,
+    const members = await (CommunityMembership as any).findByCommunity(id, {
+      status,
+      role,
+      limit: Number(limit),
+      skip,
     });
 
-    if (!community) {
-      res.status(404).json({
-        success: false,
-        message: "Community not found",
-      });
-      return;
-    }
-
-    // Check if user is admin or owner
-    if (!(community as any).isAdmin(adminUserId)) {
-      res.status(403).json({
-        success: false,
-        message: "Only community admins can approve join requests",
-      });
-      return;
-    }
-
-    // Check if user has a pending request
-    if (!community.pendingRequests.includes(targetUserId)) {
-      res.status(400).json({
-        success: false,
-        message: "User does not have a pending join request",
-      });
-      return;
-    }
-
-    (community as any).addMember(targetUserId);
-    await community.save();
-
-    res.json({
-      success: true,
-      message: "Join request approved successfully",
+    const total = await CommunityMembership.countDocuments({
+      communityId: id,
+      status,
+      ...(role && { role }),
     });
-  } catch (error) {
-    console.error("Error approving join request:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to approve join request",
-    });
-  }
-};
 
-// Get community posts
-export const getCommunityPosts = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { page = 1, limit = 10, type } = req.query;
-    const tenantId = req.tenantId;
-
-    if (!tenantId) {
-      res.status(400).json({
-        success: false,
-        message: "Tenant ID is required",
-      });
-      return;
-    }
-
-    const query: any = { community: id, tenantId, isActive: true };
-
-    if (type && type !== "all") {
-      query.type = type;
-    }
-
-    const posts = await CommunityPost.find(query)
-      .populate("author", "firstName lastName profileImage")
-      .populate("likes", "firstName lastName")
-      .populate("comments", "content author createdAt")
-      .sort({ isPinned: -1, createdAt: -1 })
-      .limit(Number(limit) * 1)
-      .skip((Number(page) - 1) * Number(limit));
-
-    const total = await CommunityPost.countDocuments(query);
-
-    res.json({
+    return res.json({
       success: true,
       data: {
-        posts,
+        members,
         pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
+          current: Number(page),
           pages: Math.ceil(total / Number(limit)),
+          total,
         },
       },
     });
-  } catch (error) {
-    console.error("Error fetching community posts:", error);
-    res.status(500).json({
+  } catch (error: any) {
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch community posts",
+      message: "Error fetching community members",
+      error: error.message,
     });
   }
 };
 
-// Create community post
-export const createCommunityPost = async (
+// Get user's communities
+export const getUserCommunities = async (
   req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
+) => {
   try {
-    const { id } = req.params;
-    const {
-      title,
-      content,
-      type = "text",
-      attachments = [],
-      poll,
-      event,
-      tags = [],
-    } = req.body;
+    const userId = req.user?._id;
+    const { page = 1, limit = 20, status = "approved" } = req.query;
 
-    const userId = req.userId;
-    const tenantId = req.tenantId;
-
-    if (!userId || !tenantId) {
-      res.status(400).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "User ID and Tenant ID are required",
+        message: "User not authenticated",
       });
-      return;
     }
 
-    // Check if community exists and user is a member
-    const community = await Community.findOne({
-      _id: id,
-      tenantId,
-      isActive: true,
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const memberships = await (CommunityMembership as any).findByUser(
+      userId.toString(),
+      {
+        status,
+        limit: Number(limit),
+        skip,
+      }
+    );
+
+    const total = await CommunityMembership.countDocuments({
+      userId: userId,
+      status,
     });
 
-    if (!community) {
-      res.status(404).json({
-        success: false,
-        message: "Community not found",
-      });
-      return;
-    }
-
-    if (!(community as any).isMember(userId)) {
-      res.status(403).json({
-        success: false,
-        message: "Only community members can create posts",
-      });
-      return;
-    }
-
-    const post = new CommunityPost({
-      title,
-      content,
-      type,
-      attachments,
-      poll,
-      event,
-      author: userId,
-      community: id,
-      tags,
-      tenantId,
-    });
-
-    await post.save();
-
-    // Update community post count
-    community.postCount += 1;
-    await community.save();
-
-    // Populate the created post
-    await post.populate("author", "firstName lastName profileImage");
-
-    res.status(201).json({
-      success: true,
-      data: { post },
-      message: "Post created successfully",
-    });
-  } catch (error) {
-    console.error("Error creating community post:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create post",
-    });
-  }
-};
-
-// Like/Unlike post
-export const togglePostLike = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { postId } = req.params;
-    const userId = req.userId;
-    const tenantId = req.tenantId;
-
-    if (!userId || !tenantId) {
-      res.status(400).json({
-        success: false,
-        message: "User ID and Tenant ID are required",
-      });
-      return;
-    }
-
-    const post = await CommunityPost.findOne({
-      _id: postId,
-      tenantId,
-      isActive: true,
-    });
-
-    if (!post) {
-      res.status(404).json({
-        success: false,
-        message: "Post not found",
-      });
-      return;
-    }
-
-    const isLiked = (post as any).like(userId);
-    await post.save();
-
-    res.json({
+    return res.json({
       success: true,
       data: {
-        isLiked,
-        likeCount: post.likes.length,
+        communities: memberships,
+        pagination: {
+          current: Number(page),
+          pages: Math.ceil(total / Number(limit)),
+          total,
+        },
       },
-      message: isLiked ? "Post liked" : "Post unliked",
     });
-  } catch (error) {
-    console.error("Error toggling post like:", error);
-    res.status(500).json({
+  } catch (error: any) {
+    return res.status(500).json({
       success: false,
-      message: "Failed to toggle like",
+      message: "Error fetching user communities",
+      error: error.message,
     });
   }
 };
 
-// Get community stats
-export const getCommunityStats = async (
+// Search communities
+export const searchCommunities = async (
   req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
+) => {
   try {
-    const tenantId = req.tenantId;
+    const { q, type, tags, page = 1, limit = 20 } = req.query;
 
-    if (!tenantId) {
-      res.status(400).json({
+    if (!q && !type && !tags) {
+      return res.status(400).json({
         success: false,
-        message: "Tenant ID is required",
+        message: "Search query, type, or tags required",
       });
-      return;
     }
 
-    const totalCommunities = await Community.countDocuments({
-      tenantId,
-      isActive: true,
-    });
-    const totalPosts = await CommunityPost.countDocuments({
-      tenantId,
-      isActive: true,
-    });
-    const totalComments = await CommunityComment.countDocuments({
-      tenantId,
-      isActive: true,
-    });
+    const query: any = { status: "active" };
 
-    res.json({
+    // 🔒 MULTI-TENANT FILTERING: Only show communities from same college (unless super admin)
+    let tenantFilter: any = {};
+    if (req.query.tenantId) {
+      tenantFilter.tenantId = req.query.tenantId;
+    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      tenantFilter.tenantId = req.user.tenantId;
+    }
+
+    if (q) {
+      query.$or = [
+        { name: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+      ];
+    }
+
+    if (type) {
+      query.type = type;
+    }
+
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : [tags];
+      query.tags = { $in: tagArray };
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // If tenant filtering is needed, get users from that tenant first
+    let communities;
+    if (Object.keys(tenantFilter).length > 0) {
+      const tenantUsers = await User.find(tenantFilter).select("_id");
+      const tenantUserIds = tenantUsers.map((user) => user._id);
+
+      query.createdBy = { $in: tenantUserIds };
+
+      communities = await Community.find(query)
+        .populate("createdBy", "firstName lastName profileImage")
+        .populate("moderators", "firstName lastName profileImage")
+        .sort({ memberCount: -1, createdAt: -1 })
+        .limit(Number(limit))
+        .skip(skip);
+    } else {
+      communities = await Community.find(query)
+        .populate("createdBy", "firstName lastName profileImage")
+        .populate("moderators", "firstName lastName profileImage")
+        .sort({ memberCount: -1, createdAt: -1 })
+        .limit(Number(limit))
+        .skip(skip);
+    }
+
+    const total = await Community.countDocuments(query);
+
+    return res.json({
       success: true,
       data: {
-        totalCommunities,
-        totalPosts,
-        totalComments,
+        communities,
+        pagination: {
+          current: Number(page),
+          pages: Math.ceil(total / Number(limit)),
+          total,
+        },
       },
     });
-  } catch (error) {
-    console.error("Error fetching community stats:", error);
-    res.status(500).json({
+  } catch (error: any) {
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch community stats",
-    });
-  }
-};
-
-// Remove member from community
-export const removeMember = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { userId: targetUserId } = req.body;
-    const adminUserId = req.userId;
-    const tenantId = req.tenantId;
-
-    if (!adminUserId || !tenantId || !targetUserId) {
-      res.status(400).json({
-        success: false,
-        message: "Admin User ID, Tenant ID, and Target User ID are required",
-      });
-      return;
-    }
-
-    const community = await Community.findOne({
-      _id: id,
-      tenantId,
-      isActive: true,
-    });
-
-    if (!community) {
-      res.status(404).json({
-        success: false,
-        message: "Community not found",
-      });
-      return;
-    }
-
-    // Check if user is admin or owner
-    if (!(community as any).isAdmin(adminUserId)) {
-      res.status(403).json({
-        success: false,
-        message: "Only community admins can remove members",
-      });
-      return;
-    }
-
-    // Check if trying to remove owner
-    if (community.owner.equals(targetUserId)) {
-      res.status(400).json({
-        success: false,
-        message: "Cannot remove community owner",
-      });
-      return;
-    }
-
-    (community as any).removeMember(targetUserId);
-    await community.save();
-
-    res.json({
-      success: true,
-      message: "Member removed successfully",
-    });
-  } catch (error) {
-    console.error("Error removing member:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to remove member",
-    });
-  }
-};
-
-// Promote member to admin
-export const promoteToAdmin = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { userId: targetUserId } = req.body;
-    const adminUserId = req.userId;
-    const tenantId = req.tenantId;
-
-    if (!adminUserId || !tenantId || !targetUserId) {
-      res.status(400).json({
-        success: false,
-        message: "Admin User ID, Tenant ID, and Target User ID are required",
-      });
-      return;
-    }
-
-    const community = await Community.findOne({
-      _id: id,
-      tenantId,
-      isActive: true,
-    });
-
-    if (!community) {
-      res.status(404).json({
-        success: false,
-        message: "Community not found",
-      });
-      return;
-    }
-
-    // Check if user is owner (only owner can promote to admin)
-    if (!community.owner.equals(adminUserId)) {
-      res.status(403).json({
-        success: false,
-        message: "Only community owner can promote members to admin",
-      });
-      return;
-    }
-
-    // Check if user is already an admin
-    if (community.admins.includes(targetUserId)) {
-      res.status(400).json({
-        success: false,
-        message: "User is already an admin",
-      });
-      return;
-    }
-
-    // Check if user is a member
-    if (!(community as any).isMember(targetUserId)) {
-      res.status(400).json({
-        success: false,
-        message: "User is not a member of this community",
-      });
-      return;
-    }
-
-    community.admins.push(targetUserId);
-    await community.save();
-
-    res.json({
-      success: true,
-      message: "Member promoted to admin successfully",
-    });
-  } catch (error) {
-    console.error("Error promoting member:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to promote member",
-    });
-  }
-};
-
-// Pin/Unpin post
-export const togglePostPin = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { postId } = req.params;
-    const userId = req.userId;
-    const tenantId = req.tenantId;
-
-    if (!userId || !tenantId) {
-      res.status(400).json({
-        success: false,
-        message: "User ID and Tenant ID are required",
-      });
-      return;
-    }
-
-    const post = await CommunityPost.findOne({
-      _id: postId,
-      tenantId,
-      isActive: true,
-    }).populate("community", "owner admins");
-
-    if (!post) {
-      res.status(404).json({
-        success: false,
-        message: "Post not found",
-      });
-      return;
-    }
-
-    // Check if user is admin or owner of the community
-    const community = post.community as any;
-    if (!community.isAdmin(userId)) {
-      res.status(403).json({
-        success: false,
-        message: "Only community admins can pin/unpin posts",
-      });
-      return;
-    }
-
-    post.isPinned = !post.isPinned;
-    await post.save();
-
-    res.json({
-      success: true,
-      data: {
-        isPinned: post.isPinned,
-      },
-      message: post.isPinned
-        ? "Post pinned successfully"
-        : "Post unpinned successfully",
-    });
-  } catch (error) {
-    console.error("Error toggling post pin:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to toggle post pin",
-    });
-  }
-};
-
-// Delete post
-export const deletePost = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { postId } = req.params;
-    const userId = req.userId;
-    const tenantId = req.tenantId;
-
-    if (!userId || !tenantId) {
-      res.status(400).json({
-        success: false,
-        message: "User ID and Tenant ID are required",
-      });
-      return;
-    }
-
-    const post = await CommunityPost.findOne({
-      _id: postId,
-      tenantId,
-      isActive: true,
-    }).populate("community", "owner admins");
-
-    if (!post) {
-      res.status(404).json({
-        success: false,
-        message: "Post not found",
-      });
-      return;
-    }
-
-    // Check if user is the author, admin, or owner of the community
-    const community = post.community as any;
-    const isAuthor = post.author.equals(userId);
-    const isAdmin = community.isAdmin(userId);
-
-    if (!isAuthor && !isAdmin) {
-      res.status(403).json({
-        success: false,
-        message: "Only post authors and community admins can delete posts",
-      });
-      return;
-    }
-
-    post.isActive = false;
-    await post.save();
-
-    // Update community post count
-    const communityDoc = await Community.findById(post.community._id);
-    if (communityDoc) {
-      communityDoc.postCount = Math.max(0, communityDoc.postCount - 1);
-      await communityDoc.save();
-    }
-
-    res.json({
-      success: true,
-      message: "Post deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting post:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete post",
-    });
-  }
-};
-
-// Mark post as announcement
-export const togglePostAnnouncement = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const { postId } = req.params;
-    const userId = req.userId;
-    const tenantId = req.tenantId;
-
-    if (!userId || !tenantId) {
-      res.status(400).json({
-        success: false,
-        message: "User ID and Tenant ID are required",
-      });
-      return;
-    }
-
-    const post = await CommunityPost.findOne({
-      _id: postId,
-      tenantId,
-      isActive: true,
-    }).populate("community", "owner admins");
-
-    if (!post) {
-      res.status(404).json({
-        success: false,
-        message: "Post not found",
-      });
-      return;
-    }
-
-    // Check if user is admin or owner of the community
-    const community = post.community as any;
-    if (!community.isAdmin(userId)) {
-      res.status(403).json({
-        success: false,
-        message: "Only community admins can mark posts as announcements",
-      });
-      return;
-    }
-
-    post.isAnnouncement = !post.isAnnouncement;
-    await post.save();
-
-    res.json({
-      success: true,
-      data: {
-        isAnnouncement: post.isAnnouncement,
-      },
-      message: post.isAnnouncement
-        ? "Post marked as announcement"
-        : "Post unmarked as announcement",
-    });
-  } catch (error) {
-    console.error("Error toggling post announcement:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to toggle post announcement",
+      message: "Error searching communities",
+      error: error.message,
     });
   }
 };

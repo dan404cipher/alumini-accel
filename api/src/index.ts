@@ -34,6 +34,14 @@ import messageRoutes from "@/routes/message";
 import tenantRoutes from "@/routes/tenantRoutes";
 import campaignRoutes from "@/routes/campaignRoutes";
 import communityRoutes from "@/routes/community";
+import communitiesRoutes from "@/routes/communities";
+import communityPostsRoutes from "@/routes/communityPosts";
+import communityMembershipsRoutes from "@/routes/communityMemberships";
+import communityCommentsRoutes from "@/routes/communityComments";
+import uploadRoutes from "@/routes/upload";
+import likesRoutes from "@/routes/likes";
+import commentsRoutes from "@/routes/comments";
+import sharesRoutes from "@/routes/shares";
 
 // Load environment variables
 dotenv.config();
@@ -101,6 +109,9 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Static file serving for uploads
+app.use("/uploads", express.static("uploads"));
+
 // Compression middleware
 app.use(compression());
 
@@ -137,7 +148,15 @@ const limiter = rateLimit({
       req.path.startsWith("/v1/connections/check/") ||
       req.path.includes("/connections/check/") ||
       req.path.startsWith("/v1/community/") ||
-      req.path.includes("/community/")
+      req.path.includes("/community/") ||
+      req.path.startsWith("/v1/communities/") ||
+      req.path.includes("/communities/") ||
+      req.path.startsWith("/v1/community-posts/") ||
+      req.path.includes("/community-posts/") ||
+      req.path.startsWith("/v1/community-memberships/") ||
+      req.path.includes("/community-memberships/") ||
+      req.path.startsWith("/v1/community-comments/") ||
+      req.path.includes("/community-comments/")
     );
   },
 });
@@ -196,6 +215,14 @@ app.use("/api/v1/messages", messageRoutes);
 app.use("/api/v1/tenants", tenantRoutes);
 app.use("/api/v1/campaigns", campaignRoutes);
 app.use("/api/v1/community", communityRoutes);
+app.use("/api/v1/communities", communitiesRoutes);
+app.use("/api/v1/community-posts", communityPostsRoutes);
+app.use("/api/v1/community-memberships", communityMembershipsRoutes);
+app.use("/api/v1/community-comments", communityCommentsRoutes);
+app.use("/api/v1/upload", uploadRoutes);
+app.use("/api/v1", likesRoutes);
+app.use("/api/v1", commentsRoutes);
+app.use("/api/v1", sharesRoutes);
 
 // Serve static files with CORS headers
 app.use(

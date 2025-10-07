@@ -1,81 +1,83 @@
 import express from "express";
-import {
-  getAllCampaigns,
-  getCampaignById,
-  createCampaign,
-  updateCampaign,
-  deleteCampaign,
-  addCampaignUpdate,
-  getCampaignDonations,
-  updateCampaignStats,
-} from "@/controllers/campaignController";
-import {
-  authenticateToken,
-  requireAdmin,
-  requireHOD,
-  requireStaff,
-} from "@/middleware/auth";
+import campaignController from "@/controllers/campaignController";
+import { authenticateToken, requireAdmin } from "@/middleware/auth";
 import { asyncHandler } from "@/middleware/errorHandler";
+import { uploadCampaignImage as multerUploadCampaignImage } from "@/config/multer";
 
 const router = express.Router();
 
 // @route   GET /api/v1/campaigns
 // @desc    Get all campaigns
 // @access  Private
-router.get("/", authenticateToken, asyncHandler(getAllCampaigns));
+router.get(
+  "/",
+  authenticateToken,
+  asyncHandler(campaignController.getAllCampaigns)
+);
+
+// @route   GET /api/v1/campaigns/my-campaigns
+// @desc    Get user's campaigns
+// @access  Private
+router.get(
+  "/my-campaigns",
+  authenticateToken,
+  asyncHandler(campaignController.getMyCampaigns)
+);
+
+// @route   GET /api/v1/campaigns/stats
+// @desc    Get campaign statistics
+// @access  Private/Admin
+router.get(
+  "/stats",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(campaignController.getCampaignStats)
+);
 
 // @route   GET /api/v1/campaigns/:id
 // @desc    Get campaign by ID
 // @access  Private
-router.get("/:id", authenticateToken, asyncHandler(getCampaignById));
+router.get(
+  "/:id",
+  authenticateToken,
+  asyncHandler(campaignController.getCampaignById)
+);
 
 // @route   POST /api/v1/campaigns
 // @desc    Create new campaign
-// @access  Private/Admin/HOD/Staff
-router.post("/", authenticateToken, requireAdmin, asyncHandler(createCampaign));
+// @access  Private
+router.post(
+  "/",
+  authenticateToken,
+  asyncHandler(campaignController.createCampaign)
+);
 
 // @route   PUT /api/v1/campaigns/:id
 // @desc    Update campaign
-// @access  Private/Admin/HOD/Staff
+// @access  Private
 router.put(
   "/:id",
   authenticateToken,
-  requireAdmin,
-  asyncHandler(updateCampaign)
+  asyncHandler(campaignController.updateCampaign)
 );
 
 // @route   DELETE /api/v1/campaigns/:id
 // @desc    Delete campaign
-// @access  Private/Admin/HOD/Staff
+// @access  Private
 router.delete(
   "/:id",
   authenticateToken,
-  requireAdmin,
-  asyncHandler(deleteCampaign)
+  asyncHandler(campaignController.deleteCampaign)
 );
 
-// @route   POST /api/v1/campaigns/:id/updates
-// @desc    Add campaign update
-// @access  Private/Admin/HOD/Staff
+// @route   POST /api/v1/campaigns/:id/image
+// @desc    Upload campaign image
+// @access  Private
 router.post(
-  "/:id/updates",
+  "/:id/image",
   authenticateToken,
-  requireAdmin,
-  asyncHandler(addCampaignUpdate)
+  multerUploadCampaignImage.single("image") as any,
+  asyncHandler(campaignController.uploadCampaignImage)
 );
-
-// @route   GET /api/v1/campaigns/:id/donations
-// @desc    Get campaign donations
-// @access  Private
-router.get(
-  "/:id/donations",
-  authenticateToken,
-  asyncHandler(getCampaignDonations)
-);
-
-// @route   PUT /api/v1/campaigns/:id/stats
-// @desc    Update campaign statistics
-// @access  Private
-router.put("/:id/stats", authenticateToken, asyncHandler(updateCampaignStats));
 
 export default router;

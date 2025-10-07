@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import Donation from "@/models/Donation";
-import { DonationStatus } from "@/types";
 
 // Get all donations
 export const getAllDonations = async (req: Request, res: Response) => {
@@ -10,13 +9,13 @@ export const getAllDonations = async (req: Request, res: Response) => {
     // 🔒 MULTI-TENANT FILTERING: Only show donations from same college (unless super admin)
     if (req.query.tenantId) {
       filter.tenantId = req.query.tenantId;
-    } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+    } else if (req.user?.role !== "SUPER_ADMIN" && req.user?.tenantId) {
       filter.tenantId = req.user.tenantId;
     }
 
     const donations = await Donation.find(filter)
-      .populate("donorId", "firstName lastName email")
-      .populate("recipientId", "firstName lastName email")
+      .populate("donor", "firstName lastName email")
+      .populate("campaignId", "title")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -37,8 +36,8 @@ export const getAllDonations = async (req: Request, res: Response) => {
 export const getDonationById = async (req: Request, res: Response) => {
   try {
     const donation = await Donation.findById(req.params.id)
-      .populate("donorId", "firstName lastName email")
-      .populate("recipientId", "firstName lastName email");
+      .populate("donor", "firstName lastName email")
+      .populate("campaignId", "title");
 
     if (!donation) {
       return res.status(404).json({
@@ -63,12 +62,29 @@ export const getDonationById = async (req: Request, res: Response) => {
 // Create new donation
 export const createDonation = async (req: Request, res: Response) => {
   try {
-    const donation = new Donation({
+    const donationData = {
       ...req.body,
-      status: DonationStatus.PENDING,
-    });
+      donor: req.user?.id,
+      tenantId: req.user?.tenantId,
+      paymentStatus: "pending",
+    };
 
+    const donation = new Donation(donationData);
     await donation.save();
+
+    // Update campaign statistics if this is a campaign donation
+    if (donation.campaignId) {
+      const Campaign = require("@/models/Campaign").default;
+      const campaign = await Campaign.findById(donation.campaignId);
+      if (campaign) {
+        await campaign.updateStatistics();
+      }
+    }
+
+    await donation.populate("donor", "firstName lastName email");
+    if (donation.campaignId) {
+      await donation.populate("campaignId", "title");
+    }
 
     return res.status(201).json({
       success: true,
@@ -141,8 +157,8 @@ export const deleteDonation = async (req: Request, res: Response) => {
 // Get donations by donor
 export const getDonationsByDonor = async (req: Request, res: Response) => {
   try {
-    const donations = await Donation.find({ donorId: req.params.donorId })
-      .populate("recipientId", "firstName lastName email")
+    const donations = await Donation.find({ donor: req.params.donorId })
+      .populate("campaignId", "title")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -163,9 +179,10 @@ export const getDonationsByDonor = async (req: Request, res: Response) => {
 export const getDonationsByRecipient = async (req: Request, res: Response) => {
   try {
     const donations = await Donation.find({
-      recipientId: req.params.recipientId,
+      tenantId: req.params.recipientId,
     })
-      .populate("donorId", "firstName lastName email")
+      .populate("donor", "firstName lastName email")
+      .populate("campaignId", "title")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -185,8 +202,8 @@ export const getDonationsByRecipient = async (req: Request, res: Response) => {
 // Get my donations
 export const getMyDonations = async (req: Request, res: Response) => {
   try {
-    const donations = await Donation.find({ donorId: req.user.id })
-      .populate("recipientId", "firstName lastName email")
+    const donations = await Donation.find({ donor: req.user?.id })
+      .populate("campaignId", "title")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({

@@ -13,7 +13,8 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "migrate": "ts-node -r tsconfig-paths/register src/scripts/migrate.ts",
     "seed": "ts-node -r tsconfig-paths/register src/scripts/seed.ts",
-    "generate-test-data": "ts-node -r tsconfig-paths/register src/scripts/generateTestData.ts"
+    "generate-test-data": "ts-node -r tsconfig-paths/register src/scripts/generateTestData.ts",
+    "generate-campaign-data": "ts-node -r tsconfig-paths/register src/scripts/generateCampaignData.ts"
   },
   "keywords": [
     "alumni",

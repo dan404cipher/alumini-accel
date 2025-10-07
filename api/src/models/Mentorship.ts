@@ -38,6 +38,31 @@ const mentorshipSchema = new Schema<IMentorship>(
         maxlength: [200, "Goal cannot exceed 200 characters"],
       },
     ],
+    background: {
+      type: String,
+      trim: true,
+      maxlength: [1000, "Background cannot exceed 1000 characters"],
+    },
+    expectations: {
+      type: String,
+      trim: true,
+      maxlength: [1000, "Expectations cannot exceed 1000 characters"],
+    },
+    specificQuestions: {
+      type: String,
+      trim: true,
+      maxlength: [1000, "Specific questions cannot exceed 1000 characters"],
+    },
+    timeCommitment: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Time commitment cannot exceed 100 characters"],
+    },
+    communicationMethod: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Communication method cannot exceed 100 characters"],
+    },
     startDate: {
       type: Date,
       required: true,

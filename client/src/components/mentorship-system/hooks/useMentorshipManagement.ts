@@ -126,13 +126,15 @@ export const useMentorshipManagement = (
         }`.trim() || "Unknown Mentor",
       mentorTitle: apiRequest.mentor?.title || "Professional",
       mentorCompany: apiRequest.mentor?.company || "Unknown Company",
-      careerGoals: apiRequest.goals || [],
-      challenges: apiRequest.message || "",
-      background: apiRequest.mentee?.bio || "",
+      careerGoals: Array.isArray(apiRequest.goals)
+        ? apiRequest.goals.join(", ")
+        : apiRequest.goals || "",
+      challenges: apiRequest.description || "",
+      background: apiRequest.background || "",
       expectations: apiRequest.expectations || "",
       timeCommitment: apiRequest.timeCommitment || "Flexible",
       communicationMethod: apiRequest.communicationMethod || "Email",
-      specificQuestions: apiRequest.questions || [],
+      specificQuestions: apiRequest.specificQuestions || "",
       status:
         apiRequest.status === "PENDING"
           ? "Pending"
@@ -369,9 +371,12 @@ export const useMentorshipManagement = (
             domain: formData.careerGoals,
             description: formData.challenges, // Map challenges to description
             goals: [formData.careerGoals], // Convert string to array
-            startDate: new Date().toISOString(), // Add required start date
+            background: formData.background,
+            expectations: formData.expectations,
+            specificQuestions: formData.specificQuestions,
             timeCommitment: formData.timeCommitment,
             communicationMethod: formData.communicationMethod,
+            startDate: new Date().toISOString(), // Add required start date
           };
 
           const response = await mentorshipApi.createMentorship(requestData);

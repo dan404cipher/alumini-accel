@@ -3,7 +3,7 @@
 // Purpose: Modal for submitting mentorship requests
 
 import React, { useState } from "react";
-import { X, Upload } from "lucide-react";
+import { X } from "lucide-react";
 import type { Mentor, RequestFormData, MentorshipRequest } from "../types";
 import {
   validateRequestForm,
@@ -51,16 +51,6 @@ export const RequestModal: React.FC<RequestModalProps> = ({
       }
     };
 
-  const handleApplicantProfileUpload = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Handle file upload logic here
-      console.log("Profile file selected:", file.name);
-    }
-  };
-
   const handleRequestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -97,7 +87,7 @@ export const RequestModal: React.FC<RequestModalProps> = ({
   if (!isOpen || !selectedMentor) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b">
@@ -189,8 +179,8 @@ export const RequestModal: React.FC<RequestModalProps> = ({
                 >
                   <option value="">Select year</option>
                   {Array.from(
-                    { length: 10 },
-                    (_, i) => new Date().getFullYear() + i
+                    { length: 20 },
+                    (_, i) => new Date().getFullYear() - i
                   ).map((year) => (
                     <option key={year} value={year}>
                       {year}
@@ -198,33 +188,6 @@ export const RequestModal: React.FC<RequestModalProps> = ({
                   ))}
                   <option value="Ongoing">Currently studying</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Profile Picture (Optional)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    onChange={handleApplicantProfileUpload}
-                    className="hidden"
-                    id="profile-upload"
-                    accept="image/*"
-                  />
-                  <label
-                    htmlFor="profile-upload"
-                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
-                  >
-                    <Upload size={16} />
-                    Upload Photo
-                  </label>
-                  {formData.applicantProfile && (
-                    <span className="text-sm text-green-600">
-                      ✓ Photo selected
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
           </div>

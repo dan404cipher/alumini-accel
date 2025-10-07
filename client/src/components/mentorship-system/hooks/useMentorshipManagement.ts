@@ -86,6 +86,7 @@ export const useMentorshipManagement = (
   // Transform API mentor data to frontend format
   const transformMentorFromApi = (apiMentor: any): Mentor => {
     return {
+      userId: apiMentor.userId?._id || apiMentor.userId, // Add userId for API calls
       name:
         `${apiMentor.userId?.firstName || ""} ${
           apiMentor.userId?.lastName || ""
@@ -364,10 +365,11 @@ export const useMentorshipManagement = (
 
         if (isApiAvailable) {
           const requestData = {
-            mentorId: mentor.name, // This would need to be actual mentor ID from API
-            domain: formData.careerGoals.join(", "),
-            message: formData.challenges,
-            goals: formData.careerGoals,
+            mentorId: mentor.userId, // Use the actual userId from mentor object
+            domain: formData.careerGoals,
+            description: formData.challenges, // Map challenges to description
+            goals: [formData.careerGoals], // Convert string to array
+            startDate: new Date().toISOString(), // Add required start date
             timeCommitment: formData.timeCommitment,
             communicationMethod: formData.communicationMethod,
           };

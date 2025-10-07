@@ -12,6 +12,7 @@ interface MentorCardProps {
   onShowStyle?: (style: string) => void;
   onShowTestimonial?: (testimonial: string) => void;
   onRequestMentorship?: (mentor: Mentor) => void;
+  onViewDetails?: (mentor: Mentor) => void;
 }
 
 export const MentorCard: React.FC<MentorCardProps> = ({
@@ -19,9 +20,13 @@ export const MentorCard: React.FC<MentorCardProps> = ({
   onShowStyle,
   onShowTestimonial,
   onRequestMentorship,
+  onViewDetails,
 }) => {
   return (
-    <div className="bg-white border rounded-lg p-4 sm:p-6 shadow-lg hover:shadow-lg transition duration-300 h-full flex flex-col">
+    <div
+      className="bg-white border rounded-lg p-4 sm:p-6 shadow-lg hover:shadow-xl transition duration-300 h-full flex flex-col cursor-pointer hover:border-blue-300"
+      onClick={() => onViewDetails?.(mentor)}
+    >
       {/* Header */}
       <div className="flex items-start gap-3 mb-3">
         <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
@@ -51,13 +56,19 @@ export const MentorCard: React.FC<MentorCardProps> = ({
 
         <div className="flex gap-2">
           <button
-            onClick={() => onShowStyle?.(mentor.style)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowStyle?.(mentor.style);
+            }}
             className="px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition"
           >
             Style
           </button>
           <button
-            onClick={() => onShowTestimonial?.(mentor.testimonial)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowTestimonial?.(mentor.testimonial);
+            }}
             className="px-3 py-1 text-xs bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition"
           >
             Testimonial
@@ -108,7 +119,10 @@ export const MentorCard: React.FC<MentorCardProps> = ({
       {/* Action Button */}
       <div className="flex justify-end mt-auto">
         <button
-          onClick={() => onRequestMentorship?.(mentor)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRequestMentorship?.(mentor);
+          }}
           className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
         >
           Request Mentorship

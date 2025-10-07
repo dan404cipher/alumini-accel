@@ -28,6 +28,7 @@ import { MentorCard } from "./components/MentorCard";
 import { RequestCard } from "./components/RequestCard";
 import { MentorModal } from "./modals/MentorModal";
 import { RequestModal } from "./modals/RequestModal";
+import { MentorDetailsModal } from "./modals/MentorDetailsModal";
 import { filterMentors, truncateText } from "./utils";
 import type { Mentor } from "./types";
 
@@ -118,6 +119,29 @@ const sampleMentors: Mentor[] = [
 
 const MentorshipSystem: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Mentor details modal state
+  const [mentorDetailsModal, setMentorDetailsModal] = useState<{
+    isOpen: boolean;
+    mentor: Mentor | null;
+  }>({
+    isOpen: false,
+    mentor: null,
+  });
+
+  const handleViewMentorDetails = (mentor: Mentor) => {
+    setMentorDetailsModal({
+      isOpen: true,
+      mentor,
+    });
+  };
+
+  const handleCloseMentorDetails = () => {
+    setMentorDetailsModal({
+      isOpen: false,
+      mentor: null,
+    });
+  };
 
   const {
     // State: mentors, requests, activeTab, openForm, openRequestForm, selectedMentor, contentModal, filters
@@ -454,6 +478,7 @@ const MentorshipSystem: React.FC = () => {
                           onRequestMentorship={() =>
                             handleRequestMentorship(mentor)
                           }
+                          onViewDetails={handleViewMentorDetails}
                         />
                       ))}
                     </div>
@@ -518,7 +543,7 @@ const MentorshipSystem: React.FC = () => {
 
           {/* Full Content Modal */}
           {contentModal.open && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[65] p-4">
               <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 relative max-h-[80vh] overflow-y-auto">
                 <button
                   onClick={handleCloseContentModal}
@@ -543,6 +568,14 @@ const MentorshipSystem: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Mentor Details Modal */}
+          <MentorDetailsModal
+            isOpen={mentorDetailsModal.isOpen}
+            onClose={handleCloseMentorDetails}
+            mentor={mentorDetailsModal.mentor}
+            onRequestMentorship={handleRequestMentorship}
+          />
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 // Purpose: Define all TypeScript interfaces and types for mentorship functionality
 
 export interface Mentor {
+  userId?: string; // Add userId for API calls
   name: string;
   title: string;
   company: string;

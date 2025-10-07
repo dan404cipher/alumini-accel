@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { mentorshipApi } from "@/services/mentorshipApi";
 import type {
   Mentor,
@@ -58,6 +59,7 @@ export const useMentorshipManagement = (
   initialMentors: Mentor[] = []
 ): UseMentorshipManagementReturn => {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
   // Core state
   const [mentors, setMentors] = useState<Mentor[]>(initialMentors);
@@ -185,7 +187,11 @@ export const useMentorshipManagement = (
         const response = await mentorshipApi.getMyMentorships();
         if (response.success && response.data) {
           const requestsData = response.data.mentorships || [];
-          const transformedRequests = requestsData.map(transformRequestFromApi);
+          // Show INCOMING requests for the current user (where they are the mentor)
+          const userRequests = requestsData.filter((request: any) => {
+            return request.mentorId === currentUser?._id;
+          });
+          const transformedRequests = userRequests.map(transformRequestFromApi);
           setRequests(transformedRequests);
         }
       }

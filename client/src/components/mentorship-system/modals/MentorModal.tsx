@@ -215,6 +215,72 @@ export const MentorModal: React.FC<MentorModalProps> = ({
     }));
   };
 
+  // Quick setup functions for common availability patterns
+  const handleQuickSetup = (type: "weekdays" | "weekends" | "evenings") => {
+    const quickSlots: AvailabilitySlot[] = [];
+
+    switch (type) {
+      case "weekdays":
+        ["monday", "tuesday", "wednesday", "thursday", "friday"].forEach(
+          (day) => {
+            quickSlots.push({
+              day,
+              timeSlots: [
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+              ],
+              startDate: selectedStartDate || undefined,
+              endDate: selectedEndDate || undefined,
+            });
+          }
+        );
+        break;
+      case "weekends":
+        ["saturday", "sunday"].forEach((day) => {
+          quickSlots.push({
+            day,
+            timeSlots: [
+              "10:00",
+              "11:00",
+              "12:00",
+              "13:00",
+              "14:00",
+              "15:00",
+              "16:00",
+              "17:00",
+            ],
+            startDate: selectedStartDate || undefined,
+            endDate: selectedEndDate || undefined,
+          });
+        });
+        break;
+      case "evenings":
+        ["monday", "tuesday", "wednesday", "thursday", "friday"].forEach(
+          (day) => {
+            quickSlots.push({
+              day,
+              timeSlots: ["18:00", "19:00", "20:00"],
+              startDate: selectedStartDate || undefined,
+              endDate: selectedEndDate || undefined,
+            });
+          }
+        );
+        break;
+    }
+
+    setAvailabilitySlots(quickSlots);
+    setFormData((prev) => ({
+      ...prev,
+      availableSlots: quickSlots,
+    }));
+  };
+
   const handleTimeSlotToggle = (timeSlot: string) => {
     setSelectedTimeSlots((prev) =>
       prev.includes(timeSlot)
@@ -477,176 +543,283 @@ export const MentorModal: React.FC<MentorModalProps> = ({
             </div>
           </div>
 
-          {/* Availability Section */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-green-600" />
-              Availability Schedule
-            </h3>
+          {/* Availability Schedule - Redesigned */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Availability Schedule
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Set your weekly availability for mentoring sessions
+                </p>
+              </div>
+            </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+            {/* Quick Setup Options */}
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">
+                Quick Setup Options
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleQuickSetup("weekdays")}
+                  className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 text-left"
+                >
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div className="text-sm font-medium">Weekdays</div>
+                    <div className="text-xs text-gray-500">
+                      Mon-Fri, 9AM-5PM
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSetup("weekends")}
+                  className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 text-left"
+                >
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div className="text-sm font-medium">Weekends</div>
+                    <div className="text-xs text-gray-500">
+                      Sat-Sun, 10AM-6PM
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSetup("evenings")}
+                  className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 text-left"
+                >
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div className="text-sm font-medium">Evenings</div>
+                    <div className="text-xs text-gray-500">
+                      Mon-Fri, 6PM-9PM
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Schedule Builder */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-blue-600" />
+                Add Custom Schedule
+              </h4>
+
+              {/* Date Range Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <Calendar className="w-4 h-4 inline mr-1" />
                     Start Date (Optional)
                   </label>
                   <input
                     type="date"
                     value={selectedStartDate}
                     onChange={(e) => setSelectedStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     min={new Date().toISOString().split("T")[0]}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    When does this availability start? Leave empty for immediate
+                  <p className="text-xs text-gray-500">
+                    When does this schedule start? Leave empty for immediate
                     availability.
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <Calendar className="w-4 h-4 inline mr-1" />
                     End Date (Optional)
                   </label>
                   <input
                     type="date"
                     value={selectedEndDate}
                     onChange={(e) => setSelectedEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     min={
                       selectedStartDate ||
                       new Date().toISOString().split("T")[0]
                     }
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    When does this availability end? Leave empty for ongoing
+                  <p className="text-xs text-gray-500">
+                    When does this schedule end? Leave empty for ongoing
                     availability.
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+              {/* Day and Time Selection */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Day Selection */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <Calendar className="w-4 h-4 inline mr-1" />
                     Select Day
                   </label>
-                  <select
-                    value={selectedDay}
-                    onChange={(e) => setSelectedDay(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Choose a day</option>
+                  <div className="grid grid-cols-2 gap-2">
                     {DAYS_OF_WEEK.map((day) => (
-                      <option key={day.value} value={day.value}>
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => setSelectedDay(day.value)}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-all duration-200 ${
+                          selectedDay === day.value
+                            ? "bg-blue-600 text-white border-blue-600 shadow-md"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:bg-blue-50"
+                        }`}
+                      >
                         {day.label}
-                      </option>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                {/* Time Slots Selection */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <Clock className="w-4 h-4 inline mr-1" />
                     Available Time Slots
                   </label>
-                  <div className="grid grid-cols-3 gap-1">
+                  <div className="grid grid-cols-4 gap-2">
                     {TIME_SLOTS.map((timeSlot) => (
                       <button
                         key={timeSlot}
                         type="button"
                         onClick={() => handleTimeSlotToggle(timeSlot)}
-                        className={`px-2 py-1 text-xs rounded ${
+                        className={`px-2 py-2 text-xs rounded-lg border transition-all duration-200 ${
                           selectedTimeSlots.includes(timeSlot)
-                            ? "bg-green-600 text-white"
-                            : "bg-white text-gray-700 border border-gray-300 hover:bg-green-50"
+                            ? "bg-blue-600 text-white border-blue-600 shadow-md"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:bg-blue-50"
                         }`}
                       >
                         {timeSlot}
                       </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={handleAddAvailabilitySlot}
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Slot
-                  </button>
+                  <p className="text-xs text-gray-500">
+                    Select multiple time slots for this day
+                  </p>
                 </div>
               </div>
 
-              {errors.availability && (
-                <p className="text-red-600 text-sm">{errors.availability}</p>
-              )}
+              {/* Add Schedule Button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAddAvailabilitySlot}
+                  disabled={!selectedDay || selectedTimeSlots.length === 0}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add to Schedule
+                </button>
+              </div>
+            </div>
 
-              {/* Display added availability slots */}
-              {availabilitySlots.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
-                    Your Availability ({availabilitySlots.length} days)
+            {/* Error Display */}
+            {errors.availability && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600 text-sm flex items-center gap-2">
+                  <X className="w-4 h-4" />
+                  {errors.availability}
+                </p>
+              </div>
+            )}
+
+            {/* Current Schedule Display */}
+            {availabilitySlots.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    Your Current Schedule ({availabilitySlots.length} days)
                   </h4>
-                  <div className="space-y-2">
-                    {availabilitySlots.map((slot, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between bg-white p-3 rounded-lg border"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Calendar className="w-4 h-4 text-green-600" />
-                          <div className="flex flex-col">
-                            <span className="font-medium capitalize">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvailabilitySlots([]);
+                      setFormData((prev) => ({ ...prev, availableSlots: [] }));
+                    }}
+                    className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear All
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {availabilitySlots.map((slot, index) => (
+                    <div
+                      key={index}
+                      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                              <Calendar className="w-3 h-3 text-blue-600" />
+                            </div>
+                            <span className="font-medium text-gray-900 capitalize">
                               {slot.day}
                             </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap gap-1">
+                              {slot.timeSlots.map((time, timeIndex) => (
+                                <span
+                                  key={timeIndex}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md"
+                                >
+                                  {time}
+                                </span>
+                              ))}
+                            </div>
+
                             {(slot.startDate || slot.endDate) && (
-                              <span className="text-xs text-gray-500">
-                                {slot.startDate && slot.endDate
-                                  ? `${new Date(
-                                      slot.startDate
-                                    ).toLocaleDateString()} - ${new Date(
-                                      slot.endDate
-                                    ).toLocaleDateString()}`
-                                  : slot.startDate
-                                  ? `From ${new Date(
-                                      slot.startDate
-                                    ).toLocaleDateString()}`
-                                  : `Until ${new Date(
-                                      slot.endDate!
-                                    ).toLocaleDateString()}`}
-                              </span>
+                              <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {slot.startDate && slot.endDate
+                                    ? `${new Date(
+                                        slot.startDate
+                                      ).toLocaleDateString()} - ${new Date(
+                                        slot.endDate
+                                      ).toLocaleDateString()}`
+                                    : slot.startDate
+                                    ? `From ${new Date(
+                                        slot.startDate
+                                      ).toLocaleDateString()}`
+                                    : `Until ${new Date(
+                                        slot.endDate!
+                                      ).toLocaleDateString()}`}
+                                </div>
+                              </div>
                             )}
                           </div>
-                          <div className="flex gap-1">
-                            {slot.timeSlots.map((time) => (
-                              <span
-                                key={time}
-                                className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded"
-                              >
-                                {time}
-                              </span>
-                            ))}
-                          </div>
                         </div>
+
                         <button
                           type="button"
                           onClick={() => handleRemoveAvailabilitySlot(index)}
-                          className="text-red-600 hover:text-red-800"
+                          className="ml-2 p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                <strong>💡 Tip:</strong> Add your available days and time slots.
-                This helps mentees know when they can schedule sessions with
-                you.
               </div>
-            </div>
+            )}
           </div>
 
           {/* Mentoring Style */}

@@ -87,19 +87,24 @@ export const useMentorshipManagement = (
   const transformMentorFromApi = (apiMentor: any): Mentor => {
     return {
       name:
-        `${apiMentor.firstName || ""} ${apiMentor.lastName || ""}`.trim() ||
-        "Unknown Mentor",
-      title: apiMentor.title || "Professional",
-      company: apiMentor.company || "Unknown Company",
-      yearsExp: apiMentor.yearsOfExperience || 0,
-      slots: apiMentor.availableSlots || 1,
+        `${apiMentor.userId?.firstName || ""} ${
+          apiMentor.userId?.lastName || ""
+        }`.trim() || "Unknown Mentor",
+      title: apiMentor.currentPosition || "Professional",
+      company: apiMentor.currentCompany || "Unknown Company",
+      yearsExp: apiMentor.experience || 0,
+      slots: apiMentor.availableSlots?.length || 1,
       expertise: apiMentor.mentorshipDomains || [],
-      style: apiMentor.mentoringStyle || "Collaborative and supportive",
-      hours: apiMentor.availableHours || "Flexible",
-      timezone: apiMentor.timezone || "UTC",
-      testimonial: apiMentor.bio || "Experienced professional ready to help",
-      rating: apiMentor.averageRating || 4.5,
-      mentores: apiMentor.totalMentees || 0,
+      style: "Collaborative and supportive", // This field is not stored in AlumniProfile
+      hours: "Flexible", // This field is not stored in AlumniProfile
+      timezone: "UTC", // This field is not stored in AlumniProfile
+      testimonial:
+        apiMentor.testimonials?.[0]?.content ||
+        "Experienced professional ready to help",
+      rating: 4.5, // Default rating since it's not stored
+      mentees: 0, // Default mentees count
+      profile: apiMentor.userId?.profilePicture || "",
+      availableSlots: apiMentor.availableSlots || [],
     };
   };
 
@@ -208,6 +213,9 @@ export const useMentorshipManagement = (
           availableHours: mentor.hours,
           timezone: mentor.timezone,
           bio: mentor.testimonial,
+          currentPosition: mentor.title, // Add title/position
+          currentCompany: mentor.company, // Add company
+          experience: mentor.yearsExp, // Add experience
           testimonials: mentor.testimonial
             ? [
                 {
@@ -217,7 +225,12 @@ export const useMentorshipManagement = (
                 },
               ]
             : [],
-          availableSlots: [], // Default empty slots
+          availableSlots: (mentor.availableSlots || []).map((slot: any) => ({
+            day: slot.day,
+            timeSlots: slot.timeSlots || [],
+            startDate: slot.startDate ? new Date(slot.startDate) : undefined,
+            endDate: slot.endDate ? new Date(slot.endDate) : undefined,
+          })),
         };
 
         const isApiAvailable = await mentorshipApi.checkApiHealth();

@@ -121,8 +121,8 @@ export const validateMentorFormDetailed = (
   // Testimonial validation
   if (!formData.testimonial || formData.testimonial.trim().length === 0) {
     errors.testimonial = "Testimonial is required";
-  } else if (formData.testimonial.trim().length < 20) {
-    errors.testimonial = "Testimonial must be at least 20 characters long";
+  } else if (formData.testimonial.trim().length < 50) {
+    errors.testimonial = "Testimonial must be at least 50 characters long";
   } else if (formData.testimonial.trim().length > 1000) {
     errors.testimonial = "Testimonial cannot exceed 1000 characters";
   }

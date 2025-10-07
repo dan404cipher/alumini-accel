@@ -438,6 +438,9 @@ export const registerAsMentor = async (req: Request, res: Response) => {
       timezone,
       bio,
       testimonials,
+      currentPosition,
+      currentCompany,
+      experience,
     } = req.body;
 
     // Check if user already has an alumni profile
@@ -446,11 +449,33 @@ export const registerAsMentor = async (req: Request, res: Response) => {
     });
 
     if (!alumniProfile) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Alumni profile not found. Please create your alumni profile first.",
+      // Create a basic alumni profile if one doesn't exist
+      alumniProfile = new AlumniProfile({
+        userId: req.user.id,
+        university: "Not specified",
+        program: "Not specified",
+        batchYear: new Date().getFullYear() - 4, // Default to 4 years ago
+        graduationYear: new Date().getFullYear() - 4,
+        department: "Not specified",
+        specialization: "Not specified",
+        currentCompany: "Not specified",
+        currentPosition: "Not specified",
+        currentLocation: "Not specified",
+        experience: 0,
+        skills: [],
+        achievements: [],
+        certifications: [],
+        education: [],
+        careerTimeline: [],
+        isHiring: false,
+        availableForMentorship: false,
+        mentorshipDomains: [],
+        availableSlots: [],
+        testimonials: [],
+        photos: [],
       });
+
+      await alumniProfile.save();
     }
 
     // Check if already registered as mentor
@@ -461,8 +486,16 @@ export const registerAsMentor = async (req: Request, res: Response) => {
       alumniProfile.availableSlots =
         availableSlots || alumniProfile.availableSlots;
 
-      // Note: mentoringStyle, availableHours, timezone, and bio are not stored in AlumniProfile model
-      // These fields are only used for the registration process
+      // Update profile fields with mentor form data
+      if (currentPosition) {
+        alumniProfile.currentPosition = currentPosition;
+      }
+      if (currentCompany) {
+        alumniProfile.currentCompany = currentCompany;
+      }
+      if (experience !== undefined && experience !== null) {
+        alumniProfile.experience = experience;
+      }
 
       // Add testimonials if provided
       if (testimonials && testimonials.length > 0) {
@@ -482,6 +515,17 @@ export const registerAsMentor = async (req: Request, res: Response) => {
     alumniProfile.availableForMentorship = true;
     alumniProfile.mentorshipDomains = mentorshipDomains || [];
     alumniProfile.availableSlots = availableSlots || [];
+
+    // Update profile fields with mentor form data
+    if (currentPosition) {
+      alumniProfile.currentPosition = currentPosition;
+    }
+    if (currentCompany) {
+      alumniProfile.currentCompany = currentCompany;
+    }
+    if (experience !== undefined && experience !== null) {
+      alumniProfile.experience = experience;
+    }
 
     // Add testimonials if provided
     if (testimonials && testimonials.length > 0) {

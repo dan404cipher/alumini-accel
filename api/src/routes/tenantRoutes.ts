@@ -11,17 +11,17 @@ import {
   getTenantLogo,
   uploadTenantBanner,
   getTenantBanner,
-} from "@/controllers/tenantController";
+} from "../controllers/tenantController";
 import {
   authenticateToken,
   requireSuperAdmin,
   requireAdmin,
-} from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
+} from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
 import {
   uploadTenantLogo as multerUploadLogo,
   uploadTenantBanner as multerUploadBanner,
-} from "@/config/multer";
+} from "../config/multer";
 
 const router = express.Router();
 

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import CommunityMembership from "../models/CommunityMembership";
 import Community from "../models/Community";
-import { IUser } from "@/types";
+import { IUser } from "../types";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;

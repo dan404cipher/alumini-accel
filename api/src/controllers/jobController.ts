@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import JobPost from "@/models/JobPost";
-import User from "@/models/User";
-import { logger } from "@/utils/logger";
-import { JobPostStatus } from "@/types";
+import JobPost from "../models/JobPost";
+import User from "../models/User";
+import { logger } from "../utils/logger";
+import { JobPostStatus } from "../types";
 
 // Get all job posts
 export const getAllJobs = async (req: Request, res: Response) => {

@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { IMentorship, MentorshipStatus } from "@/types";
+import { IMentorship, MentorshipStatus } from "../types";
 
 const mentorshipSchema = new Schema<IMentorship>(
   {

@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { asyncHandler } from "@/middleware/errorHandler";
-import { logger } from "@/utils/logger";
-import Message from "@/models/Message";
-import Connection from "@/models/Connection";
-import { ConnectionStatus } from "@/types/connection";
-import { MessageRequest, MessageResponse, MessageType } from "@/types/message";
+import { asyncHandler } from "../middleware/errorHandler";
+import { logger } from "../utils/logger";
+import Message from "../models/Message";
+import Connection from "../models/Connection";
+import { ConnectionStatus } from "../types/connection";
+import { MessageRequest, MessageResponse, MessageType } from "../types/message";
 
 // Send a message
 export const sendMessage = asyncHandler(async (req: Request, res: Response) => {

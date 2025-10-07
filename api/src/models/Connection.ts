@@ -3,7 +3,7 @@ import {
   IConnection,
   ConnectionStatus,
   ConnectionType,
-} from "@/types/connection";
+} from "../types/connection";
 
 const connectionSchema = new Schema<IConnection>(
   {

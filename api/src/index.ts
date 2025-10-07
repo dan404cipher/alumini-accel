@@ -10,38 +10,38 @@ import mongoSanitize from "express-mongo-sanitize";
 import "express-async-errors";
 
 // Import configurations
-import connectDB from "@/config/database";
-import { logger } from "@/utils/logger";
+import connectDB from "./config/database";
+import { logger } from "./utils/logger";
 
 // Import middleware
-import { globalErrorHandler, notFound } from "@/middleware/errorHandler";
-import { rateLimit as customRateLimit } from "@/middleware/auth";
+import { globalErrorHandler, notFound } from "./middleware/errorHandler";
+import { rateLimit as customRateLimit } from "./middleware/auth";
 
 // Import routes
-import authRoutes from "@/routes/auth";
-import userRoutes from "@/routes/users";
-import alumniRoutes from "@/routes/alumni";
-import jobRoutes from "@/routes/jobs";
-import eventRoutes from "@/routes/events";
-import newsRoutes from "@/routes/news";
-import mentorshipRoutes from "@/routes/mentorship";
-import donationRoutes from "@/routes/donations";
-import invitationRoutes from "@/routes/invitations";
-import docsRoutes from "@/routes/docs";
-import galleryRoutes from "@/routes/gallery";
-import connectionRoutes from "@/routes/connection";
-import messageRoutes from "@/routes/message";
-import tenantRoutes from "@/routes/tenantRoutes";
-import campaignRoutes from "@/routes/campaignRoutes";
-import communityRoutes from "@/routes/community";
-import communitiesRoutes from "@/routes/communities";
-import communityPostsRoutes from "@/routes/communityPosts";
-import communityMembershipsRoutes from "@/routes/communityMemberships";
-import communityCommentsRoutes from "@/routes/communityComments";
-import uploadRoutes from "@/routes/upload";
-import likesRoutes from "@/routes/likes";
-import commentsRoutes from "@/routes/comments";
-import sharesRoutes from "@/routes/shares";
+import authRoutes from "./routes/auth";
+import userRoutes from "./routes/users";
+import alumniRoutes from "./routes/alumni";
+import jobRoutes from "./routes/jobs";
+import eventRoutes from "./routes/events";
+import newsRoutes from "./routes/news";
+import mentorshipRoutes from "./routes/mentorship";
+import donationRoutes from "./routes/donations";
+import invitationRoutes from "./routes/invitations";
+import docsRoutes from "./routes/docs";
+import galleryRoutes from "./routes/gallery";
+import connectionRoutes from "./routes/connection";
+import messageRoutes from "./routes/message";
+import tenantRoutes from "./routes/tenantRoutes";
+import campaignRoutes from "./routes/campaignRoutes";
+import communityRoutes from "./routes/community";
+import communitiesRoutes from "./routes/communities";
+import communityPostsRoutes from "./routes/communityPosts";
+import communityMembershipsRoutes from "./routes/communityMemberships";
+import communityCommentsRoutes from "./routes/communityComments";
+import uploadRoutes from "./routes/upload";
+import likesRoutes from "./routes/likes";
+import commentsRoutes from "./routes/comments";
+import sharesRoutes from "./routes/shares";
 
 // Load environment variables
 dotenv.config();

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticateToken } from "@/middleware/auth";
+import { authenticateToken } from "../middleware/auth";
 import {
   sendConnectionRequest,
   acceptConnection,
@@ -13,7 +13,7 @@ import {
   getConnectionStats,
   checkConnectionStatus,
   removeConnection,
-} from "@/controllers/connectionController";
+} from "../controllers/connectionController";
 
 const router = Router();
 

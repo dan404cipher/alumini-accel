@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import Connection from "@/models/Connection";
-import { ConnectionStatus, ConnectionType } from "@/types/connection";
-import { logger } from "@/utils/logger";
-import { AppError } from "@/middleware/errorHandler";
+import Connection from "../models/Connection";
+import { ConnectionStatus, ConnectionType } from "../types/connection";
+import { logger } from "../utils/logger";
+import { AppError } from "../middleware/errorHandler";
 
 // Send connection request
 export const sendConnectionRequest = async (req: Request, res: Response) => {

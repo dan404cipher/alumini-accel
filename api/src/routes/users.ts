@@ -1,11 +1,11 @@
 import express from "express";
-import userController from "@/controllers/userController";
+import userController from "../controllers/userController";
 import {
   validateProfileUpdate,
   validateUserCreation,
   validateId,
   validateRequest,
-} from "@/middleware/validation";
+} from "../middleware/validation";
 import {
   authenticateToken,
   requireAdmin,
@@ -13,9 +13,9 @@ import {
   requireCollegeAdmin,
   requireHOD,
   requireUserCreation,
-} from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
-import { uploadProfileImage } from "@/config/multer";
+} from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
+import { uploadProfileImage } from "../config/multer";
 
 const router = express.Router();
 

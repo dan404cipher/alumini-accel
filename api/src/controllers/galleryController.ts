@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import Gallery, { IGallery } from "@/models/Gallery";
-import { asyncHandler } from "@/middleware/errorHandler";
+import Gallery, { IGallery } from "../models/Gallery";
+import { asyncHandler } from "../middleware/errorHandler";
 
 // Get all galleries (public access)
 export const getAllGalleries = asyncHandler(

@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import Campaign from "@/models/Campaign";
-import Donation from "@/models/Donation";
-import User from "@/models/User";
-import Tenant from "@/models/Tenant";
-import { logger } from "@/utils/logger";
-import connectDB from "@/config/database";
+import Campaign from "../models/Campaign";
+import Donation from "../models/Donation";
+import User from "../models/User";
+import Tenant from "../models/Tenant";
+import { logger } from "../utils/logger";
+import connectDB from "../config/database";
 
 const generateMockCampaigns = async () => {
   try {

@@ -1,12 +1,12 @@
 import express from "express";
-import jobController from "@/controllers/jobController";
+import jobController from "../controllers/jobController";
 import {
   validateJobPost,
   validateId,
   validateRequest,
-} from "@/middleware/validation";
-import { authenticateToken, requireAlumni } from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
+} from "../middleware/validation";
+import { authenticateToken, requireAlumni } from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
 

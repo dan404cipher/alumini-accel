@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import Donation from "@/models/Donation";
+import Donation from "../models/Donation";
 
 // Get all donations
 export const getAllDonations = async (req: Request, res: Response) => {

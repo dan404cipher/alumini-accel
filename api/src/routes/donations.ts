@@ -1,7 +1,7 @@
 import express from "express";
-import donationController from "@/controllers/donationController";
-import { authenticateToken, requireAdmin } from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
+import donationController from "../controllers/donationController";
+import { authenticateToken, requireAdmin } from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
 

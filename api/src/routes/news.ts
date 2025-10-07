@@ -1,12 +1,12 @@
 import express from "express";
-import newsController from "@/controllers/newsController";
+import newsController from "../controllers/newsController";
 import {
   authenticateToken,
   requireCoordinator,
   authorize,
-} from "@/middleware/auth";
-import { UserRole } from "@/types";
-import { asyncHandler } from "@/middleware/errorHandler";
+} from "../middleware/auth";
+import { UserRole } from "../types";
+import { asyncHandler } from "../middleware/errorHandler";
 import multer from "multer";
 
 const router = express.Router();

@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import User from "@/models/User";
-import { logger } from "@/utils/logger";
-import { UserRole, UserStatus } from "@/types";
-import { AppError } from "@/middleware/errorHandler";
+import User from "../models/User";
+import { logger } from "../utils/logger";
+import { UserRole, UserStatus } from "../types";
+import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
 
 // Get all users (admin only)

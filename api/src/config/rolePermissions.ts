@@ -1,4 +1,4 @@
-import { UserRole } from "@/types";
+import { UserRole } from "../types";
 
 // Define permissions for each role
 export interface RolePermissions {

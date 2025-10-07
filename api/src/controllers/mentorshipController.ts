@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import Mentorship from "@/models/Mentorship";
-import User from "@/models/User";
-import AlumniProfile from "@/models/AlumniProfile";
-import { logger } from "@/utils/logger";
-import { MentorshipStatus } from "@/types";
+import Mentorship from "../models/Mentorship";
+import User from "../models/User";
+import AlumniProfile from "../models/AlumniProfile";
+import { logger } from "../utils/logger";
+import { MentorshipStatus } from "../types";
 
 // Get all mentorships
 export const getAllMentorships = async (req: Request, res: Response) => {

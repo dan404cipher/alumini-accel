@@ -1,5 +1,5 @@
 import express from "express";
-import alumniController from "@/controllers/alumniController";
+import alumniController from "../controllers/alumniController";
 import {
   validateAlumniProfile,
   validateAlumniProfileUpdate,
@@ -9,17 +9,17 @@ import {
   addInternshipValidation,
   addResearchValidation,
   addCertificationValidation,
-} from "@/middleware/validation";
+} from "../middleware/validation";
 import {
   authenticateToken,
   requireAlumni,
   requireAdmin,
-} from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
+} from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
 import {
   uploadOptionalDocument,
   uploadMixedDocuments,
-} from "@/middleware/fileUpload";
+} from "../middleware/fileUpload";
 
 const router = express.Router();
 

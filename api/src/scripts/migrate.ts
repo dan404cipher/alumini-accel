@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { logger } from "@/utils/logger";
+import { logger } from "../utils/logger";
 
 // Load environment variables
 dotenv.config();

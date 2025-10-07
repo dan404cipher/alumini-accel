@@ -1,18 +1,18 @@
 import express from "express";
-import eventController from "@/controllers/eventController";
+import eventController from "../controllers/eventController";
 import {
   validateEvent,
   validateId,
   validateRequest,
-} from "@/middleware/validation";
+} from "../middleware/validation";
 import {
   authenticateToken,
   requireCoordinator,
   requireAlumni,
   authorize,
-} from "@/middleware/auth";
-import { UserRole } from "@/types";
-import { asyncHandler } from "@/middleware/errorHandler";
+} from "../middleware/auth";
+import { UserRole } from "../types";
+import { asyncHandler } from "../middleware/errorHandler";
 import multer from "multer";
 
 const router = express.Router();

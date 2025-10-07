@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import AlumniProfile from "@/models/AlumniProfile";
-import User from "@/models/User";
-import { logger } from "@/utils/logger";
-import { UserRole } from "@/types";
+import AlumniProfile from "../models/AlumniProfile";
+import User from "../models/User";
+import { logger } from "../utils/logger";
+import { UserRole } from "../types";
 
 // Get all alumni directory
 export const getAllUsersDirectory = async (req: Request, res: Response) => {

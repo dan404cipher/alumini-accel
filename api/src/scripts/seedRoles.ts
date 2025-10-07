@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import Role from "@/models/Role";
-import connectDB from "@/config/database";
+import Role from "../models/Role";
+import connectDB from "../config/database";
 
 const defaultRoles = [
   {

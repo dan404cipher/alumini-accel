@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import Event from "@/models/Event";
-import User from "@/models/User";
-import { logger } from "@/utils/logger";
-import { EventType } from "@/types";
+import Event from "../models/Event";
+import User from "../models/User";
+import { logger } from "../utils/logger";
+import { EventType } from "../types";
 
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {

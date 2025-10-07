@@ -1,14 +1,14 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
-import User from "@/models/User";
-import AlumniProfile from "@/models/AlumniProfile";
-import Event from "@/models/Event";
-import JobPost from "@/models/JobPost";
-import Tenant from "@/models/Tenant";
-import { UserRole, UserStatus, EventType, JobPostStatus } from "@/types";
-import { logger } from "@/utils/logger";
-import connectDB from "@/config/database";
+import User from "../models/User";
+import AlumniProfile from "../models/AlumniProfile";
+import Event from "../models/Event";
+import JobPost from "../models/JobPost";
+import Tenant from "../models/Tenant";
+import { UserRole, UserStatus, EventType, JobPostStatus } from "../types";
+import { logger } from "../utils/logger";
+import connectDB from "../config/database";
 
 // Load environment variables
 dotenv.config();

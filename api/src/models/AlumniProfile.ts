@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { IAlumniProfile } from "@/types";
+import { IAlumniProfile } from "../types";
 
 const alumniProfileSchema = new Schema<IAlumniProfile>(
   {

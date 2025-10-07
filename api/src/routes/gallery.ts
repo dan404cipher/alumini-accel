@@ -6,10 +6,10 @@ import {
   updateGallery,
   deleteGallery,
   getUserGalleries,
-} from "@/controllers/galleryController";
-import { authenticateToken } from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
-import { uploadGalleryImages } from "@/config/multer";
+} from "../controllers/galleryController";
+import { authenticateToken } from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
+import { uploadGalleryImages } from "../config/multer";
 
 const router = express.Router();
 

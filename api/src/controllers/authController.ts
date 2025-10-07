@@ -1,18 +1,18 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
-import User from "@/models/User";
-import AlumniProfile from "@/models/AlumniProfile";
-import { logger } from "@/utils/logger";
+import User from "../models/User";
+import AlumniProfile from "../models/AlumniProfile";
+import { logger } from "../utils/logger";
 import {
   generateToken,
   generateRefreshToken,
   verifyRefreshToken,
   authenticateToken,
-} from "@/middleware/auth";
-import { UserRole, UserStatus } from "@/types";
-import { sendEmail } from "@/utils/email";
-import { sendSMS } from "@/utils/sms";
-import { AppError } from "@/middleware/errorHandler";
+} from "../middleware/auth";
+import { UserRole, UserStatus } from "../types";
+import { sendEmail } from "../utils/email";
+import { sendSMS } from "../utils/sms";
+import { AppError } from "../middleware/errorHandler";
 
 // Register new user
 export const register = async (req: Request, res: Response) => {

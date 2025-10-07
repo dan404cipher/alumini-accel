@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
-import User from "@/models/User";
-import AlumniProfile from "@/models/AlumniProfile";
-import Tenant from "@/models/Tenant";
-import { UserRole, UserStatus } from "@/types";
-import { logger } from "@/utils/logger";
+import User from "../models/User";
+import AlumniProfile from "../models/AlumniProfile";
+import Tenant from "../models/Tenant";
+import { UserRole, UserStatus } from "../types";
+import { logger } from "../utils/logger";
 
 // Load environment variables
 dotenv.config();

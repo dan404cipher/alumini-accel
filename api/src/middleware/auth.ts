@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
-import { AuthenticatedRequest, UserRole, UserStatus } from "@/types";
-import User from "@/models/User";
-import AlumniProfile from "@/models/AlumniProfile";
-import { logger } from "@/utils/logger";
+import { AuthenticatedRequest, UserRole, UserStatus } from "../types";
+import User from "../models/User";
+import AlumniProfile from "../models/AlumniProfile";
+import { logger } from "../utils/logger";
 
 // Extend Express Request interface
 declare global {

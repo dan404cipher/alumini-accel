@@ -8,11 +8,11 @@ import {
   getCommunityMembers,
   getUserCommunities,
   searchCommunities,
-} from "@/controllers/communityController";
+} from "../controllers/communityController";
 import {
   authenticateToken as authenticate,
   optionalAuth,
-} from "@/middleware/auth";
+} from "../middleware/auth";
 
 const router = express.Router();
 

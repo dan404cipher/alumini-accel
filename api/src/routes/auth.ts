@@ -1,14 +1,14 @@
 import express from "express";
-import authController from "@/controllers/authController";
+import authController from "../controllers/authController";
 import {
   validateUserRegistration,
   validateUserLogin,
   validateEmail,
   validatePasswordReset,
   validateRequest,
-} from "@/middleware/validation";
-import { authenticateToken } from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
+} from "../middleware/validation";
+import { authenticateToken } from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
 

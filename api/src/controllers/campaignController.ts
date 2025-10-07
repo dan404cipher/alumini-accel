@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import Campaign from "@/models/Campaign";
-import Donation from "@/models/Donation";
-import { asyncHandler } from "@/middleware/errorHandler";
-import { logger } from "@/utils/logger";
+import Campaign from "../models/Campaign";
+import Donation from "../models/Donation";
+import { asyncHandler } from "../middleware/errorHandler";
+import { logger } from "../utils/logger";
 
 // Get all campaigns
 export const getAllCampaigns = asyncHandler(

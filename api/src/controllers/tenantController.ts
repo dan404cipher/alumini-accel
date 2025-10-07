@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Tenant from "@/models/Tenant";
-import User from "@/models/User";
-import { UserRole, UserStatus } from "@/types";
-import { logger } from "@/utils/logger";
-import { asyncHandler } from "@/middleware/errorHandler";
+import Tenant from "../models/Tenant";
+import User from "../models/User";
+import { UserRole, UserStatus } from "../types";
+import { logger } from "../utils/logger";
+import { asyncHandler } from "../middleware/errorHandler";
 
 // @desc    Get all tenants (Super Admin only)
 // @route   GET /api/v1/tenants

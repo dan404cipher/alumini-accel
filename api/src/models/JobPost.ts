@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { IJobPost, JobPostStatus } from "@/types";
+import { IJobPost, JobPostStatus } from "../types";
 
 const jobPostSchema = new Schema<IJobPost>(
   {

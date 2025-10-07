@@ -1,12 +1,12 @@
 import express from "express";
-import mentorshipController from "@/controllers/mentorshipController";
+import mentorshipController from "../controllers/mentorshipController";
 import {
   validateMentorship,
   validateId,
   validateRequest,
-} from "@/middleware/validation";
-import { authenticateToken } from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
+} from "../middleware/validation";
+import { authenticateToken } from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
 

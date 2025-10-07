@@ -3,7 +3,7 @@ import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import CommunityPost from "../models/CommunityPost";
 import User from "../models/User";
-import { IUser } from "@/types";
+import { IUser } from "../types";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;

@@ -1,8 +1,8 @@
 import express from "express";
-import campaignController from "@/controllers/campaignController";
-import { authenticateToken, requireAdmin } from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
-import { uploadCampaignImage as multerUploadCampaignImage } from "@/config/multer";
+import campaignController from "../controllers/campaignController";
+import { authenticateToken, requireAdmin } from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
+import { uploadCampaignImage as multerUploadCampaignImage } from "../config/multer";
 
 const router = express.Router();
 

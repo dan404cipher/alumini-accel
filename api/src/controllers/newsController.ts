@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import News from "@/models/News";
-import { logger } from "@/utils/logger";
+import News from "../models/News";
+import { logger } from "../utils/logger";
 
 // Get all news
 export const getAllNews = async (req: Request, res: Response) => {

@@ -4,8 +4,7 @@ import { logger } from "../utils/logger";
 const connectDB = async (): Promise<void> => {
   try {
     const mongoURI =
-      process.env.MONGODB_URI ||
-      "mongodb+srv://vaccel:PlHUbhJ3iUnbMOHU@v-accel-suites.rqyglx.mongodb.net/aluminiaccel?retryWrites=true&w=majority&appName=v-accel-suites";
+      process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/alumni-accel";
 
     await mongoose.connect(mongoURI, {
       maxPoolSize: 10,

@@ -39,6 +39,16 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
     );
 
+    // Debug: Log alumni profiles found
+    console.log("Found alumni profiles:", alumniProfiles.length);
+    console.log("Alumni profiles data:", alumniProfiles.map(p => ({
+      userId: p.userId,
+      graduationYear: p.graduationYear,
+      currentCompany: p.currentCompany,
+      currentPosition: p.currentPosition,
+      experience: p.experience
+    })));
+
     // Create maps for quick lookup
     const alumniMap = new Map();
     alumniProfiles.forEach((profile: any) => {
@@ -71,6 +81,15 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       // Add profile-specific data
       if (user.role === UserRole.ALUMNI) {
         const profile = alumniMap.get(user._id.toString());
+        console.log(`User ${user.firstName} ${user.lastName} (${user._id}):`, {
+          hasProfile: !!profile,
+          profileData: profile ? {
+            graduationYear: profile.graduationYear,
+            currentCompany: profile.currentCompany,
+            currentPosition: profile.currentPosition,
+            experience: profile.experience
+          } : null
+        });
         if (profile) {
           return {
             ...baseUser,

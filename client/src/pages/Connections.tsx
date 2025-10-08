@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +73,8 @@ interface ConnectionStats {
 }
 
 const Connections = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Connection[]>([]);
   const [sentRequests, setSentRequests] = useState<Connection[]>([]);
@@ -100,6 +102,20 @@ const Connections = () => {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Handle URL-based tab switching
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes("/connections/my-connections")) {
+      setActiveTab("connections");
+    } else if (path.includes("/connections/pending")) {
+      setActiveTab("pending");
+    } else if (path.includes("/connections/find")) {
+      setActiveTab("find");
+    } else {
+      setActiveTab("connections");
+    }
+  }, [location.pathname]);
 
   const fetchAllData = async (showLoading = true) => {
     if (isRefreshing) return; // Prevent multiple simultaneous calls
@@ -406,10 +422,30 @@ const Connections = () => {
           className="space-y-6"
         >
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="connections">Connections</TabsTrigger>
-            <TabsTrigger value="pending">Pending Requests</TabsTrigger>
-            <TabsTrigger value="sent">Sent Requests</TabsTrigger>
-            <TabsTrigger value="blocked">Blocked Users</TabsTrigger>
+            <TabsTrigger
+              value="connections"
+              onClick={() => navigate("/connections/my-connections")}
+            >
+              My Connections
+            </TabsTrigger>
+            <TabsTrigger
+              value="pending"
+              onClick={() => navigate("/connections/pending")}
+            >
+              Pending Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="sent"
+              onClick={() => navigate("/connections/sent")}
+            >
+              Sent Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="find"
+              onClick={() => navigate("/connections/find")}
+            >
+              Find Alumni
+            </TabsTrigger>
           </TabsList>
 
           {/* Connections Tab */}
@@ -813,6 +849,28 @@ const Connections = () => {
                 })}
               </div>
             )}
+          </TabsContent>
+
+          {/* Find Alumni Tab */}
+          <TabsContent value="find" className="space-y-4">
+            <h2 className="text-xl font-semibold">Find Alumni</h2>
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-semibold mb-2">Discover Alumni</h3>
+                <p className="text-gray-600 mb-4">
+                  Search and connect with alumni from your university or other
+                  institutions.
+                </p>
+                <Button
+                  onClick={() => navigate("/alumni")}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Browse Alumni Directory
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

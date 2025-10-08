@@ -84,6 +84,11 @@ export const createMentorship = async (req: Request, res: Response) => {
       domain,
       description,
       goals,
+      background,
+      expectations,
+      specificQuestions,
+      timeCommitment,
+      communicationMethod,
       preferredSchedule,
       duration,
     } = req.body;
@@ -119,13 +124,19 @@ export const createMentorship = async (req: Request, res: Response) => {
     }
 
     const mentorship = new Mentorship({
-      mentor: mentorId,
-      mentee: req.user.id,
+      mentorId: mentorId,
+      menteeId: req.user.id,
       domain,
       description,
       goals: goals || [],
+      background,
+      expectations,
+      specificQuestions,
+      timeCommitment,
+      communicationMethod,
       preferredSchedule,
       duration: duration || 3, // Default 3 months
+      startDate: new Date(), // Add required startDate
       status: MentorshipStatus.PENDING,
     });
 
@@ -478,8 +489,8 @@ export const getMyMentorships = async (req: Request, res: Response) => {
     const mentorships = await Mentorship.find({
       $or: [{ mentorId: req.user.id }, { menteeId: req.user.id }],
     })
-      .populate("mentorId", "firstName lastName email profilePicture")
-      .populate("menteeId", "firstName lastName email profilePicture")
+      .populate("mentor", "firstName lastName email profilePicture")
+      .populate("mentee", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -520,8 +531,8 @@ export const getActiveMentorships = async (req: Request, res: Response) => {
       status: MentorshipStatus.ACTIVE,
       $or: [{ mentorId: req.user.id }, { menteeId: req.user.id }],
     })
-      .populate("mentorId", "firstName lastName email profilePicture")
-      .populate("menteeId", "firstName lastName email profilePicture")
+      .populate("mentor", "firstName lastName email profilePicture")
+      .populate("mentee", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -563,8 +574,8 @@ export const getPendingMentorships = async (req: Request, res: Response) => {
       status: MentorshipStatus.PENDING,
       mentorId: req.user.id,
     })
-      .populate("mentorId", "firstName lastName email profilePicture")
-      .populate("menteeId", "firstName lastName email profilePicture")
+      .populate("mentor", "firstName lastName email profilePicture")
+      .populate("mentee", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

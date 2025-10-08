@@ -385,6 +385,11 @@ export interface IMentorship extends Document {
   domain: string;
   description: string;
   goals: string[];
+  background?: string;
+  expectations?: string;
+  specificQuestions?: string;
+  timeCommitment?: string;
+  communicationMethod?: string;
   startDate: Date;
   endDate?: Date;
   acceptedAt?: Date;

@@ -118,6 +118,7 @@ const AlumniDirectory = () => {
         limit: 50,
         tenantId: user?.tenantId,
       });
+
       if (
         response &&
         response.data &&
@@ -385,8 +386,6 @@ const AlumniDirectory = () => {
                 )}
               </div>
 
-              
-
               {/* View Mode */}
               <div className="space-y-3 pt-4 border-t">
                 <h3 className="text-sm font-semibold">View Mode</h3>
@@ -481,7 +480,6 @@ const AlumniDirectory = () => {
                 <p className="text-gray-600 mb-6">
                   Check back later for new user profiles.
                 </p>
-               
               </div>
             ) : (
               users
@@ -539,6 +537,16 @@ const AlumniDirectory = () => {
                                   {directoryUser.graduationYear}
                                 </span>
                               )}
+                            {directoryUser.department &&
+                              !directoryUser.graduationYear && (
+                                <span>{directoryUser.department}</span>
+                              )}
+                            {!directoryUser.department &&
+                              directoryUser.graduationYear && (
+                                <span>
+                                  Class of {directoryUser.graduationYear}
+                                </span>
+                              )}
                             {directoryUser.registerNumber && (
                               <span className="ml-2">
                                 Reg. No: {directoryUser.registerNumber}
@@ -553,6 +561,13 @@ const AlumniDirectory = () => {
                                 directoryUser.location}
                             </div>
                           )}
+                          {directoryUser.experience &&
+                            directoryUser.experience > 0 && (
+                              <div className="flex items-center text-sm text-gray-500 mt-1">
+                                <Calendar className="w-4 h-4 mr-1" />
+                                {directoryUser.experience} years experience
+                              </div>
+                            )}
                         </div>
                       </div>
 

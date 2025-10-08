@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { mentorshipApi } from "@/services/mentorshipApi";
 import type {
   Mentor,
@@ -58,6 +59,7 @@ export const useMentorshipManagement = (
   initialMentors: Mentor[] = []
 ): UseMentorshipManagementReturn => {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
   // Core state
   const [mentors, setMentors] = useState<Mentor[]>(initialMentors);
@@ -126,13 +128,15 @@ export const useMentorshipManagement = (
         }`.trim() || "Unknown Mentor",
       mentorTitle: apiRequest.mentor?.title || "Professional",
       mentorCompany: apiRequest.mentor?.company || "Unknown Company",
-      careerGoals: apiRequest.goals || [],
-      challenges: apiRequest.message || "",
-      background: apiRequest.mentee?.bio || "",
+      careerGoals: Array.isArray(apiRequest.goals)
+        ? apiRequest.goals.join(", ")
+        : apiRequest.goals || "",
+      challenges: apiRequest.description || "",
+      background: apiRequest.background || "",
       expectations: apiRequest.expectations || "",
       timeCommitment: apiRequest.timeCommitment || "Flexible",
       communicationMethod: apiRequest.communicationMethod || "Email",
-      specificQuestions: apiRequest.questions || [],
+      specificQuestions: apiRequest.specificQuestions || "",
       status:
         apiRequest.status === "PENDING"
           ? "Pending"
@@ -183,7 +187,11 @@ export const useMentorshipManagement = (
         const response = await mentorshipApi.getMyMentorships();
         if (response.success && response.data) {
           const requestsData = response.data.mentorships || [];
-          const transformedRequests = requestsData.map(transformRequestFromApi);
+          // Show INCOMING requests for the current user (where they are the mentor)
+          const userRequests = requestsData.filter((request: any) => {
+            return request.mentorId === currentUser?._id;
+          });
+          const transformedRequests = userRequests.map(transformRequestFromApi);
           setRequests(transformedRequests);
         }
       }
@@ -369,9 +377,12 @@ export const useMentorshipManagement = (
             domain: formData.careerGoals,
             description: formData.challenges, // Map challenges to description
             goals: [formData.careerGoals], // Convert string to array
-            startDate: new Date().toISOString(), // Add required start date
+            background: formData.background,
+            expectations: formData.expectations,
+            specificQuestions: formData.specificQuestions,
             timeCommitment: formData.timeCommitment,
             communicationMethod: formData.communicationMethod,
+            startDate: new Date().toISOString(), // Add required start date
           };
 
           const response = await mentorshipApi.createMentorship(requestData);

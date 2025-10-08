@@ -66,7 +66,7 @@ export const CertificationsSection = ({
   const handleDeleteCertification = async (certificationId: string) => {
     try {
       const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       const response = await fetch(
         `${apiUrl}/students/profile/certifications/${certificationId}`,
         {
@@ -216,7 +216,7 @@ export const CertificationsSection = ({
                             size="sm"
                             onClick={() => {
                               const apiUrl =
-                                import.meta.env.VITE_API_URL ||
+                                import.meta.env.VITE_API_BASE_URL ||
                                 "http://localhost:3000/api/v1";
                               const baseUrl = apiUrl.replace("/api/v1", "");
                               const fullUrl = `${baseUrl}${cert.credentialFile}`;

@@ -279,7 +279,7 @@ const Profile = () => {
     try {
       setIsLoading(true);
       const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       // Add cache-busting parameter to prevent browser caching
       const response = await fetch(`${apiUrl}/auth/me?t=${Date.now()}`, {
         headers: {
@@ -329,7 +329,7 @@ const Profile = () => {
       formData.append("profileImage", file);
       const token = localStorage.getItem("token");
       const apiUrl = `${
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
       }/users/profile-image`;
 
       const response = await fetch(apiUrl, {
@@ -503,7 +503,7 @@ const Profile = () => {
                           profile.user.profilePicture.startsWith("http")
                             ? profile.user.profilePicture
                             : `${(
-                                import.meta.env.VITE_API_URL ||
+                                import.meta.env.VITE_API_BASE_URL ||
                                 "http://localhost:3000/api/v1"
                               ).replace("/api/v1", "")}${
                                 profile.user.profilePicture

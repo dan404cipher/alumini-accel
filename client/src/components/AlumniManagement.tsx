@@ -122,7 +122,7 @@ const AlumniManagement = () => {
       try {
         const response = await fetch(
           `${
-            import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+            import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
           }/tenants`,
           {
             headers: {
@@ -561,7 +561,7 @@ const AlumniManagement = () => {
                               ? alumni.userId.profilePicture.startsWith("http")
                                 ? alumni.userId.profilePicture
                                 : `${(
-                                    import.meta.env.VITE_API_URL ||
+                                    import.meta.env.VITE_API_BASE_URL ||
                                     "http://localhost:3000/api/v1"
                                   ).replace("/api/v1", "")}${
                                     alumni.userId.profilePicture

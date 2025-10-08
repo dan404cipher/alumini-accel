@@ -1,297 +1,244 @@
-"🎓 AlumniAccel – The Alumni Relationship & Engagement Platform for Educational Institutions":
+# AlumniAccel 🎓
+
+**The Ultimate Alumni Engagement & Empowerment SaaS Platform**
+
+A comprehensive platform for universities and colleges to manage their alumni networks, facilitate networking, mentorship, events, and fundraising.
+
+## 🌟 Features
+
+- **👥 Alumni Management**: Complete alumni directory with profiles and search
+- **📅 Event Management**: Create and manage alumni events, workshops, and reunions
+- **💼 Job Board**: Alumni can post and find job opportunities
+- **🎓 Mentorship Programs**: Connect mentors with mentees
+- **💰 Fundraising**: Donation campaigns and fundraising management
+- **📰 News & Updates**: University news and alumni success stories
+- **🖼️ Gallery**: Photo galleries for events and campus life
+- **👥 Communities**: Interest-based alumni communities
+- **💬 Messaging**: Direct messaging between alumni
+- **📊 Analytics**: Comprehensive analytics and reporting
+
+## 🚀 Quick Start
+
+### For New Developers
+
+1. **Clone the repository**
+
+   ```bash
+   git clone <your-repo-url>
+   cd alumini-accel
+   ```
+
+2. **Run the setup script**
+
+   ```bash
+   cd api
+   node setup.js
+   ```
+
+3. **Start the application**
+
+   ```bash
+   # Terminal 1 - Backend
+   npm run dev
+
+   # Terminal 2 - Frontend
+   cd ../client
+   npm run dev
+   ```
+
+4. **Login with sample data**
+   - Admin: `admin@techuniversity.edu` / `TechAdmin@123`
+   - Alumni: `alumni1@techuniversity.edu` / `TechAlumni@1234`
+
+### Manual Setup
+
+For detailed setup instructions, see [SETUP.md](./SETUP.md)
+
+## 🏗️ Architecture
+
+### Backend (API)
+
+- **Framework**: Node.js + Express + TypeScript
+- **Database**: MongoDB with Mongoose
+- **Authentication**: JWT-based authentication
+- **File Upload**: Multer for image/file handling
+- **Email**: Nodemailer for email notifications
+
+### Frontend (Client)
+
+- **Framework**: React + TypeScript + Vite
+- **UI Library**: Shadcn/ui + Tailwind CSS
+- **State Management**: React Query + Context API
+- **Routing**: React Router
+- **Icons**: Lucide React
+
+## 📁 Project Structure
+
+```
+alumini-accel/
+├── api/                    # Backend API
+│   ├── src/
+│   │   ├── models/         # Database models
+│   │   ├── routes/          # API routes
+│   │   ├── controllers/     # Route controllers
+│   │   ├── middleware/      # Custom middleware
+│   │   ├── scripts/         # Database scripts
+│   │   └── utils/           # Utility functions
+│   └── package.json
+├── client/                  # Frontend React app
+│   ├── src/
+│   │   ├── components/      # Reusable components
+│   │   ├── pages/           # Page components
+│   │   ├── contexts/        # React contexts
+│   │   ├── hooks/           # Custom hooks
+│   │   └── utils/           # Utility functions
+│   └── package.json
+├── SETUP.md                 # Detailed setup guide
+└── README.md               # This file
+```
+
+## 🗄️ Database Schema
+
+### Core Models
+
+- **User**: Alumni, staff, and admin users
+- **AlumniProfile**: Extended alumni information
+- **Tenant**: Multi-tenant college/university data
+- **Event**: Events and workshops
+- **JobPost**: Job opportunities
+- **News**: News articles and updates
+- **Gallery**: Photo galleries
+- **Community**: Alumni communities
+- **Mentorship**: Mentorship programs
+- **Donation**: Donation records
+- **Campaign**: Fundraising campaigns
+- **Connection**: Alumni connections
+- **Message**: Direct messages
+
+## 🔧 Available Scripts
+
+### Backend (`/api`)
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run seed:comprehensive` - Seed database with sample data
+- `npm run seed` - Run basic seed script
+- `npm run test` - Run tests
+
+### Frontend (`/client`)
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+
+## 🌐 API Endpoints
+
+### Authentication
+
+- `POST /api/auth/login` - User login
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/logout` - User logout
+
+### Users & Alumni
+
+- `GET /api/users` - Get all users
+- `GET /api/users/:id` - Get user by ID
+- `PUT /api/users/:id` - Update user
+- `GET /api/alumni` - Get alumni directory
+
+### Events
+
+- `GET /api/events` - Get all events
+- `POST /api/events` - Create event
+- `PUT /api/events/:id` - Update event
+
+### Jobs
+
+- `GET /api/jobs` - Get job posts
+- `POST /api/jobs` - Create job post
+- `PUT /api/jobs/:id` - Update job post
+
+## 🔐 Authentication & Authorization
+
+### User Roles
+
+- **Super Admin**: System-wide access
+- **College Admin**: College-specific management
+- **Staff**: Limited administrative access
+- **Alumni**: Standard user access
+
+### Permissions
+
+- Role-based access control
+- Resource-level permissions
+- Multi-tenant data isolation
+
+## 🎨 UI Components
+
+Built with Shadcn/ui components:
+
+- **Forms**: Input, Select, Textarea, Checkbox
+- **Navigation**: Navigation Menu, Breadcrumb
+- **Data Display**: Table, Card, Badge, Avatar
+- **Feedback**: Alert, Toast, Dialog
+- **Layout**: Container, Grid, Flex
+
+## 📱 Responsive Design
+
+- **Mobile-first** approach
+- **Tablet-optimized** navigation
+- **Desktop** full-featured experience
+- **Cross-browser** compatibility
+
+## 🧪 Testing
+
+- **Backend**: Jest + Supertest
+- **Frontend**: React Testing Library
+- **E2E**: Playwright (planned)
+
+## 🚀 Deployment
+
+### Backend
+
+- **Production**: Node.js on VPS/Cloud
+- **Database**: MongoDB Atlas
+- **Environment**: Docker (optional)
+
+### Frontend
+
+- **Static Hosting**: Vercel, Netlify
+- **CDN**: CloudFlare
+- **Build**: Vite production build
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 📞 Support
+
+For support and questions:
+
+- Create an issue on GitHub
+- Check the [SETUP.md](./SETUP.md) for troubleshooting
+- Review the API documentation
+
+## 🎯 Roadmap
+
+- [ ] Mobile app (React Native)
+- [ ] Advanced analytics dashboard
+- [ ] Email marketing integration
+- [ ] Social media integration
+- [ ] Video conferencing integration
+- [ ] Multi-language support
 
 ---
 
-✅ Core Features (Screen-wise)
-
-🏠 Dashboard
-
-Alumni stats (active, inactive, verified)
-
-Timeline widget: alumni achievements & job switches
-
-Ongoing campaigns (donation drive, events)
-
-Engagement score by batch/year
-
-👨‍🎓 Alumni Profiles
-
-Personal and professional info (editable)
-
-Career timeline with company logos and durations
-
-Academic background auto-linked to institute records
-
-Upload photos, testimonials, and certifications
-
-Social handles (LinkedIn, Twitter, GitHub)
-
-💼 Job Board / Referral Hub
-
-Alumni can post internal openings
-
-Verified posts only by company email or LinkedIn auth
-
-Alumni can view/share opportunities
-
-Alumni can refer other alumni
-
-🤝 Alumni-Alumni Connect
-
-Peer Mentorship system (alumni-to-alumni)
-
-Ask Me Anything (AMA) board
-
-Book slot with experienced alumni for career guidance
-
-🏛️ Institution Panel
-
-Batch-wise alumni management
-
-Analytics: Top companies, average salaries, active geographies
-
-Donation tracking & receipts
-
-Newsletter campaigns & engagement metrics
-
-📆 Events & Meetups
-
-Alumni registration + RSVP
-
-Online/offline hybrid event options
-
-Live updates, photos, and post-event feedback
-
-🥇 Recognition & Gamification
-
-Alumni leaderboard (by engagement, donations, referrals)
-
-Badges: Mentor, Speaker, Donor, Champion, etc.
-
-Featured Alumni of the Month
-
-🔐 Admin & Compliance
-
-Role-based access: Admin / Coordinator / Alumni
-
-KYC or verification for data validity
-
-GDPR-compliant alumni communication opt-ins
-
-Audit logs for all actions
-
----
-
-🧠 AI-Powered Phase 2 Enhancements
-
-Smart Job Suggestions for students based on alumni patterns
-
-Alumni Similarity Graph: Connects users with similar profiles for better networking
-
-Automated LinkedIn Sync: Updates alumni career timelines periodically
-
-AI-generated event invites based on behavior & interests
-
-Engagement Health Score for each alumni batch
-
----
-
-🔄 Workflow
-
-Admission Ends ➝ Alumni Profile Auto-Created ➝
-Verification Email ➝ Alumni Updates Career ➝
-Job Posts Shared ➝ Students Apply ➝
-Events Conducted ➝ Donations Tracked ➝
-Recognition Given ➝ Data Used for Rankings & Strategy
-
----
-
-🏆 Benefits Categorized
-
-Category Key Benefit
-
-Strategic Stronger alumni network and institutional branding
-Financial Increased donations, event sponsorships, and alumni-funded initiatives
-Academic Better placements, guest lectures, mentorship
-Operational Centralized CRM and communication channel
-Community Global alumni engagement and retention
-Recognition & Motivation Visibility of contributions, gamified motivation
-Compliance & Admin Secure, clean, and accessible alumni database
-Long-term Growth Supports NAAC/NBA/Accreditation with verified alumni outcome…
-
-Super bro 💡! “AlumniAccel” is not just an app — it’s a community and opportunity engine for colleges. Let me now structure everything you said + expand it smartly and SaaS-friendly, so you can pitch it with confidence 💼.
-
----
-
-🚀 AlumniAccel – The Ultimate Alumni Engagement & Empowerment SaaS
-
----
-
-🎯 Vision
-
-> Build a powerful alumni network that uplifts students, supports institutions, and creates a lifelong community that grows with time.
-
----
-
-💎 KEY VALUE PROPOSITIONS
-
-Benefit Type Value Delivered
-
-🎓 For Colleges Higher NIRF/NAAC/NBA rankings, strong brand via alumni stories, donations
-👨‍🎓 For Students Mentorship, internships, direct hiring from alumni
-🧑‍💼 For Alumni Prestige, reconnection, visibility, social impact
-🏢 For Employers Access to trusted junior talent via alumni network
-
----
-
-🖥️ SCREEN-WISE FEATURES
-
-1️⃣ Dashboard (Admin & Alumni Coordinator)
-
-Real-time stats: verified alumni, active job posts, mentorships ongoing
-
-Quick Actions: Send bulk newsletter, verify alumni, launch event
-
----
-
-2️⃣ Alumni Directory & Timeline
-
-Profile: Photo, contact, current job, social handles
-
-Timeline: College → First Job → Current Role → Promotions → Achievements
-
-“I’m Hiring” badge toggle
-
----
-
-3️⃣ Jobs & Internships Hub
-
-Alumni can:
-
-Post openings in their company
-
-Invite students or alumni
-
-Add referral notes
-
-Students can apply and track status
-
-Admin can showcase placement outcomes
-
----
-
-4️⃣ Mentorship Portal
-
-Students can request mentorship by domain
-
-Alumni set available slots
-
-Feedback, Zoom integration, and mentorship badge
-
----
-
-5️⃣ Events & Reunions
-
-Create hybrid/online events
-
-RSVP, auto-calendar invites, photo upload
-
-Alumni can host webinars, workshops, or be guest speakers
-
----
-
-6️⃣ Fundraising & Donations
-
-Transparent cause-based donation flows
-
-Fundraising campaigns (library, scholarship, infra support)
-
-Leaderboard of top donors and automated receipts
-
----
-
-7️⃣ Newsletter & Notification Engine
-
-Monthly newsletters
-
-Push/email/WhatsApp reminders for:
-
-Events
-
-Job openings
-
-Alumni milestones
-
-Auto-sync with LinkedIn for job updates
-
----
-
-8️⃣ Recognition & Gamification
-
-Badges: Mentor, Recruiter, Donor, Speaker, Star Alumni
-
-Monthly Spotlight Alumni
-
-Leaderboards: Highest impact, most active
-
----
-
-9️⃣ Community & Discussions
-
-Public/Private discussion boards per batch/year/domain
-
-Polls, Q&A, event suggestions
-
-Alumni-student AMA sessions
-
----
-
-🔐 Admin & Compliance
-
-Role-based access: Super Admin, Alumni Coordinator, Batch Reps
-
-Secure login via OTP/LinkedIn
-
-Data validation via KYC, email, or college-issued IDs
-
----
-
-🧠 PHASE 2: AI ENHANCEMENTS
-
-AI Feature Description
-
-🎯 Smart Matchmaking Match students with alumni mentors based on career path & domain
-🧠 Auto Career Tracker Scrape LinkedIn to auto-update career journeys
-📨 AI Newsletter Generator Auto-generate alumni newsletter from profile updates and milestones
-🔎 Talent Search College admin can search alumni by skill, location, or hiring intent
-🏆 Engagement Score AI-based score to track most engaged alumni and batches
-
----
-
-🔄 WORKFLOW EXAMPLE
-
-🎓 Alumni Graduates → 🔔 Invited to AlumniAccel →
-📝 Completes Profile → 💼 Posts Job Opportunities →
-🤝 Mentors Other Alumni → 🎤 Hosts Guest Lecture →
-💰 Donates to Institution → 🏆 Becomes Featured Alumni
-
----
-
-💼 PITCH TO COLLEGES
-
-> “AlumniAccel is not just about tracking old students — it's about empowering future ones.”
-> With our platform, your college can boost placements, reputation, funding, and build a vibrant, global alumni community.
-
----
-
-Do you want:
-
-Figma wireframes
-
-Pitch deck
-
-MongoDB schema
-
-Next.js code starter
-
-Ready to begin MVP from tomorrow?
+**Built with ❤️ for Alumni Networks Worldwide**

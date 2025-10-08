@@ -69,7 +69,7 @@ interface Event {
   };
   currentAttendees?: number;
   maxAttendees?: number;
-  image?: string;
+  imageUrl?: string;
   tags?: string[];
   price?: number;
   registrationDeadline?: string;
@@ -183,7 +183,7 @@ const EventsMeetups = () => {
         : "Unknown",
       attendees: event.currentAttendees || 0,
       maxAttendees: event.maxAttendees || 0,
-      image: event.image,
+      image: event.imageUrl,
       tags: event.tags || [],
       featured: false,
       price: event.price ? `$${event.price}` : "Free",
@@ -281,7 +281,7 @@ const EventsMeetups = () => {
     if (image.startsWith("/") || image.startsWith("uploads/")) {
       // Use the API base URL but remove /api/v1 for static file serving
       const apiBaseUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       const baseUrl = apiBaseUrl.replace("/api/v1", "");
 
       // Ensure the image path starts with /uploads/

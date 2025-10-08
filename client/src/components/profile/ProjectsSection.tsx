@@ -75,7 +75,7 @@ export const ProjectsSection = ({
   const handleDeleteProject = async (projectId: string) => {
     try {
       const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       const endpoint =
         userRole === "student"
           ? `${apiUrl}/students/profile/projects/${projectId}`

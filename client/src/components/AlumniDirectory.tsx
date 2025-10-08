@@ -500,7 +500,7 @@ const AlumniDirectory = () => {
                                 ? directoryUser.profileImage.startsWith("http")
                                   ? directoryUser.profileImage
                                   : `${(
-                                      import.meta.env.VITE_API_URL ||
+                                      import.meta.env.VITE_API_BASE_URL ||
                                       "http://localhost:3000/api/v1"
                                     ).replace("/api/v1", "")}${
                                       directoryUser.profileImage

@@ -36,6 +36,7 @@ import {
   GraduationCap,
   Building,
   MapPin,
+  Calendar,
 } from "lucide-react";
 import { alumniAPI } from "@/lib/api";
 

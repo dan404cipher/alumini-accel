@@ -7,7 +7,7 @@ import axios, {
 
 // API base URL
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
 // Create axios instance
 const api: AxiosInstance = axios.create({

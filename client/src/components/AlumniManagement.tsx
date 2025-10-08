@@ -613,6 +613,12 @@ const AlumniManagement = () => {
                             <GraduationCap className="h-4 w-4" />
                             <span>Class of {alumni.graduationYear}</span>
                           </div>
+                          {alumni.experience && alumni.experience > 0 && (
+                            <div className="flex items-center space-x-2">
+                              <Calendar className="h-4 w-4" />
+                              <span>{alumni.experience} years experience</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

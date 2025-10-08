@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import {
   Card,
   CardContent,
@@ -36,7 +35,6 @@ import Footer from "@/components/Footer";
 
 const Settings = () => {
   const { user } = useAuth();
-  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [settings, setSettings] = useState({
     // Notification settings
@@ -369,25 +367,6 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>Theme</Label>
-                    <Select
-                      value={theme}
-                      onValueChange={(value) =>
-                        setTheme(value as "light" | "dark" | "system")
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
                   <div className="space-y-2">
                     <Label>Language</Label>
                     <Select

@@ -94,6 +94,10 @@ const Layout = () => {
         // Redirect to the Connections page
         navigate("/connections");
         return null;
+      case "messages":
+        // Redirect to the Messages page
+        navigate("/messages");
+        return null;
       case "more":
         // More dropdown doesn't navigate to a page
         return <RoleBasedDashboard />;

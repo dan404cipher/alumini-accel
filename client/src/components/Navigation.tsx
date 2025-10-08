@@ -7,6 +7,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Users,
@@ -27,10 +30,10 @@ import {
   Users2,
   GraduationCap,
   Heart,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { tenantAPI } from "@/lib/api";
 import { useState, useEffect } from "react";
 import {
@@ -70,8 +73,34 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     { id: "events", name: "Events", icon: Calendar, count: null },
     { id: "news", name: "News Room", icon: Newspaper, count: null },
     { id: "gallery", name: "Gallery", icon: Image, count: null },
-    { id: "messages", name: "Messages", icon: MessageCircle, count: null },
-    { id: "connections", name: "Connections", icon: UserPlus, count: null },
+    {
+      id: "messages",
+      name: "Messages",
+      icon: MessageCircle,
+      count: null,
+      hasDropdown: true,
+      dropdownItems: [
+        { id: "messages/inbox", name: "Inbox", icon: MessageCircle },
+        { id: "messages/sent", name: "Sent", icon: MessageCircle },
+        { id: "messages/drafts", name: "Drafts", icon: MessageCircle },
+      ],
+    },
+    {
+      id: "connections",
+      name: "Connections",
+      icon: UserPlus,
+      count: null,
+      hasDropdown: true,
+      dropdownItems: [
+        {
+          id: "connections/my-connections",
+          name: "My Connections",
+          icon: UserPlus,
+        },
+        { id: "connections/pending", name: "Pending Requests", icon: UserPlus },
+        { id: "connections/find", name: "Find Alumni", icon: Users },
+      ],
+    },
     { id: "community", name: "Community", icon: Users2, count: null },
     { id: "mentorship", name: "Mentorship", icon: GraduationCap, count: null },
     { id: "donations", name: "Donations", icon: Heart, count: null },
@@ -209,6 +238,88 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
 
+                // Render dropdown items
+                if (item.hasDropdown && item.dropdownItems) {
+                  return (
+                    <DropdownMenu key={item.id}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className={`group flex items-center px-2 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
+                            isActive
+                              ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                              : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
+                          }`}
+                        >
+                          {/* Background animation for active state */}
+                          {isActive && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
+                          )}
+
+                          {/* Content */}
+                          <div className="relative z-10 flex items-center">
+                            <Icon
+                              className={`w-4 h-4 mr-2 transition-transform duration-200 ${
+                                isActive
+                                  ? "text-white"
+                                  : "text-gray-600 group-hover:text-blue-600 group-hover:scale-110"
+                              }`}
+                            />
+                            <span
+                              className={`transition-colors duration-200 ${
+                                isActive
+                                  ? "text-white font-semibold"
+                                  : "group-hover:text-blue-600"
+                              }`}
+                            >
+                              {item.name}
+                            </span>
+                            <ChevronDown
+                              className={`w-3 h-3 ml-1 transition-transform duration-200 ${
+                                isActive
+                                  ? "text-white"
+                                  : "text-gray-600 group-hover:text-blue-600"
+                              }`}
+                            />
+                            {item.count && (
+                              <Badge
+                                variant="secondary"
+                                className={`ml-2 text-xs px-2 py-0.5 transition-all duration-200 ${
+                                  isActive
+                                    ? "bg-white/20 text-white border-white/30"
+                                    : "bg-blue-100 text-blue-700 group-hover:bg-blue-200 group-hover:scale-105"
+                                }`}
+                              >
+                                {item.count}
+                              </Badge>
+                            )}
+                          </div>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="w-48">
+                        <DropdownMenuLabel>{item.name}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {item.dropdownItems.map((dropdownItem) => {
+                          const DropdownIcon = dropdownItem.icon;
+                          return (
+                            <DropdownMenuItem
+                              key={dropdownItem.id}
+                              onClick={() => {
+                                onTabChange(dropdownItem.id);
+                                navigate(`/${dropdownItem.id}`);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <DropdownIcon className="w-4 h-4 mr-2" />
+                              {dropdownItem.name}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }
+
+                // Render regular items
                 return (
                   <button
                     key={item.id}
@@ -282,9 +393,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 3
               </span>
             </Button>
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
 
             {/* User Menu */}
             {user ? (
@@ -436,6 +544,68 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
 
+                  // Render dropdown items for mobile
+                  if (item.hasDropdown && item.dropdownItems) {
+                    return (
+                      <div key={item.id} className="space-y-1">
+                        <button
+                          onClick={() => {
+                            onTabChange(item.id);
+                            navigate(`/${item.id}`);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 ${
+                            isActive
+                              ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
+                              : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:scale-105"
+                          }`}
+                        >
+                          <Icon
+                            className={`w-5 h-5 mr-3 transition-transform duration-200 ${
+                              isActive
+                                ? "text-white"
+                                : "text-gray-600 group-hover:text-blue-600 group-hover:scale-110"
+                            }`}
+                          />
+                          <span className="flex-1 text-left font-medium">
+                            {item.name}
+                          </span>
+                          <ChevronDown
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              isActive
+                                ? "text-white"
+                                : "text-gray-600 group-hover:text-blue-600"
+                            }`}
+                          />
+                        </button>
+
+                        {/* Dropdown items */}
+                        <div className="ml-6 space-y-1">
+                          {item.dropdownItems.map((dropdownItem) => {
+                            const DropdownIcon = dropdownItem.icon;
+                            return (
+                              <button
+                                key={dropdownItem.id}
+                                onClick={() => {
+                                  onTabChange(dropdownItem.id);
+                                  navigate(`/${dropdownItem.id}`);
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="group flex items-center px-4 py-2 rounded-lg text-sm font-medium w-full transition-all duration-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                              >
+                                <DropdownIcon className="w-4 h-4 mr-3 text-gray-500 group-hover:text-blue-600" />
+                                <span className="flex-1 text-left">
+                                  {dropdownItem.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Render regular items
                   return (
                     <button
                       key={item.id}

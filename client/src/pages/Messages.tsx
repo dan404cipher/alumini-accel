@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MessageCircle,
   Send,
@@ -62,6 +63,7 @@ interface Conversation {
 
 const Messages = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
@@ -70,6 +72,7 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeMessageTab, setActiveMessageTab] = useState("inbox");
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
@@ -82,6 +85,20 @@ const Messages = () => {
 
     return () => clearTimeout(timeoutId);
   }, [searchParams]);
+
+  // Handle URL-based tab switching
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes("/messages/inbox")) {
+      setActiveMessageTab("inbox");
+    } else if (path.includes("/messages/sent")) {
+      setActiveMessageTab("sent");
+    } else if (path.includes("/messages/drafts")) {
+      setActiveMessageTab("drafts");
+    } else {
+      setActiveMessageTab("inbox");
+    }
+  }, [location.pathname]);
 
   const fetchConversations = async () => {
     try {
@@ -248,6 +265,23 @@ const Messages = () => {
           <div className="w-full lg:w-1/3 border-r border-gray-200 flex flex-col">
             <div className="p-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold mb-4">Messages</h2>
+
+              {/* Message Tabs */}
+              <Tabs
+                value={activeMessageTab}
+                onValueChange={(value) => {
+                  setActiveMessageTab(value);
+                  navigate(`/messages/${value}`);
+                }}
+                className="mb-4"
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="inbox">Inbox</TabsTrigger>
+                  <TabsTrigger value="sent">Sent</TabsTrigger>
+                  <TabsTrigger value="drafts">Drafts</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input

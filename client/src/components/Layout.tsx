@@ -74,6 +74,10 @@ const Layout = () => {
         return <JobBoard />;
       case "events":
         return <EventsMeetups />;
+      case "media":
+        // Redirect to news by default, or could create a media landing page
+        navigate("/news");
+        return null;
       case "news":
         return <NewsRoom />;
       case "community":
@@ -114,6 +118,7 @@ const Layout = () => {
   const isEventsPage = activeTab === "events";
   const isNewsPage = activeTab === "news";
   const isGalleryPage = activeTab === "gallery";
+  const isMediaPage = activeTab === "media";
   const isAlumniPage = activeTab === "alumni";
   const isCommunityPage = activeTab === "community";
   const isDonationsPage = activeTab === "donations";
@@ -137,6 +142,7 @@ const Layout = () => {
           isEventsPage ||
           isNewsPage ||
           isGalleryPage ||
+          isMediaPage ||
           isAlumniPage ||
           isCommunityPage ||
           isDonationsPage ||
@@ -155,6 +161,7 @@ const Layout = () => {
             isEventsPage ||
             isNewsPage ||
             isGalleryPage ||
+            isMediaPage ||
             isAlumniPage ||
             isCommunityPage ||
             isDonationsPage ||
@@ -173,6 +180,7 @@ const Layout = () => {
         !isEventsPage &&
         !isNewsPage &&
         !isGalleryPage &&
+        !isMediaPage &&
         !isAlumniPage &&
         !isCommunityPage &&
         !isDonationsPage &&

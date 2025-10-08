@@ -71,8 +71,17 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     },
     { id: "jobs", name: "Jobs", icon: Briefcase, count: null },
     { id: "events", name: "Events", icon: Calendar, count: null },
-    { id: "news", name: "News Room", icon: Newspaper, count: null },
-    { id: "gallery", name: "Gallery", icon: Image, count: null },
+    {
+      id: "media",
+      name: "Media",
+      icon: Newspaper,
+      count: null,
+      hasDropdown: true,
+      dropdownItems: [
+        { id: "news", name: "News Room", icon: Newspaper },
+        { id: "gallery", name: "Gallery", icon: Image },
+      ],
+    },
     {
       id: "messages",
       name: "Messages",
@@ -221,17 +230,150 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 </div>
               )}
               <div className="flex flex-col">
-                <h1 className="text-lg xl:text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-blue-900 transition-all duration-200">
+                <h1 className="text-base md:text-lg xl:text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-blue-900 transition-all duration-200">
                   AlumniAccel
                 </h1>
-                <p className="text-xs text-gray-500 font-medium hidden xl:block">
+                <p className="text-xs text-gray-500 font-medium hidden lg:block">
                   Alumni Network
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Desktop Navigation - Full Screen */}
+          {/* Tablet Navigation - Medium screens */}
+          <div className="hidden md:flex lg:hidden items-center space-x-1 flex-1 justify-center max-w-2xl mx-auto">
+            <div className="flex items-center space-x-1 bg-gray-50/50 rounded-2xl p-1 backdrop-blur-sm">
+              {/* Show only essential items on tablet */}
+              {allNavItems
+                .filter((item, index) =>
+                  [
+                    "dashboard",
+                    "alumni",
+                    "jobs",
+                    "events",
+                    "media",
+                    "messages",
+                    "connections",
+                  ].includes(item.id)
+                )
+                .map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+
+                  // Render dropdown items
+                  if (item.hasDropdown && item.dropdownItems) {
+                    return (
+                      <DropdownMenu key={item.id}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
+                              isActive
+                                ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                                : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
+                            }`}
+                          >
+                            {/* Background animation for active state */}
+                            {isActive && (
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
+                            )}
+
+                            {/* Content */}
+                            <div className="relative z-10 flex items-center">
+                              <Icon
+                                className={`w-4 h-4 mr-1 transition-transform duration-200 ${
+                                  isActive
+                                    ? "text-white"
+                                    : "text-gray-600 group-hover:text-blue-600 group-hover:scale-110"
+                                }`}
+                              />
+                              <span
+                                className={`transition-colors duration-200 ${
+                                  isActive
+                                    ? "text-white font-semibold"
+                                    : "group-hover:text-blue-600"
+                                }`}
+                              >
+                                {item.name}
+                              </span>
+                              <ChevronDown
+                                className={`w-3 h-3 ml-1 transition-transform duration-200 ${
+                                  isActive
+                                    ? "text-white"
+                                    : "text-gray-600 group-hover:text-blue-600"
+                                }`}
+                              />
+                            </div>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="w-48">
+                          <DropdownMenuLabel>{item.name}</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {item.dropdownItems.map((dropdownItem) => {
+                            const DropdownIcon = dropdownItem.icon;
+                            return (
+                              <DropdownMenuItem
+                                key={dropdownItem.id}
+                                onClick={() => {
+                                  onTabChange(dropdownItem.id);
+                                  navigate(`/${dropdownItem.id}`);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <DropdownIcon className="w-4 h-4 mr-2" />
+                                {dropdownItem.name}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    );
+                  }
+
+                  // Render regular items
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onTabChange(item.id);
+                        navigate(`/${item.id}`);
+                      }}
+                      className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
+                        isActive
+                          ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                          : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
+                      }`}
+                    >
+                      {/* Background animation for active state */}
+                      {isActive && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
+                      )}
+
+                      {/* Content */}
+                      <div className="relative z-10 flex items-center">
+                        <Icon
+                          className={`w-4 h-4 mr-1 transition-transform duration-200 ${
+                            isActive
+                              ? "text-white"
+                              : "text-gray-600 group-hover:text-blue-600 group-hover:scale-110"
+                          }`}
+                        />
+                        <span
+                          className={`transition-colors duration-200 ${
+                            isActive
+                              ? "text-white font-semibold"
+                              : "group-hover:text-blue-600"
+                          }`}
+                        >
+                          {item.name}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Desktop Navigation - Large screens */}
           <div className="hidden lg:flex items-center space-x-1 flex-1 justify-center max-w-4xl mx-auto">
             <div className="flex items-center space-x-1 bg-gray-50/50 rounded-2xl p-1 backdrop-blur-sm">
               {allNavItems.map((item) => {
@@ -376,7 +518,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           </div>
 
           {/* Right side controls */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
             {/* Notifications */}
             <Button
               variant="ghost"
@@ -501,7 +643,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             )}
 
             {/* Mobile menu button */}
-            <div className="lg:hidden">
+            <div className="md:hidden">
               <Button
                 variant="ghost"
                 size="icon"
@@ -520,7 +662,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-xl shadow-lg">
+          <div className="md:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-xl shadow-lg">
             <div className="px-4 py-6 space-y-3">
               {/* Mobile Notifications */}
               <button

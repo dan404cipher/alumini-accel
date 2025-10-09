@@ -69,7 +69,7 @@ interface Event {
   };
   currentAttendees?: number;
   maxAttendees?: number;
-  imageUrl?: string;
+  image?: string;
   tags?: string[];
   price?: number;
   registrationDeadline?: string;
@@ -117,6 +117,9 @@ const EventsMeetups = () => {
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+
+  // Use search query directly for now (no debouncing)
+  const debouncedSearchQuery = searchQuery;
 
   // Check if user can create events
   const canCreateEvents =
@@ -183,7 +186,7 @@ const EventsMeetups = () => {
         : "Unknown",
       attendees: event.currentAttendees || 0,
       maxAttendees: event.maxAttendees || 0,
-      image: event.imageUrl,
+      image: event.image,
       tags: event.tags || [],
       featured: false,
       price: event.price ? `$${event.price}` : "Free",
@@ -197,34 +200,160 @@ const EventsMeetups = () => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Helper function to filter events by type
-  const filterEventsByType = (events: MappedEvent[]) => {
-    if (selectedEventType === "all") return events;
-    return events.filter((event) => event.type === selectedEventType);
+  // Helper function to filter events by all criteria
+  const filterEvents = (events: MappedEvent[]) => {
+    return events.filter((event) => {
+      // Search query filter
+      if (debouncedSearchQuery) {
+        const searchLower = debouncedSearchQuery.toLowerCase();
+        const matchesSearch =
+          (event.title && event.title.toLowerCase().includes(searchLower)) ||
+          (event.description &&
+            event.description.toLowerCase().includes(searchLower)) ||
+          (event.location &&
+            event.location.toLowerCase().includes(searchLower)) ||
+          (event.organizer &&
+            event.organizer.toLowerCase().includes(searchLower)) ||
+          (event.tags &&
+            event.tags.some(
+              (tag) => tag && tag.toLowerCase().includes(searchLower)
+            ));
+
+        if (!matchesSearch) return false;
+      }
+
+      // Event type filter
+      if (selectedEventType !== "all" && event.type !== selectedEventType)
+        return false;
+
+      // Location filter
+      if (selectedLocation !== "all") {
+        if (
+          selectedLocation === "online" &&
+          !event.location.toLowerCase().includes("online")
+        )
+          return false;
+        if (
+          selectedLocation === "hybrid" &&
+          !event.location.toLowerCase().includes("hybrid")
+        )
+          return false;
+        if (
+          selectedLocation === "campus" &&
+          !event.location.toLowerCase().includes("campus")
+        )
+          return false;
+        if (
+          !["online", "hybrid", "campus"].includes(selectedLocation) &&
+          !event.location.toLowerCase().includes(selectedLocation.toLowerCase())
+        )
+          return false;
+      }
+
+      // Price filter
+      if (selectedPrice !== "all") {
+        const eventPrice = parseFloat(
+          event.price.replace("$", "").replace("Free", "0")
+        );
+        switch (selectedPrice) {
+          case "free":
+            if (eventPrice > 0) return false;
+            break;
+          case "0-25":
+            if (eventPrice < 0 || eventPrice > 25) return false;
+            break;
+          case "25-50":
+            if (eventPrice < 25 || eventPrice > 50) return false;
+            break;
+          case "50-100":
+            if (eventPrice < 50 || eventPrice > 100) return false;
+            break;
+          case "100+":
+            if (eventPrice < 100) return false;
+            break;
+        }
+      }
+
+      // Date range filter
+      if (selectedDateRange !== "all") {
+        const eventDate = new Date(event.startDate);
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const thisWeekEnd = new Date(today);
+        thisWeekEnd.setDate(today.getDate() + 7);
+        const nextWeekEnd = new Date(today);
+        nextWeekEnd.setDate(today.getDate() + 14);
+        const thisMonthEnd = new Date(
+          today.getFullYear(),
+          today.getMonth() + 1,
+          1
+        );
+        const nextMonthEnd = new Date(
+          today.getFullYear(),
+          today.getMonth() + 2,
+          1
+        );
+
+        switch (selectedDateRange) {
+          case "today":
+            if (eventDate < today || eventDate >= tomorrow) return false;
+            break;
+          case "tomorrow":
+            if (
+              eventDate < tomorrow ||
+              eventDate >= new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
+            )
+              return false;
+            break;
+          case "this_week":
+            if (eventDate < today || eventDate >= thisWeekEnd) return false;
+            break;
+          case "next_week":
+            if (eventDate < thisWeekEnd || eventDate >= nextWeekEnd)
+              return false;
+            break;
+          case "this_month":
+            if (eventDate < today || eventDate >= thisMonthEnd) return false;
+            break;
+          case "next_month":
+            if (eventDate < thisMonthEnd || eventDate >= nextMonthEnd)
+              return false;
+            break;
+        }
+      }
+
+      return true;
+    });
   };
 
-  const upcomingEvents = filterEventsByType(
+  const upcomingEvents = filterEvents(
     mappedEvents.filter((event) => {
       const eventDate = new Date(event.startDate);
       return eventDate >= tomorrow;
     })
   );
 
-  const todayEvents = filterEventsByType(
+  const todayEvents = filterEvents(
     mappedEvents.filter((event) => {
       const eventDate = new Date(event.startDate);
       return eventDate >= today && eventDate < tomorrow;
     })
   );
 
-  const pastEvents = filterEventsByType(
+  const pastEvents = filterEvents(
     mappedEvents.filter((event) => {
       const eventDate = new Date(event.startDate);
       return eventDate < today;
     })
   );
 
-  const events = mappedEvents;
+  const events = filterEvents(mappedEvents);
 
   // Function to refresh events
   const handleEventCreated = () => {
@@ -277,21 +406,14 @@ const EventsMeetups = () => {
       return image;
     }
 
-    // If it's a relative path (uploaded image), construct full URL
+    // If it's a relative path (uploaded image), use proxy path
     if (image.startsWith("/") || image.startsWith("uploads/")) {
-      // Use the API base URL but remove /api/v1 for static file serving
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-      const baseUrl = apiBaseUrl.replace("/api/v1", "");
-
-      // Ensure the image path starts with /uploads/
+      // Ensure the image path starts with /uploads/ for proxy
       let imagePath = image;
       if (image.startsWith("uploads/")) {
         imagePath = `/${image}`;
       }
-
-      const fullUrl = `${baseUrl}${imagePath}`;
-      return fullUrl;
+      return imagePath;
     }
 
     return image;

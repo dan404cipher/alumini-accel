@@ -205,10 +205,7 @@ const Messages = () => {
       if (profilePicture.startsWith("http")) {
         return profilePicture;
       }
-      const baseUrl = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-      ).replace("/api/v1", "");
-      return `${baseUrl}${profilePicture}`;
+      return profilePicture;
     }
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       name || "User"

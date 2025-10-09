@@ -958,11 +958,7 @@ Thank you for your generous contribution!
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="flex gap-4">
                     <img
-                      src={
-                        campaign.imageUrl.startsWith("/uploads/")
-                          ? `http://localhost:3000${campaign.imageUrl}`
-                          : campaign.imageUrl
-                      }
+                      src={campaign.imageUrl}
                       alt={campaign.title}
                       className="w-16 h-16 object-cover rounded-lg"
                     />

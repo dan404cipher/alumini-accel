@@ -312,13 +312,8 @@ const Gallery: React.FC = () => {
       return imagePath;
     }
 
-    // For static files, use the base URL without /api/v1
-    const baseUrl =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-    const staticBaseUrl = baseUrl.replace("/api/v1", "");
-    const url = `${staticBaseUrl}${imagePath}`;
-
-    return url;
+    // For static files, use proxy path
+    return imagePath;
   };
 
   return (

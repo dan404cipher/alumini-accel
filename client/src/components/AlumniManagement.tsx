@@ -560,12 +560,7 @@ const AlumniManagement = () => {
                             alumni.userId?.profileImage
                               ? alumni.userId.profileImage.startsWith("http")
                                 ? alumni.userId.profileImage
-                                : `${(
-                                    import.meta.env.VITE_API_BASE_URL ||
-                                    "http://localhost:3000/api/v1"
-                                  ).replace("/api/v1", "")}${
-                                    alumni.userId.profileImage
-                                  }`
+                                : alumni.userId.profileImage
                               : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                   `${alumni.userId?.firstName || ""} ${
                                     alumni.userId?.lastName || ""

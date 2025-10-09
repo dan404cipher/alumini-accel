@@ -345,6 +345,19 @@ const mentorshipTopics = [
   "Time Management",
 ];
 
+const unsplashPhotoIds = [
+  "1507003211169-0a1dd7228f2d", // University campus
+  "1523050854058-8df90110c9f1", // Graduation ceremony
+  "1562774053-701939374585", // Students studying
+  "1571019613454-1cb2f99b2d8b", // Library
+  "1581833979350-635d6b9e4b3b", // Classroom
+  "1593642532402-b92d5a4b2a6b", // Technology lab
+  "1600880292204-757f2464bd35", // Group discussion
+  "1600880292204-757f2464bd35", // Professional meeting
+  "1600880292204-757f2464bd35", // Networking event
+  "1600880292204-757f2464bd35", // Conference hall
+];
+
 // Generate random data functions
 const getRandomItem = (array: any[]) =>
   array[Math.floor(Math.random() * array.length)];
@@ -553,7 +566,7 @@ const createAlumniUsers = async (
   count: number
 ): Promise<any[]> => {
   const users: any[] = [];
-  const hashedPassword = await bcrypt.hash("TechAlumni@1234", 10);
+  const password = "TechAlumni@1234";
 
   for (let i = 0; i < count; i++) {
     const firstName = getRandomItem(firstNames);
@@ -567,7 +580,7 @@ const createAlumniUsers = async (
 
     const userData = {
       email,
-      password: hashedPassword,
+      password: password,
       firstName,
       lastName,
       role: UserRole.ALUMNI,
@@ -603,8 +616,8 @@ const createAdminUsers = async (
   tenantId: mongoose.Types.ObjectId
 ): Promise<any[]> => {
   const users: any[] = [];
-  const adminPassword = await bcrypt.hash("TechAdmin@123", 10);
-  const staffPassword = await bcrypt.hash("TechStaff@1234", 10);
+  const adminPassword = "TechAdmin@123";
+  const staffPassword = "TechStaff@1234";
 
   // College Admin
   const adminData = {
@@ -814,6 +827,7 @@ const createEvents = async (
       maxAttendees: getRandomNumber(20, 200),
       organizer: getRandomItem(alumniUsers)._id,
       tenantId,
+      image: `https://images.unsplash.com/photo-${getRandomItem(unsplashPhotoIds)}?w=800&h=400&fit=crop&crop=center`,
       tags: getRandomItems(
         [
           "Networking",
@@ -926,7 +940,7 @@ const createNews = async (
         new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
         new Date()
       ),
-      featuredImage: `https://images.unsplash.com/photo-${1500000000000 + i}?w=800&h=400&fit=crop&crop=center`,
+      featuredImage: `https://images.unsplash.com/photo-${getRandomItem(unsplashPhotoIds)}?w=800&h=400&fit=crop&crop=center`,
     };
 
     const news = new News(newsData);
@@ -945,7 +959,7 @@ const createGalleryItems = async (
       title: `Gallery Item ${i + 1}`,
       description: `A beautiful image from our university events and activities.`,
       images: [
-        `https://images.unsplash.com/photo-${1600000000000 + i}?w=600&h=400&fit=crop&crop=center`,
+        `https://images.unsplash.com/photo-${getRandomItem(unsplashPhotoIds)}?w=600&h=400&fit=crop&crop=center`,
       ],
       createdBy: getRandomItem(alumniUsers)._id,
       isActive: true,
@@ -1058,11 +1072,29 @@ const createMentorshipPrograms = async (
   alumniUsers: any[],
   count: number
 ) => {
-  for (let i = 0; i < count; i++) {
+  const usedPairs = new Set();
+  let attempts = 0;
+  const maxAttempts = count * 10; // Prevent infinite loop
+
+  for (let i = 0; i < count && attempts < maxAttempts; i++) {
     const mentor = getRandomItem(alumniUsers);
     const mentee = getRandomItem(
       alumniUsers.filter((u) => u._id.toString() !== mentor._id.toString())
     );
+
+    // Create unique pair key to prevent duplicates
+    const pairKey = `${mentor._id}-${mentee._id}`;
+    const reversePairKey = `${mentee._id}-${mentor._id}`;
+
+    if (usedPairs.has(pairKey) || usedPairs.has(reversePairKey)) {
+      attempts++;
+      i--; // Retry this iteration
+      continue;
+    }
+
+    usedPairs.add(pairKey);
+    usedPairs.add(reversePairKey);
+
     const topic = getRandomItem(mentorshipTopics);
 
     const mentorshipData = {
@@ -1136,6 +1168,7 @@ const createDonations = async (
       ])}.`,
       anonymous: Math.random() > 0.7,
       receiptSent: true,
+      screenshot: `https://images.unsplash.com/photo-${getRandomItem(unsplashPhotoIds)}?w=600&h=400&fit=crop&crop=center`,
       tenantId,
     };
 

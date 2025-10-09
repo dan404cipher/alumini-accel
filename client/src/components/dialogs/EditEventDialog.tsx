@@ -1002,7 +1002,7 @@ export const EditEventDialog = ({
                       event.image.startsWith("http")
                         ? event.image
                         : `${
-                            import.meta.env.VITE_API_URL?.replace(
+                            import.meta.env.VITE_API_BASE_URL?.replace(
                               "/api/v1",
                               ""
                             ) || "http://localhost:3000"

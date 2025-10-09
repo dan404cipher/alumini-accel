@@ -122,7 +122,7 @@ const AlumniManagement = () => {
       try {
         const response = await fetch(
           `${
-            import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+            import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
           }/tenants`,
           {
             headers: {
@@ -557,20 +557,20 @@ const AlumniManagement = () => {
                       <div className="relative">
                         <img
                           src={
-                            alumni.userId?.profilePicture
-                              ? alumni.userId.profilePicture.startsWith("http")
-                                ? alumni.userId.profilePicture
+                            alumni.userId?.profileImage
+                              ? alumni.userId.profileImage.startsWith("http")
+                                ? alumni.userId.profileImage
                                 : `${(
-                                    import.meta.env.VITE_API_URL ||
+                                    import.meta.env.VITE_API_BASE_URL ||
                                     "http://localhost:3000/api/v1"
                                   ).replace("/api/v1", "")}${
-                                    alumni.userId.profilePicture
+                                    alumni.userId.profileImage
                                   }`
                               : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                   `${alumni.userId?.firstName || ""} ${
                                     alumni.userId?.lastName || ""
                                   }`
-                                )}&background=random`
+                                )}&background=random&color=fff`
                           }
                           alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
                           className="w-12 h-12 rounded-full object-cover"
@@ -579,7 +579,7 @@ const AlumniManagement = () => {
                               `${alumni.userId?.firstName || ""} ${
                                 alumni.userId?.lastName || ""
                               }`
-                            )}&background=random`;
+                            )}&background=random&color=fff`;
                           }}
                         />
                       </div>

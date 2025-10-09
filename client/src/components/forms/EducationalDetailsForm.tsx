@@ -91,7 +91,7 @@ export const EducationalDetailsForm = ({
       // Determine endpoint based on user's actual role
       const isStudent = userRole === "student";
       const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       const endpoint = isStudent
         ? `${apiUrl}/students/profile`
         : `${apiUrl}/alumni/profile`;

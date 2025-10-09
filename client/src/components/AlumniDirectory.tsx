@@ -500,21 +500,21 @@ const AlumniDirectory = () => {
                                 ? directoryUser.profileImage.startsWith("http")
                                   ? directoryUser.profileImage
                                   : `${(
-                                      import.meta.env.VITE_API_URL ||
+                                      import.meta.env.VITE_API_BASE_URL ||
                                       "http://localhost:3000/api/v1"
                                     ).replace("/api/v1", "")}${
                                       directoryUser.profileImage
                                     }`
                                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                     directoryUser.name
-                                  )}&background=random`
+                                  )}&background=random&color=fff`
                             }
                             alt={directoryUser.name}
                             className="w-16 h-16 rounded-full object-cover"
                             onError={(e) => {
                               e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                 directoryUser.name
-                              )}&background=random`;
+                              )}&background=random&color=fff`;
                             }}
                           />
                         </div>

@@ -179,7 +179,7 @@ const AlumniProfile = () => {
       // Upload the image
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
         }/users/profile-image`,
         {
           method: "POST",
@@ -312,19 +312,19 @@ const AlumniProfile = () => {
                       ? user.profileImage.startsWith("http")
                         ? user.profileImage
                         : `${(
-                            import.meta.env.VITE_API_URL ||
+                            import.meta.env.VITE_API_BASE_URL ||
                             "http://localhost:3000/api/v1"
                           ).replace("/api/v1", "")}${user.profileImage}`
                       : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                           user.name
-                        )}&background=random`
+                        )}&background=random&color=fff`
                   }
                   alt={user.name}
                   className="w-24 h-24 rounded-full object-cover"
                   onError={(e) => {
                     e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                       user.name
-                    )}&background=random`;
+                    )}&background=random&color=fff`;
                   }}
                 />
                 {user.isHiring && (
@@ -780,7 +780,7 @@ const AlumniProfile = () => {
                           <div className="mt-2">
                             <a
                               href={`${
-                                import.meta.env.VITE_API_URL?.replace(
+                                import.meta.env.VITE_API_BASE_URL?.replace(
                                   "/api/v1",
                                   ""
                                 ) || "http://localhost:3000"
@@ -1060,7 +1060,7 @@ const AlumniProfile = () => {
                             <div className="mt-2">
                               <a
                                 href={`${
-                                  import.meta.env.VITE_API_URL?.replace(
+                                  import.meta.env.VITE_API_BASE_URL?.replace(
                                     "/api/v1",
                                     ""
                                   ) || "http://localhost:3000"
@@ -1171,7 +1171,7 @@ const AlumniProfile = () => {
                           {research.publicationFile && (
                             <a
                               href={`${
-                                import.meta.env.VITE_API_URL?.replace(
+                                import.meta.env.VITE_API_BASE_URL?.replace(
                                   "/api/v1",
                                   ""
                                 ) || "http://localhost:3000"
@@ -1198,7 +1198,7 @@ const AlumniProfile = () => {
                           {research.conferenceFile && (
                             <a
                               href={`${
-                                import.meta.env.VITE_API_URL?.replace(
+                                import.meta.env.VITE_API_BASE_URL?.replace(
                                   "/api/v1",
                                   ""
                                 ) || "http://localhost:3000"

@@ -134,7 +134,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
         }/upload/image`,
         {
           method: "POST",
@@ -152,7 +152,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
         console.log("Upload response data:", data.data);
         // Construct the full URL for the image
         const baseUrl =
-          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
         const apiBaseUrl = baseUrl.replace("/api/v1", ""); // Remove /api/v1 to get the base URL
         const imageUrl = data.data.relativeUrl
           ? `${apiBaseUrl}${data.data.relativeUrl}`
@@ -244,7 +244,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
       // Submit post
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1"
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
         }/community-posts/community/${communityId}`,
         {
           method: "POST",

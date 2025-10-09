@@ -317,14 +317,14 @@ const AlumniProfile = () => {
                           ).replace("/api/v1", "")}${user.profileImage}`
                       : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                           user.name
-                        )}&background=random`
+                        )}&background=random&color=fff`
                   }
                   alt={user.name}
                   className="w-24 h-24 rounded-full object-cover"
                   onError={(e) => {
                     e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                       user.name
-                    )}&background=random`;
+                    )}&background=random&color=fff`;
                   }}
                 />
                 {user.isHiring && (

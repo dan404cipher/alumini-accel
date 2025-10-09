@@ -507,14 +507,14 @@ const AlumniDirectory = () => {
                                     }`
                                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                     directoryUser.name
-                                  )}&background=random`
+                                  )}&background=random&color=fff`
                             }
                             alt={directoryUser.name}
                             className="w-16 h-16 rounded-full object-cover"
                             onError={(e) => {
                               e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                 directoryUser.name
-                              )}&background=random`;
+                              )}&background=random&color=fff`;
                             }}
                           />
                         </div>

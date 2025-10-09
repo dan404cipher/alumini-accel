@@ -1790,22 +1790,22 @@ const HODPanel = () => {
                           <div className="relative">
                             <img
                               src={
-                                alumni.userId?.profilePicture
-                                  ? alumni.userId.profilePicture.startsWith(
+                                alumni.userId?.profileImage
+                                  ? alumni.userId.profileImage.startsWith(
                                       "http"
                                     )
-                                    ? alumni.userId.profilePicture
+                                    ? alumni.userId.profileImage
                                     : `${(
                                         import.meta.env.VITE_API_BASE_URL ||
                                         "http://localhost:3000/api/v1"
                                       ).replace("/api/v1", "")}${
-                                        alumni.userId.profilePicture
+                                        alumni.userId.profileImage
                                       }`
                                   : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                       `${alumni.userId?.firstName || ""} ${
                                         alumni.userId?.lastName || ""
                                       }`
-                                    )}&background=random`
+                                    )}&background=random&color=fff`
                               }
                               alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
                               className="w-12 h-12 rounded-full object-cover"
@@ -1814,7 +1814,7 @@ const HODPanel = () => {
                                   `${alumni.userId?.firstName || ""} ${
                                     alumni.userId?.lastName || ""
                                   }`
-                                )}&background=random`;
+                                )}&background=random&color=fff`;
                               }}
                             />
                           </div>

@@ -814,6 +814,8 @@ export const jobAPI = {
     company?: string;
     location?: string;
     type?: string;
+    experience?: string;
+    industry?: string;
     remote?: boolean;
     tenantId?: string;
   }) => {

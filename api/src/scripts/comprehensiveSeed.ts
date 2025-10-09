@@ -866,6 +866,18 @@ const createJobPosts = async (
       position: position,
       location: location,
       type: getRandomItem(["full-time", "part-time", "contract", "internship"]),
+      experience: getRandomItem(["entry", "mid", "senior", "lead"]),
+      industry: getRandomItem([
+        "technology",
+        "finance",
+        "healthcare",
+        "education",
+        "consulting",
+        "marketing",
+        "sales",
+        "operations",
+        "other",
+      ]),
       remote: Math.random() > 0.3,
       description: `We are looking for a talented ${position} to join our team at ${company}. This is an excellent opportunity to work with cutting-edge technology and grow your career.`,
       requirements: [

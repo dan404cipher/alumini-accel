@@ -303,6 +303,17 @@ export interface IJobPost extends Document {
   position: string;
   location: string;
   type: "full-time" | "part-time" | "internship" | "contract";
+  experience: "entry" | "mid" | "senior" | "lead";
+  industry:
+    | "technology"
+    | "finance"
+    | "healthcare"
+    | "education"
+    | "consulting"
+    | "marketing"
+    | "sales"
+    | "operations"
+    | "other";
   remote: boolean;
   salary?: {
     min: number;

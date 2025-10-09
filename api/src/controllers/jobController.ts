@@ -28,6 +28,8 @@ export const getAllJobs = async (req: Request, res: Response) => {
     if (req.query.location)
       filter.location = { $regex: req.query.location, $options: "i" };
     if (req.query.type) filter.type = req.query.type;
+    if (req.query.experience) filter.experience = req.query.experience;
+    if (req.query.industry) filter.industry = req.query.industry;
     if (req.query.remote) filter.remote = req.query.remote === "true";
 
     const jobs = await JobPost.find(filter)
@@ -328,6 +330,8 @@ export const searchJobs = async (req: Request, res: Response) => {
     if (company) filter.company = { $regex: company, $options: "i" };
     if (location) filter.location = { $regex: location, $options: "i" };
     if (type) filter.type = type;
+    if (req.query.experience) filter.experience = req.query.experience;
+    if (req.query.industry) filter.industry = req.query.industry;
     if (remote) filter.remote = remote === "true";
 
     const jobs = await JobPost.find(filter)

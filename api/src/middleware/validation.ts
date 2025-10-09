@@ -297,6 +297,24 @@ export const validateJobPost = [
   body("type")
     .isIn(["full-time", "part-time", "internship", "contract"])
     .withMessage("Invalid job type"),
+  body("experience")
+    .optional()
+    .isIn(["entry", "mid", "senior", "lead"])
+    .withMessage("Invalid experience level"),
+  body("industry")
+    .optional()
+    .isIn([
+      "technology",
+      "finance",
+      "healthcare",
+      "education",
+      "consulting",
+      "marketing",
+      "sales",
+      "operations",
+      "other",
+    ])
+    .withMessage("Invalid industry"),
   body("remote").optional().isBoolean().withMessage("Remote must be a boolean"),
   body("salary.min")
     .isFloat({ min: 0 })

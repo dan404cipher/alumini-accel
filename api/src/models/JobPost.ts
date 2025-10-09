@@ -37,6 +37,26 @@ const jobPostSchema = new Schema<IJobPost>(
       required: true,
       enum: ["full-time", "part-time", "internship", "contract"],
     },
+    experience: {
+      type: String,
+      enum: ["entry", "mid", "senior", "lead"],
+      default: "mid",
+    },
+    industry: {
+      type: String,
+      enum: [
+        "technology",
+        "finance",
+        "healthcare",
+        "education",
+        "consulting",
+        "marketing",
+        "sales",
+        "operations",
+        "other",
+      ],
+      default: "technology",
+    },
     remote: {
       type: Boolean,
       default: false,

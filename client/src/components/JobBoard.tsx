@@ -58,6 +58,8 @@ interface Job {
   position: string;
   location: string;
   type: string;
+  experience?: string;
+  industry?: string;
   remote?: boolean;
   salary?: {
     min: number;
@@ -100,6 +102,10 @@ const JobBoard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
+  const [selectedExperience, setSelectedExperience] = useState("all");
+  const [selectedIndustry, setSelectedIndustry] = useState("all");
+  const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
+  const [selectedRemoteWork, setSelectedRemoteWork] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [isFetching, setIsFetching] = useState(false);
@@ -165,6 +171,10 @@ const JobBoard = () => {
         if (selectedLocation && selectedLocation !== "all")
           params.location = selectedLocation;
         if (selectedType && selectedType !== "all") params.type = selectedType;
+        if (selectedExperience && selectedExperience !== "all")
+          params.experience = selectedExperience;
+        if (selectedIndustry && selectedIndustry !== "all")
+          params.industry = selectedIndustry;
 
         const response = await jobAPI.getAllJobs(params);
 
@@ -346,6 +356,93 @@ const JobBoard = () => {
     setSharingJob(job);
     setIsShareJobOpen(true);
   }, []);
+
+  // Filter jobs based on search and filter criteria
+  const filterJobs = (jobs: Job[]) => {
+    return jobs.filter((job) => {
+      // Search query filter
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          job.position.toLowerCase().includes(searchLower) ||
+          job.company.toLowerCase().includes(searchLower) ||
+          job.description.toLowerCase().includes(searchLower) ||
+          job.location.toLowerCase().includes(searchLower) ||
+          (job.tags &&
+            job.tags.some((tag) => tag.toLowerCase().includes(searchLower)));
+        if (!matchesSearch) return false;
+      }
+
+      // Job type filter
+      if (selectedType !== "all" && job.type !== selectedType) return false;
+
+      // Experience level filter
+      if (selectedExperience !== "all" && job.experience !== selectedExperience)
+        return false;
+
+      // Industry filter
+      if (selectedIndustry !== "all" && job.industry !== selectedIndustry)
+        return false;
+
+      // Location filter
+      if (selectedLocation !== "all") {
+        if (selectedLocation === "remote" && !job.remote) return false;
+        if (
+          selectedLocation === "hybrid" &&
+          !job.location.toLowerCase().includes("hybrid")
+        )
+          return false;
+        if (
+          !["remote", "hybrid"].includes(selectedLocation) &&
+          !job.location.toLowerCase().includes(selectedLocation.toLowerCase())
+        )
+          return false;
+      }
+
+      // Remote work filter
+      if (selectedRemoteWork !== "all") {
+        switch (selectedRemoteWork) {
+          case "remote":
+            if (!job.remote) return false;
+            break;
+          case "hybrid":
+            if (!job.location.toLowerCase().includes("hybrid")) return false;
+            break;
+          case "onsite":
+            if (job.remote || job.location.toLowerCase().includes("hybrid"))
+              return false;
+            break;
+        }
+      }
+
+      // Salary range filter
+      if (selectedSalaryRange !== "all" && job.salary) {
+        const salary = job.salary.min; // Use minimum salary for comparison
+        switch (selectedSalaryRange) {
+          case "0-50k":
+            if (salary > 50000) return false;
+            break;
+          case "50k-75k":
+            if (salary < 50000 || salary > 75000) return false;
+            break;
+          case "75k-100k":
+            if (salary < 75000 || salary > 100000) return false;
+            break;
+          case "100k-150k":
+            if (salary < 100000 || salary > 150000) return false;
+            break;
+          case "150k-200k":
+            if (salary < 150000 || salary > 200000) return false;
+            break;
+          case "200k+":
+            if (salary < 200000) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  };
 
   // Get saved jobs from the current jobs list
   const savedJobsList = useMemo(() => {
@@ -532,7 +629,10 @@ const JobBoard = () => {
                   <label className="text-sm font-medium">
                     Experience Level
                   </label>
-                  <Select>
+                  <Select
+                    value={selectedExperience}
+                    onValueChange={setSelectedExperience}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select experience" />
                     </SelectTrigger>
@@ -555,7 +655,10 @@ const JobBoard = () => {
                 {/* Industry */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Industry</label>
-                  <Select>
+                  <Select
+                    value={selectedIndustry}
+                    onValueChange={setSelectedIndustry}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
@@ -577,7 +680,10 @@ const JobBoard = () => {
                 {/* Salary Range */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Salary Range</label>
-                  <Select>
+                  <Select
+                    value={selectedSalaryRange}
+                    onValueChange={setSelectedSalaryRange}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select salary range" />
                     </SelectTrigger>
@@ -593,27 +699,13 @@ const JobBoard = () => {
                   </Select>
                 </div>
 
-                {/* Company Size */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Company Size</label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sizes</SelectItem>
-                      <SelectItem value="startup">Startup (1-50)</SelectItem>
-                      <SelectItem value="small">Small (51-200)</SelectItem>
-                      <SelectItem value="medium">Medium (201-1000)</SelectItem>
-                      <SelectItem value="large">Large (1000+)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Remote Work */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Remote Work</label>
-                  <Select>
+                  <Select
+                    value={selectedRemoteWork}
+                    onValueChange={setSelectedRemoteWork}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select remote option" />
                     </SelectTrigger>
@@ -660,7 +752,11 @@ const JobBoard = () => {
                 {/* Clear Filters */}
                 {(searchQuery ||
                   (selectedLocation && selectedLocation !== "all") ||
-                  (selectedType && selectedType !== "all")) && (
+                  (selectedType && selectedType !== "all") ||
+                  (selectedExperience && selectedExperience !== "all") ||
+                  (selectedIndustry && selectedIndustry !== "all") ||
+                  (selectedSalaryRange && selectedSalaryRange !== "all") ||
+                  (selectedRemoteWork && selectedRemoteWork !== "all")) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -668,6 +764,10 @@ const JobBoard = () => {
                       setSearchQuery("");
                       setSelectedLocation("all");
                       setSelectedType("all");
+                      setSelectedExperience("all");
+                      setSelectedIndustry("all");
+                      setSelectedSalaryRange("all");
+                      setSelectedRemoteWork("all");
                     }}
                     className="w-full"
                   >
@@ -733,8 +833,8 @@ const JobBoard = () => {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold">Job Board</h1>
               <p className="text-muted-foreground text-sm lg:text-base">
-                Opportunities from our alumni network • {jobs.length} active
-                positions
+                Opportunities from our alumni network •{" "}
+                {filterJobs(jobs).length} active positions
               </p>
             </div>
           </div>
@@ -949,7 +1049,7 @@ const JobBoard = () => {
                   </Button>
                 )}
               </div>
-            ) : jobs.length === 0 ? (
+            ) : filterJobs(jobs).length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">
                   No jobs available at the moment.
@@ -965,7 +1065,7 @@ const JobBoard = () => {
                 )}
               </div>
             ) : (
-              jobs.map((job) => (
+              filterJobs(jobs).map((job) => (
                 <Card
                   key={job._id}
                   className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"

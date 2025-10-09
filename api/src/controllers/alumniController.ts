@@ -41,18 +41,25 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
 
     // Debug: Log alumni profiles found
     console.log("Found alumni profiles:", alumniProfiles.length);
-    console.log("Alumni profiles data:", alumniProfiles.map(p => ({
-      userId: p.userId,
-      graduationYear: p.graduationYear,
-      currentCompany: p.currentCompany,
-      currentPosition: p.currentPosition,
-      experience: p.experience
-    })));
+    console.log(
+      "Alumni profiles data:",
+      alumniProfiles.map((p) => ({
+        userId: p.userId,
+        graduationYear: p.graduationYear,
+        currentCompany: p.currentCompany,
+        currentPosition: p.currentPosition,
+        experience: p.experience,
+      }))
+    );
 
     // Create maps for quick lookup
     const alumniMap = new Map();
     alumniProfiles.forEach((profile: any) => {
-      alumniMap.set(profile.userId.toString(), profile);
+      // Handle both populated and non-populated userId
+      const userId = profile.userId._id
+        ? profile.userId._id.toString()
+        : profile.userId.toString();
+      alumniMap.set(userId, profile);
     });
 
     // Format the response
@@ -83,12 +90,14 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
         const profile = alumniMap.get(user._id.toString());
         console.log(`User ${user.firstName} ${user.lastName} (${user._id}):`, {
           hasProfile: !!profile,
-          profileData: profile ? {
-            graduationYear: profile.graduationYear,
-            currentCompany: profile.currentCompany,
-            currentPosition: profile.currentPosition,
-            experience: profile.experience
-          } : null
+          profileData: profile
+            ? {
+                graduationYear: profile.graduationYear,
+                currentCompany: profile.currentCompany,
+                currentPosition: profile.currentPosition,
+                experience: profile.experience,
+              }
+            : null,
         });
         if (profile) {
           return {
@@ -102,6 +111,7 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
             currentLocation: profile.currentLocation,
             experience: profile.experience,
             skills: profile.skills || [],
+            careerInterests: profile.careerInterests || [],
             isHiring: profile.isHiring,
             availableForMentorship: profile.availableForMentorship,
             mentorshipDomains: profile.mentorshipDomains || [],

@@ -522,49 +522,71 @@ const AlumniDirectory = () => {
                           <h3 className="font-semibold text-lg text-gray-900 mb-1">
                             {directoryUser.name}
                           </h3>
-                          <p className="text-sm text-gray-600 mb-1">
-                            {directoryUser.currentRole ||
-                              directoryUser.program ||
-                              directoryUser.role}
-                            {directoryUser.company &&
-                              ` at ${directoryUser.company}`}
-                          </p>
-                          <div className="text-sm text-gray-500">
-                            {directoryUser.department &&
-                              directoryUser.graduationYear && (
-                                <span>
-                                  {directoryUser.department} • Class of{" "}
-                                  {directoryUser.graduationYear}
+
+                          {/* Current Role and Company */}
+                          <div className="text-sm text-gray-600 mb-2">
+                            {directoryUser.currentRole && (
+                              <div className="flex items-center mb-1">
+                                <Briefcase className="w-4 h-4 mr-1 text-blue-600" />
+                                <span className="font-medium">
+                                  {directoryUser.currentRole}
                                 </span>
-                              )}
-                            {directoryUser.department &&
-                              !directoryUser.graduationYear && (
+                              </div>
+                            )}
+                            {directoryUser.company && (
+                              <div className="flex items-center mb-1">
+                                <Building className="w-4 h-4 mr-1 text-green-600" />
+                                <span>{directoryUser.company}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Education Information */}
+                          <div className="text-sm text-gray-500 mb-2">
+                            {directoryUser.department && (
+                              <div className="flex items-center mb-1">
+                                <GraduationCap className="w-4 h-4 mr-1 text-purple-600" />
                                 <span>{directoryUser.department}</span>
-                              )}
-                            {!directoryUser.department &&
-                              directoryUser.graduationYear && (
+                                {directoryUser.specialization && (
+                                  <span className="ml-1">
+                                    • {directoryUser.specialization}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {directoryUser.graduationYear && (
+                              <div className="flex items-center mb-1">
+                                <Calendar className="w-4 h-4 mr-1 text-orange-600" />
                                 <span>
                                   Class of {directoryUser.graduationYear}
                                 </span>
-                              )}
+                              </div>
+                            )}
                             {directoryUser.registerNumber && (
-                              <span className="ml-2">
-                                Reg. No: {directoryUser.registerNumber}
-                              </span>
+                              <div className="flex items-center mb-1">
+                                <Award className="w-4 h-4 mr-1 text-indigo-600" />
+                                <span>
+                                  Reg. No: {directoryUser.registerNumber}
+                                </span>
+                              </div>
                             )}
                           </div>
+
+                          {/* Location */}
                           {(directoryUser.location ||
                             directoryUser.currentLocation) && (
-                            <div className="flex items-center text-sm text-gray-500 mt-1">
-                              <MapPin className="w-4 h-4 mr-1" />
+                            <div className="flex items-center text-sm text-gray-500 mb-1">
+                              <MapPin className="w-4 h-4 mr-1 text-red-600" />
                               {directoryUser.currentLocation ||
                                 directoryUser.location}
                             </div>
                           )}
+
+                          {/* Experience */}
                           {directoryUser.experience &&
                             directoryUser.experience > 0 && (
-                              <div className="flex items-center text-sm text-gray-500 mt-1">
-                                <Calendar className="w-4 h-4 mr-1" />
+                              <div className="flex items-center text-sm text-gray-500 mb-1">
+                                <Calendar className="w-4 h-4 mr-1 text-teal-600" />
                                 {directoryUser.experience} years experience
                               </div>
                             )}

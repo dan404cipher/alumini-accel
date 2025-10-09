@@ -163,6 +163,9 @@ export interface IUser extends Document {
   bio?: string;
   location?: string;
   department?: string;
+  currentCompany?: string;
+  currentPosition?: string;
+  graduationYear?: number;
   timezone?: string;
   preferences: {
     emailNotifications: boolean;

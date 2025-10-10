@@ -1665,6 +1665,39 @@ export const newsAPI = {
       params,
     });
   },
+
+  // Save news article
+  saveNews: async (newsId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/news/${newsId}/save`,
+    });
+  },
+
+  // Unsave news article
+  unsaveNews: async (newsId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/news/${newsId}/save`,
+    });
+  },
+
+  // Get saved news articles
+  getSavedNews: async (params?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "GET",
+      url: "/news/saved",
+      params,
+    });
+  },
+
+  // Check if news article is saved
+  checkSavedNews: async (newsId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/news/${newsId}/saved`,
+    });
+  },
 };
 
 // Gallery API functions

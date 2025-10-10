@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -45,8 +45,6 @@ import {
   X,
   Menu,
   Bookmark,
-  TrendingUp,
-  Globe,
   Newspaper,
   Clock,
   Tag,
@@ -66,6 +64,7 @@ interface News {
   summary: string;
   image?: string;
   isShared: boolean;
+  isSaved?: boolean;
   author?: {
     _id: string;
     firstName: string;
@@ -89,6 +88,7 @@ const NewsRoom = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSavedArticles, setShowSavedArticles] = useState(false);
 
   // Fetch news data
   const {
@@ -187,6 +187,69 @@ const NewsRoom = () => {
 
   const filteredNews = filterNews(news);
 
+  // Filter news based on quick action selections
+  const getQuickActionFilteredNews = () => {
+    let quickFilteredNews = filteredNews;
+
+    if (showSavedArticles) {
+      // Filter for saved articles
+      quickFilteredNews = quickFilteredNews.filter(
+        (newsItem) => newsItem.isSaved
+      );
+    }
+
+    return quickFilteredNews;
+  };
+
+  const finalFilteredNews = getQuickActionFilteredNews();
+
+  // Check saved status for all news items
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (news.length > 0) {
+        try {
+          const savedStatusPromises = news.map(async (newsItem) => {
+            try {
+              const response = await newsAPI.checkSavedNews(newsItem._id);
+              return { newsId: newsItem._id, isSaved: response.data.isSaved };
+            } catch (error) {
+              console.error(
+                `Error checking saved status for ${newsItem._id}:`,
+                error
+              );
+              return { newsId: newsItem._id, isSaved: false };
+            }
+          });
+
+          const savedStatuses = await Promise.all(savedStatusPromises);
+
+          // Update the cache with saved status
+          queryClient.setQueryData(["news", user?.tenantId], (oldData: any) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                news: oldData.data.news.map((item: News) => {
+                  const savedStatus = savedStatuses.find(
+                    (status) => status.newsId === item._id
+                  );
+                  return savedStatus
+                    ? { ...item, isSaved: savedStatus.isSaved }
+                    : item;
+                }),
+              },
+            };
+          });
+        } catch (error) {
+          console.error("Error checking saved status:", error);
+        }
+      }
+    };
+
+    checkSavedStatus();
+  }, [news, user?.tenantId, queryClient]);
+
   // Check if user can manage news
   const canManageNews =
     user?.role === "super_admin" ||
@@ -217,6 +280,64 @@ const NewsRoom = () => {
   const handleShareNews = (news: News) => {
     setSelectedNews(news);
     setIsShareNewsOpen(true);
+  };
+
+  // Handle save news
+  const handleSaveNews = async (news: News) => {
+    try {
+      if (news.isSaved) {
+        // Unsave the news
+        await newsAPI.unsaveNews(news._id);
+
+        // Update the news item in the cache
+        queryClient.setQueryData(["news", user?.tenantId], (oldData: any) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              news: oldData.data.news.map((item: News) =>
+                item._id === news._id ? { ...item, isSaved: false } : item
+              ),
+            },
+          };
+        });
+
+        toast({
+          title: "News unsaved",
+          description: "News article removed from saved articles",
+        });
+      } else {
+        // Save the news
+        await newsAPI.saveNews(news._id);
+
+        // Update the news item in the cache
+        queryClient.setQueryData(["news", user?.tenantId], (oldData: any) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              news: oldData.data.news.map((item: News) =>
+                item._id === news._id ? { ...item, isSaved: true } : item
+              ),
+            },
+          };
+        });
+
+        toast({
+          title: "News saved",
+          description: "News article added to saved articles",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving news:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save news article",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle news created
@@ -407,13 +528,15 @@ const NewsRoom = () => {
 
                 {/* Clear Filters */}
                 {(searchQuery ||
-                  (selectedDateRange && selectedDateRange !== "all")) && (
+                  (selectedDateRange && selectedDateRange !== "all") ||
+                  showSavedArticles) && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       setSearchQuery("");
                       setSelectedDateRange("all");
+                      setShowSavedArticles(false);
                     }}
                     className="w-full"
                   >
@@ -439,28 +562,15 @@ const NewsRoom = () => {
                     </Button>
                   )}
                   <Button
-                    variant="outline"
+                    variant={showSavedArticles ? "default" : "outline"}
                     size="sm"
                     className="w-full justify-start"
+                    onClick={() => {
+                      setShowSavedArticles(!showSavedArticles);
+                    }}
                   >
                     <Bookmark className="w-4 h-4 mr-2" />
-                    Saved Articles
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Trending News
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <Globe className="w-4 h-4 mr-2" />
-                    Global News
+                    {showSavedArticles ? "View All News" : "Saved Articles"}
                   </Button>
                 </div>
               </div>
@@ -486,14 +596,15 @@ const NewsRoom = () => {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold">News Room</h1>
               <p className="text-muted-foreground text-sm lg:text-base">
-                Stay updated with latest news • {filteredNews.length} articles
+                Stay updated with latest news • {finalFilteredNews.length}{" "}
+                articles
               </p>
             </div>
           </div>
         </div>
 
         {/* News Grid */}
-        {filteredNews.length === 0 ? (
+        {finalFilteredNews.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <ImageIcon className="w-12 h-12 text-gray-400" />
@@ -515,7 +626,7 @@ const NewsRoom = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-            {filteredNews.map((newsItem) => (
+            {finalFilteredNews.map((newsItem) => (
               <Card
                 key={newsItem._id}
                 className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"
@@ -573,6 +684,15 @@ const NewsRoom = () => {
                           <Share2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
                           Share
                         </Button>
+                        <Button
+                          variant={newsItem.isSaved ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleSaveNews(newsItem)}
+                          className="flex-shrink-0 text-xs lg:text-sm"
+                        >
+                          <Bookmark className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                          {newsItem.isSaved ? "Saved" : "Save"}
+                        </Button>
                       </div>
 
                       {canManageNews && (
@@ -592,6 +712,12 @@ const NewsRoom = () => {
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleSaveNews(newsItem)}
+                            >
+                              <Bookmark className="w-4 h-4 mr-2" />
+                              {newsItem.isSaved ? "Unsave" : "Save"}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleEditNews(newsItem)}

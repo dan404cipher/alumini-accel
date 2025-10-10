@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,18 +115,21 @@ const ApplicationManagementDashboard: React.FC<
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    fetchApplications();
-  }, [jobId]);
-
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     try {
       setLoading(true);
       const response = await jobApplicationAPI.getJobApplications(jobId);
-      if (response.success) {
-        setApplications(response.data.applications);
+      if (
+        response.success &&
+        response.data &&
+        typeof response.data === "object" &&
+        "applications" in response.data
+      ) {
+        setApplications(
+          (response.data as { applications: Application[] }).applications || []
+        );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching applications:", error);
       toast({
         title: "Error",
@@ -136,7 +139,11 @@ const ApplicationManagementDashboard: React.FC<
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId, toast]);
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
 
   const handleStatusUpdate = async () => {
     if (!selectedApplication) return;
@@ -155,11 +162,77 @@ const ApplicationManagementDashboard: React.FC<
       setStatusUpdateDialog(false);
       setReviewNotes("");
       fetchApplications();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating status:", error);
       toast({
         title: "Error",
         description: "Failed to update application status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadResume = async (application: Application) => {
+    if (!application.resume) {
+      toast({
+        title: "No Resume",
+        description: "No resume file available for this application",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Create a temporary link to download the file
+      const link = document.createElement("a");
+      link.href = application.resume;
+      link.download = `${application.contactDetails.name}_resume.pdf`;
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Download Started",
+        description: "Resume download has started",
+      });
+    } catch (error) {
+      console.error("Error downloading resume:", error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download resume file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewApplication = (application: Application) => {
+    setSelectedApplication(application);
+    setNewStatus(application.status);
+    setReviewNotes(application.reviewNotes || "");
+    setStatusUpdateDialog(true);
+  };
+
+  const handleUpdateStatus = (application: Application) => {
+    setSelectedApplication(application);
+    setNewStatus(application.status);
+    setReviewNotes(application.reviewNotes || "");
+    setStatusUpdateDialog(true);
+  };
+
+  const handleDeleteApplication = async (applicationId: string) => {
+    try {
+      await jobApplicationAPI.deleteApplication(applicationId);
+      toast({
+        title: "Success",
+        description: "Application deleted successfully",
+      });
+      fetchApplications();
+    } catch (error) {
+      console.error("Error deleting application:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete application",
         variant: "destructive",
       });
     }
@@ -238,18 +311,7 @@ const ApplicationManagementDashboard: React.FC<
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Application Management
-          </CardTitle>
-          <CardDescription>
-            Manage applications for <strong>{jobTitle}</strong> at{" "}
-            <strong>{companyName}</strong>
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <Card></Card>
 
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -419,6 +481,12 @@ const ApplicationManagementDashboard: React.FC<
                             ).toLocaleDateString()}
                           </span>
                         </div>
+                        {application.resume && (
+                          <div className="flex items-center gap-2 text-sm text-green-600">
+                            <FileText className="w-3 h-3" />
+                            <span>Resume Available</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap gap-1">
@@ -461,6 +529,16 @@ const ApplicationManagementDashboard: React.FC<
                               <Edit className="w-3 h-3 mr-2" />
                               Update Status
                             </DropdownMenuItem>
+                            {application.resume && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleDownloadResume(application)
+                                }
+                              >
+                                <Download className="w-3 h-3 mr-2" />
+                                Download Resume
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={() =>
                                 handleDeleteApplication(application._id)
@@ -611,7 +689,11 @@ const ApplicationManagementDashboard: React.FC<
                                 Update Status
                               </DropdownMenuItem>
                               {application.resume && (
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleDownloadResume(application)
+                                  }
+                                >
                                   <Download className="w-4 h-4 mr-2" />
                                   Download Resume
                                 </DropdownMenuItem>
@@ -694,6 +776,30 @@ const ApplicationManagementDashboard: React.FC<
                     </p>
                   </div>
                 )}
+
+                <div>
+                  <p className="font-medium">Resume:</p>
+                  {selectedApplication.resume ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <FileText className="w-4 h-4 text-gray-500" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handleDownloadResume(selectedApplication)
+                        }
+                        className="text-xs"
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        Download Resume
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-1">
+                      No resume uploaded
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Status Update Form */}
@@ -702,7 +808,9 @@ const ApplicationManagementDashboard: React.FC<
                   <Label htmlFor="status">New Status</Label>
                   <Select
                     value={newStatus}
-                    onValueChange={(value: any) => setNewStatus(value)}
+                    onValueChange={(
+                      value: "Applied" | "Shortlisted" | "Rejected" | "Hired"
+                    ) => setNewStatus(value)}
                   >
                     <SelectTrigger>
                       <SelectValue />

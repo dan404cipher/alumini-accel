@@ -82,6 +82,7 @@ interface Job {
   createdAt: string;
   updatedAt: string;
   applicants?: number;
+  applicationsCount?: number;
   isReferral?: boolean;
   deadline?: string;
   applicationUrl?: string;
@@ -1358,76 +1359,19 @@ const JobBoard = () => {
                                       </span>
                                       <span className="sm:hidden">View</span>
                                     </Button>
-                                    {job.postedBy._id === user?._id ? (
-                                      <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={() =>
-                                          handleToggleExpanded(job._id)
-                                        }
-                                        className="text-xs lg:text-sm"
-                                      >
-                                        <Users className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                                        <span className="hidden sm:inline">
-                                          {expandedJobId === job._id
-                                            ? "Hide Applications"
-                                            : "View Applications"}
-                                        </span>
-                                        <span className="sm:hidden">
-                                          {expandedJobId === job._id
-                                            ? "Hide"
-                                            : "View"}
-                                        </span>
-                                      </Button>
-                                    ) : (
-                                      <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={() => handleApplyForJob(job)}
-                                        className="text-xs lg:text-sm"
-                                      >
-                                        Apply Now
-                                      </Button>
-                                    )}
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleApplyForJob(job)}
+                                      className="text-xs lg:text-sm"
+                                    >
+                                      Apply Now
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-
-                          {/* Application Management Section */}
-                          {expandedJobId === job._id &&
-                            job.postedBy._id === user?._id && (
-                              <div className="mt-6 pt-6 border-t border-border">
-                                <div className="space-y-4">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                    <h4 className="text-base sm:text-lg font-semibold text-primary">
-                                      Application Management
-                                    </h4>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => setExpandedJobId(null)}
-                                      className="text-muted-foreground hover:text-foreground self-start sm:self-auto"
-                                    >
-                                      <X className="w-4 h-4" />
-                                      <span className="hidden sm:inline ml-2">
-                                        Close
-                                      </span>
-                                    </Button>
-                                  </div>
-                                  <div className="overflow-x-auto -mx-4 sm:mx-0">
-                                    <div className="min-w-full px-4 sm:px-0">
-                                      <ApplicationManagementDashboard
-                                        jobId={job._id}
-                                        jobTitle={job.position}
-                                        companyName={job.company}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                         </CardContent>
                       </Card>
                     ))}
@@ -1471,12 +1415,7 @@ const JobBoard = () => {
           <TabsContent value="my-applications" className="space-y-6">
             <Card className="shadow-medium">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold flex items-center">
-                    <Users className="w-5 h-5 mr-2 text-primary" />
-                    My Applications
-                  </h3>
-                </div>
+                
                 <ApplicationStatusTracking />
               </CardContent>
             </Card>
@@ -1492,16 +1431,121 @@ const JobBoard = () => {
                     Received Applications
                   </h3>
                 </div>
-                <div className="text-center py-8">
-                  <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-4">
-                    Applications for your posted jobs will appear here
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Go to the Jobs tab and click "View Applications" on your job
-                    posts to manage applications
-                  </p>
-                </div>
+
+                {/* Show jobs posted by current user */}
+                {jobs.filter((job) => job.postedBy._id === user?._id).length ===
+                0 ? (
+                  <div className="text-center py-8">
+                    <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-4">
+                      You haven't posted any jobs yet
+                    </p>
+                    <Button
+                      onClick={() => setIsPostJobOpen(true)}
+                      variant="gradient"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Post Your First Job
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground text-sm mb-4">
+                      Select a job to view and manage applications
+                    </p>
+
+                    {/* Job Selection */}
+                    <div className="grid gap-4">
+                      {jobs
+                        .filter((job) => job.postedBy._id === user?._id)
+                        .map((job) => (
+                          <Card
+                            key={job._id}
+                            className={`cursor-pointer transition-all ${
+                              expandedJobId === job._id
+                                ? "ring-2 ring-primary bg-primary/5"
+                                : "hover:shadow-md"
+                            }`}
+                            onClick={() => handleToggleExpanded(job._id)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-lg mb-1">
+                                    {job.position}
+                                  </h4>
+                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center">
+                                      <Building className="w-4 h-4 mr-1" />
+                                      {job.company}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <MapPin className="w-4 h-4 mr-1" />
+                                      {job.location}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Users className="w-4 h-4 mr-1" />
+                                      {job.applicationsCount || 0} applications
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleExpanded(job._id);
+                                  }}
+                                >
+                                  {expandedJobId === job._id ? "Hide" : "View"}{" "}
+                                  Applications
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+
+                    {/* Application Management */}
+                    {expandedJobId && (
+                      <div className="mt-6 pt-6 border-t border-border">
+                        <div className="space-y-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <h4 className="text-base sm:text-lg font-semibold text-primary">
+                              Application Management
+                            </h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setExpandedJobId(null)}
+                              className="text-muted-foreground hover:text-foreground self-start sm:self-auto"
+                            >
+                              <X className="w-4 h-4" />
+                              <span className="hidden sm:inline ml-2">
+                                Close
+                              </span>
+                            </Button>
+                          </div>
+                          <div className="overflow-x-auto -mx-4 sm:mx-0">
+                            <div className="min-w-full px-4 sm:px-0">
+                              <ApplicationManagementDashboard
+                                jobId={expandedJobId}
+                                jobTitle={
+                                  jobs.find((j) => j._id === expandedJobId)
+                                    ?.position || ""
+                                }
+                                companyName={
+                                  jobs.find((j) => j._id === expandedJobId)
+                                    ?.company || ""
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

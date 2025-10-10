@@ -41,6 +41,8 @@ import {
   Building,
   GraduationCap,
   Heart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { EditEventDialog } from "./dialogs/EditEventDialog";
@@ -116,6 +118,11 @@ const EventsMeetups = () => {
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showMyEvents, setShowMyEvents] = useState(false);
+  const [showCalendarView, setShowCalendarView] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDayModal, setShowDayModal] = useState(false);
   const { user } = useAuth();
 
   // Use search query directly for now (no debouncing)
@@ -332,6 +339,19 @@ const EventsMeetups = () => {
     });
   };
 
+  // Filter events for "My Events" - events organized by current user
+  const myEvents = mappedEvents.filter((event) => {
+    return (
+      event.organizer
+        .toLowerCase()
+        .includes(user?.firstName?.toLowerCase() || "") ||
+      event.organizer
+        .toLowerCase()
+        .includes(user?.lastName?.toLowerCase() || "") ||
+      event.organizer.toLowerCase().includes(user?.email?.toLowerCase() || "")
+    );
+  });
+
   const upcomingEvents = filterEvents(
     mappedEvents.filter((event) => {
       const eventDate = new Date(event.startDate);
@@ -352,6 +372,34 @@ const EventsMeetups = () => {
       return eventDate < today;
     })
   );
+
+  // Filtered events based on view mode
+  const filteredUpcomingEvents = showMyEvents
+    ? filterEvents(
+        myEvents.filter((event) => {
+          const eventDate = new Date(event.startDate);
+          return eventDate >= tomorrow;
+        })
+      )
+    : upcomingEvents;
+
+  const filteredTodayEvents = showMyEvents
+    ? filterEvents(
+        myEvents.filter((event) => {
+          const eventDate = new Date(event.startDate);
+          return eventDate >= today && eventDate < tomorrow;
+        })
+      )
+    : todayEvents;
+
+  const filteredPastEvents = showMyEvents
+    ? filterEvents(
+        myEvents.filter((event) => {
+          const eventDate = new Date(event.startDate);
+          return eventDate < today;
+        })
+      )
+    : pastEvents;
 
   const events = filterEvents(mappedEvents);
 
@@ -679,6 +727,43 @@ const EventsMeetups = () => {
     navigate(`/events/${event.id}`);
   };
 
+  // Handle My Events toggle
+  const handleMyEvents = () => {
+    setShowMyEvents(!showMyEvents);
+    setShowCalendarView(false);
+  };
+
+  // Handle Calendar View toggle
+  const handleCalendarView = () => {
+    setShowCalendarView(!showCalendarView);
+    setShowMyEvents(false);
+  };
+
+  // Handle month navigation
+  const handlePreviousMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+    );
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+    );
+  };
+
+  const handleToday = () => {
+    setCurrentMonth(new Date());
+  };
+
+  // Handle day click
+  const handleDayClick = (date: Date, dayEvents: MappedEvent[]) => {
+    if (dayEvents.length > 0) {
+      setSelectedDate(date);
+      setShowDayModal(true);
+    }
+  };
+
   const getEventTypeIcon = (type: string) => {
     switch (type) {
       case "Virtual":
@@ -903,16 +988,18 @@ const EventsMeetups = () => {
                     </Button>
                   )}
                   <Button
-                    variant="outline"
+                    variant={showMyEvents ? "default" : "outline"}
                     size="sm"
+                    onClick={handleMyEvents}
                     className="w-full justify-start"
                   >
                     <Bookmark className="w-4 h-4 mr-2" />
                     My Events
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={showCalendarView ? "default" : "outline"}
                     size="sm"
+                    onClick={handleCalendarView}
                     className="w-full justify-start"
                   >
                     <Calendar className="w-4 h-4 mr-2" />
@@ -968,7 +1055,7 @@ const EventsMeetups = () => {
         )}
 
         {/* Events Tabs */}
-        {events.length === 0 && !isLoading && !error ? (
+        {!showCalendarView && events.length === 0 && !isLoading && !error ? (
           <div className="text-center py-12">
             <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">No Events Found</h3>
@@ -982,35 +1069,252 @@ const EventsMeetups = () => {
               </Button>
             )}
           </div>
-        ) : (
+        ) : !showCalendarView ? (
           <Tabs defaultValue="upcoming" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="upcoming" className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Upcoming ({upcomingEvents.length})
+                Upcoming ({filteredUpcomingEvents.length})
               </TabsTrigger>
               <TabsTrigger value="today" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                Today ({todayEvents.length})
+                Today ({filteredTodayEvents.length})
               </TabsTrigger>
               <TabsTrigger value="past" className="flex items-center gap-2">
                 <Star className="w-4 h-4" />
-                Past ({pastEvents.length})
+                Past ({filteredPastEvents.length})
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="upcoming" className="mt-6">
-              {renderEventGrid(upcomingEvents, "No Upcoming Events")}
+              {renderEventGrid(
+                filteredUpcomingEvents,
+                showMyEvents ? "No Upcoming My Events" : "No Upcoming Events"
+              )}
             </TabsContent>
 
             <TabsContent value="today" className="mt-6">
-              {renderEventGrid(todayEvents, "No Events Today")}
+              {renderEventGrid(
+                filteredTodayEvents,
+                showMyEvents ? "No My Events Today" : "No Events Today"
+              )}
             </TabsContent>
 
             <TabsContent value="past" className="mt-6">
-              {renderEventGrid(pastEvents, "No Past Events")}
+              {renderEventGrid(
+                filteredPastEvents,
+                showMyEvents ? "No Past My Events" : "No Past Events"
+              )}
             </TabsContent>
           </Tabs>
+        ) : null}
+
+        {/* Calendar View */}
+        {showCalendarView && (
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    <CardTitle>Calendar View</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePreviousMonth}
+                      title="Previous Month"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleToday}
+                      title="Go to Current Month"
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextMonth}
+                      title="Next Month"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <CardDescription>
+                  {currentMonth.toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}{" "}
+                  - View events in a calendar format
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-7 gap-2 mb-4">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                    (day) => (
+                      <div
+                        key={day}
+                        className="text-center text-sm font-medium text-muted-foreground p-2"
+                      >
+                        {day}
+                      </div>
+                    )
+                  )}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: 35 }, (_, i) => {
+                    const firstDay = new Date(
+                      currentMonth.getFullYear(),
+                      currentMonth.getMonth(),
+                      1
+                    );
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(
+                      startDate.getDate() - firstDay.getDay() + i
+                    );
+
+                    const dayEvents = events.filter((event) => {
+                      const eventDate = new Date(event.startDate);
+                      return (
+                        eventDate.toDateString() === startDate.toDateString()
+                      );
+                    });
+
+                    const isToday =
+                      startDate.toDateString() === new Date().toDateString();
+                    const isCurrentMonth =
+                      startDate.getMonth() === currentMonth.getMonth();
+
+                    return (
+                      <div
+                        key={i}
+                        className={`min-h-[80px] p-2 border rounded-lg cursor-pointer hover:bg-muted/50 ${
+                          isCurrentMonth ? "bg-background" : "bg-muted/30"
+                        } ${isToday ? "ring-2 ring-blue-500" : ""}`}
+                        onClick={() => handleDayClick(startDate, dayEvents)}
+                      >
+                        <div
+                          className={`text-sm font-medium mb-1 ${
+                            isToday ? "text-blue-600 font-bold" : ""
+                          }`}
+                        >
+                          {startDate.getDate()}
+                        </div>
+                        <div className="space-y-1">
+                          {dayEvents.slice(0, 2).map((event) => (
+                            <div
+                              key={event.id}
+                              className="text-xs p-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewEvent(event);
+                              }}
+                            >
+                              {event.title}
+                            </div>
+                          ))}
+                          {dayEvents.length > 2 && (
+                            <div className="text-xs text-muted-foreground font-medium">
+                              +{dayEvents.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Day Events Modal */}
+        {showDayModal && selectedDate && (
+          <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-lg w-full max-w-md max-h-[80vh] overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="font-semibold text-gray-900">
+                  Events on{" "}
+                  {selectedDate.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </h3>
+                <button
+                  onClick={() => setShowDayModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <X size={16} className="text-gray-600" />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto max-h-[60vh]">
+                {(() => {
+                  const dayEvents = events.filter((event) => {
+                    const eventDate = new Date(event.startDate);
+                    return (
+                      eventDate.toDateString() === selectedDate.toDateString()
+                    );
+                  });
+
+                  if (dayEvents.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500">
+                          No events scheduled for this day
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {dayEvents.map((event) => (
+                        <div
+                          key={event.id}
+                          className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
+                          onClick={() => {
+                            setShowDayModal(false);
+                            handleViewEvent(event);
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 mb-1">
+                                {event.title}
+                              </h4>
+                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                                {event.description}
+                              </p>
+                              <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {event.time}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {event.location}
+                                </div>
+                              </div>
+                            </div>
+                            <ExternalLink className="w-4 h-4 text-gray-400" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

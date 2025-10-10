@@ -87,8 +87,6 @@ const NewsRoom = () => {
   const [isShareNewsOpen, setIsShareNewsOpen] = useState(false);
   const [selectedNews, setSelectedNews] = useState<News | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -114,6 +112,80 @@ const NewsRoom = () => {
   });
 
   const news = newsResponse?.data?.news || [];
+
+  // Filter news based on search and filter criteria
+  const filterNews = (newsItems: News[]) => {
+    return newsItems.filter((newsItem) => {
+      // Search query filter
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          (newsItem.title &&
+            newsItem.title.toLowerCase().includes(searchLower)) ||
+          (newsItem.summary &&
+            newsItem.summary.toLowerCase().includes(searchLower)) ||
+          (newsItem.author?.firstName &&
+            newsItem.author.firstName.toLowerCase().includes(searchLower)) ||
+          (newsItem.author?.lastName &&
+            newsItem.author.lastName.toLowerCase().includes(searchLower));
+        if (!matchesSearch) return false;
+      }
+
+      // Date range filter
+      if (selectedDateRange !== "all") {
+        const newsDate = new Date(newsItem.createdAt);
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const thisWeekStart = new Date(today);
+        thisWeekStart.setDate(today.getDate() - today.getDay());
+        const lastWeekStart = new Date(thisWeekStart);
+        lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+        const thisMonthStart = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          1
+        );
+        const lastMonthStart = new Date(
+          today.getFullYear(),
+          today.getMonth() - 1,
+          1
+        );
+
+        switch (selectedDateRange) {
+          case "today":
+            if (newsDate < today) return false;
+            break;
+          case "yesterday":
+            if (newsDate < yesterday || newsDate >= today) return false;
+            break;
+          case "this_week":
+            if (newsDate < thisWeekStart) return false;
+            break;
+          case "last_week":
+            if (newsDate < lastWeekStart || newsDate >= thisWeekStart)
+              return false;
+            break;
+          case "this_month":
+            if (newsDate < thisMonthStart) return false;
+            break;
+          case "last_month":
+            if (newsDate < lastMonthStart || newsDate >= thisMonthStart)
+              return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const filteredNews = filterNews(news);
 
   // Check if user can manage news
   const canManageNews =
@@ -312,51 +384,6 @@ const NewsRoom = () => {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Filters</h3>
 
-                {/* Category */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Category</label>
-                  <Select
-                    value={selectedCategory}
-                    onValueChange={setSelectedCategory}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="alumni">Alumni News</SelectItem>
-                      <SelectItem value="career">Career Updates</SelectItem>
-                      <SelectItem value="events">Event Updates</SelectItem>
-                      <SelectItem value="achievements">Achievements</SelectItem>
-                      <SelectItem value="announcements">
-                        Announcements
-                      </SelectItem>
-                      <SelectItem value="industry">Industry News</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="technology">Technology</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Status */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <Select
-                    value={selectedStatus}
-                    onValueChange={setSelectedStatus}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="shared">Shared</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Date Range */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Date Range</label>
@@ -380,16 +407,12 @@ const NewsRoom = () => {
 
                 {/* Clear Filters */}
                 {(searchQuery ||
-                  (selectedCategory && selectedCategory !== "all") ||
-                  (selectedStatus && selectedStatus !== "all") ||
                   (selectedDateRange && selectedDateRange !== "all")) && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       setSearchQuery("");
-                      setSelectedCategory("all");
-                      setSelectedStatus("all");
                       setSelectedDateRange("all");
                     }}
                     className="w-full"
@@ -463,14 +486,14 @@ const NewsRoom = () => {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold">News Room</h1>
               <p className="text-muted-foreground text-sm lg:text-base">
-                Stay updated with latest news • {news.length} articles
+                Stay updated with latest news • {filteredNews.length} articles
               </p>
             </div>
           </div>
         </div>
 
         {/* News Grid */}
-        {news.length === 0 ? (
+        {filteredNews.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <ImageIcon className="w-12 h-12 text-gray-400" />
@@ -492,7 +515,7 @@ const NewsRoom = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-            {news.map((newsItem) => (
+            {filteredNews.map((newsItem) => (
               <Card
                 key={newsItem._id}
                 className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"

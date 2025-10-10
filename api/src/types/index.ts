@@ -294,12 +294,37 @@ export interface IAlumniProfile extends Document {
   updatedAt: Date;
 }
 
+// Job Application Interface
+export interface IJobApplication extends Document {
+  _id: string;
+  jobId: string;
+  applicantId: string;
+  tenantId: string;
+  resume?: string;
+  skills: string[];
+  experience: string;
+  contactDetails: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  message?: string;
+  status: "Applied" | "Shortlisted" | "Rejected" | "Hired";
+  appliedAt: Date;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  reviewNotes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Job Post Interface
 export interface IJobPost extends Document {
   _id: string;
   tenantId: string;
   postedBy: string;
   company: string;
+  title: string;
   position: string;
   location: string;
   type: "full-time" | "part-time" | "internship" | "contract";
@@ -321,6 +346,7 @@ export interface IJobPost extends Document {
     currency: string;
   };
   description: string;
+  requiredSkills: string[];
   requirements: string[];
   benefits: string[];
   status: JobPostStatus;

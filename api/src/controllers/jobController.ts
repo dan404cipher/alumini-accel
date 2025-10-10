@@ -33,7 +33,7 @@ export const getAllJobs = async (req: Request, res: Response) => {
     if (req.query.remote) filter.remote = req.query.remote === "true";
 
     const jobs = await JobPost.find(filter)
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -335,7 +335,7 @@ export const searchJobs = async (req: Request, res: Response) => {
     if (remote) filter.remote = remote === "true";
 
     const jobs = await JobPost.find(filter)
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit as string));
@@ -375,7 +375,7 @@ export const getJobsByCompany = async (req: Request, res: Response) => {
       company: { $regex: company, $options: "i" },
       status: JobPostStatus.ACTIVE,
     })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -418,7 +418,7 @@ export const getJobsByLocation = async (req: Request, res: Response) => {
       location: { $regex: location, $options: "i" },
       status: JobPostStatus.ACTIVE,
     })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -461,7 +461,7 @@ export const getJobsByType = async (req: Request, res: Response) => {
       type,
       status: JobPostStatus.ACTIVE,
     })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -500,7 +500,7 @@ export const getMyJobPosts = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const jobs = await JobPost.find({ postedBy: req.user.id })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

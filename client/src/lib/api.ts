@@ -1093,6 +1093,86 @@ export const jobAPI = {
   },
 };
 
+// Job Application API functions
+export const jobApplicationAPI = {
+  // Apply for a job
+  applyForJob: async (
+    jobId: string,
+    applicationData: {
+      skills: string[];
+      experience: string;
+      contactDetails: {
+        name: string;
+        email: string;
+        phone: string;
+      };
+      message?: string;
+      resume?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/job-applications/jobs/${jobId}/apply`,
+      data: applicationData,
+    });
+  },
+
+  // Get applications for a specific job (for job poster)
+  getJobApplications: async (
+    jobId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
+    return apiRequest({
+      method: "GET",
+      url: `/job-applications/jobs/${jobId}/applications`,
+      params,
+    });
+  },
+
+  // Get user's applications (for applicant)
+  getUserApplications: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/job-applications/my-applications",
+      params,
+    });
+  },
+
+  // Get application details
+  getApplicationDetails: async (applicationId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/job-applications/applications/${applicationId}`,
+    });
+  },
+
+  // Update application status (for job poster)
+  updateApplicationStatus: async (
+    applicationId: string,
+    data: {
+      status: "Applied" | "Shortlisted" | "Rejected" | "Hired";
+      reviewNotes?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/job-applications/applications/${applicationId}/status`,
+      data,
+    });
+  },
+
+  // Delete application (for applicant)
+  deleteApplication: async (applicationId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/job-applications/applications/${applicationId}`,
+    });
+  },
+};
+
 // Event API functions
 export const eventAPI = {
   // Get all events
@@ -2189,12 +2269,11 @@ export const tenantAPI = {
   // Get college logo
   getLogo: async (tenantId: string) => {
     try {
-      const response = await api({
+      const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/logo`,
-        responseType: "blob", // For image data
       });
-      return response.data; // Return the blob directly
+      return response.data?.logo || null;
     } catch (error) {
       console.error("Error fetching logo:", error);
       throw error;
@@ -2227,12 +2306,11 @@ export const tenantAPI = {
   // Get college banner
   getBanner: async (tenantId: string) => {
     try {
-      const response = await api({
+      const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/banner`,
-        responseType: "blob", // For image data
       });
-      return response.data; // Return the blob directly
+      return response.data?.banner || null;
     } catch (error) {
       console.error("Error fetching banner:", error);
       throw error;

@@ -514,7 +514,20 @@ export const getTenantLogo = asyncHandler(
       });
     }
 
-    // Serve the actual image file
+    // Check if it's a URL (external image)
+    if (
+      tenant.logo.startsWith("http://") ||
+      tenant.logo.startsWith("https://")
+    ) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          logo: tenant.logo,
+        },
+      });
+    }
+
+    // Serve the actual image file (local file)
     const path = require("path");
     const fs = require("fs");
 
@@ -637,7 +650,20 @@ export const getTenantBanner = asyncHandler(
       });
     }
 
-    // Serve the actual image file
+    // Check if it's a URL (external image)
+    if (
+      tenant.banner.startsWith("http://") ||
+      tenant.banner.startsWith("https://")
+    ) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          banner: tenant.banner,
+        },
+      });
+    }
+
+    // Serve the actual image file (local file)
     const path = require("path");
     const fs = require("fs");
 

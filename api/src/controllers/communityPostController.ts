@@ -129,6 +129,7 @@ export const getCommunityPosts = async (
       type,
       authorId,
       status = "approved",
+      category,
     } = req.query;
     const userId = req.user?._id;
 
@@ -163,6 +164,7 @@ export const getCommunityPosts = async (
       type,
       authorId,
       status,
+      category,
       limit: Number(limit),
       skip,
     });
@@ -172,6 +174,7 @@ export const getCommunityPosts = async (
       status,
       ...(type && { type }),
       ...(authorId && { authorId }),
+      ...(category && { category }),
     });
 
     return res.json({

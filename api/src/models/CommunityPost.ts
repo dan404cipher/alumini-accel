@@ -218,6 +218,10 @@ CommunityPostSchema.statics.findByCommunity = function (
     query.authorId = options.authorId;
   }
 
+  if (options.category) {
+    query.category = options.category;
+  }
+
   return this.find(query)
     .populate({
       path: "authorId",

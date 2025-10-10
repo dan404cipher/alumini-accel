@@ -111,14 +111,23 @@ const CommunityDetailNew: React.FC = () => {
 
     try {
       setPostsLoading(true);
-      const response = await fetch(
-        `http://localhost:3000/api/v1/community-posts/community/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (filters.category !== "all") {
+        params.append("category", filters.category);
+      }
+
+      const queryString = params.toString();
+      const url = `http://localhost:3000/api/v1/community-posts/community/${id}${
+        queryString ? `?${queryString}` : ""
+      }`;
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error("Failed to fetch posts");
@@ -136,7 +145,7 @@ const CommunityDetailNew: React.FC = () => {
     } finally {
       setPostsLoading(false);
     }
-  }, [id, toast]);
+  }, [id, filters.category, toast]);
 
   // Apply filters to posts
   const applyFilters = useCallback(() => {
@@ -151,11 +160,6 @@ const CommunityDetailNew: React.FC = () => {
           post.content.toLowerCase().includes(searchLower) ||
           post.tags?.some((tag) => tag.toLowerCase().includes(searchLower))
       );
-    }
-
-    // Category filter
-    if (filters.category !== "all") {
-      filtered = filtered.filter((post) => post.category === filters.category);
     }
 
     // Priority filter
@@ -301,6 +305,10 @@ const CommunityDetailNew: React.FC = () => {
       fetchCommunityPosts();
     }
   }, [activeTab, community, fetchCommunityPosts]);
+
+  useEffect(() => {
+    fetchCommunityPosts();
+  }, [fetchCommunityPosts]);
 
   useEffect(() => {
     applyFilters();

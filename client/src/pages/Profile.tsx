@@ -391,8 +391,7 @@ const Profile = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="min-h-screen flex flex-col pt-16">
         <div className="flex-1 container mx-auto px-4 py-8">
           <div className="max-w-6xl mx-auto">
             <div className="animate-pulse">
@@ -420,8 +419,7 @@ const Profile = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="min-h-screen flex flex-col pt-16">
         <div className="flex-1 container mx-auto px-4 py-8">
           <div className="max-w-6xl mx-auto text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -445,7 +443,7 @@ const Profile = () => {
     : profile.alumniProfile;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pt-16">
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">

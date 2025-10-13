@@ -164,18 +164,16 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
                             post.author.profilePicture
                           }`
                     }
-                    alt={`${
-                      post.author?.firstName || post.authorId?.firstName
-                    } ${post.author?.lastName || post.authorId?.lastName}`}
+                    alt={`${post.author?.firstName || post.author?.firstName} ${
+                      post.author?.lastName || post.author?.lastName
+                    }`}
                     className="w-full h-full rounded-full object-cover"
                     onError={(e) => {
                       e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                         `${
-                          post.author?.firstName ||
-                          post.authorId?.firstName ||
-                          ""
+                          post.author?.firstName || post.author?.firstName || ""
                         } ${
-                          post.author?.lastName || post.authorId?.lastName || ""
+                          post.author?.lastName || post.author?.lastName || ""
                         }`
                       )}&background=random&color=fff`;
                     }}
@@ -184,14 +182,12 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
                   <img
                     src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
                       `${
-                        post.author?.firstName || post.authorId?.firstName || ""
-                      } ${
-                        post.author?.lastName || post.authorId?.lastName || ""
-                      }`
+                        post.author?.firstName || post.author?.firstName || ""
+                      } ${post.author?.lastName || post.author?.lastName || ""}`
                     )}&background=random&color=fff`}
-                    alt={`${
-                      post.author?.firstName || post.authorId?.firstName
-                    } ${post.author?.lastName || post.authorId?.lastName}`}
+                    alt={`${post.author?.firstName || post.author?.firstName} ${
+                      post.author?.lastName || post.author?.lastName
+                    }`}
                     className="w-full h-full rounded-full object-cover"
                   />
                 )}
@@ -204,8 +200,8 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
                     }
                     className="font-semibold text-gray-900 truncate hover:text-primary transition-colors duration-200 cursor-pointer"
                   >
-                    {post.author?.firstName || post.authorId?.firstName}{" "}
-                    {post.author?.lastName || post.authorId?.lastName}
+                    {post.author?.firstName || post.author?.firstName}{" "}
+                    {post.author?.lastName || post.author?.lastName}
                   </button>
                   {post.isPinned && <Pin className="w-4 h-4 text-blue-500" />}
                   {post.isAnnouncement && (

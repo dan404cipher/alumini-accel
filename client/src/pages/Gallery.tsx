@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
-import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import Navigation from "@/components/Navigation";
 import { galleryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+
+interface ApiError {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+    };
+  };
+}
 import {
   Card,
   CardContent,
@@ -223,7 +232,7 @@ const Gallery: React.FC = () => {
       });
 
       if (response.success) {
-        setGalleries((response.data as any).galleries);
+        setGalleries((response.data as { galleries: GalleryItem[] }).galleries);
       }
     } catch (error) {
       console.error("Error fetching galleries:", error);
@@ -361,7 +370,7 @@ const Gallery: React.FC = () => {
       const galleryData = {
         title: formData.title,
         description: formData.description,
-        images: (uploadResponse.data as any).images,
+        images: (uploadResponse.data as { images: string[] }).images,
         category: formData.category,
         tags: formData.tags
           ? formData.tags.split(",").map((tag) => tag.trim())
@@ -389,17 +398,17 @@ const Gallery: React.FC = () => {
         // Refresh galleries
         fetchGalleries();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating gallery:", error);
 
       let errorMessage = "Failed to create gallery";
-      if (error.response?.status === 401) {
+      if ((error as ApiError)?.response?.status === 401) {
         errorMessage = "Authentication required. Please log in again.";
-      } else if (error.response?.status === 403) {
+      } else if ((error as ApiError)?.response?.status === 403) {
         errorMessage =
           "Permission denied. Only admins and coordinators can create galleries.";
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      } else if ((error as ApiError)?.response?.data?.message) {
+        errorMessage = (error as ApiError).response.data.message;
       }
 
       toast({
@@ -422,9 +431,8 @@ const Gallery: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-16">
       <Navigation activeTab="gallery" onTabChange={() => {}} />
-
       <div className="flex gap-6 h-[calc(100vh-4rem)] w-full overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (

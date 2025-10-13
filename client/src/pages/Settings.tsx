@@ -60,7 +60,10 @@ const Settings = () => {
     timezone: "America/Los_Angeles",
   });
 
-  const handleSettingChange = (key: string, value: any) => {
+  const handleSettingChange = (
+    key: string,
+    value: string | boolean | number
+  ) => {
     setSettings((prev) => ({
       ...prev,
       [key]: value,
@@ -77,8 +80,7 @@ const Settings = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navigation activeTab="" onTabChange={() => {}} />
+      <div className="min-h-screen bg-background flex flex-col pt-16">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center py-12">
             <h2 className="text-2xl font-bold text-muted-foreground mb-4">
@@ -95,7 +97,7 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col pt-16">
       <Navigation activeTab="" onTabChange={() => {}} />
       <div className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="space-y-6">

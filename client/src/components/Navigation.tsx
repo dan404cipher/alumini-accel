@@ -199,7 +199,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   }, [user]);
 
   return (
-    <nav className="bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-xl sticky top-0 z-50 transition-all duration-300">
+    <nav className="bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-xl fixed top-0 left-0 right-0 z-50 transition-all duration-300">
       <div className="w-full px-2 sm:px-4 lg:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}

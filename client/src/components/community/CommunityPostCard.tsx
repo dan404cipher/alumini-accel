@@ -140,21 +140,56 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                {post.author?.profileImage ? (
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                {post.author?.profilePicture ? (
                   <img
-                    src={post.author.profileImage}
-                    alt={`${post.author.firstName} ${post.author.lastName}`}
+                    src={
+                      post.author.profilePicture.startsWith("http")
+                        ? post.author.profilePicture
+                        : `${(
+                            import.meta.env.VITE_API_BASE_URL ||
+                            "http://localhost:3000/api/v1"
+                          ).replace("/api/v1", "")}${
+                            post.author.profilePicture
+                          }`
+                    }
+                    alt={`${
+                      post.author?.firstName || post.authorId?.firstName
+                    } ${post.author?.lastName || post.authorId?.lastName}`}
                     className="w-full h-full rounded-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        `${
+                          post.author?.firstName ||
+                          post.authorId?.firstName ||
+                          ""
+                        } ${
+                          post.author?.lastName || post.authorId?.lastName || ""
+                        }`
+                      )}&background=random&color=fff`;
+                    }}
                   />
                 ) : (
-                  <User className="w-5 h-5 text-white" />
+                  <img
+                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      `${
+                        post.author?.firstName || post.authorId?.firstName || ""
+                      } ${
+                        post.author?.lastName || post.authorId?.lastName || ""
+                      }`
+                    )}&background=random&color=fff`}
+                    alt={`${
+                      post.author?.firstName || post.authorId?.firstName
+                    } ${post.author?.lastName || post.authorId?.lastName}`}
+                    className="w-full h-full rounded-full object-cover"
+                  />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="font-semibold text-gray-900 truncate">
-                    {post.author?.firstName} {post.author?.lastName}
+                    {post.author?.firstName || post.authorId?.firstName}{" "}
+                    {post.author?.lastName || post.authorId?.lastName}
                   </h4>
                   {post.isPinned && <Pin className="w-4 h-4 text-blue-500" />}
                   {post.isAnnouncement && (

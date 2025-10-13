@@ -59,7 +59,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     setEditContent(comment.content);
   }, [comment.content]);
 
-  const isOwner = user?.id === comment.userId;
+  const isOwner = user?._id === comment.userId;
   const hasReplies = comment.replies && comment.replies.length > 0;
 
   const handleEditSubmit = () => {
@@ -88,7 +88,22 @@ const CommentItem: React.FC<CommentItemProps> = ({
     <div className="space-y-3">
       <div className="flex gap-3">
         <Avatar className="w-8 h-8 flex-shrink-0">
-          <AvatarImage src={comment.user.profileImage} />
+          <AvatarImage
+            src={
+              comment.user.profilePicture
+                ? comment.user.profilePicture.startsWith("http")
+                  ? comment.user.profilePicture
+                  : `${(
+                      import.meta.env.VITE_API_BASE_URL ||
+                      "http://localhost:3000/api/v1"
+                    ).replace("/api/v1", "")}${comment.user.profilePicture}`
+                : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    `${comment.user.firstName || ""} ${
+                      comment.user.lastName || ""
+                    }`
+                  )}&background=random&color=fff`
+            }
+          />
           <AvatarFallback>
             <User className="w-4 h-4" />
           </AvatarFallback>
@@ -284,7 +299,20 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         {user && (
           <div className="flex gap-3">
             <Avatar className="w-8 h-8 flex-shrink-0">
-              <AvatarImage src={user.profileImage} />
+              <AvatarImage
+                src={
+                  user.profilePicture
+                    ? user.profilePicture.startsWith("http")
+                      ? user.profilePicture
+                      : `${(
+                          import.meta.env.VITE_API_BASE_URL ||
+                          "http://localhost:3000/api/v1"
+                        ).replace("/api/v1", "")}${user.profilePicture}`
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        `${user.firstName || ""} ${user.lastName || ""}`
+                      )}&background=random&color=fff`
+                }
+              />
               <AvatarFallback>
                 <User className="w-4 h-4" />
               </AvatarFallback>

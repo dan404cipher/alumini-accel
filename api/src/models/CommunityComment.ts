@@ -107,18 +107,25 @@ CommunityCommentSchema.statics.findByPost = function (
   };
 
   return this.find(query)
-    .populate("authorId", "firstName lastName profileImage")
+    .populate("authorId", "firstName lastName profilePicture")
     .populate("likes", "firstName lastName")
     .populate({
       path: "replies",
       populate: {
         path: "authorId",
-        select: "firstName lastName profileImage",
+        select: "firstName lastName profilePicture",
       },
     })
     .sort({ createdAt: 1 })
     .limit(options.limit || 50)
-    .skip(options.skip || 0);
+    .skip(options.skip || 0)
+    .lean()
+    .then((comments: any[]) =>
+      comments.map((comment: any) => ({
+        ...comment,
+        user: comment.authorId,
+      }))
+    );
 };
 
 // Static method to find replies to a comment
@@ -129,9 +136,16 @@ CommunityCommentSchema.statics.findReplies = function (
     parentCommentId,
     status: "approved",
   })
-    .populate("authorId", "firstName lastName profileImage")
+    .populate("authorId", "firstName lastName profilePicture")
     .populate("likes", "firstName lastName")
-    .sort({ createdAt: 1 });
+    .sort({ createdAt: 1 })
+    .lean()
+    .then((comments: any[]) =>
+      comments.map((comment: any) => ({
+        ...comment,
+        user: comment.authorId,
+      }))
+    );
 };
 
 // Instance method to like comment

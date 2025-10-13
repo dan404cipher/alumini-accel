@@ -170,8 +170,8 @@ export const getAllCommunities = async (
         query.createdBy = { $in: tenantUserIds };
 
         communities = await Community.find(query)
-          .populate("createdBy", "firstName lastName profileImage")
-          .populate("moderators", "firstName lastName profileImage")
+          .populate("createdBy", "firstName lastName profilePicture")
+          .populate("moderators", "firstName lastName profilePicture")
           .sort({ createdAt: -1 })
           .limit(Number(limit))
           .skip(skip);
@@ -182,8 +182,8 @@ export const getAllCommunities = async (
     } else {
       // Super admin can see all communities
       communities = await Community.find(query)
-        .populate("createdBy", "firstName lastName profileImage")
-        .populate("moderators", "firstName lastName profileImage")
+        .populate("createdBy", "firstName lastName profilePicture")
+        .populate("moderators", "firstName lastName profilePicture")
         .sort({ createdAt: -1 })
         .limit(Number(limit))
         .skip(skip);
@@ -221,9 +221,9 @@ export const getCommunityById = async (
     const userId = req.user?._id;
 
     const community = await Community.findById(id)
-      .populate("createdBy", "firstName lastName profileImage email")
-      .populate("moderators", "firstName lastName profileImage email")
-      .populate("members", "firstName lastName profileImage email");
+      .populate("createdBy", "firstName lastName profilePicture email")
+      .populate("moderators", "firstName lastName profilePicture email")
+      .populate("members", "firstName lastName profilePicture email");
 
     if (!community) {
       return res.status(404).json({
@@ -682,15 +682,15 @@ export const searchCommunities = async (
       query.createdBy = { $in: tenantUserIds };
 
       communities = await Community.find(query)
-        .populate("createdBy", "firstName lastName profileImage")
-        .populate("moderators", "firstName lastName profileImage")
+        .populate("createdBy", "firstName lastName profilePicture")
+        .populate("moderators", "firstName lastName profilePicture")
         .sort({ memberCount: -1, createdAt: -1 })
         .limit(Number(limit))
         .skip(skip);
     } else {
       communities = await Community.find(query)
-        .populate("createdBy", "firstName lastName profileImage")
-        .populate("moderators", "firstName lastName profileImage")
+        .populate("createdBy", "firstName lastName profilePicture")
+        .populate("moderators", "firstName lastName profilePicture")
         .sort({ memberCount: -1, createdAt: -1 })
         .limit(Number(limit))
         .skip(skip);

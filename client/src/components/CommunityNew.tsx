@@ -107,25 +107,25 @@ interface Community {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   };
   admins?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   }>;
   members?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   }>;
   pendingRequests?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   }>;
   invitedUsers?: Array<{
     _id: string;
@@ -164,7 +164,7 @@ interface CommunityPost {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   };
   likes: Array<{
     _id: string;
@@ -2518,7 +2518,7 @@ const CommunityNew = () => {
                       <CardContent className="p-6 pb-2">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-600 to-purple-600">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
                               {community.logo ? (
                                 <img
                                   src={community.logo}
@@ -2526,7 +2526,7 @@ const CommunityNew = () => {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <CategoryIcon className="w-6 h-6 text-white" />
+                                <CategoryIcon className="w-6 h-6 text-gray-600" />
                               )}
                             </div>
                             <div className="flex-1">
@@ -2651,7 +2651,7 @@ const CommunityNew = () => {
                       <CardContent className="p-6 pb-2">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-600 to-purple-600">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
                               {community.logo ? (
                                 <img
                                   src={community.logo}
@@ -2659,7 +2659,7 @@ const CommunityNew = () => {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <CategoryIcon className="w-6 h-6 text-white" />
+                                <CategoryIcon className="w-6 h-6 text-gray-600" />
                               )}
                             </div>
                             <div className="flex-1">
@@ -3047,7 +3047,7 @@ const CommunityNew = () => {
                       className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => navigate(`/community/${community.id}`)}
                     >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">

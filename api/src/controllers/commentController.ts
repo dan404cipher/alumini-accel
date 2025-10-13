@@ -114,7 +114,7 @@ export class CommentController {
       });
 
       await comment.save();
-      await comment.populate("user", "firstName lastName profileImage");
+      await comment.populate("user", "firstName lastName profilePicture");
 
       // Update post comments array
       await CommunityPost.findByIdAndUpdate(postId, {
@@ -189,7 +189,7 @@ export class CommentController {
 
       comment.content = content.trim();
       await comment.save();
-      await comment.populate("user", "firstName lastName profileImage");
+      await comment.populate("user", "firstName lastName profilePicture");
 
       return res.json({
         success: true,

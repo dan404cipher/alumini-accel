@@ -100,7 +100,7 @@ export const createComment = async (
     }
 
     // Populate author info
-    await comment.populate("authorId", "firstName lastName profileImage");
+    await comment.populate("authorId", "firstName lastName profilePicture");
 
     return res.status(201).json({
       success: true,

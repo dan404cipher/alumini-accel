@@ -31,6 +31,7 @@ interface CommentItemProps {
   onEdit: (commentId: string, content: string) => void;
   onDelete: (commentId: string) => void;
   onLike: (commentId: string) => void;
+  onViewProfile: (userId: string) => void;
   isEditing?: boolean;
   onEditSubmit?: (content: string) => void;
   onEditCancel?: () => void;
@@ -46,6 +47,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onEdit,
   onDelete,
   onLike,
+  onViewProfile,
   isEditing = false,
   onEditSubmit,
   onEditCancel,
@@ -87,34 +89,42 @@ const CommentItem: React.FC<CommentItemProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex gap-3">
-        <Avatar className="w-8 h-8 flex-shrink-0">
-          <AvatarImage
-            src={
-              comment.user.profilePicture
-                ? comment.user.profilePicture.startsWith("http")
-                  ? comment.user.profilePicture
-                  : `${(
-                      import.meta.env.VITE_API_BASE_URL ||
-                      "http://localhost:3000/api/v1"
-                    ).replace("/api/v1", "")}${comment.user.profilePicture}`
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    `${comment.user.firstName || ""} ${
-                      comment.user.lastName || ""
-                    }`
-                  )}&background=random&color=fff`
-            }
-          />
-          <AvatarFallback>
-            <User className="w-4 h-4" />
-          </AvatarFallback>
-        </Avatar>
+        <button
+          onClick={() => onViewProfile(comment.user._id)}
+          className="w-8 h-8 flex-shrink-0 rounded-full hover:ring-2 hover:ring-primary/20 transition-all duration-200 cursor-pointer"
+        >
+          <Avatar className="w-8 h-8">
+            <AvatarImage
+              src={
+                comment.user.profilePicture
+                  ? comment.user.profilePicture.startsWith("http")
+                    ? comment.user.profilePicture
+                    : `${(
+                        import.meta.env.VITE_API_BASE_URL ||
+                        "http://localhost:3000/api/v1"
+                      ).replace("/api/v1", "")}${comment.user.profilePicture}`
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      `${comment.user.firstName || ""} ${
+                        comment.user.lastName || ""
+                      }`
+                    )}&background=random&color=fff`
+              }
+            />
+            <AvatarFallback>
+              <User className="w-4 h-4" />
+            </AvatarFallback>
+          </Avatar>
+        </button>
 
         <div className="flex-1 min-w-0">
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-medium text-sm text-gray-900">
+              <button
+                onClick={() => onViewProfile(comment.user._id)}
+                className="font-medium text-sm text-gray-900 hover:text-primary transition-colors duration-200 cursor-pointer"
+              >
                 {comment.user.firstName} {comment.user.lastName}
-              </span>
+              </button>
               <span className="text-xs text-gray-500">
                 {formatTimeAgo(comment.createdAt)}
               </span>
@@ -207,6 +217,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
               onEdit={onEdit}
               onDelete={onDelete}
               onLike={onLike}
+              onViewProfile={onViewProfile}
             />
           ))}
         </div>
@@ -285,6 +296,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     }
   };
 
+  const handleViewProfile = (userId: string) => {
+    if (!userId) return;
+    // Navigate to user profile page in same tab
+    window.location.href = `/alumni-directory/${userId}`;
+  };
+
   return (
     <Card className={cn("", className)}>
       <CardHeader className="pb-3">
@@ -298,25 +315,30 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         {/* Comment Input */}
         {user && (
           <div className="flex gap-3">
-            <Avatar className="w-8 h-8 flex-shrink-0">
-              <AvatarImage
-                src={
-                  user.profilePicture
-                    ? user.profilePicture.startsWith("http")
-                      ? user.profilePicture
-                      : `${(
-                          import.meta.env.VITE_API_BASE_URL ||
-                          "http://localhost:3000/api/v1"
-                        ).replace("/api/v1", "")}${user.profilePicture}`
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        `${user.firstName || ""} ${user.lastName || ""}`
-                      )}&background=random&color=fff`
-                }
-              />
-              <AvatarFallback>
-                <User className="w-4 h-4" />
-              </AvatarFallback>
-            </Avatar>
+            <button
+              onClick={() => handleViewProfile(user._id)}
+              className="w-8 h-8 flex-shrink-0 rounded-full hover:ring-2 hover:ring-primary/20 transition-all duration-200 cursor-pointer"
+            >
+              <Avatar className="w-8 h-8">
+                <AvatarImage
+                  src={
+                    user.profilePicture
+                      ? user.profilePicture.startsWith("http")
+                        ? user.profilePicture
+                        : `${(
+                            import.meta.env.VITE_API_BASE_URL ||
+                            "http://localhost:3000/api/v1"
+                          ).replace("/api/v1", "")}${user.profilePicture}`
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          `${user.firstName || ""} ${user.lastName || ""}`
+                        )}&background=random&color=fff`
+                  }
+                />
+                <AvatarFallback>
+                  <User className="w-4 h-4" />
+                </AvatarFallback>
+              </Avatar>
+            </button>
 
             <div className="flex-1 space-y-2">
               <Textarea
@@ -378,6 +400,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                 }}
                 onDelete={handleDeleteComment}
                 onLike={toggleCommentLike}
+                onViewProfile={handleViewProfile}
                 isEditing={editingComment === comment._id}
                 onEditSubmit={(content) =>
                   handleEditComment(comment._id, content)

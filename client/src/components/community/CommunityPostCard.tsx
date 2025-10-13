@@ -62,6 +62,12 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
     }
   };
 
+  const handleViewProfile = (userId: string) => {
+    if (!userId) return;
+    // Navigate to user profile page in same tab
+    window.location.href = `/alumni-directory/${userId}`;
+  };
+
   const downloadImage = () => {
     if (selectedImageIndex !== null && post.mediaUrls) {
       const link = document.createElement("a");
@@ -140,7 +146,12 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+              <button
+                onClick={() =>
+                  handleViewProfile(post.author?._id || post.authorId)
+                }
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:ring-2 hover:ring-primary/20 transition-all duration-200 cursor-pointer"
+              >
                 {post.author?.profilePicture ? (
                   <img
                     src={
@@ -184,13 +195,18 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
                     className="w-full h-full rounded-full object-cover"
                   />
                 )}
-              </div>
+              </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-gray-900 truncate">
+                  <button
+                    onClick={() =>
+                      handleViewProfile(post.author?._id || post.authorId)
+                    }
+                    className="font-semibold text-gray-900 truncate hover:text-primary transition-colors duration-200 cursor-pointer"
+                  >
                     {post.author?.firstName || post.authorId?.firstName}{" "}
                     {post.author?.lastName || post.authorId?.lastName}
-                  </h4>
+                  </button>
                   {post.isPinned && <Pin className="w-4 h-4 text-blue-500" />}
                   {post.isAnnouncement && (
                     <Flag className="w-4 h-4 text-red-500" />

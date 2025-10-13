@@ -2345,6 +2345,17 @@ export const tenantAPI = {
       data: { description },
     });
   },
+
+  // Get public college information (no authentication required)
+  getPublicCollegeInfo: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/college/public-info`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching public college info:", error);
+      throw error;
+    }
+  },
 };
 
 // Campaign API functions

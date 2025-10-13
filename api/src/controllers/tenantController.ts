@@ -650,6 +650,61 @@ export const getTenantBanner = asyncHandler(
   }
 );
 
+// @desc    Get public college information
+// @route   GET /api/v1/college/public-info
+// @access  Public
+export const getPublicCollegeInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    try {
+      // Get the first tenant (college) for public display
+      const tenant = await Tenant.findOne({ isActive: true })
+        .select("name about logo banner contactInfo settings")
+        .lean();
+
+      if (!tenant) {
+        return res.status(404).json({
+          success: false,
+          message: "College information not found",
+        });
+      }
+
+      // Construct full URLs for logo and banner
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+      const collegeInfo = {
+        name: tenant.name,
+        about: tenant.about,
+        logo: tenant.logo
+          ? tenant.logo.startsWith("http://") ||
+            tenant.logo.startsWith("https://")
+            ? tenant.logo
+            : `${baseUrl}${tenant.logo}`
+          : null,
+        banner: tenant.banner
+          ? tenant.banner.startsWith("http://") ||
+            tenant.banner.startsWith("https://")
+            ? tenant.banner
+            : `${baseUrl}${tenant.banner}`
+          : null,
+        contactInfo: tenant.contactInfo,
+        settings: tenant.settings,
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: collegeInfo,
+      });
+    } catch (error: any) {
+      logger.error("Get public college info error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching college information",
+        error: error.message,
+      });
+    }
+  }
+);
+
 export default {
   getAllTenants,
   getTenantById,
@@ -662,4 +717,5 @@ export default {
   getTenantLogo,
   uploadTenantBanner,
   getTenantBanner,
+  getPublicCollegeInfo,
 };

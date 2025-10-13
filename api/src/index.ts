@@ -217,6 +217,7 @@ app.use("/api/v1/gallery", galleryRoutes);
 app.use("/api/v1/connections", connectionRoutes);
 app.use("/api/v1/messages", messageRoutes);
 app.use("/api/v1/tenants", tenantRoutes);
+app.use("/api/v1/college", tenantRoutes);
 app.use("/api/v1/campaigns", campaignRoutes);
 app.use("/api/v1/community", communityRoutes);
 app.use("/api/v1/communities", communitiesRoutes);

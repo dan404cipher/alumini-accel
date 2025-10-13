@@ -542,9 +542,8 @@ const HODPanel = () => {
       if (user?.tenantId) {
         try {
           const bannerResponse = await tenantAPI.getBanner(user.tenantId);
-          if (bannerResponse instanceof Blob) {
-            const bannerUrl = URL.createObjectURL(bannerResponse);
-            setCollegeBanner(bannerUrl);
+          if (typeof bannerResponse === "string") {
+            setCollegeBanner(bannerResponse);
           }
         } catch (error) {
           console.log("No banner found or error loading banner:", error);
@@ -579,9 +578,8 @@ const HODPanel = () => {
         const loadCollegeBanner = async () => {
           try {
             const bannerResponse = await tenantAPI.getBanner(user.tenantId);
-            if (bannerResponse instanceof Blob) {
-              const bannerUrl = URL.createObjectURL(bannerResponse);
-              setCollegeBanner(bannerUrl);
+            if (typeof bannerResponse === "string") {
+              setCollegeBanner(bannerResponse);
             }
           } catch (error) {
             console.log("No banner found or error loading banner:", error);

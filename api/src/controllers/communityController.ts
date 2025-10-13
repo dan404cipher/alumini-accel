@@ -118,6 +118,7 @@ export const getAllCommunities = async (
       status = "active",
       search,
       tags,
+      category,
     } = req.query;
 
     const query: any = { status };
@@ -132,6 +133,10 @@ export const getAllCommunities = async (
 
     if (type) {
       query.type = type;
+    }
+
+    if (category) {
+      query.category = category;
     }
 
     if (search) {

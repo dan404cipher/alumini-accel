@@ -2273,7 +2273,13 @@ export const tenantAPI = {
         method: "GET",
         url: `/tenants/${tenantId}/logo`,
       });
-      return response.data?.logo || null;
+
+      // Handle both JSON response (external URL) and direct image response
+      if (response.success && (response.data as any)?.logo) {
+        return (response.data as any).logo; // Return the URL string directly
+      }
+
+      return null;
     } catch (error) {
       console.error("Error fetching logo:", error);
       throw error;
@@ -2310,7 +2316,13 @@ export const tenantAPI = {
         method: "GET",
         url: `/tenants/${tenantId}/banner`,
       });
-      return response.data?.banner || null;
+
+      // Handle both JSON response (external URL) and direct image response
+      if (response.success && (response.data as any)?.banner) {
+        return (response.data as any).banner; // Return the URL string directly
+      }
+
+      return null;
     } catch (error) {
       console.error("Error fetching banner:", error);
       throw error;
@@ -2494,89 +2506,6 @@ export const communityAPI = {
     return apiRequest({
       method: "POST",
       url: `/community/discussions/${discussionId}/like`,
-    });
-  },
-
-  // AMA Session functions
-  getAMASessions: async (params?: {
-    category?: string;
-    status?: string;
-    page?: number;
-    limit?: number;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.category) queryParams.append("category", params.category);
-    if (params?.status) queryParams.append("status", params.status);
-    if (params?.page) queryParams.append("page", params.page.toString());
-    if (params?.limit) queryParams.append("limit", params.limit.toString());
-
-    return apiRequest({
-      method: "GET",
-      url: `/community/ama-sessions?${queryParams.toString()}`,
-    });
-  },
-
-  createAMASession: async (data: {
-    title: string;
-    description: string;
-    scheduledDate: string;
-    duration: number;
-    maxParticipants: number;
-    category: string;
-    tags?: string[];
-  }) => {
-    return apiRequest({
-      method: "POST",
-      url: "/community/ama-sessions",
-      data,
-    });
-  },
-
-  joinAMASession: async (sessionId: string) => {
-    return apiRequest({
-      method: "POST",
-      url: `/community/ama-sessions/${sessionId}/join`,
-    });
-  },
-
-  // Poll functions
-  getPolls: async (params?: {
-    category?: string;
-    active?: boolean;
-    page?: number;
-    limit?: number;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.category) queryParams.append("category", params.category);
-    if (params?.active !== undefined)
-      queryParams.append("active", params.active.toString());
-    if (params?.page) queryParams.append("page", params.page.toString());
-    if (params?.limit) queryParams.append("limit", params.limit.toString());
-
-    return apiRequest({
-      method: "GET",
-      url: `/community/polls?${queryParams.toString()}`,
-    });
-  },
-
-  createPoll: async (data: {
-    question: string;
-    description?: string;
-    options: string[];
-    category: string;
-    expiresAt?: string;
-  }) => {
-    return apiRequest({
-      method: "POST",
-      url: "/community/polls",
-      data,
-    });
-  },
-
-  votePoll: async (pollId: string, optionId: string) => {
-    return apiRequest({
-      method: "POST",
-      url: `/community/polls/${pollId}/vote/${optionId}`,
     });
   },
 

@@ -134,16 +134,9 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         try {
           const logoResponse = await tenantAPI.getLogo(tenantId);
 
-          // Check if response is a blob (image file) or JSON
-          if (logoResponse instanceof Blob) {
-            // Direct image blob response
-            const logoUrl = URL.createObjectURL(logoResponse);
-            setCollegeLogo(logoUrl);
-          } else if (logoResponse.success && logoResponse.data) {
-            // Legacy JSON response format
-            const logoBlob = logoResponse.data as Blob;
-            const logoUrl = URL.createObjectURL(logoBlob);
-            setCollegeLogo(logoUrl);
+          // Handle URL string response (external URLs)
+          if (typeof logoResponse === "string") {
+            setCollegeLogo(logoResponse);
           } else {
             // Fallback to localStorage
             try {

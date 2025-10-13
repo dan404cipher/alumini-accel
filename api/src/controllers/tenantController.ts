@@ -527,42 +527,16 @@ export const getTenantLogo = asyncHandler(
       });
     }
 
-    // Serve the actual image file (local file)
-    const path = require("path");
-    const fs = require("fs");
+    // For local files, return the full URL
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const logoUrl = `${baseUrl}${tenant.logo}`;
 
-    try {
-      const logoPath = path.join(process.cwd(), tenant.logo);
-
-      // Check if file exists
-      if (!fs.existsSync(logoPath)) {
-        return res.status(404).json({
-          success: false,
-          message: "Logo file not found",
-        });
-      }
-
-      // Set appropriate content type
-      const ext = path.extname(logoPath).toLowerCase();
-      let contentType = "image/jpeg";
-      if (ext === ".png") contentType = "image/png";
-      if (ext === ".gif") contentType = "image/gif";
-      if (ext === ".webp") contentType = "image/webp";
-
-      res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
-
-      // Stream the file
-      const fileStream = fs.createReadStream(logoPath);
-      fileStream.pipe(res);
-      return; // Explicit return for TypeScript
-    } catch (error) {
-      logger.error("Error serving logo file:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Error serving logo file",
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        logo: logoUrl,
+      },
+    });
   }
 );
 
@@ -663,42 +637,16 @@ export const getTenantBanner = asyncHandler(
       });
     }
 
-    // Serve the actual image file (local file)
-    const path = require("path");
-    const fs = require("fs");
+    // For local files, return the full URL
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const bannerUrl = `${baseUrl}${tenant.banner}`;
 
-    try {
-      const bannerPath = path.join(process.cwd(), tenant.banner);
-
-      // Check if file exists
-      if (!fs.existsSync(bannerPath)) {
-        return res.status(404).json({
-          success: false,
-          message: "Banner file not found",
-        });
-      }
-
-      // Set appropriate content type
-      const ext = path.extname(bannerPath).toLowerCase();
-      let contentType = "image/jpeg";
-      if (ext === ".png") contentType = "image/png";
-      if (ext === ".gif") contentType = "image/gif";
-      if (ext === ".webp") contentType = "image/webp";
-
-      res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
-
-      // Stream the file
-      const fileStream = fs.createReadStream(bannerPath);
-      fileStream.pipe(res);
-      return; // Explicit return for TypeScript
-    } catch (error) {
-      logger.error("Error serving banner file:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Error serving banner file",
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        banner: bannerUrl,
+      },
+    });
   }
 );
 

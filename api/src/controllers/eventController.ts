@@ -36,12 +36,24 @@ export const getAllEvents = async (req: Request, res: Response) => {
       .skip(skip)
       .limit(limit);
 
+    // Ensure currentAttendees reflects confirmed registrations in the response
+    const eventsWithCounts = events.map((evt: any) => {
+      const confirmed = Array.isArray(evt.attendees)
+        ? evt.attendees.filter((a: any) => a && a.status === "registered")
+            .length
+        : 0;
+      // Don't persist here; just override for response
+      const obj = evt.toObject ? evt.toObject() : evt;
+      obj.currentAttendees = confirmed;
+      return obj;
+    });
+
     const total = await Event.countDocuments(filter);
 
     return res.json({
       success: true,
       data: {
-        events,
+        events: eventsWithCounts,
         pagination: {
           page,
           limit,
@@ -73,9 +85,17 @@ export const getEventById = async (req: Request, res: Response) => {
       });
     }
 
+    // Ensure currentAttendees reflects confirmed registrations
+    const confirmed = Array.isArray(event.attendees)
+      ? event.attendees.filter((a: any) => a && a.status === "registered")
+          .length
+      : 0;
+    const eventObj = event.toObject ? event.toObject() : event;
+    eventObj.currentAttendees = confirmed;
+
     return res.json({
       success: true,
-      data: { event },
+      data: { event: eventObj },
     });
   } catch (error) {
     logger.error("Get event by ID error:", error);
@@ -602,7 +622,6 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
     existingRegistration.status = "registered";
     existingRegistration.paymentStatus = "successful";
     existingRegistration.amountPaid = event.price;
-
     await event.save();
 
     return res.json({

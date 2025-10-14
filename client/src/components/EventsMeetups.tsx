@@ -833,7 +833,7 @@ const EventsMeetups = () => {
                       className="flex-1 text-xs lg:text-sm"
                       onClick={() => navigate(`/events/${event.id}`)}
                     >
-                      Registered • View Details
+                      Registered
                     </Button>
                   ) : (
                     <Button

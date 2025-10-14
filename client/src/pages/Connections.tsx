@@ -26,9 +26,9 @@ import {
 import { connectionAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ConnectionButton from "@/components/ConnectionButton";
+import Navigation from "@/components/Navigation";
 
 interface Connection {
   _id: string;
@@ -259,9 +259,7 @@ const Connections = () => {
     if (profilePicture) {
       return profilePicture.startsWith("http")
         ? profilePicture
-        : `${(
-            import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-          ).replace("/api/v1", "")}${profilePicture}`;
+        : profilePicture;
     }
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       name || "User"
@@ -275,8 +273,7 @@ const Connections = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Navigation activeTab="connections" onTabChange={() => {}} />
+      <div className="min-h-screen bg-gray-50 flex flex-col pt-16">
         <div className="flex-1 p-4 sm:p-6 lg:p-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -291,7 +288,7 @@ const Connections = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col pt-16">
       <Navigation activeTab="connections" onTabChange={() => {}} />
       <div className="flex-1 p-4 sm:p-6 lg:p-8">
         {/* Header */}

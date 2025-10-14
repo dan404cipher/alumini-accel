@@ -707,7 +707,7 @@ const SuperAdminDashboard = () => {
   ];
 
   return (
-    <div className="flex bg-gray-50 min-h-screen">
+    <div className="flex bg-gray-50 min-h-screen pt-16">
       {/* Left Sidebar */}
       <div className="w-64 lg:w-64 md:w-56 sm:w-48 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
         <div className="p-6 border-b border-gray-200">

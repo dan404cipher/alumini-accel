@@ -127,14 +127,14 @@ CommentSchema.statics.getCommentsForPost = async function (
   };
 
   const comments = await this.find(query)
-    .populate("user", "firstName lastName profileImage")
+    .populate("user", "firstName lastName profilePicture")
     .populate({
       path: "replies",
       match: { isDeleted: false },
       options: { sort: { createdAt: 1 }, limit: 3 },
       populate: {
         path: "user",
-        select: "firstName lastName profileImage",
+        select: "firstName lastName profilePicture",
       },
     })
     .sort({ createdAt: -1 })
@@ -157,7 +157,7 @@ CommentSchema.statics.getReplies = async function (
     parentCommentId,
     isDeleted: false,
   })
-    .populate("user", "firstName lastName profileImage")
+    .populate("user", "firstName lastName profilePicture")
     .sort({ createdAt: 1 })
     .limit(limit)
     .skip(skip)

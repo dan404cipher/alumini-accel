@@ -422,7 +422,10 @@ const TenantManagement: React.FC = () => {
     const matchesSearch =
       tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tenant.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tenant.contactInfo.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (tenant.contactInfo?.email &&
+        tenant.contactInfo.email
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()));
 
     const matchesStatus =
       statusFilter === "all" ||
@@ -832,11 +835,12 @@ const TenantManagement: React.FC = () => {
                   <TableCell>
                     <div>
                       <div className="font-medium">
-                        {tenant.superAdminId.firstName}{" "}
-                        {tenant.superAdminId.lastName}
+                        {tenant.superAdminId
+                          ? `${tenant.superAdminId.firstName} ${tenant.superAdminId.lastName}`
+                          : "No Super Admin"}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {tenant.superAdminId.email}
+                        {tenant.superAdminId?.email || "N/A"}
                       </div>
                     </div>
                   </TableCell>
@@ -846,7 +850,9 @@ const TenantManagement: React.FC = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{tenant.subscription.plan}</Badge>
+                    <Badge variant="outline">
+                      {tenant.subscription?.plan || "N/A"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">

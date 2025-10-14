@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -41,6 +41,8 @@ import {
   Building,
   GraduationCap,
   Heart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { EditEventDialog } from "./dialogs/EditEventDialog";
@@ -69,7 +71,7 @@ interface Event {
   };
   currentAttendees?: number;
   maxAttendees?: number;
-  imageUrl?: string;
+  image?: string;
   tags?: string[];
   price?: number;
   registrationDeadline?: string;
@@ -116,7 +118,37 @@ const EventsMeetups = () => {
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
+  const [showMyEvents, setShowMyEvents] = useState(false);
+  const [showCalendarView, setShowCalendarView] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [savedEvents, setSavedEvents] = useState<string[]>([]);
+  const [savingEvents, setSavingEvents] = useState<Set<string>>(new Set());
+  const { user, loading: authLoading } = useAuth();
+
+  // Use search query directly for now (no debouncing)
+  const debouncedSearchQuery = searchQuery;
+
+  // Load saved events for alumni
+  useEffect(() => {
+    const loadSavedEvents = async () => {
+      // Wait for auth to finish loading and ensure user is alumni
+      if (!authLoading && user?.role === "alumni") {
+        try {
+          const response = await eventAPI.getSavedEvents();
+          if (response.success && response.data) {
+            const events = (response.data as any).events;
+            setSavedEvents(events.map((event: any) => event._id));
+          }
+        } catch (error) {
+          console.error("Failed to load saved events:", error);
+        }
+      }
+    };
+
+    loadSavedEvents();
+  }, [user?.role, user?._id, authLoading]);
 
   // Check if user can create events
   const canCreateEvents =
@@ -124,8 +156,7 @@ const EventsMeetups = () => {
     user?.role === "coordinator" ||
     user?.role === "college_admin" ||
     user?.role === "hod" ||
-    user?.role === "staff" ||
-    user?.role === "alumni";
+    user?.role === "staff";
 
   // Check if user can edit/delete events
   const canManageEvents =
@@ -133,8 +164,7 @@ const EventsMeetups = () => {
     user?.role === "coordinator" ||
     user?.role === "college_admin" ||
     user?.role === "hod" ||
-    user?.role === "staff" ||
-    user?.role === "alumni";
+    user?.role === "staff";
 
   // Event types for filtering
   const eventTypes = [
@@ -183,7 +213,7 @@ const EventsMeetups = () => {
         : "Unknown",
       attendees: event.currentAttendees || 0,
       maxAttendees: event.maxAttendees || 0,
-      image: event.imageUrl,
+      image: event.image,
       tags: event.tags || [],
       featured: false,
       price: event.price ? `$${event.price}` : "Free",
@@ -197,34 +227,207 @@ const EventsMeetups = () => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Helper function to filter events by type
-  const filterEventsByType = (events: MappedEvent[]) => {
-    if (selectedEventType === "all") return events;
-    return events.filter((event) => event.type === selectedEventType);
+  // Helper function to filter events by all criteria
+  const filterEvents = (events: MappedEvent[]) => {
+    return events.filter((event) => {
+      // Search query filter
+      if (debouncedSearchQuery) {
+        const searchLower = debouncedSearchQuery.toLowerCase();
+        const matchesSearch =
+          (event.title && event.title.toLowerCase().includes(searchLower)) ||
+          (event.description &&
+            event.description.toLowerCase().includes(searchLower)) ||
+          (event.location &&
+            event.location.toLowerCase().includes(searchLower)) ||
+          (event.organizer &&
+            event.organizer.toLowerCase().includes(searchLower)) ||
+          (event.tags &&
+            event.tags.some(
+              (tag) => tag && tag.toLowerCase().includes(searchLower)
+            ));
+
+        if (!matchesSearch) return false;
+      }
+
+      // Event type filter
+      if (selectedEventType !== "all" && event.type !== selectedEventType)
+        return false;
+
+      // Location filter
+      if (selectedLocation !== "all") {
+        if (
+          selectedLocation === "online" &&
+          !event.location.toLowerCase().includes("online")
+        )
+          return false;
+        if (
+          selectedLocation === "hybrid" &&
+          !event.location.toLowerCase().includes("hybrid")
+        )
+          return false;
+        if (
+          selectedLocation === "campus" &&
+          !event.location.toLowerCase().includes("campus")
+        )
+          return false;
+        if (
+          !["online", "hybrid", "campus"].includes(selectedLocation) &&
+          !event.location.toLowerCase().includes(selectedLocation.toLowerCase())
+        )
+          return false;
+      }
+
+      // Price filter
+      if (selectedPrice !== "all") {
+        const eventPrice = parseFloat(
+          event.price.replace("$", "").replace("Free", "0")
+        );
+        switch (selectedPrice) {
+          case "free":
+            if (eventPrice > 0) return false;
+            break;
+          case "0-25":
+            if (eventPrice < 0 || eventPrice > 25) return false;
+            break;
+          case "25-50":
+            if (eventPrice < 25 || eventPrice > 50) return false;
+            break;
+          case "50-100":
+            if (eventPrice < 50 || eventPrice > 100) return false;
+            break;
+          case "100+":
+            if (eventPrice < 100) return false;
+            break;
+        }
+      }
+
+      // Date range filter
+      if (selectedDateRange !== "all") {
+        const eventDate = new Date(event.startDate);
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const thisWeekEnd = new Date(today);
+        thisWeekEnd.setDate(today.getDate() + 7);
+        const nextWeekEnd = new Date(today);
+        nextWeekEnd.setDate(today.getDate() + 14);
+        const thisMonthEnd = new Date(
+          today.getFullYear(),
+          today.getMonth() + 1,
+          1
+        );
+        const nextMonthEnd = new Date(
+          today.getFullYear(),
+          today.getMonth() + 2,
+          1
+        );
+
+        switch (selectedDateRange) {
+          case "today":
+            if (eventDate < today || eventDate >= tomorrow) return false;
+            break;
+          case "tomorrow":
+            if (
+              eventDate < tomorrow ||
+              eventDate >= new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
+            )
+              return false;
+            break;
+          case "this_week":
+            if (eventDate < today || eventDate >= thisWeekEnd) return false;
+            break;
+          case "next_week":
+            if (eventDate < thisWeekEnd || eventDate >= nextWeekEnd)
+              return false;
+            break;
+          case "this_month":
+            if (eventDate < today || eventDate >= thisMonthEnd) return false;
+            break;
+          case "next_month":
+            if (eventDate < thisMonthEnd || eventDate >= nextMonthEnd)
+              return false;
+            break;
+        }
+      }
+
+      return true;
+    });
   };
 
-  const upcomingEvents = filterEventsByType(
+  // Filter events for "My Events" or "Saved Events" based on user role
+  const myEvents = mappedEvents.filter((event) => {
+    if (user?.role === "alumni") {
+      // For alumni, show saved/bookmarked events
+      return savedEvents.includes(event.id);
+    } else {
+      // For other roles, show events organized by current user
+      return (
+        event.organizer
+          .toLowerCase()
+          .includes(user?.firstName?.toLowerCase() || "") ||
+        event.organizer
+          .toLowerCase()
+          .includes(user?.lastName?.toLowerCase() || "") ||
+        event.organizer.toLowerCase().includes(user?.email?.toLowerCase() || "")
+      );
+    }
+  });
+
+  const upcomingEvents = filterEvents(
     mappedEvents.filter((event) => {
       const eventDate = new Date(event.startDate);
       return eventDate >= tomorrow;
     })
   );
 
-  const todayEvents = filterEventsByType(
+  const todayEvents = filterEvents(
     mappedEvents.filter((event) => {
       const eventDate = new Date(event.startDate);
       return eventDate >= today && eventDate < tomorrow;
     })
   );
 
-  const pastEvents = filterEventsByType(
+  const pastEvents = filterEvents(
     mappedEvents.filter((event) => {
       const eventDate = new Date(event.startDate);
       return eventDate < today;
     })
   );
 
-  const events = mappedEvents;
+  // Filtered events based on view mode
+  const filteredUpcomingEvents = showMyEvents
+    ? filterEvents(
+        myEvents.filter((event) => {
+          const eventDate = new Date(event.startDate);
+          return eventDate >= tomorrow;
+        })
+      )
+    : upcomingEvents;
+
+  const filteredTodayEvents = showMyEvents
+    ? filterEvents(
+        myEvents.filter((event) => {
+          const eventDate = new Date(event.startDate);
+          return eventDate >= today && eventDate < tomorrow;
+        })
+      )
+    : todayEvents;
+
+  const filteredPastEvents = showMyEvents
+    ? filterEvents(
+        myEvents.filter((event) => {
+          const eventDate = new Date(event.startDate);
+          return eventDate < today;
+        })
+      )
+    : pastEvents;
+
+  const events = filterEvents(mappedEvents);
 
   // Function to refresh events
   const handleEventCreated = () => {
@@ -277,21 +480,14 @@ const EventsMeetups = () => {
       return image;
     }
 
-    // If it's a relative path (uploaded image), construct full URL
+    // If it's a relative path (uploaded image), use proxy path
     if (image.startsWith("/") || image.startsWith("uploads/")) {
-      // Use the API base URL but remove /api/v1 for static file serving
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-      const baseUrl = apiBaseUrl.replace("/api/v1", "");
-
-      // Ensure the image path starts with /uploads/
+      // Ensure the image path starts with /uploads/ for proxy
       let imagePath = image;
       if (image.startsWith("uploads/")) {
         imagePath = `/${image}`;
       }
-
-      const fullUrl = `${baseUrl}${imagePath}`;
-      return fullUrl;
+      return imagePath;
     }
 
     return image;
@@ -405,6 +601,34 @@ const EventsMeetups = () => {
                     </Badge>
                   )}
               </div>
+
+              {/* Save/Unsave button for alumni */}
+              {user?.role === "alumni" && (
+                <div className="absolute top-4 left-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-8 h-8 p-0 bg-white/90 hover:bg-white shadow-sm"
+                    disabled={savingEvents.has(event.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (savedEvents.includes(event.id)) {
+                        handleUnsaveEvent(event.id);
+                      } else {
+                        handleSaveEvent(event.id);
+                      }
+                    }}
+                  >
+                    <Bookmark
+                      className={`w-4 h-4 ${
+                        savedEvents.includes(event.id)
+                          ? "text-blue-600 fill-blue-600"
+                          : "text-gray-400"
+                      } ${savingEvents.has(event.id) ? "opacity-50" : ""}`}
+                    />
+                  </Button>
+                </div>
+              )}
             </div>
 
             <CardContent className="p-4 lg:p-6 flex-1 flex flex-col">
@@ -555,6 +779,103 @@ const EventsMeetups = () => {
   // Handle view event details
   const handleViewEvent = (event: MappedEvent) => {
     navigate(`/events/${event.id}`);
+  };
+
+  // Handle My Events toggle
+  const handleMyEvents = () => {
+    setShowMyEvents(!showMyEvents);
+    setShowCalendarView(false);
+  };
+
+  // Handle save/unsave event
+  const handleSaveEvent = async (eventId: string) => {
+    // Prevent duplicate clicks
+    if (savingEvents.has(eventId)) {
+      return;
+    }
+
+    try {
+      setSavingEvents((prev) => new Set(prev).add(eventId));
+      const response = await eventAPI.saveEvent(eventId);
+
+      if (response.success) {
+        setSavedEvents((prev) => [...prev, eventId]);
+      } else if (response.message === "Event already saved") {
+        // Event is already saved on backend, sync frontend state
+        setSavedEvents((prev) => {
+          if (!prev.includes(eventId)) {
+            return [...prev, eventId];
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save event:", error);
+    } finally {
+      setSavingEvents((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(eventId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleUnsaveEvent = async (eventId: string) => {
+    // Prevent duplicate clicks
+    if (savingEvents.has(eventId)) {
+      return;
+    }
+
+    try {
+      setSavingEvents((prev) => new Set(prev).add(eventId));
+      const response = await eventAPI.unsaveEvent(eventId);
+
+      if (response.success) {
+        setSavedEvents((prev) => prev.filter((id) => id !== eventId));
+      } else if (response.message === "Event not saved") {
+        // Event is not saved on backend, sync frontend state
+        setSavedEvents((prev) => prev.filter((id) => id !== eventId));
+      }
+    } catch (error) {
+      console.error("Failed to unsave event:", error);
+    } finally {
+      setSavingEvents((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(eventId);
+        return newSet;
+      });
+    }
+  };
+
+  // Handle Calendar View toggle
+  const handleCalendarView = () => {
+    setShowCalendarView(!showCalendarView);
+    setShowMyEvents(false);
+  };
+
+  // Handle month navigation
+  const handlePreviousMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+    );
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+    );
+  };
+
+  const handleToday = () => {
+    setCurrentMonth(new Date());
+  };
+
+  // Handle day click
+  const handleDayClick = (date: Date, dayEvents: MappedEvent[]) => {
+    if (dayEvents.length > 0) {
+      setSelectedDate(date);
+      setShowDayModal(true);
+    }
   };
 
   const getEventTypeIcon = (type: string) => {
@@ -781,16 +1102,18 @@ const EventsMeetups = () => {
                     </Button>
                   )}
                   <Button
-                    variant="outline"
+                    variant={showMyEvents ? "default" : "outline"}
                     size="sm"
+                    onClick={handleMyEvents}
                     className="w-full justify-start"
                   >
                     <Bookmark className="w-4 h-4 mr-2" />
-                    My Events
+                    {user?.role === "alumni" ? "Saved Events" : "My Events"}
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={showCalendarView ? "default" : "outline"}
                     size="sm"
+                    onClick={handleCalendarView}
                     className="w-full justify-start"
                   >
                     <Calendar className="w-4 h-4 mr-2" />
@@ -846,7 +1169,7 @@ const EventsMeetups = () => {
         )}
 
         {/* Events Tabs */}
-        {events.length === 0 && !isLoading && !error ? (
+        {!showCalendarView && events.length === 0 && !isLoading && !error ? (
           <div className="text-center py-12">
             <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">No Events Found</h3>
@@ -860,35 +1183,264 @@ const EventsMeetups = () => {
               </Button>
             )}
           </div>
-        ) : (
+        ) : !showCalendarView ? (
           <Tabs defaultValue="upcoming" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="upcoming" className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Upcoming ({upcomingEvents.length})
+                Upcoming ({filteredUpcomingEvents.length})
               </TabsTrigger>
               <TabsTrigger value="today" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                Today ({todayEvents.length})
+                Today ({filteredTodayEvents.length})
               </TabsTrigger>
               <TabsTrigger value="past" className="flex items-center gap-2">
                 <Star className="w-4 h-4" />
-                Past ({pastEvents.length})
+                Past ({filteredPastEvents.length})
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="upcoming" className="mt-6">
-              {renderEventGrid(upcomingEvents, "No Upcoming Events")}
+              {renderEventGrid(
+                filteredUpcomingEvents,
+                showMyEvents
+                  ? user?.role === "alumni"
+                    ? "No Upcoming Saved Events"
+                    : "No Upcoming My Events"
+                  : "No Upcoming Events"
+              )}
             </TabsContent>
 
             <TabsContent value="today" className="mt-6">
-              {renderEventGrid(todayEvents, "No Events Today")}
+              {renderEventGrid(
+                filteredTodayEvents,
+                showMyEvents
+                  ? user?.role === "alumni"
+                    ? "No Saved Events Today"
+                    : "No My Events Today"
+                  : "No Events Today"
+              )}
             </TabsContent>
 
             <TabsContent value="past" className="mt-6">
-              {renderEventGrid(pastEvents, "No Past Events")}
+              {renderEventGrid(
+                filteredPastEvents,
+                showMyEvents
+                  ? user?.role === "alumni"
+                    ? "No Past Saved Events"
+                    : "No Past My Events"
+                  : "No Past Events"
+              )}
             </TabsContent>
           </Tabs>
+        ) : null}
+
+        {/* Calendar View */}
+        {showCalendarView && (
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    <CardTitle>Calendar View</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePreviousMonth}
+                      title="Previous Month"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleToday}
+                      title="Go to Current Month"
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextMonth}
+                      title="Next Month"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <CardDescription>
+                  {currentMonth.toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}{" "}
+                  - View events in a calendar format
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-7 gap-2 mb-4">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                    (day) => (
+                      <div
+                        key={day}
+                        className="text-center text-sm font-medium text-muted-foreground p-2"
+                      >
+                        {day}
+                      </div>
+                    )
+                  )}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: 35 }, (_, i) => {
+                    const firstDay = new Date(
+                      currentMonth.getFullYear(),
+                      currentMonth.getMonth(),
+                      1
+                    );
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(
+                      startDate.getDate() - firstDay.getDay() + i
+                    );
+
+                    const dayEvents = events.filter((event) => {
+                      const eventDate = new Date(event.startDate);
+                      return (
+                        eventDate.toDateString() === startDate.toDateString()
+                      );
+                    });
+
+                    const isToday =
+                      startDate.toDateString() === new Date().toDateString();
+                    const isCurrentMonth =
+                      startDate.getMonth() === currentMonth.getMonth();
+
+                    return (
+                      <div
+                        key={i}
+                        className={`min-h-[80px] p-2 border rounded-lg cursor-pointer hover:bg-muted/50 ${
+                          isCurrentMonth ? "bg-background" : "bg-muted/30"
+                        } ${isToday ? "ring-2 ring-blue-500" : ""}`}
+                        onClick={() => handleDayClick(startDate, dayEvents)}
+                      >
+                        <div
+                          className={`text-sm font-medium mb-1 ${
+                            isToday ? "text-blue-600 font-bold" : ""
+                          }`}
+                        >
+                          {startDate.getDate()}
+                        </div>
+                        <div className="space-y-1">
+                          {dayEvents.slice(0, 2).map((event) => (
+                            <div
+                              key={event.id}
+                              className="text-xs p-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewEvent(event);
+                              }}
+                            >
+                              {event.title}
+                            </div>
+                          ))}
+                          {dayEvents.length > 2 && (
+                            <div className="text-xs text-muted-foreground font-medium">
+                              +{dayEvents.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Day Events Modal */}
+        {showDayModal && selectedDate && (
+          <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-lg w-full max-w-md max-h-[80vh] overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="font-semibold text-gray-900">
+                  Events on{" "}
+                  {selectedDate.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </h3>
+                <button
+                  onClick={() => setShowDayModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <X size={16} className="text-gray-600" />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto max-h-[60vh]">
+                {(() => {
+                  const dayEvents = events.filter((event) => {
+                    const eventDate = new Date(event.startDate);
+                    return (
+                      eventDate.toDateString() === selectedDate.toDateString()
+                    );
+                  });
+
+                  if (dayEvents.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500">
+                          No events scheduled for this day
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {dayEvents.map((event) => (
+                        <div
+                          key={event.id}
+                          className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
+                          onClick={() => {
+                            setShowDayModal(false);
+                            handleViewEvent(event);
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 mb-1">
+                                {event.title}
+                              </h4>
+                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                                {event.description}
+                              </p>
+                              <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {event.time}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {event.location}
+                                </div>
+                              </div>
+                            </div>
+                            <ExternalLink className="w-4 h-4 text-gray-400" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

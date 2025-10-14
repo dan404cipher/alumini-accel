@@ -73,7 +73,7 @@ export interface CommunityPost {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
     graduationYear?: string;
     currentCompany?: string;
     currentPosition?: string;

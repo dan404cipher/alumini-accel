@@ -227,14 +227,14 @@ const EventDetail = () => {
       return image;
     }
 
-    // If it's a relative path (uploaded image), construct full URL
+    // If it's a relative path (uploaded image), use proxy path
     if (image.startsWith("/") || image.startsWith("uploads/")) {
-      // Remove /api/v1 from the base URL for static file serving
-      const baseUrl = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-      ).replace("/api/v1", "");
-      const fullUrl = `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
-      return fullUrl;
+      // Ensure the image path starts with /uploads/ for proxy
+      let imagePath = image;
+      if (image.startsWith("uploads/")) {
+        imagePath = `/${image}`;
+      }
+      return imagePath;
     }
 
     return image;

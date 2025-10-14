@@ -788,11 +788,8 @@ const CollegeAdminDashboard = () => {
       // Load logo from database
       try {
         const logoResponse = await tenantAPI.getLogo(tenantId);
-        if (logoResponse.success && logoResponse.data) {
-          // Convert blob to data URL for preview
-          const logoBlob = logoResponse.data as Blob;
-          const logoUrl = URL.createObjectURL(logoBlob);
-          setLogoPreview(logoUrl);
+        if (typeof logoResponse === "string") {
+          setLogoPreview(logoResponse);
         }
       } catch (error) {
         // Logo not found or error loading logo
@@ -801,15 +798,8 @@ const CollegeAdminDashboard = () => {
       // Load banner from database
       try {
         const bannerResponse = await tenantAPI.getBanner(tenantId);
-        if (bannerResponse instanceof Blob) {
-          // Direct blob response
-          const bannerUrl = URL.createObjectURL(bannerResponse);
-          setBannerPreview(bannerUrl);
-        } else if (bannerResponse.success && bannerResponse.data) {
-          // Legacy JSON response format
-          const bannerBlob = bannerResponse.data as Blob;
-          const bannerUrl = URL.createObjectURL(bannerBlob);
-          setBannerPreview(bannerUrl);
+        if (typeof bannerResponse === "string") {
+          setBannerPreview(bannerResponse);
         }
       } catch (error) {
         // Check localStorage as fallback
@@ -883,7 +873,7 @@ const CollegeAdminDashboard = () => {
   }, [user?.tenantId]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pt-20">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

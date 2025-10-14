@@ -139,11 +139,7 @@ const DonationDetailsModal: React.FC<DonationDetailsModalProps> = ({
                 <div className="lg:col-span-1">
                   <div className="relative">
                     <img
-                      src={
-                        campaign.imageUrl.startsWith("/uploads/")
-                          ? `http://localhost:3000${campaign.imageUrl}`
-                          : campaign.imageUrl
-                      }
+                      src={campaign.imageUrl}
                       alt={campaign.title}
                       className="w-full h-32 object-cover rounded-lg"
                     />

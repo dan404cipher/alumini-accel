@@ -18,8 +18,8 @@ import {
 import { messageAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import Navigation from "@/components/Navigation";
 
 interface Message {
   id: string;
@@ -205,10 +205,7 @@ const Messages = () => {
       if (profilePicture.startsWith("http")) {
         return profilePicture;
       }
-      const baseUrl = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-      ).replace("/api/v1", "");
-      return `${baseUrl}${profilePicture}`;
+      return profilePicture;
     }
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       name || "User"
@@ -243,8 +240,7 @@ const Messages = () => {
 
   if (loading) {
     return (
-      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-        <Navigation activeTab="messages" onTabChange={() => {}} />
+      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden pt-16">
         <div className="container mx-auto px-4 py-8 flex-1 flex items-center justify-center">
           <div className="text-center">
             <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -257,7 +253,7 @@ const Messages = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col pt-16">
       <Navigation activeTab="messages" onTabChange={() => {}} />
       <div className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col min-h-0">
         <div className="flex flex-1 bg-white rounded-lg shadow-lg overflow-hidden min-h-0">

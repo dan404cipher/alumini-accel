@@ -11,6 +11,7 @@ import {
   getTenantLogo,
   uploadTenantBanner,
   getTenantBanner,
+  getPublicCollegeInfo,
 } from "../controllers/tenantController";
 import {
   authenticateToken,
@@ -104,5 +105,10 @@ router.post(
 // @desc    Get tenant banner
 // @access  Private
 router.get("/:id/banner", authenticateToken, asyncHandler(getTenantBanner));
+
+// @route   GET /api/v1/college/public-info
+// @desc    Get public college information
+// @access  Public
+router.get("/public-info", asyncHandler(getPublicCollegeInfo));
 
 export default router;

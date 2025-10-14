@@ -59,6 +59,14 @@ interface ConnectionStatus {
   } | null;
 }
 
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
 const ConnectionButton = ({
   userId,
   userName,
@@ -75,39 +83,13 @@ const ConnectionButton = ({
   const { user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (user?._id && userId) {
-      checkConnectionStatus();
-    }
-  }, [userId, user?._id]);
-
-  // Don't show button for own profile
-  if (user?._id === userId || user?._id?.toString() === userId?.toString()) {
-    return null;
-  }
-
-  // Don't show button if user is not authenticated
-  if (!user || !user._id) {
-    return (
-      <Button
-        variant={variant}
-        size={size}
-        className={className}
-        disabled={true}
-      >
-        <UserPlus className="w-4 h-4 mr-2" />
-        Login to Connect
-      </Button>
-    );
-  }
-
-  const checkConnectionStatus = async () => {
+  const checkConnectionStatus = useCallback(async () => {
     try {
       setLoading(true);
       const response = await connectionAPI.checkConnectionStatus(userId);
 
       if (response.success && response.data) {
-        const data = response.data as any;
+        const data = response.data as ConnectionStatus;
         if (data.connection) {
           setConnectionStatus(data.connection.status);
           setConnectionId(data.connection._id);
@@ -135,7 +117,33 @@ const ConnectionButton = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, connectionStatus]);
+
+  useEffect(() => {
+    if (user?._id && userId) {
+      checkConnectionStatus();
+    }
+  }, [userId, user?._id, checkConnectionStatus]);
+
+  // Don't show button for own profile
+  if (user?._id === userId || user?._id?.toString() === userId?.toString()) {
+    return null;
+  }
+
+  // Don't show button if user is not authenticated
+  if (!user || !user._id) {
+    return (
+      <Button
+        variant={variant}
+        size={size}
+        className={className}
+        disabled={true}
+      >
+        <UserPlus className="w-4 h-4 mr-2" />
+        Login to Connect
+      </Button>
+    );
+  }
 
   const handleSendRequest = async () => {
     // Prevent double-clicks
@@ -160,7 +168,7 @@ const ConnectionButton = ({
         setRequestMessage("");
         // Set status directly to avoid race conditions with checkConnectionStatus
         setConnectionStatus("pending");
-        setConnectionId((response.data as any)._id);
+        setConnectionId((response.data as { _id: string })._id);
       } else {
         toast({
           title: "Error",
@@ -168,12 +176,13 @@ const ConnectionButton = ({
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Send connection request error:", error);
       toast({
         title: "Error",
         description:
-          error.response?.data?.message || "Failed to send connection request",
+          (error as ApiError)?.response?.data?.message ||
+          "Failed to send connection request",
         variant: "destructive",
       });
     } finally {
@@ -194,11 +203,12 @@ const ConnectionButton = ({
         });
         setConnectionStatus("accepted");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description:
-          error.response?.data?.message || "Failed to accept connection",
+          (error as ApiError)?.response?.data?.message ||
+          "Failed to accept connection",
         variant: "destructive",
       });
     } finally {
@@ -219,11 +229,12 @@ const ConnectionButton = ({
         });
         setConnectionStatus("rejected");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description:
-          error.response?.data?.message || "Failed to reject connection",
+          (error as ApiError)?.response?.data?.message ||
+          "Failed to reject connection",
         variant: "destructive",
       });
     } finally {
@@ -247,12 +258,13 @@ const ConnectionButton = ({
         setConnectionStatus(null);
         setConnectionId(null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error cancelling connection:", error);
       toast({
         title: "Error",
         description:
-          error.response?.data?.message || "Failed to cancel connection",
+          (error as ApiError)?.response?.data?.message ||
+          "Failed to cancel connection",
         variant: "destructive",
       });
     } finally {
@@ -274,11 +286,12 @@ const ConnectionButton = ({
         setConnectionStatus(null);
         setConnectionId(null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description:
-          error.response?.data?.message || "Failed to remove connection",
+          (error as ApiError)?.response?.data?.message ||
+          "Failed to remove connection",
         variant: "destructive",
       });
     } finally {
@@ -299,10 +312,12 @@ const ConnectionButton = ({
         });
         setConnectionStatus("blocked");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to block user",
+        description:
+          (error as ApiError)?.response?.data?.message ||
+          "Failed to block user",
         variant: "destructive",
       });
     } finally {

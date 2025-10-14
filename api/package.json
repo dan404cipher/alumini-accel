@@ -14,6 +14,7 @@
     "migrate": "ts-node -r tsconfig-paths/register src/scripts/migrate.ts",
     "seed": "ts-node -r tsconfig-paths/register src/scripts/seed.ts",
     "seed:comprehensive": "ts-node -r tsconfig-paths/register src/scripts/comprehensiveSeed.ts",
+    "export-credentials": "ts-node -r tsconfig-paths/register src/scripts/exportCredentials.ts",
     "generate-test-data": "ts-node -r tsconfig-paths/register src/scripts/generateTestData.ts",
     "generate-campaign-data": "ts-node -r tsconfig-paths/register src/scripts/generateCampaignData.ts",
     "create-missing-alumni-profiles": "ts-node -r tsconfig-paths/register src/scripts/createMissingAlumniProfiles.ts"
@@ -56,6 +57,7 @@
     "twilio": "^4.19.0",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
+    "xlsx": "^0.18.5",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

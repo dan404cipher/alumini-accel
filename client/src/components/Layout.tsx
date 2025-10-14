@@ -136,7 +136,7 @@ const Layout = () => {
     >
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
-        className={`flex-1 w-full ${
+        className={`flex-1 w-full pt-16 ${
           isDashboardPage ||
           isJobBoard ||
           isEventsPage ||

@@ -90,9 +90,6 @@ const AlumniDirectory = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userTypeFilter, setUserTypeFilter] = useState<
-    "all" | "student" | "alumni"
-  >("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedGraduationYear, setSelectedGraduationYear] = useState("all");
@@ -114,7 +111,6 @@ const AlumniDirectory = () => {
       setLoading(true);
       setError(null);
       const response = await alumniAPI.getAllUsersDirectory({
-        userType: userTypeFilter,
         limit: 50,
         tenantId: user?.tenantId,
       });
@@ -140,12 +136,137 @@ const AlumniDirectory = () => {
     } finally {
       setLoading(false);
     }
-  }, [userTypeFilter, toast, user?.tenantId]);
+  }, [toast, user?.tenantId]);
 
   // Fetch users data from API
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Filter users based on search and filter criteria
+  const filterUsers = (users: User[]) => {
+    return users.filter((directoryUser) => {
+      // Exclude current user
+      if (directoryUser.id === user?._id) return false;
+
+      // Search query filter
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          directoryUser.name.toLowerCase().includes(searchLower) ||
+          directoryUser.email.toLowerCase().includes(searchLower) ||
+          (directoryUser.company &&
+            directoryUser.company.toLowerCase().includes(searchLower)) ||
+          (directoryUser.currentRole &&
+            directoryUser.currentRole.toLowerCase().includes(searchLower)) ||
+          (directoryUser.department &&
+            directoryUser.department.toLowerCase().includes(searchLower)) ||
+          (directoryUser.skills &&
+            directoryUser.skills.some((skill) =>
+              skill.toLowerCase().includes(searchLower)
+            )) ||
+          (directoryUser.registerNumber &&
+            directoryUser.registerNumber.toLowerCase().includes(searchLower));
+        if (!matchesSearch) return false;
+      }
+
+      // Department filter
+      if (selectedDepartment !== "all") {
+        const departmentMap: { [key: string]: string } = {
+          cs: "Computer Science",
+          ee: "Electrical Engineering",
+          me: "Mechanical Engineering",
+          ba: "Business Administration",
+          ce: "Civil Engineering",
+          it: "Information Technology",
+          mba: "MBA",
+        };
+        const targetDepartment = departmentMap[selectedDepartment];
+        if (
+          !directoryUser.department ||
+          !directoryUser.department
+            .toLowerCase()
+            .includes(targetDepartment.toLowerCase())
+        )
+          return false;
+      }
+
+      // Graduation year filter
+      if (
+        selectedGraduationYear !== "all" &&
+        directoryUser.graduationYear !== parseInt(selectedGraduationYear)
+      )
+        return false;
+
+      // Location filter
+      if (selectedLocation !== "all") {
+        const locationMap: { [key: string]: string[] } = {
+          bangalore: ["bangalore", "bengaluru"],
+          mumbai: ["mumbai"],
+          delhi: ["delhi", "new delhi"],
+          chennai: ["chennai", "madras"],
+          hyderabad: ["hyderabad"],
+          pune: ["pune"],
+          kolkata: ["kolkata", "calcutta"],
+          international: [
+            "usa",
+            "united states",
+            "canada",
+            "uk",
+            "united kingdom",
+            "australia",
+            "singapore",
+            "dubai",
+          ],
+        };
+        const targetLocations = locationMap[selectedLocation] || [];
+        const userLocation = (
+          directoryUser.currentLocation ||
+          directoryUser.location ||
+          ""
+        ).toLowerCase();
+        if (!targetLocations.some((loc) => userLocation.includes(loc)))
+          return false;
+      }
+
+      // Experience filter
+      if (selectedExperience !== "all") {
+        const experience = directoryUser.experience || 0;
+        switch (selectedExperience) {
+          case "student":
+            if (directoryUser.role !== "student") return false;
+            break;
+          case "0-1":
+            if (experience < 0 || experience > 1) return false;
+            break;
+          case "1-3":
+            if (experience < 1 || experience > 3) return false;
+            break;
+          case "3-5":
+            if (experience < 3 || experience > 5) return false;
+            break;
+          case "5-10":
+            if (experience < 5 || experience > 10) return false;
+            break;
+          case "10+":
+            if (experience < 10) return false;
+            break;
+        }
+      }
+
+      // Register number filter
+      if (
+        registerNumberFilter &&
+        (!directoryUser.registerNumber ||
+          !directoryUser.registerNumber
+            .toLowerCase()
+            .includes(registerNumberFilter.toLowerCase()))
+      )
+        return false;
+
+      return true;
+    });
+  };
 
   return (
     <div className="flex gap-6 h-screen w-full overflow-hidden">
@@ -211,26 +332,6 @@ const AlumniDirectory = () => {
               {/* Filters */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Filters</h3>
-
-                {/* User Type */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">User Type</label>
-                  <Select
-                    value={userTypeFilter}
-                    onValueChange={(value: "all" | "student" | "alumni") =>
-                      setUserTypeFilter(value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select user type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Users</SelectItem>
-                      <SelectItem value="student">Students</SelectItem>
-                      <SelectItem value="alumni">Alumni</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 {/* Department */}
                 <div className="space-y-2">
@@ -359,7 +460,6 @@ const AlumniDirectory = () => {
 
                 {/* Clear Filters */}
                 {(searchQuery ||
-                  (userTypeFilter && userTypeFilter !== "all") ||
                   (selectedDepartment && selectedDepartment !== "all") ||
                   (selectedGraduationYear &&
                     selectedGraduationYear !== "all") ||
@@ -371,7 +471,6 @@ const AlumniDirectory = () => {
                     size="sm"
                     onClick={() => {
                       setSearchQuery("");
-                      setUserTypeFilter("all");
                       setSelectedDepartment("all");
                       setSelectedGraduationYear("all");
                       setSelectedLocation("all");
@@ -434,7 +533,8 @@ const AlumniDirectory = () => {
                 Alumni Directory
               </h1>
               <p className="text-muted-foreground text-sm lg:text-base">
-                Connect with our global network • {users.length} users
+                Connect with our global network • {filterUsers(users).length}{" "}
+                users
               </p>
             </div>
           </div>
@@ -466,11 +566,23 @@ const AlumniDirectory = () => {
           </div>
         )}
 
-        {/* Users Grid */}
+        {/* Users Grid/List */}
         {!loading && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                : "space-y-4"
+            }
+          >
             {users.length === 0 ? (
-              <div className="col-span-full text-center py-12">
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "col-span-full text-center py-12"
+                    : "text-center py-12"
+                }
+              >
                 <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                   <Users className="w-12 h-12 text-gray-400" />
                 </div>
@@ -482,224 +594,375 @@ const AlumniDirectory = () => {
                 </p>
               </div>
             ) : (
-              users
-                .filter((directoryUser) => directoryUser.id !== user?._id)
-                .map((directoryUser) => (
-                  <Card
-                    key={directoryUser.id}
-                    className="group hover:shadow-lg transition-all duration-200 cursor-pointer"
-                    onClick={() => handleProfileClick(directoryUser.id)}
+              filterUsers(users).map((directoryUser) => (
+                <Card
+                  key={directoryUser.id}
+                  className={`group hover:shadow-lg transition-all duration-200 cursor-pointer ${
+                    viewMode === "list" ? "flex" : ""
+                  }`}
+                  onClick={() => handleProfileClick(directoryUser.id)}
+                >
+                  <CardContent
+                    className={`${
+                      viewMode === "list"
+                        ? "p-4 flex items-center w-full"
+                        : "p-6"
+                    }`}
                   >
-                    <CardContent className="p-6">
-                      {/* Profile Header */}
-                      <div className="flex items-start space-x-4 mb-4">
-                        <div className="relative">
-                          <img
-                            src={
-                              directoryUser.profileImage
-                                ? directoryUser.profileImage.startsWith("http")
-                                  ? directoryUser.profileImage
-                                  : `${(
-                                      import.meta.env.VITE_API_BASE_URL ||
-                                      "http://localhost:3000/api/v1"
-                                    ).replace("/api/v1", "")}${
-                                      directoryUser.profileImage
-                                    }`
-                                : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    directoryUser.name
-                                  )}&background=random&color=fff`
-                            }
-                            alt={directoryUser.name}
-                            className="w-16 h-16 rounded-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                directoryUser.name
-                              )}&background=random&color=fff`;
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                            {directoryUser.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-1">
-                            {directoryUser.currentRole ||
-                              directoryUser.program ||
-                              directoryUser.role}
-                            {directoryUser.company &&
-                              ` at ${directoryUser.company}`}
-                          </p>
-                          <div className="text-sm text-gray-500">
-                            {directoryUser.department &&
-                              directoryUser.graduationYear && (
-                                <span>
-                                  {directoryUser.department} • Class of{" "}
-                                  {directoryUser.graduationYear}
+                    {/* Profile Header */}
+                    <div
+                      className={`flex items-start space-x-4 ${
+                        viewMode === "list" ? "mb-0 flex-1" : "mb-4"
+                      }`}
+                    >
+                      <div className="relative">
+                        <img
+                          src={
+                            directoryUser.profileImage
+                              ? directoryUser.profileImage.startsWith("http")
+                                ? directoryUser.profileImage
+                                : directoryUser.profileImage
+                              : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  directoryUser.name
+                                )}&background=random&color=fff`
+                          }
+                          alt={directoryUser.name}
+                          className={`${
+                            viewMode === "list" ? "w-12 h-12" : "w-16 h-16"
+                          } rounded-full object-cover`}
+                          onError={(e) => {
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              directoryUser.name
+                            )}&background=random&color=fff`;
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3
+                          className={`font-semibold text-gray-900 ${
+                            viewMode === "list"
+                              ? "text-base mb-1"
+                              : "text-lg mb-1"
+                          }`}
+                        >
+                          {directoryUser.name}
+                        </h3>
+
+                        {viewMode === "list" ? (
+                          /* List View - Compact Layout */
+                          <div className="text-sm text-gray-600 space-y-1">
+                            {directoryUser.currentRole && (
+                              <div className="flex items-center">
+                                <Briefcase className="w-3 h-3 mr-1 text-blue-600" />
+                                <span className="font-medium">
+                                  {directoryUser.currentRole}
+                                </span>
+                                {directoryUser.company && (
+                                  <span className="ml-2 text-gray-500">
+                                    at {directoryUser.company}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <div className="flex items-center text-gray-500 space-x-4">
+                              {directoryUser.department && (
+                                <span className="flex items-center">
+                                  <GraduationCap className="w-3 h-3 mr-1 text-purple-600" />
+                                  {directoryUser.department}
                                 </span>
                               )}
-                            {directoryUser.department &&
-                              !directoryUser.graduationYear && (
-                                <span>{directoryUser.department}</span>
-                              )}
-                            {!directoryUser.department &&
-                              directoryUser.graduationYear && (
-                                <span>
+                              {directoryUser.graduationYear && (
+                                <span className="flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1 text-orange-600" />
                                   Class of {directoryUser.graduationYear}
                                 </span>
                               )}
-                            {directoryUser.registerNumber && (
-                              <span className="ml-2">
-                                Reg. No: {directoryUser.registerNumber}
-                              </span>
-                            )}
-                          </div>
-                          {(directoryUser.location ||
-                            directoryUser.currentLocation) && (
-                            <div className="flex items-center text-sm text-gray-500 mt-1">
-                              <MapPin className="w-4 h-4 mr-1" />
-                              {directoryUser.currentLocation ||
-                                directoryUser.location}
+                              {(directoryUser.currentLocation ||
+                                directoryUser.location) && (
+                                <span className="flex items-center">
+                                  <MapPin className="w-3 h-3 mr-1 text-red-600" />
+                                  {directoryUser.currentLocation ||
+                                    directoryUser.location}
+                                </span>
+                              )}
                             </div>
-                          )}
-                          {directoryUser.experience &&
-                            directoryUser.experience > 0 && (
-                              <div className="flex items-center text-sm text-gray-500 mt-1">
-                                <Calendar className="w-4 h-4 mr-1" />
-                                {directoryUser.experience} years experience
+                          </div>
+                        ) : (
+                          /* Grid View - Full Layout */
+                          <>
+                            {/* Current Role and Company */}
+                            <div className="text-sm text-gray-600 mb-2">
+                              {directoryUser.currentRole && (
+                                <div className="flex items-center mb-1">
+                                  <Briefcase className="w-4 h-4 mr-1 text-blue-600" />
+                                  <span className="font-medium">
+                                    {directoryUser.currentRole}
+                                  </span>
+                                </div>
+                              )}
+                              {directoryUser.company && (
+                                <div className="flex items-center mb-1">
+                                  <Building className="w-4 h-4 mr-1 text-green-600" />
+                                  <span>{directoryUser.company}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Education Information */}
+                            <div className="text-sm text-gray-500 mb-2">
+                              {directoryUser.department && (
+                                <div className="flex items-center mb-1">
+                                  <GraduationCap className="w-4 h-4 mr-1 text-purple-600" />
+                                  <span>{directoryUser.department}</span>
+                                  {directoryUser.specialization && (
+                                    <span className="ml-1">
+                                      • {directoryUser.specialization}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {directoryUser.graduationYear && (
+                                <div className="flex items-center mb-1">
+                                  <Calendar className="w-4 h-4 mr-1 text-orange-600" />
+                                  <span>
+                                    Class of {directoryUser.graduationYear}
+                                  </span>
+                                </div>
+                              )}
+                              {directoryUser.registerNumber && (
+                                <div className="flex items-center mb-1">
+                                  <Award className="w-4 h-4 mr-1 text-indigo-600" />
+                                  <span>
+                                    Reg. No: {directoryUser.registerNumber}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Location */}
+                            {(directoryUser.location ||
+                              directoryUser.currentLocation) && (
+                              <div className="flex items-center text-sm text-gray-500 mb-1">
+                                <MapPin className="w-4 h-4 mr-1 text-red-600" />
+                                {directoryUser.currentLocation ||
+                                  directoryUser.location}
                               </div>
                             )}
-                        </div>
-                      </div>
 
-                      {/* Skills/Interests */}
-                      <div className="mb-4">
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {(directoryUser.skills || [])
-                            .slice(0, 4)
-                            .map((skill, index) => (
-                              <Badge
-                                key={index}
-                                variant="outline"
-                                className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                              >
-                                {skill}
-                              </Badge>
-                            ))}
-                          {(directoryUser.skills || []).length > 4 && (
+                            {/* Experience */}
+                            {directoryUser.experience &&
+                              directoryUser.experience > 0 && (
+                                <div className="flex items-center text-sm text-gray-500 mb-1">
+                                  <Calendar className="w-4 h-4 mr-1 text-teal-600" />
+                                  {directoryUser.experience} years experience
+                                </div>
+                              )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {viewMode === "list" ? (
+                      /* List View - Right Side Actions */
+                      <div className="flex items-center space-x-3 ml-4">
+                        {/* Status Badges */}
+                        <div className="flex space-x-2">
+                          {directoryUser.availableForMentorship && (
+                            <Badge variant="secondary" className="text-xs">
+                              Mentoring
+                            </Badge>
+                          )}
+                          {directoryUser.isHiring && (
                             <Badge
-                              variant="outline"
-                              className="text-xs text-gray-500"
+                              variant="default"
+                              className="text-xs bg-green-100 text-green-800"
                             >
-                              +{(directoryUser.skills || []).length - 4} more
+                              Hiring
                             </Badge>
                           )}
                         </div>
-                        {(directoryUser.careerInterests || []).length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {(directoryUser.careerInterests || [])
-                              .slice(0, 3)
-                              .map((interest, index) => (
+
+                        {/* Skills Preview */}
+                        {(directoryUser.skills || []).length > 0 && (
+                          <div className="flex space-x-1">
+                            {(directoryUser.skills || [])
+                              .slice(0, 2)
+                              .map((skill, index) => (
                                 <Badge
                                   key={index}
                                   variant="outline"
-                                  className="text-xs bg-green-50 text-green-700 border-green-200"
+                                  className="text-xs bg-blue-50 text-blue-700 border-blue-200"
                                 >
-                                  {interest}
+                                  {skill}
                                 </Badge>
                               ))}
-                            {(directoryUser.careerInterests || []).length >
-                              3 && (
+                            {(directoryUser.skills || []).length > 2 && (
                               <Badge
                                 variant="outline"
                                 className="text-xs text-gray-500"
                               >
-                                +
-                                {(directoryUser.careerInterests || []).length -
-                                  3}{" "}
-                                more
+                                +{(directoryUser.skills || []).length - 2}
                               </Badge>
                             )}
                           </div>
                         )}
-                      </div>
 
-                      {/* Connection Stats */}
-                      <div className="mb-4 text-sm text-gray-600">
-                        <div className="flex items-center space-x-4">
-                          <span className="flex items-center">
-                            <Users className="w-4 h-4 mr-1" />
-                            {Math.floor(Math.random() * 20) + 5} mutual
-                          </span>
-                          <span className="flex items-center">
-                            <Heart className="w-4 h-4 mr-1" />
-                            {Math.floor(Math.random() * 10) + 2} shared
-                            interests
-                          </span>
+                        {/* Action Buttons */}
+                        <div
+                          className="flex gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleProfileClick(directoryUser.id)}
+                          >
+                            View
+                          </Button>
+                          <ConnectionButton
+                            userId={directoryUser.id}
+                            userName={directoryUser.name}
+                            variant="default"
+                            size="sm"
+                          />
+                          {directoryUser.linkedinProfile && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(
+                                  directoryUser.linkedinProfile,
+                                  "_blank"
+                                );
+                              }}
+                            >
+                              <Linkedin className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
+                    ) : (
+                      /* Grid View - Full Layout */
+                      <>
+                        {/* Skills/Interests */}
+                        <div className="mb-4">
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {(directoryUser.skills || [])
+                              .slice(0, 4)
+                              .map((skill, index) => (
+                                <Badge
+                                  key={index}
+                                  variant="outline"
+                                  className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                                >
+                                  {skill}
+                                </Badge>
+                              ))}
+                            {(directoryUser.skills || []).length > 4 && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs text-gray-500"
+                              >
+                                +{(directoryUser.skills || []).length - 4} more
+                              </Badge>
+                            )}
+                          </div>
+                          {(directoryUser.careerInterests || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {(directoryUser.careerInterests || [])
+                                .slice(0, 3)
+                                .map((interest, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="text-xs bg-green-50 text-green-700 border-green-200"
+                                  >
+                                    {interest}
+                                  </Badge>
+                                ))}
+                              {(directoryUser.careerInterests || []).length >
+                                3 && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-gray-500"
+                                >
+                                  +
+                                  {(directoryUser.careerInterests || [])
+                                    .length - 3}{" "}
+                                  more
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Status Badges */}
-                      <div className="mb-4">
-                        {directoryUser.availableForMentorship && (
-                          <Badge variant="secondary" className="text-xs mr-2">
-                            Mentoring
-                          </Badge>
-                        )}
-                        {directoryUser.isHiring && (
-                          <Badge
-                            variant="default"
-                            className="text-xs mr-2 bg-green-100 text-green-800"
-                          >
-                            Hiring
-                          </Badge>
-                        )}
-                        {directoryUser.role === "alumni" &&
-                          !directoryUser.availableForMentorship && (
-                            <Badge variant="outline" className="text-xs mr-2">
-                              Limited Mentoring
+                       
+
+                        {/* Status Badges */}
+                        <div className="mb-4">
+                          {directoryUser.availableForMentorship && (
+                            <Badge variant="secondary" className="text-xs mr-2">
+                              Mentoring
                             </Badge>
                           )}
-                      </div>
+                          {directoryUser.isHiring && (
+                            <Badge
+                              variant="default"
+                              className="text-xs mr-2 bg-green-100 text-green-800"
+                            >
+                              Hiring
+                            </Badge>
+                          )}
+                          {directoryUser.role === "alumni" &&
+                            !directoryUser.availableForMentorship && (
+                              <Badge variant="outline" className="text-xs mr-2">
+                                Limited Mentoring
+                              </Badge>
+                            )}
+                        </div>
 
-                      {/* Action Buttons */}
-                      <div
-                        className="flex gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleProfileClick(directoryUser.id)}
-                          className="flex-1"
+                        {/* Action Buttons */}
+                        <div
+                          className="flex gap-2"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          View Profile
-                        </Button>
-                        <ConnectionButton
-                          userId={directoryUser.id}
-                          userName={directoryUser.name}
-                          variant="default"
-                          size="sm"
-                          className="flex-1"
-                        />
-                        {directoryUser.linkedinProfile && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(
-                                directoryUser.linkedinProfile,
-                                "_blank"
-                              );
-                            }}
+                            onClick={() => handleProfileClick(directoryUser.id)}
+                            className="flex-1"
                           >
-                            <Linkedin className="w-4 h-4" />
+                            View Profile
                           </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                          <ConnectionButton
+                            userId={directoryUser.id}
+                            userName={directoryUser.name}
+                            variant="default"
+                            size="sm"
+                            className="flex-1"
+                          />
+                          {directoryUser.linkedinProfile && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(
+                                  directoryUser.linkedinProfile,
+                                  "_blank"
+                                );
+                              }}
+                            >
+                              <Linkedin className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
             )}
           </div>
         )}

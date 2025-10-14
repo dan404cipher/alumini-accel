@@ -814,6 +814,8 @@ export const jobAPI = {
     company?: string;
     location?: string;
     type?: string;
+    experience?: string;
+    industry?: string;
     remote?: boolean;
     tenantId?: string;
   }) => {
@@ -1091,6 +1093,86 @@ export const jobAPI = {
   },
 };
 
+// Job Application API functions
+export const jobApplicationAPI = {
+  // Apply for a job
+  applyForJob: async (
+    jobId: string,
+    applicationData: {
+      skills: string[];
+      experience: string;
+      contactDetails: {
+        name: string;
+        email: string;
+        phone: string;
+      };
+      message?: string;
+      resume?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/job-applications/jobs/${jobId}/apply`,
+      data: applicationData,
+    });
+  },
+
+  // Get applications for a specific job (for job poster)
+  getJobApplications: async (
+    jobId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
+    return apiRequest({
+      method: "GET",
+      url: `/job-applications/jobs/${jobId}/applications`,
+      params,
+    });
+  },
+
+  // Get user's applications (for applicant)
+  getUserApplications: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/job-applications/my-applications",
+      params,
+    });
+  },
+
+  // Get application details
+  getApplicationDetails: async (applicationId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/job-applications/applications/${applicationId}`,
+    });
+  },
+
+  // Update application status (for job poster)
+  updateApplicationStatus: async (
+    applicationId: string,
+    data: {
+      status: "Applied" | "Shortlisted" | "Rejected" | "Hired";
+      reviewNotes?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/job-applications/applications/${applicationId}/status`,
+      data,
+    });
+  },
+
+  // Delete application (for applicant)
+  deleteApplication: async (applicationId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/job-applications/applications/${applicationId}`,
+    });
+  },
+};
+
 // Event API functions
 export const eventAPI = {
   // Get all events
@@ -1113,7 +1195,7 @@ export const eventAPI = {
       // Fallback to mock data
       const mockEvents = [
         {
-          _id: "event_1",
+          _id: "507f1f77bcf86cd799439011",
           title: "Tech Meetup 2024",
           description:
             "Join us for an exciting tech meetup featuring the latest trends in software development.",
@@ -1135,7 +1217,7 @@ export const eventAPI = {
           updatedAt: "2024-01-10T10:00:00Z",
         },
         {
-          _id: "event_2",
+          _id: "507f1f77bcf86cd799439012",
           title: "React Workshop",
           description:
             "Learn React fundamentals and advanced patterns in this hands-on workshop.",
@@ -1157,7 +1239,7 @@ export const eventAPI = {
           updatedAt: "2024-01-05T14:30:00Z",
         },
         {
-          _id: "event_3",
+          _id: "507f1f77bcf86cd799439013",
           title: "Alumni Reunion 2024",
           description:
             "Annual alumni reunion event with networking, food, and fun activities.",
@@ -1238,7 +1320,7 @@ export const eventAPI = {
     } catch (error) {
       // Simulate successful event creation
       const newEvent = {
-        _id: `event_${Date.now()}`,
+        _id: `507f1f77bcf86cd7994390${Date.now().toString().slice(-2)}`,
         ...eventData,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -1347,6 +1429,30 @@ export const eventAPI = {
       method: "GET",
       url: "/events/search",
       params,
+    });
+  },
+
+  // Save event for alumni
+  saveEvent: async (eventId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${eventId}/save`,
+    });
+  },
+
+  // Unsave event for alumni
+  unsaveEvent: async (eventId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/events/${eventId}/save`,
+    });
+  },
+
+  // Get saved events for alumni
+  getSavedEvents: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/events/saved",
     });
   },
 };
@@ -1661,6 +1767,39 @@ export const newsAPI = {
       method: "GET",
       url: "/news/my/news",
       params,
+    });
+  },
+
+  // Save news article
+  saveNews: async (newsId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/news/${newsId}/save`,
+    });
+  },
+
+  // Unsave news article
+  unsaveNews: async (newsId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/news/${newsId}/save`,
+    });
+  },
+
+  // Get saved news articles
+  getSavedNews: async (params?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "GET",
+      url: "/news/saved",
+      params,
+    });
+  },
+
+  // Check if news article is saved
+  checkSavedNews: async (newsId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/news/${newsId}/saved`,
     });
   },
 };
@@ -2154,12 +2293,17 @@ export const tenantAPI = {
   // Get college logo
   getLogo: async (tenantId: string) => {
     try {
-      const response = await api({
+      const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/logo`,
-        responseType: "blob", // For image data
       });
-      return response.data; // Return the blob directly
+
+      // Handle both JSON response (external URL) and direct image response
+      if (response.success && (response.data as any)?.logo) {
+        return (response.data as any).logo; // Return the URL string directly
+      }
+
+      return null;
     } catch (error) {
       console.error("Error fetching logo:", error);
       throw error;
@@ -2192,12 +2336,17 @@ export const tenantAPI = {
   // Get college banner
   getBanner: async (tenantId: string) => {
     try {
-      const response = await api({
+      const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/banner`,
-        responseType: "blob", // For image data
       });
-      return response.data; // Return the blob directly
+
+      // Handle both JSON response (external URL) and direct image response
+      if (response.success && (response.data as any)?.banner) {
+        return (response.data as any).banner; // Return the URL string directly
+      }
+
+      return null;
     } catch (error) {
       console.error("Error fetching banner:", error);
       throw error;
@@ -2219,6 +2368,17 @@ export const tenantAPI = {
       url: `/tenants/${tenantId}/description`,
       data: { description },
     });
+  },
+
+  // Get public college information (no authentication required)
+  getPublicCollegeInfo: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/college/public-info`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching public college info:", error);
+      throw error;
+    }
   },
 };
 
@@ -2381,89 +2541,6 @@ export const communityAPI = {
     return apiRequest({
       method: "POST",
       url: `/community/discussions/${discussionId}/like`,
-    });
-  },
-
-  // AMA Session functions
-  getAMASessions: async (params?: {
-    category?: string;
-    status?: string;
-    page?: number;
-    limit?: number;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.category) queryParams.append("category", params.category);
-    if (params?.status) queryParams.append("status", params.status);
-    if (params?.page) queryParams.append("page", params.page.toString());
-    if (params?.limit) queryParams.append("limit", params.limit.toString());
-
-    return apiRequest({
-      method: "GET",
-      url: `/community/ama-sessions?${queryParams.toString()}`,
-    });
-  },
-
-  createAMASession: async (data: {
-    title: string;
-    description: string;
-    scheduledDate: string;
-    duration: number;
-    maxParticipants: number;
-    category: string;
-    tags?: string[];
-  }) => {
-    return apiRequest({
-      method: "POST",
-      url: "/community/ama-sessions",
-      data,
-    });
-  },
-
-  joinAMASession: async (sessionId: string) => {
-    return apiRequest({
-      method: "POST",
-      url: `/community/ama-sessions/${sessionId}/join`,
-    });
-  },
-
-  // Poll functions
-  getPolls: async (params?: {
-    category?: string;
-    active?: boolean;
-    page?: number;
-    limit?: number;
-  }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.category) queryParams.append("category", params.category);
-    if (params?.active !== undefined)
-      queryParams.append("active", params.active.toString());
-    if (params?.page) queryParams.append("page", params.page.toString());
-    if (params?.limit) queryParams.append("limit", params.limit.toString());
-
-    return apiRequest({
-      method: "GET",
-      url: `/community/polls?${queryParams.toString()}`,
-    });
-  },
-
-  createPoll: async (data: {
-    question: string;
-    description?: string;
-    options: string[];
-    category: string;
-    expiresAt?: string;
-  }) => {
-    return apiRequest({
-      method: "POST",
-      url: "/community/polls",
-      data,
-    });
-  },
-
-  votePoll: async (pollId: string, optionId: string) => {
-    return apiRequest({
-      method: "POST",
-      url: `/community/polls/${pollId}/vote/${optionId}`,
     });
   },
 

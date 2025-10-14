@@ -134,16 +134,9 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         try {
           const logoResponse = await tenantAPI.getLogo(tenantId);
 
-          // Check if response is a blob (image file) or JSON
-          if (logoResponse instanceof Blob) {
-            // Direct image blob response
-            const logoUrl = URL.createObjectURL(logoResponse);
-            setCollegeLogo(logoUrl);
-          } else if (logoResponse.success && logoResponse.data) {
-            // Legacy JSON response format
-            const logoBlob = logoResponse.data as Blob;
-            const logoUrl = URL.createObjectURL(logoBlob);
-            setCollegeLogo(logoUrl);
+          // Handle URL string response (external URLs)
+          if (typeof logoResponse === "string") {
+            setCollegeLogo(logoResponse);
           } else {
             // Fallback to localStorage
             try {
@@ -206,7 +199,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   }, [user]);
 
   return (
-    <nav className="bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-xl sticky top-0 z-50 transition-all duration-300">
+    <nav className="bg-white border-b border-gray-200 shadow-xl fixed top-0 left-0 right-0 z-50 transition-all duration-300">
       <div className="w-full px-2 sm:px-4 lg:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -222,15 +215,14 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     alt="College Logo"
                     className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:shadow-lg transition-shadow duration-200"
                   />
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
                 </div>
               ) : (
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:from-blue-700 group-hover:to-purple-700">
+                <div className="w-12 h-12 bg-gray-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:bg-gray-700">
                   <span className="text-white font-bold text-lg">A</span>
                 </div>
               )}
               <div className="flex flex-col">
-                <h1 className="text-base md:text-lg xl:text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-blue-900 transition-all duration-200">
+                <h1 className="text-base md:text-lg xl:text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-all duration-200">
                   AlumniAccel
                 </h1>
                 <p className="text-xs text-gray-500 font-medium hidden lg:block">
@@ -268,13 +260,13 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                           <button
                             className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                               isActive
-                                ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                                ? "text-white bg-blue-600 shadow-lg transform scale-105"
                                 : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
                             }`}
                           >
                             {/* Background animation for active state */}
                             {isActive && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
+                              <div className="absolute inset-0 bg-blue-600 rounded-xl"></div>
                             )}
 
                             {/* Content */}
@@ -339,13 +331,13 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                       }}
                       className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                         isActive
-                          ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                          ? "text-white bg-blue-600 shadow-lg transform scale-105"
                           : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
                       }`}
                     >
                       {/* Background animation for active state */}
                       {isActive && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
+                        <div className="absolute inset-0 bg-blue-600 rounded-xl"></div>
                       )}
 
                       {/* Content */}
@@ -388,13 +380,13 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                         <button
                           className={`group flex items-center px-2 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                             isActive
-                              ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                              ? "text-white bg-blue-600 shadow-lg transform scale-105"
                               : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
                           }`}
                         >
                           {/* Background animation for active state */}
                           {isActive && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
+                            <div className="absolute inset-0 bg-blue-600 rounded-xl"></div>
                           )}
 
                           {/* Content */}
@@ -471,13 +463,13 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     }}
                     className={`group flex items-center px-2 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                       isActive
-                        ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 transform scale-105"
+                        ? "text-white bg-blue-600 shadow-lg transform scale-105"
                         : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
                     }`}
                   >
                     {/* Background animation for active state */}
                     {isActive && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl"></div>
+                      <div className="absolute inset-0 bg-blue-600 rounded-xl"></div>
                     )}
 
                     {/* Content */}
@@ -531,7 +523,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             >
               <Bell className="w-5 h-5 group-hover:animate-pulse" />
               {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
                 3
               </span>
             </Button>
@@ -548,11 +540,37 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     size="sm"
                     className="flex items-center space-x-3 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105 group"
                   >
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:from-blue-700 group-hover:to-purple-700">
-                      <span className="text-white font-semibold text-sm">
-                        {user.firstName?.[0]}
-                        {user.lastName?.[0]}
-                      </span>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 overflow-hidden">
+                      {user.profilePicture ? (
+                        <img
+                          src={
+                            user.profilePicture.startsWith("http")
+                              ? user.profilePicture
+                              : `${(
+                                  import.meta.env.VITE_API_BASE_URL ||
+                                  "http://localhost:3000/api/v1"
+                                ).replace("/api/v1", "")}${user.profilePicture}`
+                          }
+                          alt={`${user.firstName} ${user.lastName}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.nextElementSibling?.classList.remove(
+                              "hidden"
+                            );
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className={`w-full h-full bg-blue-600 flex items-center justify-center ${
+                          user.profilePicture ? "hidden" : ""
+                        }`}
+                      >
+                        <span className="text-white font-semibold text-sm">
+                          {user.firstName?.[0]}
+                          {user.lastName?.[0]}
+                        </span>
+                      </div>
                     </div>
                     <div className="hidden lg:block text-left">
                       <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
@@ -571,11 +589,39 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                   <DropdownMenuLabel className="font-normal p-4">
                     <div className="flex flex-col space-y-2">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-md">
-                          <span className="text-white font-semibold text-lg">
-                            {user.firstName?.[0]}
-                            {user.lastName?.[0]}
-                          </span>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-md overflow-hidden">
+                          {user.profilePicture ? (
+                            <img
+                              src={
+                                user.profilePicture.startsWith("http")
+                                  ? user.profilePicture
+                                  : `${(
+                                      import.meta.env.VITE_API_BASE_URL ||
+                                      "http://localhost:3000/api/v1"
+                                    ).replace("/api/v1", "")}${
+                                      user.profilePicture
+                                    }`
+                              }
+                              alt={`${user.firstName} ${user.lastName}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.nextElementSibling?.classList.remove(
+                                  "hidden"
+                                );
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className={`w-full h-full bg-blue-600 flex items-center justify-center ${
+                              user.profilePicture ? "hidden" : ""
+                            }`}
+                          >
+                            <span className="text-white font-semibold text-lg">
+                              {user.firstName?.[0]}
+                              {user.lastName?.[0]}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex flex-col">
                           <p className="text-sm font-semibold leading-none text-gray-900">
@@ -635,7 +681,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 <Button
                   size="sm"
                   onClick={() => navigate("/register")}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  className="bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
                 >
                   Register
                 </Button>
@@ -676,7 +722,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 <span className="flex-1 text-left font-medium">
                   Notifications
                 </span>
-                <span className="w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-md">
+                <span className="w-5 h-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-md">
                   3
                 </span>
               </button>
@@ -698,7 +744,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                           }}
                           className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 ${
                             isActive
-                              ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
+                              ? "text-white bg-blue-600 shadow-lg"
                               : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:scale-105"
                           }`}
                         >
@@ -758,7 +804,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                       }}
                       className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 ${
                         isActive
-                          ? "text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25"
+                          ? "text-white bg-blue-600 shadow-lg"
                           : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:scale-105"
                       }`}
                     >

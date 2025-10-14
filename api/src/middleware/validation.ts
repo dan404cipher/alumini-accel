@@ -297,6 +297,24 @@ export const validateJobPost = [
   body("type")
     .isIn(["full-time", "part-time", "internship", "contract"])
     .withMessage("Invalid job type"),
+  body("experience")
+    .optional()
+    .isIn(["entry", "mid", "senior", "lead"])
+    .withMessage("Invalid experience level"),
+  body("industry")
+    .optional()
+    .isIn([
+      "technology",
+      "finance",
+      "healthcare",
+      "education",
+      "consulting",
+      "marketing",
+      "sales",
+      "operations",
+      "other",
+    ])
+    .withMessage("Invalid industry"),
   body("remote").optional().isBoolean().withMessage("Remote must be a boolean"),
   body("salary.min")
     .isFloat({ min: 0 })
@@ -348,6 +366,53 @@ export const validateJobPost = [
     .optional()
     .isEmail()
     .withMessage("Contact email must be a valid email address"),
+  body("requiredSkills")
+    .optional()
+    .isArray()
+    .withMessage("Required skills must be an array"),
+  body("requiredSkills.*")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Required skill cannot exceed 100 characters"),
+  handleValidationErrors,
+];
+
+// Job application validation
+export const validateJobApplication = [
+  body("skills")
+    .isArray({ min: 1 })
+    .withMessage("At least one skill is required"),
+  body("skills.*")
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Skill must be between 1 and 100 characters"),
+  body("experience")
+    .trim()
+    .isLength({ min: 10, max: 1000 })
+    .withMessage("Experience must be between 10 and 1000 characters"),
+  body("contactDetails.name")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Name must be between 2 and 100 characters"),
+  body("contactDetails.email")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Please provide a valid email address"),
+  body("contactDetails.phone")
+    .trim()
+    .isLength({ min: 10, max: 20 })
+    .withMessage("Phone number must be between 10 and 20 characters"),
+  body("message")
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("Message must be less than 1000 characters"),
+  body("resume")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Resume path must be less than 500 characters"),
   handleValidationErrors,
 ];
 
@@ -893,6 +958,7 @@ export default {
   validateAlumniProfile,
   validateAlumniProfileUpdate,
   validateJobPost,
+  validateJobApplication,
   validateEvent,
   validateMentorship,
   validatePagination,

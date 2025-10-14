@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -45,8 +45,6 @@ import {
   X,
   Menu,
   Bookmark,
-  TrendingUp,
-  Globe,
   Newspaper,
   Clock,
   Tag,
@@ -66,6 +64,7 @@ interface News {
   summary: string;
   image?: string;
   isShared: boolean;
+  isSaved?: boolean;
   author?: {
     _id: string;
     firstName: string;
@@ -87,10 +86,9 @@ const NewsRoom = () => {
   const [isShareNewsOpen, setIsShareNewsOpen] = useState(false);
   const [selectedNews, setSelectedNews] = useState<News | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSavedArticles, setShowSavedArticles] = useState(false);
 
   // Fetch news data
   const {
@@ -114,6 +112,143 @@ const NewsRoom = () => {
   });
 
   const news = newsResponse?.data?.news || [];
+
+  // Filter news based on search and filter criteria
+  const filterNews = (newsItems: News[]) => {
+    return newsItems.filter((newsItem) => {
+      // Search query filter
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          (newsItem.title &&
+            newsItem.title.toLowerCase().includes(searchLower)) ||
+          (newsItem.summary &&
+            newsItem.summary.toLowerCase().includes(searchLower)) ||
+          (newsItem.author?.firstName &&
+            newsItem.author.firstName.toLowerCase().includes(searchLower)) ||
+          (newsItem.author?.lastName &&
+            newsItem.author.lastName.toLowerCase().includes(searchLower));
+        if (!matchesSearch) return false;
+      }
+
+      // Date range filter
+      if (selectedDateRange !== "all") {
+        const newsDate = new Date(newsItem.createdAt);
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const thisWeekStart = new Date(today);
+        thisWeekStart.setDate(today.getDate() - today.getDay());
+        const lastWeekStart = new Date(thisWeekStart);
+        lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+        const thisMonthStart = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          1
+        );
+        const lastMonthStart = new Date(
+          today.getFullYear(),
+          today.getMonth() - 1,
+          1
+        );
+
+        switch (selectedDateRange) {
+          case "today":
+            if (newsDate < today) return false;
+            break;
+          case "yesterday":
+            if (newsDate < yesterday || newsDate >= today) return false;
+            break;
+          case "this_week":
+            if (newsDate < thisWeekStart) return false;
+            break;
+          case "last_week":
+            if (newsDate < lastWeekStart || newsDate >= thisWeekStart)
+              return false;
+            break;
+          case "this_month":
+            if (newsDate < thisMonthStart) return false;
+            break;
+          case "last_month":
+            if (newsDate < lastMonthStart || newsDate >= thisMonthStart)
+              return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const filteredNews = filterNews(news);
+
+  // Filter news based on quick action selections
+  const getQuickActionFilteredNews = () => {
+    let quickFilteredNews = filteredNews;
+
+    if (showSavedArticles) {
+      // Filter for saved articles
+      quickFilteredNews = quickFilteredNews.filter(
+        (newsItem) => newsItem.isSaved
+      );
+    }
+
+    return quickFilteredNews;
+  };
+
+  const finalFilteredNews = getQuickActionFilteredNews();
+
+  // Check saved status for all news items
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (news.length > 0) {
+        try {
+          const savedStatusPromises = news.map(async (newsItem) => {
+            try {
+              const response = await newsAPI.checkSavedNews(newsItem._id);
+              return { newsId: newsItem._id, isSaved: response.data.isSaved };
+            } catch (error) {
+              console.error(
+                `Error checking saved status for ${newsItem._id}:`,
+                error
+              );
+              return { newsId: newsItem._id, isSaved: false };
+            }
+          });
+
+          const savedStatuses = await Promise.all(savedStatusPromises);
+
+          // Update the cache with saved status
+          queryClient.setQueryData(["news", user?.tenantId], (oldData: any) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                news: oldData.data.news.map((item: News) => {
+                  const savedStatus = savedStatuses.find(
+                    (status) => status.newsId === item._id
+                  );
+                  return savedStatus
+                    ? { ...item, isSaved: savedStatus.isSaved }
+                    : item;
+                }),
+              },
+            };
+          });
+        } catch (error) {
+          console.error("Error checking saved status:", error);
+        }
+      }
+    };
+
+    checkSavedStatus();
+  }, [news, user?.tenantId, queryClient]);
 
   // Check if user can manage news
   const canManageNews =
@@ -145,6 +280,64 @@ const NewsRoom = () => {
   const handleShareNews = (news: News) => {
     setSelectedNews(news);
     setIsShareNewsOpen(true);
+  };
+
+  // Handle save news
+  const handleSaveNews = async (news: News) => {
+    try {
+      if (news.isSaved) {
+        // Unsave the news
+        await newsAPI.unsaveNews(news._id);
+
+        // Update the news item in the cache
+        queryClient.setQueryData(["news", user?.tenantId], (oldData: any) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              news: oldData.data.news.map((item: News) =>
+                item._id === news._id ? { ...item, isSaved: false } : item
+              ),
+            },
+          };
+        });
+
+        toast({
+          title: "News unsaved",
+          description: "News article removed from saved articles",
+        });
+      } else {
+        // Save the news
+        await newsAPI.saveNews(news._id);
+
+        // Update the news item in the cache
+        queryClient.setQueryData(["news", user?.tenantId], (oldData: any) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              news: oldData.data.news.map((item: News) =>
+                item._id === news._id ? { ...item, isSaved: true } : item
+              ),
+            },
+          };
+        });
+
+        toast({
+          title: "News saved",
+          description: "News article added to saved articles",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving news:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save news article",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle news created
@@ -186,13 +379,14 @@ const NewsRoom = () => {
       return image;
     }
 
-    // If it's a relative path (uploaded image), construct full URL
+    // If it's a relative path (uploaded image), use proxy path
     if (image.startsWith("/") || image.startsWith("uploads/")) {
-      const baseUrl = (
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-      ).replace("/api/v1", "");
-      const fullUrl = `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
-      return fullUrl;
+      // Ensure the image path starts with /uploads/ for proxy
+      let imagePath = image;
+      if (image.startsWith("uploads/")) {
+        imagePath = `/${image}`;
+      }
+      return imagePath;
     }
 
     return image;
@@ -311,51 +505,6 @@ const NewsRoom = () => {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Filters</h3>
 
-                {/* Category */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Category</label>
-                  <Select
-                    value={selectedCategory}
-                    onValueChange={setSelectedCategory}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="alumni">Alumni News</SelectItem>
-                      <SelectItem value="career">Career Updates</SelectItem>
-                      <SelectItem value="events">Event Updates</SelectItem>
-                      <SelectItem value="achievements">Achievements</SelectItem>
-                      <SelectItem value="announcements">
-                        Announcements
-                      </SelectItem>
-                      <SelectItem value="industry">Industry News</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="technology">Technology</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Status */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <Select
-                    value={selectedStatus}
-                    onValueChange={setSelectedStatus}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="shared">Shared</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Date Range */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Date Range</label>
@@ -379,17 +528,15 @@ const NewsRoom = () => {
 
                 {/* Clear Filters */}
                 {(searchQuery ||
-                  (selectedCategory && selectedCategory !== "all") ||
-                  (selectedStatus && selectedStatus !== "all") ||
-                  (selectedDateRange && selectedDateRange !== "all")) && (
+                  (selectedDateRange && selectedDateRange !== "all") ||
+                  showSavedArticles) && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       setSearchQuery("");
-                      setSelectedCategory("all");
-                      setSelectedStatus("all");
                       setSelectedDateRange("all");
+                      setShowSavedArticles(false);
                     }}
                     className="w-full"
                   >
@@ -415,28 +562,15 @@ const NewsRoom = () => {
                     </Button>
                   )}
                   <Button
-                    variant="outline"
+                    variant={showSavedArticles ? "default" : "outline"}
                     size="sm"
                     className="w-full justify-start"
+                    onClick={() => {
+                      setShowSavedArticles(!showSavedArticles);
+                    }}
                   >
                     <Bookmark className="w-4 h-4 mr-2" />
-                    Saved Articles
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Trending News
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                  >
-                    <Globe className="w-4 h-4 mr-2" />
-                    Global News
+                    {showSavedArticles ? "View All News" : "Saved Articles"}
                   </Button>
                 </div>
               </div>
@@ -462,14 +596,15 @@ const NewsRoom = () => {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold">News Room</h1>
               <p className="text-muted-foreground text-sm lg:text-base">
-                Stay updated with latest news • {news.length} articles
+                Stay updated with latest news • {finalFilteredNews.length}{" "}
+                articles
               </p>
             </div>
           </div>
         </div>
 
         {/* News Grid */}
-        {news.length === 0 ? (
+        {finalFilteredNews.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <ImageIcon className="w-12 h-12 text-gray-400" />
@@ -491,7 +626,7 @@ const NewsRoom = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-            {news.map((newsItem) => (
+            {finalFilteredNews.map((newsItem) => (
               <Card
                 key={newsItem._id}
                 className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"
@@ -549,6 +684,15 @@ const NewsRoom = () => {
                           <Share2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
                           Share
                         </Button>
+                        <Button
+                          variant={newsItem.isSaved ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleSaveNews(newsItem)}
+                          className="flex-shrink-0 text-xs lg:text-sm"
+                        >
+                          <Bookmark className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                          {newsItem.isSaved ? "Saved" : "Save"}
+                        </Button>
                       </div>
 
                       {canManageNews && (
@@ -568,6 +712,12 @@ const NewsRoom = () => {
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleSaveNews(newsItem)}
+                            >
+                              <Bookmark className="w-4 h-4 mr-2" />
+                              {newsItem.isSaved ? "Unsave" : "Save"}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleEditNews(newsItem)}

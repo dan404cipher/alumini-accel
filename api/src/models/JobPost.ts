@@ -20,6 +20,12 @@ const jobPostSchema = new Schema<IJobPost>(
       trim: true,
       maxlength: [100, "Company name cannot exceed 100 characters"],
     },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, "Job title cannot exceed 100 characters"],
+    },
     position: {
       type: String,
       required: true,
@@ -36,6 +42,26 @@ const jobPostSchema = new Schema<IJobPost>(
       type: String,
       required: true,
       enum: ["full-time", "part-time", "internship", "contract"],
+    },
+    experience: {
+      type: String,
+      enum: ["entry", "mid", "senior", "lead"],
+      default: "mid",
+    },
+    industry: {
+      type: String,
+      enum: [
+        "technology",
+        "finance",
+        "healthcare",
+        "education",
+        "consulting",
+        "marketing",
+        "sales",
+        "operations",
+        "other",
+      ],
+      default: "technology",
     },
     remote: {
       type: Boolean,
@@ -64,6 +90,13 @@ const jobPostSchema = new Schema<IJobPost>(
       trim: true,
       maxlength: [2000, "Description cannot exceed 2000 characters"],
     },
+    requiredSkills: [
+      {
+        type: String,
+        trim: true,
+        maxlength: [100, "Skill cannot exceed 100 characters"],
+      },
+    ],
     requirements: [
       {
         type: String,
@@ -163,7 +196,7 @@ jobPostSchema.virtual("poster", {
 
 // Virtual for applications count
 jobPostSchema.virtual("applicationsCount").get(function () {
-  return this.applications.length;
+  return this.applications ? this.applications.length : 0;
 });
 
 // Virtual for days until deadline

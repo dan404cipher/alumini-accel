@@ -97,7 +97,7 @@ export const createPost = async (req: AuthenticatedRequest, res: Response) => {
     await community.save();
 
     // Populate author info
-    await post.populate("authorId", "firstName lastName profileImage");
+    await post.populate("authorId", "firstName lastName profilePicture");
 
     return res.status(201).json({
       success: true,
@@ -129,6 +129,7 @@ export const getCommunityPosts = async (
       type,
       authorId,
       status = "approved",
+      category,
     } = req.query;
     const userId = req.user?._id;
 
@@ -163,6 +164,7 @@ export const getCommunityPosts = async (
       type,
       authorId,
       status,
+      category,
       limit: Number(limit),
       skip,
     });
@@ -172,6 +174,7 @@ export const getCommunityPosts = async (
       status,
       ...(type && { type }),
       ...(authorId && { authorId }),
+      ...(category && { category }),
     });
 
     return res.json({
@@ -201,8 +204,8 @@ export const getPostById = async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?._id;
 
     const post = await CommunityPost.findById(id)
-      .populate("authorId", "firstName lastName profileImage email")
-      .populate("likes", "firstName lastName profileImage")
+      .populate("authorId", "firstName lastName profilePicture email")
+      .populate("likes", "firstName lastName profilePicture")
       .populate("communityId", "name type settings");
 
     if (!post) {

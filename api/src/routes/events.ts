@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Response } from "express";
 import eventController from "../controllers/eventController";
 import {
   validateEvent,
@@ -11,7 +11,7 @@ import {
   requireAlumni,
   authorize,
 } from "../middleware/auth";
-import { UserRole } from "../types";
+import { UserRole, AuthenticatedRequest } from "../types";
 import { asyncHandler } from "../middleware/errorHandler";
 import multer from "multer";
 
@@ -47,6 +47,16 @@ const upload = multer({
 // @access  Private
 router.get("/", authenticateToken, asyncHandler(eventController.getAllEvents));
 
+// @route   GET /api/v1/events/saved
+// @desc    Get saved events for alumni
+// @access  Private/Alumni
+router.get(
+  "/saved",
+  authenticateToken,
+  authorize(UserRole.ALUMNI),
+  asyncHandler(eventController.getSavedEvents)
+);
+
 // @route   GET /api/v1/events/:id
 // @desc    Get event by ID
 // @access  Private
@@ -67,8 +77,7 @@ router.post(
     UserRole.SUPER_ADMIN,
     UserRole.COLLEGE_ADMIN,
     UserRole.HOD,
-    UserRole.STAFF,
-    UserRole.ALUMNI
+    UserRole.STAFF
   ),
   ...validateRequest(validateEvent),
   asyncHandler(eventController.createEvent)
@@ -93,8 +102,7 @@ router.post(
     UserRole.SUPER_ADMIN,
     UserRole.COLLEGE_ADMIN,
     UserRole.HOD,
-    UserRole.STAFF,
-    UserRole.ALUMNI
+    UserRole.STAFF
   ),
   asyncHandler(eventController.createEventWithImage)
 );
@@ -179,6 +187,28 @@ router.get(
   "/search",
   authenticateToken,
   asyncHandler(eventController.searchEvents)
+);
+
+// @route   POST /api/v1/events/:id/save
+// @desc    Save event for alumni
+// @access  Private/Alumni
+router.post(
+  "/:id/save",
+  authenticateToken,
+  authorize(UserRole.ALUMNI),
+  ...validateRequest(validateId),
+  asyncHandler(eventController.saveEvent)
+);
+
+// @route   DELETE /api/v1/events/:id/save
+// @desc    Unsave event for alumni
+// @access  Private/Alumni
+router.delete(
+  "/:id/save",
+  authenticateToken,
+  authorize(UserRole.ALUMNI),
+  ...validateRequest(validateId),
+  asyncHandler(eventController.unsaveEvent)
 );
 
 export default router;

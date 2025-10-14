@@ -133,6 +133,24 @@ const userSchema = new Schema<IUser>(
       trim: true,
       maxlength: [100, "Department cannot exceed 100 characters"],
     },
+    currentCompany: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Company name cannot exceed 100 characters"],
+    },
+    currentPosition: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Position cannot exceed 100 characters"],
+    },
+    graduationYear: {
+      type: Number,
+      min: [1950, "Graduation year must be after 1950"],
+      max: [
+        new Date().getFullYear() + 1,
+        "Graduation year cannot be in the future",
+      ],
+    },
     timezone: {
       type: String,
       default: "UTC",
@@ -171,6 +189,13 @@ const userSchema = new Schema<IUser>(
       min: [0, "Profile completion percentage cannot be negative"],
       max: [100, "Profile completion percentage cannot exceed 100"],
     },
+    // Saved events for alumni
+    savedEvents: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Event",
+      },
+    ],
   },
   {
     timestamps: true,

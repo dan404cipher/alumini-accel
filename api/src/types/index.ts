@@ -163,6 +163,9 @@ export interface IUser extends Document {
   bio?: string;
   location?: string;
   department?: string;
+  currentCompany?: string;
+  currentPosition?: string;
+  graduationYear?: number;
   timezone?: string;
   preferences: {
     emailNotifications: boolean;
@@ -173,6 +176,7 @@ export interface IUser extends Document {
   university?: string;
   isProfileComplete: boolean;
   profileCompletionPercentage: number;
+  savedEvents?: string[];
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -291,15 +295,51 @@ export interface IAlumniProfile extends Document {
   updatedAt: Date;
 }
 
+// Job Application Interface
+export interface IJobApplication extends Document {
+  _id: string;
+  jobId: string;
+  applicantId: string;
+  tenantId: string;
+  resume?: string;
+  skills: string[];
+  experience: string;
+  contactDetails: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  message?: string;
+  status: "Applied" | "Shortlisted" | "Rejected" | "Hired";
+  appliedAt: Date;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  reviewNotes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Job Post Interface
 export interface IJobPost extends Document {
   _id: string;
   tenantId: string;
   postedBy: string;
   company: string;
+  title: string;
   position: string;
   location: string;
   type: "full-time" | "part-time" | "internship" | "contract";
+  experience: "entry" | "mid" | "senior" | "lead";
+  industry:
+    | "technology"
+    | "finance"
+    | "healthcare"
+    | "education"
+    | "consulting"
+    | "marketing"
+    | "sales"
+    | "operations"
+    | "other";
   remote: boolean;
   salary?: {
     min: number;
@@ -307,6 +347,7 @@ export interface IJobPost extends Document {
     currency: string;
   };
   description: string;
+  requiredSkills: string[];
   requirements: string[];
   benefits: string[];
   status: JobPostStatus;

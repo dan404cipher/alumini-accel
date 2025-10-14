@@ -39,7 +39,8 @@ export const authenticateToken = async (
     const decoded = jwt.verify(token, secret) as any;
 
     // Find user and check if still exists and is active
-    const user = await User.findById(decoded.userId).select("-password");
+    const userId = decoded.userId || decoded.id;
+    const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(401).json({
         success: false,

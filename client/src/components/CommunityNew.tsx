@@ -107,25 +107,25 @@ interface Community {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   };
   admins?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   }>;
   members?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   }>;
   pendingRequests?: Array<{
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   }>;
   invitedUsers?: Array<{
     _id: string;
@@ -164,7 +164,7 @@ interface CommunityPost {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   };
   likes: Array<{
     _id: string;
@@ -201,6 +201,9 @@ const CommunityNew = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Joined communities state
+  const [joinedCommunities, setJoinedCommunities] = useState<Community[]>([]);
 
   // Form dialog states
   const [communityDialogOpen, setCommunityDialogOpen] = useState(false);
@@ -1664,13 +1667,32 @@ const CommunityNew = () => {
     return categoryObj ? categoryObj.icon : Globe;
   };
 
-  const isUserMember = (community: Community) => {
-    if (!user || !community) return false;
-    return (
-      community.members &&
-      community.members.some((member) => member._id === user._id)
-    );
-  };
+  const isUserMember = useCallback(
+    (community: Community) => {
+      if (!user || !community) return false;
+      return (
+        community.members &&
+        community.members.some((member) => member._id === user._id)
+      );
+    },
+    [user]
+  );
+
+  // Filter joined communities
+  const filterJoinedCommunities = useCallback(() => {
+    if (!user) {
+      setJoinedCommunities([]);
+      return;
+    }
+
+    const joined = communities.filter((community) => isUserMember(community));
+    setJoinedCommunities(joined);
+  }, [communities, user, isUserMember]);
+
+  // Update joined communities when communities change
+  useEffect(() => {
+    filterJoinedCommunities();
+  }, [communities, filterJoinedCommunities]);
 
   const isUserAdmin = (community: Community) => {
     if (!user || !community) return false;
@@ -2437,13 +2459,20 @@ const CommunityNew = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-1 lg:grid-cols-2">
+          <TabsList className="grid w-full grid-cols-1 lg:grid-cols-3">
             <TabsTrigger
               value="communities"
               className="flex items-center gap-2"
             >
               <Users2 className="w-4 h-4" />
               Communities
+            </TabsTrigger>
+            <TabsTrigger
+              value="my-communities"
+              className="flex items-center gap-2"
+            >
+              <UserCheck className="w-4 h-4" />
+              My Communities
             </TabsTrigger>
             {selectedCommunity && (
               <TabsTrigger
@@ -2489,7 +2518,7 @@ const CommunityNew = () => {
                       <CardContent className="p-6 pb-2">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-600 to-purple-600">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
                               {community.logo ? (
                                 <img
                                   src={community.logo}
@@ -2497,7 +2526,7 @@ const CommunityNew = () => {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <CategoryIcon className="w-6 h-6 text-white" />
+                                <CategoryIcon className="w-6 h-6 text-gray-600" />
                               )}
                             </div>
                             <div className="flex-1">
@@ -2579,6 +2608,115 @@ const CommunityNew = () => {
                           <Button variant="outline" size="sm">
                             {isMember ? "View" : "Join"}
                           </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* My Communities Tab */}
+          <TabsContent value="my-communities" className="space-y-4">
+            {joinedCommunities.length === 0 && !loading ? (
+              <div className="text-center py-12">
+                <UserCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No joined communities
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  You haven't joined any communities yet. Explore communities
+                  and join the ones that interest you!
+                </p>
+                <Button onClick={() => setActiveTab("communities")}>
+                  <Users2 className="w-4 h-4 mr-2" />
+                  Browse Communities
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {joinedCommunities.map((community) => {
+                  const CategoryIcon = getCategoryIcon(community.category);
+                  const isMember = isUserMember(community);
+                  const isAdmin = isUserAdmin(community);
+
+                  return (
+                    <Card
+                      key={community._id}
+                      className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+                      onClick={() => handleViewCommunity(community)}
+                    >
+                      {/* Community Card Content */}
+                      <CardContent className="p-6 pb-2">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-start space-x-4">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
+                              {community.logo ? (
+                                <img
+                                  src={community.logo}
+                                  alt={`${community.name} logo`}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <CategoryIcon className="w-6 h-6 text-gray-600" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                                {community.name}
+                              </h3>
+                              <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                                {community.description}
+                              </p>
+                              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                <div className="flex items-center space-x-1">
+                                  <Users className="w-3 h-3" />
+                                  <span>
+                                    {community.memberCount || 0} members
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <MessageCircle className="w-3 h-3" />
+                                  <span>{community.postCount || 0} posts</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <CategoryIcon className="w-3 h-3" />
+                                  <span className="capitalize">
+                                    {community.category.replace(/_/g, " ")}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {isAdmin && (
+                              <Badge variant="secondary" className="text-xs">
+                                Admin
+                              </Badge>
+                            )}
+                            {isMember && (
+                              <Badge variant="default" className="text-xs">
+                                Member
+                              </Badge>
+                            )}
+                            <Badge
+                              variant={
+                                community.type === "open"
+                                  ? "default"
+                                  : community.type === "closed"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                              className="text-xs"
+                            >
+                              {community.type === "open"
+                                ? "Public"
+                                : community.type === "closed"
+                                ? "Private"
+                                : "Hidden"}
+                            </Badge>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -2909,7 +3047,7 @@ const CommunityNew = () => {
                       className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => navigate(`/community/${community.id}`)}
                     >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">

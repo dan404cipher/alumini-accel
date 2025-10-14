@@ -8,7 +8,7 @@ export interface Like {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   };
 }
 
@@ -28,7 +28,7 @@ export interface Comment {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   };
   replies?: Comment[];
   repliesCount?: number;
@@ -52,7 +52,7 @@ export interface Share {
     _id: string;
     firstName: string;
     lastName: string;
-    profileImage?: string;
+    profilePicture?: string;
   };
 }
 

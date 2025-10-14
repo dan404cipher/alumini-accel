@@ -514,42 +514,29 @@ export const getTenantLogo = asyncHandler(
       });
     }
 
-    // Serve the actual image file
-    const path = require("path");
-    const fs = require("fs");
-
-    try {
-      const logoPath = path.join(process.cwd(), tenant.logo);
-
-      // Check if file exists
-      if (!fs.existsSync(logoPath)) {
-        return res.status(404).json({
-          success: false,
-          message: "Logo file not found",
-        });
-      }
-
-      // Set appropriate content type
-      const ext = path.extname(logoPath).toLowerCase();
-      let contentType = "image/jpeg";
-      if (ext === ".png") contentType = "image/png";
-      if (ext === ".gif") contentType = "image/gif";
-      if (ext === ".webp") contentType = "image/webp";
-
-      res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
-
-      // Stream the file
-      const fileStream = fs.createReadStream(logoPath);
-      fileStream.pipe(res);
-      return; // Explicit return for TypeScript
-    } catch (error) {
-      logger.error("Error serving logo file:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Error serving logo file",
+    // Check if it's a URL (external image)
+    if (
+      tenant.logo.startsWith("http://") ||
+      tenant.logo.startsWith("https://")
+    ) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          logo: tenant.logo,
+        },
       });
     }
+
+    // For local files, return the full URL
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const logoUrl = `${baseUrl}${tenant.logo}`;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        logo: logoUrl,
+      },
+    });
   }
 );
 
@@ -637,40 +624,82 @@ export const getTenantBanner = asyncHandler(
       });
     }
 
-    // Serve the actual image file
-    const path = require("path");
-    const fs = require("fs");
+    // Check if it's a URL (external image)
+    if (
+      tenant.banner.startsWith("http://") ||
+      tenant.banner.startsWith("https://")
+    ) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          banner: tenant.banner,
+        },
+      });
+    }
 
+    // For local files, return the full URL
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const bannerUrl = `${baseUrl}${tenant.banner}`;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        banner: bannerUrl,
+      },
+    });
+  }
+);
+
+// @desc    Get public college information
+// @route   GET /api/v1/college/public-info
+// @access  Public
+export const getPublicCollegeInfo = asyncHandler(
+  async (req: Request, res: Response) => {
     try {
-      const bannerPath = path.join(process.cwd(), tenant.banner);
+      // Get the first tenant (college) for public display
+      const tenant = await Tenant.findOne({ isActive: true })
+        .select("name about logo banner contactInfo settings")
+        .lean();
 
-      // Check if file exists
-      if (!fs.existsSync(bannerPath)) {
+      if (!tenant) {
         return res.status(404).json({
           success: false,
-          message: "Banner file not found",
+          message: "College information not found",
         });
       }
 
-      // Set appropriate content type
-      const ext = path.extname(bannerPath).toLowerCase();
-      let contentType = "image/jpeg";
-      if (ext === ".png") contentType = "image/png";
-      if (ext === ".gif") contentType = "image/gif";
-      if (ext === ".webp") contentType = "image/webp";
+      // Construct full URLs for logo and banner
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-      res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+      const collegeInfo = {
+        name: tenant.name,
+        about: tenant.about,
+        logo: tenant.logo
+          ? tenant.logo.startsWith("http://") ||
+            tenant.logo.startsWith("https://")
+            ? tenant.logo
+            : `${baseUrl}${tenant.logo}`
+          : null,
+        banner: tenant.banner
+          ? tenant.banner.startsWith("http://") ||
+            tenant.banner.startsWith("https://")
+            ? tenant.banner
+            : `${baseUrl}${tenant.banner}`
+          : null,
+        contactInfo: tenant.contactInfo,
+        settings: tenant.settings,
+      };
 
-      // Stream the file
-      const fileStream = fs.createReadStream(bannerPath);
-      fileStream.pipe(res);
-      return; // Explicit return for TypeScript
-    } catch (error) {
-      logger.error("Error serving banner file:", error);
+      return res.status(200).json({
+        success: true,
+        data: collegeInfo,
+      });
+    } catch (error: any) {
+      logger.error("Get public college info error:", error);
       return res.status(500).json({
         success: false,
-        message: "Error serving banner file",
+        message: "Error fetching college information",
+        error: error.message,
       });
     }
   }
@@ -688,4 +717,5 @@ export default {
   getTenantLogo,
   uploadTenantBanner,
   getTenantBanner,
+  getPublicCollegeInfo,
 };

@@ -28,10 +28,12 @@ export const getAllJobs = async (req: Request, res: Response) => {
     if (req.query.location)
       filter.location = { $regex: req.query.location, $options: "i" };
     if (req.query.type) filter.type = req.query.type;
+    if (req.query.experience) filter.experience = req.query.experience;
+    if (req.query.industry) filter.industry = req.query.industry;
     if (req.query.remote) filter.remote = req.query.remote === "true";
 
     const jobs = await JobPost.find(filter)
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -328,10 +330,12 @@ export const searchJobs = async (req: Request, res: Response) => {
     if (company) filter.company = { $regex: company, $options: "i" };
     if (location) filter.location = { $regex: location, $options: "i" };
     if (type) filter.type = type;
+    if (req.query.experience) filter.experience = req.query.experience;
+    if (req.query.industry) filter.industry = req.query.industry;
     if (remote) filter.remote = remote === "true";
 
     const jobs = await JobPost.find(filter)
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit as string));
@@ -371,7 +375,7 @@ export const getJobsByCompany = async (req: Request, res: Response) => {
       company: { $regex: company, $options: "i" },
       status: JobPostStatus.ACTIVE,
     })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -414,7 +418,7 @@ export const getJobsByLocation = async (req: Request, res: Response) => {
       location: { $regex: location, $options: "i" },
       status: JobPostStatus.ACTIVE,
     })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -457,7 +461,7 @@ export const getJobsByType = async (req: Request, res: Response) => {
       type,
       status: JobPostStatus.ACTIVE,
     })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -496,7 +500,7 @@ export const getMyJobPosts = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const jobs = await JobPost.find({ postedBy: req.user.id })
-      .populate("poster", "firstName lastName email profilePicture")
+      .populate("postedBy", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

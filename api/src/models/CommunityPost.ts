@@ -218,17 +218,21 @@ CommunityPostSchema.statics.findByCommunity = function (
     query.authorId = options.authorId;
   }
 
+  if (options.category) {
+    query.category = options.category;
+  }
+
   return this.find(query)
     .populate({
       path: "authorId",
-      select: "firstName lastName profileImage",
+      select: "firstName lastName profilePicture",
       transform: function (doc: any) {
         return doc
           ? {
               _id: doc._id,
               firstName: doc.firstName,
               lastName: doc.lastName,
-              profileImage: doc.profileImage,
+              profilePicture: doc.profilePicture,
             }
           : null;
       },

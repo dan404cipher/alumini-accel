@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
-import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import Navigation from "@/components/Navigation";
 import { galleryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+
+interface ApiError {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+    };
+  };
+}
 import {
   Card,
   CardContent,
@@ -66,6 +75,7 @@ interface GalleryItem {
   createdAt: string;
   category: string;
   tags?: string[];
+  viewCount?: number;
 }
 
 const Gallery: React.FC = () => {
@@ -81,6 +91,110 @@ const Gallery: React.FC = () => {
   const [selectedSortBy, setSelectedSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Filter galleries based on search and filter criteria
+  const filterGalleries = (galleryItems: GalleryItem[]) => {
+    return galleryItems.filter((gallery) => {
+      // Search query filter
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          (gallery.title &&
+            gallery.title.toLowerCase().includes(searchLower)) ||
+          (gallery.description &&
+            gallery.description.toLowerCase().includes(searchLower)) ||
+          (gallery.createdBy?.firstName &&
+            gallery.createdBy.firstName.toLowerCase().includes(searchLower)) ||
+          (gallery.createdBy?.lastName &&
+            gallery.createdBy.lastName.toLowerCase().includes(searchLower)) ||
+          (gallery.tags &&
+            gallery.tags.some(
+              (tag) => tag && tag.toLowerCase().includes(searchLower)
+            ));
+        if (!matchesSearch) return false;
+      }
+
+      // Category filter
+      if (selectedCategory !== "all") {
+        // Assuming galleries have a category field, adjust as needed
+        if (!gallery.category || gallery.category !== selectedCategory)
+          return false;
+      }
+
+      // Date range filter
+      if (selectedDateRange !== "all") {
+        const galleryDate = new Date(gallery.createdAt);
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const thisWeekStart = new Date(today);
+        thisWeekStart.setDate(today.getDate() - today.getDay());
+        const lastWeekStart = new Date(thisWeekStart);
+        lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+        const thisMonthStart = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          1
+        );
+        const lastMonthStart = new Date(
+          today.getFullYear(),
+          today.getMonth() - 1,
+          1
+        );
+
+        switch (selectedDateRange) {
+          case "today":
+            if (galleryDate < today) return false;
+            break;
+          case "yesterday":
+            if (galleryDate < yesterday || galleryDate >= today) return false;
+            break;
+          case "this_week":
+            if (galleryDate < thisWeekStart) return false;
+            break;
+          case "last_week":
+            if (galleryDate < lastWeekStart || galleryDate >= thisWeekStart)
+              return false;
+            break;
+          case "this_month":
+            if (galleryDate < thisMonthStart) return false;
+            break;
+          case "last_month":
+            if (galleryDate < lastMonthStart || galleryDate >= thisMonthStart)
+              return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const filteredGalleries = filterGalleries(galleries);
+
+  // Sort galleries based on selected sort option
+  const sortedGalleries = [...filteredGalleries].sort((a, b) => {
+    switch (selectedSortBy) {
+      case "oldest":
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      case "popular":
+        // Assuming galleries have a viewCount or similar field, adjust as needed
+        return (b.viewCount || 0) - (a.viewCount || 0);
+      case "title":
+        return a.title.localeCompare(b.title);
+      default: // newest
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+    }
+  });
 
   // Create gallery form state
   const [formData, setFormData] = useState({
@@ -118,7 +232,7 @@ const Gallery: React.FC = () => {
       });
 
       if (response.success) {
-        setGalleries((response.data as any).galleries);
+        setGalleries((response.data as { galleries: GalleryItem[] }).galleries);
       }
     } catch (error) {
       console.error("Error fetching galleries:", error);
@@ -256,7 +370,7 @@ const Gallery: React.FC = () => {
       const galleryData = {
         title: formData.title,
         description: formData.description,
-        images: (uploadResponse.data as any).images,
+        images: (uploadResponse.data as { images: string[] }).images,
         category: formData.category,
         tags: formData.tags
           ? formData.tags.split(",").map((tag) => tag.trim())
@@ -284,17 +398,17 @@ const Gallery: React.FC = () => {
         // Refresh galleries
         fetchGalleries();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating gallery:", error);
 
       let errorMessage = "Failed to create gallery";
-      if (error.response?.status === 401) {
+      if ((error as ApiError)?.response?.status === 401) {
         errorMessage = "Authentication required. Please log in again.";
-      } else if (error.response?.status === 403) {
+      } else if ((error as ApiError)?.response?.status === 403) {
         errorMessage =
           "Permission denied. Only admins and coordinators can create galleries.";
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      } else if ((error as ApiError)?.response?.data?.message) {
+        errorMessage = (error as ApiError).response.data.message;
       }
 
       toast({
@@ -312,19 +426,13 @@ const Gallery: React.FC = () => {
       return imagePath;
     }
 
-    // For static files, use the base URL without /api/v1
-    const baseUrl =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-    const staticBaseUrl = baseUrl.replace("/api/v1", "");
-    const url = `${staticBaseUrl}${imagePath}`;
-
-    return url;
+    // For static files, use proxy path
+    return imagePath;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-16">
       <Navigation activeTab="gallery" onTabChange={() => {}} />
-
       <div className="flex gap-6 h-[calc(100vh-4rem)] w-full overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
@@ -567,7 +675,7 @@ const Gallery: React.FC = () => {
                   Photo Gallery
                 </h1>
                 <p className="text-muted-foreground text-sm lg:text-base">
-                  Explore memorable moments • {galleries.length} galleries
+                  Explore memorable moments • {sortedGalleries.length} galleries
                 </p>
               </div>
             </div>
@@ -579,7 +687,7 @@ const Gallery: React.FC = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading galleries...</p>
             </div>
-          ) : galleries.length === 0 ? (
+          ) : sortedGalleries.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                 <ImageIcon className="w-12 h-12 text-gray-400" />
@@ -607,7 +715,7 @@ const Gallery: React.FC = () => {
                   : "grid-cols-1"
               }`}
             >
-              {galleries.map((gallery) => (
+              {sortedGalleries.map((gallery) => (
                 <Card
                   key={gallery._id}
                   className={`overflow-hidden hover:shadow-xl transition-shadow duration-300 ${

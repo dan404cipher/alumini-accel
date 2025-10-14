@@ -467,9 +467,8 @@ const StaffPanel = () => {
       if (user?.tenantId) {
         try {
           const bannerResponse = await tenantAPI.getBanner(user.tenantId);
-          if (bannerResponse instanceof Blob) {
-            const bannerUrl = URL.createObjectURL(bannerResponse);
-            setCollegeBanner(bannerUrl);
+          if (typeof bannerResponse === "string") {
+            setCollegeBanner(bannerResponse);
           }
         } catch (error) {
           console.log("No banner found or error loading banner:", error);
@@ -627,7 +626,7 @@ const StaffPanel = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pt-20">
       <div className="space-y-6">
         {/* College Banner */}
         {collegeBanner && (

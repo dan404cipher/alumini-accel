@@ -1195,7 +1195,7 @@ export const eventAPI = {
       // Fallback to mock data
       const mockEvents = [
         {
-          _id: "event_1",
+          _id: "507f1f77bcf86cd799439011",
           title: "Tech Meetup 2024",
           description:
             "Join us for an exciting tech meetup featuring the latest trends in software development.",
@@ -1217,7 +1217,7 @@ export const eventAPI = {
           updatedAt: "2024-01-10T10:00:00Z",
         },
         {
-          _id: "event_2",
+          _id: "507f1f77bcf86cd799439012",
           title: "React Workshop",
           description:
             "Learn React fundamentals and advanced patterns in this hands-on workshop.",
@@ -1239,7 +1239,7 @@ export const eventAPI = {
           updatedAt: "2024-01-05T14:30:00Z",
         },
         {
-          _id: "event_3",
+          _id: "507f1f77bcf86cd799439013",
           title: "Alumni Reunion 2024",
           description:
             "Annual alumni reunion event with networking, food, and fun activities.",
@@ -1320,7 +1320,7 @@ export const eventAPI = {
     } catch (error) {
       // Simulate successful event creation
       const newEvent = {
-        _id: `event_${Date.now()}`,
+        _id: `507f1f77bcf86cd7994390${Date.now().toString().slice(-2)}`,
         ...eventData,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

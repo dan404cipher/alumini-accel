@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Response } from "express";
 import eventController from "../controllers/eventController";
 import {
   validateEvent,
@@ -11,7 +11,7 @@ import {
   requireAlumni,
   authorize,
 } from "../middleware/auth";
-import { UserRole } from "../types";
+import { UserRole, AuthenticatedRequest } from "../types";
 import { asyncHandler } from "../middleware/errorHandler";
 import multer from "multer";
 
@@ -46,6 +46,16 @@ const upload = multer({
 // @desc    Get all events
 // @access  Private
 router.get("/", authenticateToken, asyncHandler(eventController.getAllEvents));
+
+// @route   GET /api/v1/events/saved
+// @desc    Get saved events for alumni
+// @access  Private/Alumni
+router.get(
+  "/saved",
+  authenticateToken,
+  authorize(UserRole.ALUMNI),
+  asyncHandler(eventController.getSavedEvents)
+);
 
 // @route   GET /api/v1/events/:id
 // @desc    Get event by ID
@@ -177,16 +187,6 @@ router.get(
   "/search",
   authenticateToken,
   asyncHandler(eventController.searchEvents)
-);
-
-// @route   GET /api/v1/events/saved
-// @desc    Get saved events for alumni
-// @access  Private/Alumni
-router.get(
-  "/saved",
-  authenticateToken,
-  authorize(UserRole.ALUMNI),
-  asyncHandler(eventController.getSavedEvents)
 );
 
 // @route   POST /api/v1/events/:id/save

@@ -139,6 +139,9 @@ const EventsMeetups = () => {
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [selectedEventForRegistration, setSelectedEventForRegistration] =
     useState<MappedEvent | null>(null);
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(
+    new Set()
+  );
   const [showMyEvents, setShowMyEvents] = useState(false);
   const [showCalendarView, setShowCalendarView] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -216,6 +219,20 @@ const EventsMeetups = () => {
   // Map API events to component format
   const apiEvents =
     (eventsResponse?.data as { events: Event[] } | undefined)?.events || [];
+
+  // Fetch my registrations and compute set of registered event ids
+  const { data: myRegsResponse } = useQuery({
+    queryKey: ["my-registrations", user?._id, refreshKey],
+    queryFn: () => eventAPI.getMyRegistrations({ limit: 200 }),
+    enabled: !!user, // only when logged in
+  });
+
+  useEffect(() => {
+    const events =
+      (myRegsResponse?.data as { events?: { _id: string }[] } | undefined)
+        ?.events || [];
+    setRegisteredEventIds(new Set(events.map((e) => e._id)));
+  }, [myRegsResponse]);
 
   const mappedEvents = apiEvents.map((event: Event): MappedEvent => {
     return {
@@ -778,6 +795,15 @@ const EventsMeetups = () => {
                       {isEventPast(event.startDate)
                         ? "Event Ended"
                         : "Registration Closed"}
+                    </Button>
+                  ) : registeredEventIds.has(event.id) ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="flex-1 text-xs lg:text-sm"
+                      onClick={() => navigate(`/events/${event.id}`)}
+                    >
+                      Registered • View Details
                     </Button>
                   ) : (
                     <Button
@@ -1607,7 +1633,7 @@ const EventsMeetups = () => {
                     </div>
                     <div className="flex gap-2 mt-1 text-xs">
                       <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">
-                        {p.status || "registered"}
+                        {typeof p.status === "string" ? p.status : "registered"}
                       </span>
                       {p.paymentStatus && (
                         <span className="px-2 py-0.5 rounded bg-green-50 text-green-700">

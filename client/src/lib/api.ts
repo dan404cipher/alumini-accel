@@ -1402,6 +1402,15 @@ export const eventAPI = {
     });
   },
 
+  // Get events the current user is registered for
+  getMyRegistrations: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/events/my-registrations",
+      params,
+    });
+  },
+
   // Unregister from event
   unregisterFromEvent: async (id: string) => {
     return apiRequest({

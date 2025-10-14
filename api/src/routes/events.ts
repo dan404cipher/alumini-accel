@@ -57,6 +57,15 @@ router.get(
   asyncHandler(eventController.getSavedEvents)
 );
 
+// @route   GET /api/v1/events/my-registrations
+// @desc    Get events the current user is registered for
+// @access  Private
+router.get(
+  "/my-registrations",
+  authenticateToken,
+  asyncHandler(eventController.getMyAttendingEvents)
+);
+
 // @route   GET /api/v1/events/:id
 // @desc    Get event by ID
 // @access  Private
@@ -199,6 +208,11 @@ router.get(
   authenticateToken,
   asyncHandler(eventController.getUpcomingEvents)
 );
+
+// @route   GET /api/v1/events/my-registrations
+// @desc    Get events the current user is registered for
+// @access  Private
+// (moved above "/:id" to avoid param capture)
 
 // @route   GET /api/v1/events/search
 // @desc    Search events

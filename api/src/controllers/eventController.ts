@@ -613,8 +613,12 @@ export const getEventParticipants = async (req: Request, res: Response) => {
     }
 
     const participants = event.attendees.map((a: any) => ({
-      user: a.userId,
-      status: a.status,
+      user: {
+        firstName: a.userId?.firstName || "",
+        lastName: a.userId?.lastName || "",
+        email: a.userId?.email || "",
+      },
+      status: a.status || "registered",
       registeredAt: a.registeredAt,
       amountPaid: event.price || 0,
       paymentStatus: event.price && event.price > 0 ? "successful" : "free",

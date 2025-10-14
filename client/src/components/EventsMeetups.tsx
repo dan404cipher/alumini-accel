@@ -47,6 +47,7 @@ import {
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { EditEventDialog } from "./dialogs/EditEventDialog";
 import { DeleteEventDialog } from "./dialogs/DeleteEventDialog";
+import { RegistrationFormDialog } from "./dialogs/RegistrationFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { eventAPI } from "@/lib/api";
@@ -56,6 +57,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Event {
   _id: string;
@@ -118,6 +125,20 @@ const EventsMeetups = () => {
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [participants, setParticipants] = useState<
+    Array<{
+      user?: { firstName?: string; lastName?: string; email?: string };
+      status?: string;
+      registeredAt?: string;
+      paymentStatus?: string;
+      amountPaid?: number;
+    }>
+  >([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
+  const [selectedEventForRegistration, setSelectedEventForRegistration] =
+    useState<MappedEvent | null>(null);
   const [showMyEvents, setShowMyEvents] = useState(false);
   const [showCalendarView, setShowCalendarView] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -138,8 +159,9 @@ const EventsMeetups = () => {
         try {
           const response = await eventAPI.getSavedEvents();
           if (response.success && response.data) {
-            const events = (response.data as any).events;
-            setSavedEvents(events.map((event: any) => event._id));
+            const events = (response.data as { events: Array<{ _id: string }> })
+              .events;
+            setSavedEvents(events.map((event) => event._id));
           }
         } catch (error) {
           console.error("Failed to load saved events:", error);
@@ -707,6 +729,45 @@ const EventsMeetups = () => {
                     <span className="hidden sm:inline">View Details</span>
                     <span className="sm:hidden">View</span>
                   </Button>
+                  {canManageEvents && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          setParticipantsLoading(true);
+                          const res = await eventAPI.getParticipants(event.id);
+                          if (res.success && res.data) {
+                            const data = res.data as {
+                              participants?: Array<{
+                                user?: {
+                                  firstName?: string;
+                                  lastName?: string;
+                                  email?: string;
+                                };
+                                status?: string;
+                                registeredAt?: string;
+                                paymentStatus?: string;
+                                amountPaid?: number;
+                              }>;
+                            };
+                            setParticipants(data.participants || []);
+                            setIsParticipantsOpen(true);
+                          } else {
+                            alert(res.message || "Failed to load participants");
+                          }
+                        } catch (err) {
+                          console.error("Participants load error", err);
+                          alert("Failed to load participants");
+                        } finally {
+                          setParticipantsLoading(false);
+                        }
+                      }}
+                      className="flex-1 text-xs lg:text-sm"
+                    >
+                      Participants
+                    </Button>
+                  )}
                   {isRegistrationClosed(event) ? (
                     <Button
                       size="sm"
@@ -719,7 +780,14 @@ const EventsMeetups = () => {
                         : "Registration Closed"}
                     </Button>
                   ) : (
-                    <Button size="sm" className="flex-1 text-xs lg:text-sm">
+                    <Button
+                      size="sm"
+                      className="flex-1 text-xs lg:text-sm"
+                      onClick={() => {
+                        setSelectedEventForRegistration(event);
+                        setIsRegistrationOpen(true);
+                      }}
+                    >
                       Register
                     </Button>
                   )}
@@ -1500,6 +1568,60 @@ const EventsMeetups = () => {
         }
         onEventDeleted={handleEventDeleted}
       />
+
+      {/* Registration Form Dialog */}
+      <RegistrationFormDialog
+        isOpen={isRegistrationOpen}
+        onClose={() => {
+          setIsRegistrationOpen(false);
+          setSelectedEventForRegistration(null);
+        }}
+        event={selectedEventForRegistration}
+        onRegistrationSuccess={() => {
+          // Refresh events list or show success message
+          setRefreshKey((prev) => prev + 1);
+        }}
+      />
+      {/* Participants Dialog */}
+      <Dialog open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Registered Participants</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {participantsLoading ? (
+              <div className="text-sm text-muted-foreground">Loading...</div>
+            ) : participants.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                No participants yet.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {participants.map((p, idx) => (
+                  <div key={idx} className="py-2 text-sm flex flex-col">
+                    <div className="font-medium">
+                      {p.user?.firstName || ""} {p.user?.lastName || ""}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {p.user?.email || ""}
+                    </div>
+                    <div className="flex gap-2 mt-1 text-xs">
+                      <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                        {p.status || "registered"}
+                      </span>
+                      {p.paymentStatus && (
+                        <span className="px-2 py-0.5 rounded bg-green-50 text-green-700">
+                          {p.paymentStatus}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

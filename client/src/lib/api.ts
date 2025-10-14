@@ -1385,6 +1385,23 @@ export const eventAPI = {
     });
   },
 
+  // Confirm registration after successful payment
+  confirmRegistration: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${id}/confirm-registration`,
+      data: { paymentStatus: "success" },
+    });
+  },
+
+  // Get participants (organizers/admins)
+  getParticipants: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/events/${id}/participants`,
+    });
+  },
+
   // Unregister from event
   unregisterFromEvent: async (id: string) => {
     return apiRequest({

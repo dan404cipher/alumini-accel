@@ -530,6 +530,11 @@ const EventsMeetups = () => {
       return true;
     }
 
+    // If event is at full capacity, registration is closed
+    if (event.attendees >= event.maxAttendees) {
+      return true;
+    }
+
     // If registration deadline has passed, registration is closed
     if (event.registrationDeadline) {
       const deadlineDate = new Date(event.registrationDeadline);
@@ -761,7 +766,10 @@ const EventsMeetups = () => {
                     {event.price}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {event.attendees}/{event.maxAttendees} spots
+                    {event.attendees}/{event.maxAttendees}{" "}
+                    {event.attendees >= event.maxAttendees
+                      ? "spots filled"
+                      : "spots"}
                   </span>
                 </div>
 
@@ -824,6 +832,8 @@ const EventsMeetups = () => {
                     >
                       {isEventPast(event.startDate)
                         ? "Event Ended"
+                        : event.attendees >= event.maxAttendees
+                        ? "Event Full"
                         : "Registration Closed"}
                     </Button>
                   ) : registeredEventIds.has(event.id) ? (
@@ -1769,7 +1779,7 @@ const EventsMeetups = () => {
               )}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
             {participantsLoading ? (
               <div className="text-sm text-muted-foreground">Loading...</div>
             ) : participants.length === 0 ? (

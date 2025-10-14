@@ -499,20 +499,35 @@ export const registerForEvent = async (req: Request, res: Response) => {
       });
     }
 
+    // Extract additional registration details from request body
+    const { phone, dietaryRequirements, emergencyContact, additionalNotes } =
+      req.body;
+
     // Free vs Paid flow
     if (!event.price || event.price === 0) {
       // Free event: register immediately
-      event.attendees.push({
+      const attendee = {
         userId: req.user.id,
         registeredAt: new Date(),
-        status: "registered",
-      });
+        status: "registered" as const,
+        phone: phone || "",
+        dietaryRequirements: dietaryRequirements || "",
+        emergencyContact: emergencyContact || "",
+        additionalNotes: additionalNotes || "",
+        amountPaid: 0,
+        paymentStatus: "free" as const,
+      };
+      event.attendees.push(attendee as any);
       await event.save();
 
       return res.json({
         success: true,
         message: "Successfully registered for event",
-        data: { status: "registered", paymentRequired: false },
+        data: {
+          status: "registered",
+          paymentRequired: false,
+          attendee,
+        },
       });
     }
 
@@ -617,11 +632,16 @@ export const getEventParticipants = async (req: Request, res: Response) => {
         firstName: a.userId?.firstName || "",
         lastName: a.userId?.lastName || "",
         email: a.userId?.email || "",
+        phone: a.userId?.phone || "",
       },
       status: a.status || "registered",
       registeredAt: a.registeredAt,
-      amountPaid: event.price || 0,
-      paymentStatus: event.price && event.price > 0 ? "successful" : "free",
+      phone: a.phone || "",
+      dietaryRequirements: a.dietaryRequirements || "",
+      emergencyContact: a.emergencyContact || "",
+      additionalNotes: a.additionalNotes || "",
+      amountPaid: a.amountPaid || 0,
+      paymentStatus: a.paymentStatus || "free",
     }));
 
     return res.json({ success: true, data: { participants } });

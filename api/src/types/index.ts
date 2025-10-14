@@ -403,6 +403,13 @@ export interface IEvent extends Document {
     userId: string;
     registeredAt: Date;
     status: "registered" | "attended" | "cancelled";
+    // Additional registration details
+    phone?: string;
+    dietaryRequirements?: string;
+    emergencyContact?: string;
+    additionalNotes?: string;
+    amountPaid?: number;
+    paymentStatus?: "free" | "pending" | "successful" | "failed";
   }>;
   photos: string[];
   feedback: Array<{

@@ -127,6 +127,32 @@ const eventSchema = new Schema<IEvent>(
           enum: ["registered", "attended", "cancelled"],
           default: "registered",
         },
+        // Additional registration details
+        phone: {
+          type: String,
+          trim: true,
+        },
+        dietaryRequirements: {
+          type: String,
+          trim: true,
+        },
+        emergencyContact: {
+          type: String,
+          trim: true,
+        },
+        additionalNotes: {
+          type: String,
+          trim: true,
+        },
+        amountPaid: {
+          type: Number,
+          default: 0,
+        },
+        paymentStatus: {
+          type: String,
+          enum: ["free", "pending", "successful", "failed"],
+          default: "free",
+        },
       },
     ],
     image: {

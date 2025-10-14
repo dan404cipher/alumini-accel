@@ -1378,10 +1378,19 @@ export const eventAPI = {
   },
 
   // Register for event
-  registerForEvent: async (id: string) => {
+  registerForEvent: async (
+    id: string,
+    registrationData?: {
+      phone?: string;
+      dietaryRequirements?: string;
+      emergencyContact?: string;
+      additionalNotes?: string;
+    }
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/events/${id}/register`,
+      data: registrationData,
     });
   },
 

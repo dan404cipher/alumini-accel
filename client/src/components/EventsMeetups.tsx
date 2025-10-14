@@ -128,11 +128,26 @@ const EventsMeetups = () => {
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [participants, setParticipants] = useState<
     Array<{
-      user?: { firstName?: string; lastName?: string; email?: string };
+      user?: {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string;
+      };
       status?: string;
       registeredAt?: string;
       paymentStatus?: string;
       amountPaid?: number;
+      // Optional extended fields captured during registration
+      phone?: string;
+      phoneNumber?: string;
+      dietary?: string | string[];
+      dietaryRequirements?: string | string[];
+      emergencyContact?: { name?: string; phone?: string } | string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
+      additionalNotes?: string;
+      notes?: string;
     }>
   >([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
@@ -1660,26 +1675,99 @@ const EventsMeetups = () => {
               </div>
             ) : (
               <div className="divide-y">
-                {participants.map((p, idx) => (
-                  <div key={idx} className="py-2 text-sm flex flex-col">
-                    <div className="font-medium">
-                      {p.user?.firstName || ""} {p.user?.lastName || ""}
-                    </div>
-                    <div className="text-muted-foreground">
-                      {p.user?.email || ""}
-                    </div>
-                    <div className="flex gap-2 mt-1 text-xs">
-                      <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">
-                        {typeof p.status === "string" ? p.status : "registered"}
-                      </span>
-                      {p.paymentStatus && (
-                        <span className="px-2 py-0.5 rounded bg-green-50 text-green-700">
-                          {p.paymentStatus}
-                        </span>
+                {participants.map((p, idx) => {
+                  const firstName = p.user?.firstName || "";
+                  const lastName = p.user?.lastName || "";
+                  const email = p.user?.email || "";
+                  const phone = p.phone || p.phoneNumber || p.user?.phone || "";
+                  const registeredAtStr = p.registeredAt
+                    ? new Date(p.registeredAt).toLocaleString()
+                    : "";
+                  const dietaryRaw = p.dietaryRequirements ?? p.dietary;
+                  const dietary = Array.isArray(dietaryRaw)
+                    ? dietaryRaw.filter(Boolean).join(", ")
+                    : dietaryRaw || "";
+                  let emergencyName = p.emergencyContactName || "";
+                  let emergencyPhone = p.emergencyContactPhone || "";
+                  if (
+                    typeof p.emergencyContact === "object" &&
+                    p.emergencyContact
+                  ) {
+                    emergencyName =
+                      emergencyName || p.emergencyContact.name || "";
+                    emergencyPhone =
+                      emergencyPhone || p.emergencyContact.phone || "";
+                  } else if (typeof p.emergencyContact === "string") {
+                    // If backend stored a single string, show as name/phone combined
+                    emergencyName = emergencyName || p.emergencyContact;
+                  }
+                  const notes = p.additionalNotes || p.notes || "";
+                  const statusText =
+                    typeof p.status === "string" ? p.status : "registered";
+                  return (
+                    <div key={idx} className="py-2 text-sm flex flex-col">
+                      <div className="font-medium">
+                        {firstName} {lastName}
+                      </div>
+                      <div className="text-muted-foreground">{email}</div>
+                      {registeredAtStr && (
+                        <div className="text-muted-foreground text-xs">
+                          Registered on {registeredAtStr}
+                        </div>
                       )}
+                      <div className="flex gap-2 mt-1 text-xs">
+                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                          {statusText}
+                        </span>
+                        {p.paymentStatus && (
+                          <span className="px-2 py-0.5 rounded bg-green-50 text-green-700">
+                            {p.paymentStatus}
+                          </span>
+                        )}
+                      </div>
+                      {/* Detailed fields */}
+                      <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                        <div>
+                          <span className="font-semibold">First Name *</span>:{" "}
+                          {firstName || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Last Name *</span>:{" "}
+                          {lastName || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Email *</span>:{" "}
+                          {email || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Phone Number *</span>:{" "}
+                          {phone || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Dietary Requirements
+                          </span>
+                          : {dietary || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Emergency Contact
+                          </span>
+                          :{" "}
+                          {[emergencyName, emergencyPhone]
+                            .filter(Boolean)
+                            .join(" ") || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Additional Notes
+                          </span>
+                          : {notes || "-"}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

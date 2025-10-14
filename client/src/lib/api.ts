@@ -1431,6 +1431,30 @@ export const eventAPI = {
       params,
     });
   },
+
+  // Save event for alumni
+  saveEvent: async (eventId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${eventId}/save`,
+    });
+  },
+
+  // Unsave event for alumni
+  unsaveEvent: async (eventId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/events/${eventId}/save`,
+    });
+  },
+
+  // Get saved events for alumni
+  getSavedEvents: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/events/saved",
+    });
+  },
 };
 
 // Invitation API functions

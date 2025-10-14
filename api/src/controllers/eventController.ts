@@ -847,6 +847,162 @@ export const getEventStats = async (req: Request, res: Response) => {
   }
 };
 
+// Save event for alumni
+export const saveEvent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Check if event exists
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check if user is alumni
+    const user = await User.findById(userId);
+    if (!user || user.role !== "alumni") {
+      return res.status(403).json({
+        success: false,
+        message: "Only alumni can save events",
+      });
+    }
+
+    // Check if event is already saved
+    if (user.savedEvents?.includes(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Event already saved",
+      });
+    }
+
+    // Add event to saved events
+    if (!user.savedEvents) {
+      user.savedEvents = [];
+    }
+    user.savedEvents.push(id);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Event saved successfully",
+    });
+  } catch (error) {
+    logger.error("Save event error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save event",
+    });
+  }
+};
+
+// Unsave event for alumni
+export const unsaveEvent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Check if event exists
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check if user is alumni
+    const user = await User.findById(userId);
+    if (!user || user.role !== "alumni") {
+      return res.status(403).json({
+        success: false,
+        message: "Only alumni can unsave events",
+      });
+    }
+
+    // Check if event is saved
+    if (!user.savedEvents?.includes(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Event not saved",
+      });
+    }
+
+    // Remove event from saved events
+    user.savedEvents = user.savedEvents.filter(
+      (eventId) => eventId.toString() !== id
+    );
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Event unsaved successfully",
+    });
+  } catch (error) {
+    logger.error("Unsave event error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to unsave event",
+    });
+  }
+};
+
+// Get saved events for alumni
+export const getSavedEvents = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Get user with saved events
+    const user = await User.findById(userId).populate("savedEvents");
+    if (!user || user.role !== "alumni") {
+      return res.status(403).json({
+        success: false,
+        message: "Only alumni can view saved events",
+      });
+    }
+
+    const savedEvents = user.savedEvents || [];
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        events: savedEvents,
+        count: savedEvents.length,
+      },
+    });
+  } catch (error) {
+    logger.error("Get saved events error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get saved events",
+    });
+  }
+};
+
 export default {
   getAllEvents,
   getEventById,
@@ -863,4 +1019,7 @@ export default {
   getMyEvents,
   getMyAttendingEvents,
   getEventStats,
+  saveEvent,
+  unsaveEvent,
+  getSavedEvents,
 };

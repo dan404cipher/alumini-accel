@@ -897,20 +897,7 @@ const AlumniDirectory = () => {
                           )}
                         </div>
 
-                        {/* Connection Stats */}
-                        <div className="mb-4 text-sm text-gray-600">
-                          <div className="flex items-center space-x-4">
-                            <span className="flex items-center">
-                              <Users className="w-4 h-4 mr-1" />
-                              {Math.floor(Math.random() * 20) + 5} mutual
-                            </span>
-                            <span className="flex items-center">
-                              <Heart className="w-4 h-4 mr-1" />
-                              {Math.floor(Math.random() * 10) + 2} shared
-                              interests
-                            </span>
-                          </div>
-                        </div>
+                       
 
                         {/* Status Badges */}
                         <div className="mb-4">

@@ -176,6 +176,7 @@ export interface IUser extends Document {
   university?: string;
   isProfileComplete: boolean;
   profileCompletionPercentage: number;
+  savedEvents?: string[];
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;

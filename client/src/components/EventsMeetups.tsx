@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -123,10 +123,32 @@ const EventsMeetups = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
-  const { user } = useAuth();
+  const [savedEvents, setSavedEvents] = useState<string[]>([]);
+  const [savingEvents, setSavingEvents] = useState<Set<string>>(new Set());
+  const { user, loading: authLoading } = useAuth();
 
   // Use search query directly for now (no debouncing)
   const debouncedSearchQuery = searchQuery;
+
+  // Load saved events for alumni
+  useEffect(() => {
+    const loadSavedEvents = async () => {
+      // Wait for auth to finish loading and ensure user is alumni
+      if (!authLoading && user?.role === "alumni") {
+        try {
+          const response = await eventAPI.getSavedEvents();
+          if (response.success && response.data) {
+            const events = (response.data as any).events;
+            setSavedEvents(events.map((event: any) => event._id));
+          }
+        } catch (error) {
+          console.error("Failed to load saved events:", error);
+        }
+      }
+    };
+
+    loadSavedEvents();
+  }, [user?.role, user?._id, authLoading]);
 
   // Check if user can create events
   const canCreateEvents =
@@ -134,8 +156,7 @@ const EventsMeetups = () => {
     user?.role === "coordinator" ||
     user?.role === "college_admin" ||
     user?.role === "hod" ||
-    user?.role === "staff" ||
-    user?.role === "alumni";
+    user?.role === "staff";
 
   // Check if user can edit/delete events
   const canManageEvents =
@@ -143,8 +164,7 @@ const EventsMeetups = () => {
     user?.role === "coordinator" ||
     user?.role === "college_admin" ||
     user?.role === "hod" ||
-    user?.role === "staff" ||
-    user?.role === "alumni";
+    user?.role === "staff";
 
   // Event types for filtering
   const eventTypes = [
@@ -339,17 +359,23 @@ const EventsMeetups = () => {
     });
   };
 
-  // Filter events for "My Events" - events organized by current user
+  // Filter events for "My Events" or "Saved Events" based on user role
   const myEvents = mappedEvents.filter((event) => {
-    return (
-      event.organizer
-        .toLowerCase()
-        .includes(user?.firstName?.toLowerCase() || "") ||
-      event.organizer
-        .toLowerCase()
-        .includes(user?.lastName?.toLowerCase() || "") ||
-      event.organizer.toLowerCase().includes(user?.email?.toLowerCase() || "")
-    );
+    if (user?.role === "alumni") {
+      // For alumni, show saved/bookmarked events
+      return savedEvents.includes(event.id);
+    } else {
+      // For other roles, show events organized by current user
+      return (
+        event.organizer
+          .toLowerCase()
+          .includes(user?.firstName?.toLowerCase() || "") ||
+        event.organizer
+          .toLowerCase()
+          .includes(user?.lastName?.toLowerCase() || "") ||
+        event.organizer.toLowerCase().includes(user?.email?.toLowerCase() || "")
+      );
+    }
   });
 
   const upcomingEvents = filterEvents(
@@ -575,6 +601,34 @@ const EventsMeetups = () => {
                     </Badge>
                   )}
               </div>
+
+              {/* Save/Unsave button for alumni */}
+              {user?.role === "alumni" && (
+                <div className="absolute top-4 left-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-8 h-8 p-0 bg-white/90 hover:bg-white shadow-sm"
+                    disabled={savingEvents.has(event.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (savedEvents.includes(event.id)) {
+                        handleUnsaveEvent(event.id);
+                      } else {
+                        handleSaveEvent(event.id);
+                      }
+                    }}
+                  >
+                    <Bookmark
+                      className={`w-4 h-4 ${
+                        savedEvents.includes(event.id)
+                          ? "text-blue-600 fill-blue-600"
+                          : "text-gray-400"
+                      } ${savingEvents.has(event.id) ? "opacity-50" : ""}`}
+                    />
+                  </Button>
+                </div>
+              )}
             </div>
 
             <CardContent className="p-4 lg:p-6 flex-1 flex flex-col">
@@ -731,6 +785,66 @@ const EventsMeetups = () => {
   const handleMyEvents = () => {
     setShowMyEvents(!showMyEvents);
     setShowCalendarView(false);
+  };
+
+  // Handle save/unsave event
+  const handleSaveEvent = async (eventId: string) => {
+    // Prevent duplicate clicks
+    if (savingEvents.has(eventId)) {
+      return;
+    }
+
+    try {
+      setSavingEvents((prev) => new Set(prev).add(eventId));
+      const response = await eventAPI.saveEvent(eventId);
+
+      if (response.success) {
+        setSavedEvents((prev) => [...prev, eventId]);
+      } else if (response.message === "Event already saved") {
+        // Event is already saved on backend, sync frontend state
+        setSavedEvents((prev) => {
+          if (!prev.includes(eventId)) {
+            return [...prev, eventId];
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save event:", error);
+    } finally {
+      setSavingEvents((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(eventId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleUnsaveEvent = async (eventId: string) => {
+    // Prevent duplicate clicks
+    if (savingEvents.has(eventId)) {
+      return;
+    }
+
+    try {
+      setSavingEvents((prev) => new Set(prev).add(eventId));
+      const response = await eventAPI.unsaveEvent(eventId);
+
+      if (response.success) {
+        setSavedEvents((prev) => prev.filter((id) => id !== eventId));
+      } else if (response.message === "Event not saved") {
+        // Event is not saved on backend, sync frontend state
+        setSavedEvents((prev) => prev.filter((id) => id !== eventId));
+      }
+    } catch (error) {
+      console.error("Failed to unsave event:", error);
+    } finally {
+      setSavingEvents((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(eventId);
+        return newSet;
+      });
+    }
   };
 
   // Handle Calendar View toggle
@@ -994,7 +1108,7 @@ const EventsMeetups = () => {
                     className="w-full justify-start"
                   >
                     <Bookmark className="w-4 h-4 mr-2" />
-                    My Events
+                    {user?.role === "alumni" ? "Saved Events" : "My Events"}
                   </Button>
                   <Button
                     variant={showCalendarView ? "default" : "outline"}
@@ -1089,21 +1203,33 @@ const EventsMeetups = () => {
             <TabsContent value="upcoming" className="mt-6">
               {renderEventGrid(
                 filteredUpcomingEvents,
-                showMyEvents ? "No Upcoming My Events" : "No Upcoming Events"
+                showMyEvents
+                  ? user?.role === "alumni"
+                    ? "No Upcoming Saved Events"
+                    : "No Upcoming My Events"
+                  : "No Upcoming Events"
               )}
             </TabsContent>
 
             <TabsContent value="today" className="mt-6">
               {renderEventGrid(
                 filteredTodayEvents,
-                showMyEvents ? "No My Events Today" : "No Events Today"
+                showMyEvents
+                  ? user?.role === "alumni"
+                    ? "No Saved Events Today"
+                    : "No My Events Today"
+                  : "No Events Today"
               )}
             </TabsContent>
 
             <TabsContent value="past" className="mt-6">
               {renderEventGrid(
                 filteredPastEvents,
-                showMyEvents ? "No Past My Events" : "No Past Events"
+                showMyEvents
+                  ? user?.role === "alumni"
+                    ? "No Past Saved Events"
+                    : "No Past My Events"
+                  : "No Past Events"
               )}
             </TabsContent>
           </Tabs>

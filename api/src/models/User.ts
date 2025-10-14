@@ -189,6 +189,13 @@ const userSchema = new Schema<IUser>(
       min: [0, "Profile completion percentage cannot be negative"],
       max: [100, "Profile completion percentage cannot exceed 100"],
     },
+    // Saved events for alumni
+    savedEvents: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Event",
+      },
+    ],
   },
   {
     timestamps: true,

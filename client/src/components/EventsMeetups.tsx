@@ -143,6 +143,7 @@ const EventsMeetups = () => {
     new Set()
   );
   const [showMyEvents, setShowMyEvents] = useState(false);
+  const [showSavedEvents, setShowSavedEvents] = useState(false);
   const [showCalendarView, setShowCalendarView] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -398,11 +399,13 @@ const EventsMeetups = () => {
     });
   };
 
-  // Filter events for "My Events" or "Saved Events" based on user role
+  // Filter events for "My Events" or "Registered Events" based on user role
   const myEvents = mappedEvents.filter((event) => {
     if (user?.role === "alumni") {
-      // For alumni, show saved/bookmarked events
-      return savedEvents.includes(event.id);
+      // For alumni, show events based on toggle: registered vs saved
+      return showSavedEvents
+        ? savedEvents.includes(event.id)
+        : registeredEventIds.has(event.id);
     } else {
       // For other roles, show events organized by current user
       return (
@@ -471,6 +474,17 @@ const EventsMeetups = () => {
   // Function to refresh events
   const handleEventCreated = () => {
     setRefreshKey((prev) => prev + 1);
+  };
+
+  // Quick action handlers for alumni filters
+  const handleShowRegisteredQuick = () => {
+    setShowMyEvents(true);
+    setShowSavedEvents(false);
+  };
+
+  const handleShowSavedQuick = () => {
+    setShowMyEvents(true);
+    setShowSavedEvents(true);
   };
 
   // Helper function to check if event is in the past
@@ -1196,14 +1210,31 @@ const EventsMeetups = () => {
                     </Button>
                   )}
                   <Button
-                    variant={showMyEvents ? "default" : "outline"}
+                    variant={
+                      showMyEvents && !showSavedEvents ? "default" : "outline"
+                    }
                     size="sm"
-                    onClick={handleMyEvents}
+                    onClick={handleShowRegisteredQuick}
                     className="w-full justify-start"
                   >
                     <Bookmark className="w-4 h-4 mr-2" />
-                    {user?.role === "alumni" ? "Saved Events" : "My Events"}
+                    {user?.role === "alumni"
+                      ? "Registered Events"
+                      : "My Events"}
                   </Button>
+                  {user?.role === "alumni" && (
+                    <Button
+                      variant={
+                        showMyEvents && showSavedEvents ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={handleShowSavedQuick}
+                      className="w-full justify-start"
+                    >
+                      <Bookmark className="w-4 h-4 mr-2" />
+                      Saved Events
+                    </Button>
+                  )}
                   <Button
                     variant={showCalendarView ? "default" : "outline"}
                     size="sm"
@@ -1299,7 +1330,9 @@ const EventsMeetups = () => {
                 filteredUpcomingEvents,
                 showMyEvents
                   ? user?.role === "alumni"
-                    ? "No Upcoming Saved Events"
+                    ? showSavedEvents
+                      ? "No Upcoming Saved Events"
+                      : "No Upcoming Registered Events"
                     : "No Upcoming My Events"
                   : "No Upcoming Events"
               )}
@@ -1310,7 +1343,9 @@ const EventsMeetups = () => {
                 filteredTodayEvents,
                 showMyEvents
                   ? user?.role === "alumni"
-                    ? "No Saved Events Today"
+                    ? showSavedEvents
+                      ? "No Saved Events Today"
+                      : "No Registered Events Today"
                     : "No My Events Today"
                   : "No Events Today"
               )}
@@ -1321,7 +1356,9 @@ const EventsMeetups = () => {
                 filteredPastEvents,
                 showMyEvents
                   ? user?.role === "alumni"
-                    ? "No Past Saved Events"
+                    ? showSavedEvents
+                      ? "No Past Saved Events"
+                      : "No Past Registered Events"
                     : "No Past My Events"
                   : "No Past Events"
               )}

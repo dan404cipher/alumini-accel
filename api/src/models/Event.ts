@@ -124,7 +124,7 @@ const eventSchema = new Schema<IEvent>(
         },
         status: {
           type: String,
-          enum: ["registered", "attended", "cancelled"],
+          enum: ["registered", "attended", "cancelled", "pending_payment"],
           default: "registered",
         },
         // Additional registration details

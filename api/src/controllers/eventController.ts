@@ -531,7 +531,21 @@ export const registerForEvent = async (req: Request, res: Response) => {
       });
     }
 
-    // Paid event: return payment intent info (placeholder)
+    // Paid event: store registration with pending payment status
+    const attendee = {
+      userId: req.user.id,
+      registeredAt: new Date(),
+      status: "pending_payment" as const,
+      phone: phone || "",
+      dietaryRequirements: dietaryRequirements || "",
+      emergencyContact: emergencyContact || "",
+      additionalNotes: additionalNotes || "",
+      amountPaid: 0,
+      paymentStatus: "pending" as const,
+    };
+    event.attendees.push(attendee as any);
+    await event.save();
+
     return res.json({
       success: true,
       message: "Payment required to complete registration",
@@ -540,6 +554,7 @@ export const registerForEvent = async (req: Request, res: Response) => {
         paymentRequired: true,
         amount: event.price,
         currency: "INR",
+        attendee,
       },
     });
   } catch (error) {
@@ -571,24 +586,23 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
       });
     }
 
-    // Prevent duplicates
+    // Find existing registration and update it
     const existingRegistration = event.attendees.find(
       (attendee) => attendee.userId.toString() === req.user.id
     );
-    if (existingRegistration) {
-      return res.status(200).json({
-        success: true,
-        message: "Already registered",
-        data: { status: existingRegistration.status },
+
+    if (!existingRegistration) {
+      return res.status(404).json({
+        success: false,
+        message: "No pending registration found",
       });
     }
 
-    // Create registration
-    event.attendees.push({
-      userId: req.user.id,
-      registeredAt: new Date(),
-      status: "registered",
-    });
+    // Update existing registration to confirmed
+    existingRegistration.status = "registered";
+    existingRegistration.paymentStatus = "successful";
+    existingRegistration.amountPaid = event.price;
+
     await event.save();
 
     return res.json({

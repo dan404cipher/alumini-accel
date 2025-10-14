@@ -402,7 +402,7 @@ export interface IEvent extends Document {
   attendees: Array<{
     userId: string;
     registeredAt: Date;
-    status: "registered" | "attended" | "cancelled";
+    status: "registered" | "attended" | "cancelled" | "pending_payment";
     // Additional registration details
     phone?: string;
     dietaryRequirements?: string;

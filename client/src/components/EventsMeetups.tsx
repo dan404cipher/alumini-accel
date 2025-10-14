@@ -43,6 +43,7 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { EditEventDialog } from "./dialogs/EditEventDialog";
@@ -970,6 +971,95 @@ const EventsMeetups = () => {
     }
   };
 
+  // CSV Export function
+  const exportParticipantsToCSV = () => {
+    if (participants.length === 0) return;
+
+    const headers = [
+      "First Name",
+      "Last Name",
+      "Email",
+      "Phone Number",
+      "Dietary Requirements",
+      "Emergency Contact Name",
+      "Emergency Contact Phone",
+      "Additional Notes",
+      "Registration Status",
+      "Payment Status",
+      "Amount Paid",
+      "Registered At",
+    ];
+
+    const csvData = participants.map((p) => {
+      const firstName = p.user?.firstName || "";
+      const lastName = p.user?.lastName || "";
+      const email = p.user?.email || "";
+      const phone = p.phone || p.phoneNumber || p.user?.phone || "";
+      const dietaryRaw = p.dietaryRequirements ?? p.dietary;
+      const dietary = Array.isArray(dietaryRaw)
+        ? dietaryRaw.filter(Boolean).join(", ")
+        : dietaryRaw || "";
+
+      let emergencyName = p.emergencyContactName || "";
+      let emergencyPhone = p.emergencyContactPhone || "";
+      if (typeof p.emergencyContact === "object" && p.emergencyContact) {
+        emergencyName = emergencyName || p.emergencyContact.name || "";
+        emergencyPhone = emergencyPhone || p.emergencyContact.phone || "";
+      } else if (typeof p.emergencyContact === "string") {
+        emergencyName = emergencyName || p.emergencyContact;
+      }
+
+      const notes = p.additionalNotes || p.notes || "";
+      const statusText = typeof p.status === "string" ? p.status : "registered";
+      const registeredAtStr = p.registeredAt
+        ? new Date(p.registeredAt).toLocaleString()
+        : "";
+
+      return [
+        firstName,
+        lastName,
+        email,
+        phone,
+        dietary,
+        emergencyName,
+        emergencyPhone,
+        notes,
+        statusText,
+        p.paymentStatus || "",
+        p.amountPaid || 0,
+        registeredAtStr,
+      ];
+    });
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map((row) =>
+        row
+          .map((field) =>
+            typeof field === "string" && field.includes(",")
+              ? `"${field.replace(/"/g, '""')}"`
+              : field
+          )
+          .join(",")
+      ),
+    ].join("\n");
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `event-participants-${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Handle Calendar View toggle
   const handleCalendarView = () => {
     setShowCalendarView(!showCalendarView);
@@ -1664,7 +1754,20 @@ const EventsMeetups = () => {
       <Dialog open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Registered Participants</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Registered Participants</span>
+              {participants.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportParticipantsToCSV}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </Button>
+              )}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             {participantsLoading ? (

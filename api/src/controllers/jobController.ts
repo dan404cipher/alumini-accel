@@ -591,6 +591,153 @@ export const getJobStats = async (req: Request, res: Response) => {
   }
 };
 
+// Save a job
+export const saveJob = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user._id;
+
+    // Check if job exists
+    const job = await JobPost.findById(id);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Check if user has already saved this job
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.savedJobs?.includes(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Job already saved",
+      });
+    }
+
+    // Add job to user's saved jobs
+    if (!user.savedJobs) {
+      user.savedJobs = [];
+    }
+    user.savedJobs.push(id);
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Job saved successfully",
+    });
+  } catch (error) {
+    logger.error("Save job error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save job",
+    });
+  }
+};
+
+// Unsave a job
+export const unsaveJob = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user._id;
+
+    // Check if job exists
+    const job = await JobPost.findById(id);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Remove job from user's saved jobs
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.savedJobs?.includes(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Job not saved",
+      });
+    }
+
+    user.savedJobs = user.savedJobs.filter((jobId: string) => jobId !== id);
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Job unsaved successfully",
+    });
+  } catch (error) {
+    logger.error("Unsave job error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to unsave job",
+    });
+  }
+};
+
+// Get saved jobs for current user
+export const getSavedJobs = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user._id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findById(userId).populate({
+      path: "savedJobs",
+      match: { status: { $in: [JobPostStatus.ACTIVE, JobPostStatus.PENDING] } },
+      populate: {
+        path: "postedBy",
+        select: "firstName lastName email profilePicture",
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const savedJobs = user.savedJobs || [];
+    const paginatedJobs = savedJobs.slice(skip, skip + limit);
+    const total = savedJobs.length;
+
+    return res.json({
+      success: true,
+      data: {
+        jobs: paginatedJobs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get saved jobs error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch saved jobs",
+    });
+  }
+};
+
 export default {
   getAllJobs,
   getJobById,
@@ -604,4 +751,7 @@ export default {
   getJobsByType,
   getMyJobPosts,
   getJobStats,
+  saveJob,
+  unsaveJob,
+  getSavedJobs,
 };

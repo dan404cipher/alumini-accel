@@ -104,4 +104,33 @@ router.get(
   asyncHandler(jobController.getJobsByType)
 );
 
+// @route   POST /api/v1/jobs/:id/save
+// @desc    Save a job
+// @access  Private
+router.post(
+  "/:id/save",
+  authenticateToken,
+  validateId,
+  asyncHandler(jobController.saveJob)
+);
+
+// @route   DELETE /api/v1/jobs/:id/save
+// @desc    Unsave a job
+// @access  Private
+router.delete(
+  "/:id/save",
+  authenticateToken,
+  validateId,
+  asyncHandler(jobController.unsaveJob)
+);
+
+// @route   GET /api/v1/jobs/saved
+// @desc    Get saved jobs for current user
+// @access  Private
+router.get(
+  "/saved",
+  authenticateToken,
+  asyncHandler(jobController.getSavedJobs)
+);
+
 export default router;

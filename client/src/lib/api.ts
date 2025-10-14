@@ -1091,6 +1091,31 @@ export const jobAPI = {
       params,
     });
   },
+
+  // Save a job
+  saveJob: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/jobs/${id}/save`,
+    });
+  },
+
+  // Unsave a job
+  unsaveJob: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/jobs/${id}/save`,
+    });
+  },
+
+  // Get saved jobs
+  getSavedJobs: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/jobs/saved",
+      params,
+    });
+  },
 };
 
 // Job Application API functions

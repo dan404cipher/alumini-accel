@@ -116,6 +116,20 @@ const JobBoard = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
+
+  // Load saved jobs from localStorage on component mount
+  useEffect(() => {
+    const savedJobsFromStorage = localStorage.getItem("savedJobs");
+    if (savedJobsFromStorage) {
+      try {
+        const parsed = JSON.parse(savedJobsFromStorage);
+        setSavedJobs(new Set(parsed));
+      } catch (error) {
+        console.error("Error parsing saved jobs from localStorage:", error);
+        localStorage.removeItem("savedJobs");
+      }
+    }
+  }, []);
   const [showSavedJobs, setShowSavedJobs] = useState(false);
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -123,6 +137,10 @@ const JobBoard = () => {
   const [selectedJobForApplication, setSelectedJobForApplication] =
     useState<Job | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const postedJobsCount = useMemo(
+    () => jobs.filter((j) => j.postedBy._id === user?._id).length,
+    [jobs, user?._id]
+  );
   const [activeTab, setActiveTab] = useState("jobs");
   const observerRef = useRef<HTMLDivElement>(null);
   const fetchJobsRef = useRef<typeof fetchJobs>();
@@ -351,17 +369,51 @@ const JobBoard = () => {
   }, []);
 
   // Handle save/unsave job
-  const handleSaveJob = useCallback((jobId: string) => {
-    setSavedJobs((prev) => {
-      const newSaved = new Set(prev);
-      if (newSaved.has(jobId)) {
-        newSaved.delete(jobId);
-      } else {
-        newSaved.add(jobId);
+  const handleSaveJob = useCallback(
+    async (jobId: string) => {
+      try {
+        const isCurrentlySaved = savedJobs.has(jobId);
+
+        if (isCurrentlySaved) {
+          // Unsave job
+          await jobAPI.unsaveJob(jobId);
+        } else {
+          // Save job
+          await jobAPI.saveJob(jobId);
+        }
+
+        // Update local state
+        setSavedJobs((prev) => {
+          const newSaved = new Set(prev);
+          if (newSaved.has(jobId)) {
+            newSaved.delete(jobId);
+          } else {
+            newSaved.add(jobId);
+          }
+
+          // Save to localStorage as backup
+          localStorage.setItem("savedJobs", JSON.stringify([...newSaved]));
+
+          return newSaved;
+        });
+      } catch (error) {
+        console.error("Error saving/unsaving job:", error);
+        // Fallback to localStorage only
+        setSavedJobs((prev) => {
+          const newSaved = new Set(prev);
+          if (newSaved.has(jobId)) {
+            newSaved.delete(jobId);
+          } else {
+            newSaved.add(jobId);
+          }
+
+          localStorage.setItem("savedJobs", JSON.stringify([...newSaved]));
+          return newSaved;
+        });
       }
-      return newSaved;
-    });
-  }, []);
+    },
+    [savedJobs]
+  );
 
   // Handle view job details - navigate to job detail page
   const handleViewJob = useCallback(
@@ -827,6 +879,23 @@ const JobBoard = () => {
                         className="ml-auto bg-primary text-primary-foreground"
                       >
                         {savedJobs.size}
+                      </Badge>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => setActiveTab("received-applications")}
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    My Posted Jobs
+                    {postedJobsCount > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-auto bg-primary text-primary-foreground"
+                      >
+                        {postedJobsCount}
                       </Badge>
                     )}
                   </Button>
@@ -1415,7 +1484,6 @@ const JobBoard = () => {
           <TabsContent value="my-applications" className="space-y-6">
             <Card className="shadow-medium">
               <CardContent className="p-6">
-                
                 <ApplicationStatusTracking />
               </CardContent>
             </Card>

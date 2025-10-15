@@ -134,7 +134,7 @@ const AlumniPortal = () => {
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
         // Fetch recent events
-        const eventsResponse = await fetch(`${baseUrl}/events?limit=3`, {
+        const eventsResponse = await fetch(`${baseUrl}/events?limit=8`, {
           headers,
         });
         if (eventsResponse.ok) {
@@ -143,7 +143,7 @@ const AlumniPortal = () => {
         }
 
         // Fetch recent news
-        const newsResponse = await fetch(`${baseUrl}/news?limit=3`, {
+        const newsResponse = await fetch(`${baseUrl}/news?limit=8`, {
           headers,
         });
         if (newsResponse.ok) {
@@ -152,7 +152,7 @@ const AlumniPortal = () => {
         }
 
         // Fetch recent galleries
-        const galleriesResponse = await fetch(`${baseUrl}/gallery?limit=3`, {
+        const galleriesResponse = await fetch(`${baseUrl}/gallery?limit=8`, {
           headers,
         });
         if (galleriesResponse.ok) {
@@ -162,7 +162,7 @@ const AlumniPortal = () => {
 
         // Fetch recent communities
         const communitiesResponse = await fetch(
-          `${baseUrl}/communities?limit=3`,
+          `${baseUrl}/communities?limit=8`,
           { headers }
         );
         if (communitiesResponse.ok) {
@@ -172,7 +172,7 @@ const AlumniPortal = () => {
 
         // Fetch recent mentorships
         const mentorshipsResponse = await fetch(
-          `${baseUrl}/mentorship?limit=3`,
+          `${baseUrl}/mentorship?limit=8`,
           { headers }
         );
         if (mentorshipsResponse.ok) {
@@ -181,7 +181,7 @@ const AlumniPortal = () => {
         }
 
         // Fetch recent donations
-        const donationsResponse = await fetch(`${baseUrl}/donations?limit=3`, {
+        const donationsResponse = await fetch(`${baseUrl}/donations?limit=8`, {
           headers,
         });
         if (donationsResponse.ok) {
@@ -269,7 +269,7 @@ const AlumniPortal = () => {
 
         {/* Loading State */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-8">
             {[...Array(6)].map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardHeader>
@@ -286,9 +286,9 @@ const AlumniPortal = () => {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-8">
             {/* Recent Events */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-5 w-5 text-blue-600" />
@@ -303,17 +303,35 @@ const AlumniPortal = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 {recentEvents.length > 0 ? (
-                  recentEvents.map((event) => (
-                    <div
-                      key={event._id}
-                      onClick={() => handleEventClick(event._id)}
-                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentEvents.map((event) => (
+                      <div
+                        key={event._id}
+                        onClick={() => handleEventClick(event._id)}
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          {event.image ? (
+                            <img
+                              src={event.image}
+                              alt={event.title}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded-t-lg flex items-center justify-center">
+                              <Calendar className="h-8 w-8 text-blue-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {event.type || "Event"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-blue-600 transition-colors">
                             {event.title}
                           </h4>
                           <div className="flex items-center text-xs text-gray-500 mt-1">
@@ -323,17 +341,22 @@ const AlumniPortal = () => {
                           {event.location && (
                             <div className="flex items-center text-xs text-gray-500 mt-1">
                               <MapPin className="h-3 w-3 mr-1" />
-                              {event.location}
+                              <span className="truncate">{event.location}</span>
                             </div>
                           )}
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {event.currentAttendees || 0} attendees
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                          </div>
                         </div>
-                        <ExternalLink className="h-3 w-3 text-gray-400" />
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent events</p>
                   </div>
                 )}
@@ -341,7 +364,7 @@ const AlumniPortal = () => {
             </Card>
 
             {/* Recent News */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <MessageSquare className="h-5 w-5 text-green-600" />
@@ -356,34 +379,57 @@ const AlumniPortal = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 {recentNews.length > 0 ? (
-                  recentNews.map((news) => (
-                    <div
-                      key={news._id}
-                      onClick={() => handleNewsClick(news._id)}
-                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentNews.map((news) => (
+                      <div
+                        key={news._id}
+                        onClick={() => handleNewsClick(news._id)}
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          {news.image ? (
+                            <img
+                              src={news.image}
+                              alt={news.title}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-green-100 to-green-200 rounded-t-lg flex items-center justify-center">
+                              <MessageSquare className="h-8 w-8 text-green-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs">
+                              News
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-green-600 transition-colors">
                             {news.title}
                           </h4>
                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                             {news.content}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
                             <Clock className="h-3 w-3 mr-1" />
                             {new Date(news.createdAt).toLocaleDateString()}
                           </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {news.author?.firstName} {news.author?.lastName}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-green-500 transition-colors" />
+                          </div>
                         </div>
-                        <ExternalLink className="h-3 w-3 text-gray-400" />
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent news</p>
                   </div>
                 )}
@@ -391,7 +437,7 @@ const AlumniPortal = () => {
             </Card>
 
             {/* Recent Gallery */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <ImageIcon className="h-5 w-5 text-purple-600" />
@@ -406,34 +452,68 @@ const AlumniPortal = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 {recentGalleries.length > 0 ? (
-                  recentGalleries.map((gallery) => (
-                    <div
-                      key={gallery._id}
-                      onClick={() => handleGalleryClick(gallery._id)}
-                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentGalleries.map((gallery) => (
+                      <div
+                        key={gallery._id}
+                        onClick={() => handleGalleryClick(gallery._id)}
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          {gallery.images && gallery.images.length > 0 ? (
+                            <img
+                              src={gallery.images[0]}
+                              alt={gallery.title}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-purple-100 to-purple-200 rounded-t-lg flex items-center justify-center">
+                              <ImageIcon className="h-8 w-8 text-purple-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs">
+                              Gallery
+                            </Badge>
+                          </div>
+                          {gallery.images && gallery.images.length > 1 && (
+                            <div className="absolute bottom-2 right-2">
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-white/90"
+                              >
+                                +{gallery.images.length - 1} more
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-purple-600 transition-colors">
                             {gallery.title}
                           </h4>
                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                             {gallery.description}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
                             <Eye className="h-3 w-3 mr-1" />
                             {gallery.images?.length || 0} photos
                           </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {gallery.createdBy?.firstName}{" "}
+                              {gallery.createdBy?.lastName}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                          </div>
                         </div>
-                        <ExternalLink className="h-3 w-3 text-gray-400" />
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <ImageIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500">
+                    <ImageIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent galleries</p>
                   </div>
                 )}
@@ -441,7 +521,7 @@ const AlumniPortal = () => {
             </Card>
 
             {/* Recent Communities */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <Users className="h-5 w-5 text-orange-600" />
@@ -456,34 +536,57 @@ const AlumniPortal = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 {recentCommunities.length > 0 ? (
-                  recentCommunities.map((community) => (
-                    <div
-                      key={community._id}
-                      onClick={() => handleCommunityClick(community._id)}
-                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentCommunities.map((community) => (
+                      <div
+                        key={community._id}
+                        onClick={() => handleCommunityClick(community._id)}
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          {community.logo ? (
+                            <img
+                              src={community.logo}
+                              alt={community.name}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-orange-100 to-orange-200 rounded-t-lg flex items-center justify-center">
+                              <Users className="h-8 w-8 text-orange-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {community.type || "Community"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-orange-600 transition-colors">
                             {community.name}
                           </h4>
                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                             {community.description}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
                             <Users className="h-3 w-3 mr-1" />
                             {community.memberCount || 0} members
                           </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {community.category}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                          </div>
                         </div>
-                        <ExternalLink className="h-3 w-3 text-gray-400" />
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent communities</p>
                   </div>
                 )}
@@ -491,7 +594,7 @@ const AlumniPortal = () => {
             </Card>
 
             {/* Recent Mentorships */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="h-5 w-5 text-indigo-600" />
@@ -506,35 +609,65 @@ const AlumniPortal = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 {recentMentorships.length > 0 ? (
-                  recentMentorships.map((mentorship) => (
-                    <div
-                      key={mentorship._id}
-                      onClick={() => handleMentorshipClick(mentorship._id)}
-                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentMentorships.map((mentorship) => (
+                      <div
+                        key={mentorship._id}
+                        onClick={() => handleMentorshipClick(mentorship._id)}
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          {mentorship.mentor?.profilePicture ? (
+                            <img
+                              src={mentorship.mentor.profilePicture}
+                              alt={mentorship.mentor?.firstName}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-t-lg flex items-center justify-center">
+                              <User className="h-8 w-8 text-indigo-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge
+                              variant={
+                                mentorship.status === "active"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {mentorship.status || "pending"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-indigo-600 transition-colors">
                             {mentorship.title || "Mentorship Request"}
                           </h4>
                           <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                             {mentorship.description}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {mentorship.status || "pending"}
-                            </Badge>
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
+                            <User className="h-3 w-3 mr-1" />
+                            {mentorship.mentor?.firstName}{" "}
+                            {mentorship.mentor?.lastName}
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {mentorship.field || "General"}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-indigo-500 transition-colors" />
                           </div>
                         </div>
-                        <ExternalLink className="h-3 w-3 text-gray-400" />
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <TrendingUp className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500">
+                    <TrendingUp className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent mentorships</p>
                   </div>
                 )}
@@ -542,7 +675,7 @@ const AlumniPortal = () => {
             </Card>
 
             {/* Recent Donations */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <Heart className="h-5 w-5 text-red-600" />
@@ -557,34 +690,57 @@ const AlumniPortal = () => {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 {recentDonations.length > 0 ? (
-                  recentDonations.map((donation) => (
-                    <div
-                      key={donation._id}
-                      onClick={() => handleDonationClick(donation._id)}
-                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentDonations.map((donation) => (
+                      <div
+                        key={donation._id}
+                        onClick={() => handleDonationClick(donation._id)}
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          {donation.campaign?.image ? (
+                            <img
+                              src={donation.campaign.image}
+                              alt={donation.campaign?.title}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-red-100 to-red-200 rounded-t-lg flex items-center justify-center">
+                              <Heart className="h-8 w-8 text-red-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs">
+                              Donation
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-red-600 transition-colors">
                             {donation.campaign?.title || "Donation"}
                           </h4>
                           <p className="text-xs text-gray-500 mt-1">
                             Amount: ${donation.amount}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
                             <Clock className="h-3 w-3 mr-1" />
                             {new Date(donation.createdAt).toLocaleDateString()}
                           </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {donation.status || "completed"}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-red-500 transition-colors" />
+                          </div>
                         </div>
-                        <ExternalLink className="h-3 w-3 text-gray-400" />
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <Heart className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500">
+                    <Heart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent donations</p>
                   </div>
                 )}

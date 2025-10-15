@@ -67,6 +67,7 @@ import {
   Megaphone,
   Microscope,
   Sparkles,
+  Shield,
   Target,
   HandHeart,
   Telescope,
@@ -1773,15 +1774,14 @@ const CommunityNew = () => {
                     </div>
                   </div>
 
-                  {/* Quick Actions */}
-                  <div className="space-y-3 pt-4 border-t">
-                    <h3 className="text-sm font-semibold">Quick Actions</h3>
-                    <div className="space-y-2">
-                      {/* Only show Create Community button for College Admin, HOD, and Staff */}
-                      {user?.role &&
-                        ["college_admin", "hod", "staff"].includes(
-                          user.role
-                        ) && (
+                  {/* Quick Actions - Only show if user can create communities */}
+                  {user?.role &&
+                    ["super_admin", "college_admin", "hod", "staff"].includes(
+                      user.role
+                    ) && (
+                      <div className="space-y-3 pt-4 border-t">
+                        <h3 className="text-sm font-semibold">Quick Actions</h3>
+                        <div className="space-y-2">
                           <Dialog
                             open={communityDialogOpen}
                             onOpenChange={setCommunityDialogOpen}
@@ -2316,9 +2316,9 @@ const CommunityNew = () => {
                               </div>
                             </DialogContent>
                           </Dialog>
-                        )}
-                    </div>
-                  </div>
+                        </div>
+                      </div>
+                    )}
                 </CardContent>
               </Card>
             </div>
@@ -2379,21 +2379,26 @@ const CommunityNew = () => {
                 </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="space-y-3 pt-4 border-t">
-                <h3 className="text-sm font-semibold">Quick Actions</h3>
-                <div className="space-y-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => setCommunityDialogOpen(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Community
-                  </Button>
-                </div>
-              </div>
+              {/* Quick Actions - Only show if user can create communities */}
+              {user?.role &&
+                ["super_admin", "college_admin", "hod", "staff"].includes(
+                  user.role
+                ) && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <h3 className="text-sm font-semibold">Quick Actions</h3>
+                    <div className="space-y-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => setCommunityDialogOpen(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Community
+                      </Button>
+                    </div>
+                  </div>
+                )}
             </CardContent>
           </Card>
         </div>
@@ -2496,10 +2501,16 @@ const CommunityNew = () => {
                 <p className="text-gray-500 mb-4">
                   Be the first to create a community!
                 </p>
-                <Button onClick={() => setCommunityDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Community
-                </Button>
+                {/* Only show Create Community button for College Admin, HOD, and Staff */}
+                {user?.role &&
+                  ["super_admin", "college_admin", "hod", "staff"].includes(
+                    user.role
+                  ) && (
+                    <Button onClick={() => setCommunityDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Community
+                    </Button>
+                  )}
               </div>
             ) : (
               <div className="grid gap-4">
@@ -2609,6 +2620,32 @@ const CommunityNew = () => {
                             {isMember ? "View" : "Join"}
                           </Button>
                         </div>
+
+                        {/* Moderator Tools - Only show for admins */}
+                        {isAdmin && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-xs text-gray-600">
+                                <Shield className="w-3 h-3" />
+                                <span>Moderator Tools</span>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs h-6 px-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // TODO: Add manage community functionality
+                                  }}
+                                >
+                                  <Settings className="w-3 h-3 mr-1" />
+                                  Manage
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   );

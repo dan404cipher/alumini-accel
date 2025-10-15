@@ -521,6 +521,12 @@ export const validateId = [
   handleValidationErrors,
 ];
 
+// Membership ID parameter validation
+export const validateMembershipId = [
+  param("membershipId").isMongoId().withMessage("Invalid membership ID format"),
+  handleValidationErrors,
+];
+
 // Community ID parameter validation
 export const validateCommunityId = [
   param("communityId").isMongoId().withMessage("Invalid ID format"),
@@ -964,6 +970,8 @@ export default {
   validatePagination,
   validateSearch,
   validateId,
+  validateMembershipId,
+  validateCommunityId,
   validatePostId,
   validateCommentId,
   validateEmail,

@@ -39,10 +39,13 @@ export const createCommunity = async (
 
     // Check if user has permission to create communities
     const userRole = req.user?.role;
-    if (!["college_admin", "hod", "staff"].includes(userRole || "")) {
+    if (
+      !["super_admin", "college_admin", "hod", "staff"].includes(userRole || "")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Only College Admin, HOD, and Staff can create communities",
+        message:
+          "Only Super Admin, College Admin, HOD, and Staff can create communities",
       });
     }
 

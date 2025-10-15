@@ -6,6 +6,9 @@ export { default as CommunityRightSidebar } from "./CommunityRightSidebar";
 export { default as CommunityMobileSidebar } from "./CommunityMobileSidebar";
 export { default as CommunityPostsTab } from "./CommunityPostsTab";
 export { default as CommunityAboutTab } from "./CommunityAboutTab";
+export { default as ModeratorDashboard } from "./ModeratorDashboard";
+export { default as EditCommunityModal } from "./EditCommunityModal";
+export { default as DeleteCommunityModal } from "./DeleteCommunityModal";
 export { default as CommunityPostCard } from "./CommunityPostCard";
 
 // Export types

@@ -8,27 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Home,
-  MessageSquare,
-  Briefcase,
-  DollarSign,
-  User,
-  Plus,
-  Upload,
   Calendar,
   MapPin,
   Building2,
@@ -37,15 +17,34 @@ import {
   Share2,
   Edit,
   Camera,
+  Users,
+  Briefcase,
+  DollarSign,
+  User,
+  Plus,
+  Upload,
+  MessageSquare,
+  Image as ImageIcon,
+  ArrowRight,
+  Clock,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantAPI } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 
 const AlumniPortal = () => {
   const { user } = useAuth();
-  const [isPostJobOpen, setIsPostJobOpen] = useState(false);
-  const [isUploadPaymentOpen, setIsUploadPaymentOpen] = useState(false);
+  const navigate = useNavigate();
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
+  const [recentNews, setRecentNews] = useState<any[]>([]);
+  const [recentGalleries, setRecentGalleries] = useState<any[]>([]);
+  const [recentCommunities, setRecentCommunities] = useState<any[]>([]);
+  const [recentMentorships, setRecentMentorships] = useState<any[]>([]);
+  const [recentDonations, setRecentDonations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Load college banner
   useEffect(() => {
@@ -120,79 +119,117 @@ const AlumniPortal = () => {
     };
   }, [user?.tenantId]);
 
-  // Mock data - replace with actual API calls
-  const stats = {
-    eventsJoined: 8,
-    fundsContributed: 2500,
-    jobsPosted: 3,
-    postsCreated: 12,
-    connections: 45,
+  // Fetch recent data
+  useEffect(() => {
+    const fetchRecentData = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        };
+
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+
+        // Fetch recent events
+        const eventsResponse = await fetch(`${baseUrl}/events?limit=3`, {
+          headers,
+        });
+        if (eventsResponse.ok) {
+          const eventsData = await eventsResponse.json();
+          setRecentEvents(eventsData.data?.events || []);
+        }
+
+        // Fetch recent news
+        const newsResponse = await fetch(`${baseUrl}/news?limit=3`, {
+          headers,
+        });
+        if (newsResponse.ok) {
+          const newsData = await newsResponse.json();
+          setRecentNews(newsData.data?.news || []);
+        }
+
+        // Fetch recent galleries
+        const galleriesResponse = await fetch(`${baseUrl}/gallery?limit=3`, {
+          headers,
+        });
+        if (galleriesResponse.ok) {
+          const galleriesData = await galleriesResponse.json();
+          setRecentGalleries(galleriesData.data?.galleries || []);
+        }
+
+        // Fetch recent communities
+        const communitiesResponse = await fetch(
+          `${baseUrl}/communities?limit=3`,
+          { headers }
+        );
+        if (communitiesResponse.ok) {
+          const communitiesData = await communitiesResponse.json();
+          setRecentCommunities(communitiesData.data?.communities || []);
+        }
+
+        // Fetch recent mentorships
+        const mentorshipsResponse = await fetch(
+          `${baseUrl}/mentorship?limit=3`,
+          { headers }
+        );
+        if (mentorshipsResponse.ok) {
+          const mentorshipsData = await mentorshipsResponse.json();
+          setRecentMentorships(mentorshipsData.data?.mentorships || []);
+        }
+
+        // Fetch recent donations
+        const donationsResponse = await fetch(`${baseUrl}/donations?limit=3`, {
+          headers,
+        });
+        if (donationsResponse.ok) {
+          const donationsData = await donationsResponse.json();
+          setRecentDonations(donationsData.data?.donations || []);
+        }
+      } catch (error) {
+        console.error("Error fetching recent data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecentData();
+  }, []);
+
+  // Navigation handlers
+  const handleEventClick = (eventId: string) => {
+    navigate(`/events/${eventId}`);
   };
 
-  const jobReferrals = [
-    {
-      id: 1,
-      title: "Senior Software Engineer",
-      company: "Google",
-      location: "Mountain View, CA",
-      postedBy: "David Kim",
-      postedDate: "2024-01-15",
-      applicants: 12,
-      salary: "$150k - $200k",
-    },
-    {
-      id: 2,
-      title: "Product Manager",
-      company: "Microsoft",
-      location: "Seattle, WA",
-      postedBy: "Lisa Wang",
-      postedDate: "2024-01-14",
-      applicants: 8,
-      salary: "$130k - $180k",
-    },
-  ];
+  const handleNewsClick = (newsId: string) => {
+    navigate(`/news/${newsId}`);
+  };
 
-  const fundraisingEvents = [
-    {
-      id: 1,
-      title: "Research Fund Drive",
-      description:
-        "Support our ongoing research projects in AI and Machine Learning",
-      targetAmount: 50000,
-      currentAmount: 35000,
-      endDate: "2024-02-28",
-      organizer: "Computer Science Department",
-      status: "active",
-    },
-    {
-      id: 2,
-      title: "Scholarship Fund",
-      description: "Help provide scholarships for deserving students",
-      targetAmount: 100000,
-      currentAmount: 75000,
-      endDate: "2024-03-15",
-      organizer: "Student Affairs",
-      status: "active",
-    },
-  ];
+  const handleGalleryClick = (galleryId: string) => {
+    navigate(`/gallery/${galleryId}`);
+  };
 
-  const userProfile = {
-    name: "John Smith",
-    email: "john.smith@email.com",
-    graduationYear: 2020,
-    department: "Computer Science",
-    currentCompany: "Tech Corp",
-    currentPosition: "Software Engineer",
-    location: "San Francisco, CA",
-    bio: "Passionate about technology and helping fellow alumni succeed in their careers.",
-    profilePicture: null,
-    linkedinProfile: "https://linkedin.com/in/johnsmith",
-    githubProfile: "https://github.com/johnsmith",
+  const handleCommunityClick = (communityId: string) => {
+    navigate(`/community/${communityId}`);
+  };
+
+  const handleMentorshipClick = (mentorshipId: string) => {
+    navigate(`/mentorship/${mentorshipId}`);
+  };
+
+  const handleDonationClick = (donationId: string) => {
+    navigate(`/donations/${donationId}`);
+  };
+
+  const handleViewAll = (section: string) => {
+    navigate(`/${section}`);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pt-20">
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* College Banner */}
         {collegeBanner && (
           <div className="relative overflow-hidden rounded-lg shadow-lg">
@@ -219,9 +256,9 @@ const AlumniPortal = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Alumni Portal</h1>
+            <h1 className="text-3xl font-bold">Alumni Dashboard</h1>
             <p className="text-muted-foreground">
-              Connect, share, and contribute to your alma mater
+              Stay connected with your alma mater
             </p>
           </div>
           <Badge variant="outline" className="text-sm">
@@ -230,383 +267,331 @@ const AlumniPortal = () => {
           </Badge>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Events Joined
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.eventsJoined}</div>
-              <p className="text-xs text-muted-foreground">This year</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Funds Contributed
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${stats.fundsContributed}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total contributions
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Jobs Posted</CardTitle>
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.jobsPosted}</div>
-              <p className="text-xs text-muted-foreground">Referrals made</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Posts Created
-              </CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.postsCreated}</div>
-              <p className="text-xs text-muted-foreground">Stories shared</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Connections</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.connections}</div>
-              <p className="text-xs text-muted-foreground">Alumni network</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="wall" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="wall">Information Wall</TabsTrigger>
-            <TabsTrigger value="jobs">Job Referrals</TabsTrigger>
-            <TabsTrigger value="fundraising">Fundraising</TabsTrigger>
-            <TabsTrigger value="profile">My Profile</TabsTrigger>
-          </TabsList>
-
-          {/* Information Wall */}
-          <TabsContent value="wall" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Information Wall</h2>
-            </div>
-
-            <div className="space-y-4">
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <div className="space-y-4">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                      <MessageSquare className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        No posts yet
-                      </h3>
-                      <p className="text-gray-600">
-                        Check back later for announcements, achievements, and
-                        updates from your college community.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Job Referrals */}
-          <TabsContent value="jobs" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Job Referrals</h2>
-              <Dialog open={isPostJobOpen} onOpenChange={setIsPostJobOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Post Job Opening
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Post Job Opening</DialogTitle>
-                    <DialogDescription>
-                      Share job opportunities with fellow alumni.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="job-title">Job Title</Label>
-                      <Input
-                        id="job-title"
-                        placeholder="e.g., Senior Software Engineer"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="job-company">Company</Label>
-                      <Input id="job-company" placeholder="e.g., Google" />
-                    </div>
-                    <div>
-                      <Label htmlFor="job-role">Role</Label>
-                      <Input id="job-role" placeholder="e.g., Full-time" />
-                    </div>
-                    <div>
-                      <Label htmlFor="job-location">Location</Label>
-                      <Input
-                        id="job-location"
-                        placeholder="e.g., Mountain View, CA"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="job-description">Description</Label>
-                      <Textarea
-                        id="job-description"
-                        placeholder="Describe the job requirements and responsibilities..."
-                        className="min-h-32"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsPostJobOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={() => setIsPostJobOpen(false)}>
-                      Post Job
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="space-y-4">
-              {jobReferrals.map((job) => (
-                <Card key={job.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{job.title}</CardTitle>
-                        <CardDescription>
-                          {job.company} • Posted by {job.postedBy}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="outline">{job.salary}</Badge>
-                        <Badge variant="secondary">
-                          {job.applicants} applicants
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span className="flex items-center">
-                          <MapPin className="w-4 h-4 mr-1" />
-                          {job.location}
-                        </span>
-                        <span>{job.postedDate}</span>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          View Details
-                        </Button>
-                        <Button size="sm">Apply Now</Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Fundraising */}
-          <TabsContent value="fundraising" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Fundraising Section</h2>
-              <Button variant="outline">
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Payment
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {fundraisingEvents.map((event) => (
-                <Card key={event.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{event.title}</CardTitle>
-                        <CardDescription>{event.organizer}</CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={
-                            event.status === "active" ? "default" : "secondary"
-                          }
-                        >
-                          {event.status}
-                        </Badge>
-                        <Badge variant="outline">Ends {event.endDate}</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <p className="text-gray-700">{event.description}</p>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span>
-                            {Math.round(
-                              (event.currentAmount / event.targetAmount) * 100
-                            )}
-                            %
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full"
-                            style={{
-                              width: `${
-                                (event.currentAmount / event.targetAmount) * 100
-                              }%`,
-                            }}
-                          ></div>
-                        </div>
-                        <div className="flex justify-between text-sm text-muted-foreground">
-                          <span>${event.currentAmount.toLocaleString()}</span>
-                          <span>${event.targetAmount.toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          View Details
-                        </Button>
-                        <Button size="sm">Make Payment</Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* My Profile */}
-          <TabsContent value="profile" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">My Profile</h2>
-              <Button>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Profile
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="md:col-span-1">
+        {/* Loading State */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
                 <CardHeader>
-                  <CardTitle>Profile Picture</CardTitle>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-                      {userProfile.profilePicture ? (
-                        <img
-                          src={userProfile.profilePicture}
-                          alt="Profile"
-                          className="w-24 h-24 rounded-full object-cover"
-                        />
-                      ) : (
-                        <Camera className="w-8 h-8 text-gray-500" />
-                      )}
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Photo
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                    <div className="h-3 bg-gray-200 rounded w-5/6"></div>
                   </div>
                 </CardContent>
               </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Recent Events */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="h-5 w-5 text-blue-600" />
+                  <CardTitle className="text-lg">Recent Events</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAll("events")}
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentEvents.length > 0 ? (
+                  recentEvents.map((event) => (
+                    <div
+                      key={event._id}
+                      onClick={() => handleEventClick(event._id)}
+                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">
+                            {event.title}
+                          </h4>
+                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {new Date(event.startDate).toLocaleDateString()}
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center text-xs text-gray-500 mt-1">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              {event.location}
+                            </div>
+                          )}
+                        </div>
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No recent events</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Full Name</Label>
-                      <Input value={userProfile.name} readOnly />
+            {/* Recent News */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-5 w-5 text-green-600" />
+                  <CardTitle className="text-lg">Recent News</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAll("news")}
+                  className="text-green-600 hover:text-green-700"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentNews.length > 0 ? (
+                  recentNews.map((news) => (
+                    <div
+                      key={news._id}
+                      onClick={() => handleNewsClick(news._id)}
+                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">
+                            {news.title}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {news.content}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {new Date(news.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                      </div>
                     </div>
-                    <div>
-                      <Label>Email</Label>
-                      <Input value={userProfile.email} readOnly />
-                    </div>
-                    <div>
-                      <Label>Graduation Year</Label>
-                      <Input value={userProfile.graduationYear} readOnly />
-                    </div>
-                    <div>
-                      <Label>Department</Label>
-                      <Input value={userProfile.department} readOnly />
-                    </div>
-                    <div>
-                      <Label>Current Company</Label>
-                      <Input value={userProfile.currentCompany} readOnly />
-                    </div>
-                    <div>
-                      <Label>Current Position</Label>
-                      <Input value={userProfile.currentPosition} readOnly />
-                    </div>
-                    <div>
-                      <Label>Location</Label>
-                      <Input value={userProfile.location} readOnly />
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No recent news</p>
                   </div>
-                  <div>
-                    <Label>Bio</Label>
-                    <Textarea
-                      value={userProfile.bio}
-                      readOnly
-                      className="min-h-20"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>LinkedIn Profile</Label>
-                      <Input value={userProfile.linkedinProfile} readOnly />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Gallery */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <ImageIcon className="h-5 w-5 text-purple-600" />
+                  <CardTitle className="text-lg">Recent Gallery</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAll("gallery")}
+                  className="text-purple-600 hover:text-purple-700"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentGalleries.length > 0 ? (
+                  recentGalleries.map((gallery) => (
+                    <div
+                      key={gallery._id}
+                      onClick={() => handleGalleryClick(gallery._id)}
+                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">
+                            {gallery.title}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {gallery.description}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                            <Eye className="h-3 w-3 mr-1" />
+                            {gallery.images?.length || 0} photos
+                          </div>
+                        </div>
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                      </div>
                     </div>
-                    <div>
-                      <Label>GitHub Profile</Label>
-                      <Input value={userProfile.githubProfile} readOnly />
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <ImageIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No recent galleries</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Communities */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <Users className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-lg">Recent Communities</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAll("community")}
+                  className="text-orange-600 hover:text-orange-700"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentCommunities.length > 0 ? (
+                  recentCommunities.map((community) => (
+                    <div
+                      key={community._id}
+                      onClick={() => handleCommunityClick(community._id)}
+                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">
+                            {community.name}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {community.description}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                            <Users className="h-3 w-3 mr-1" />
+                            {community.memberCount || 0} members
+                          </div>
+                        </div>
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No recent communities</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Mentorships */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="h-5 w-5 text-indigo-600" />
+                  <CardTitle className="text-lg">Recent Mentorships</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAll("mentorship")}
+                  className="text-indigo-600 hover:text-indigo-700"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentMentorships.length > 0 ? (
+                  recentMentorships.map((mentorship) => (
+                    <div
+                      key={mentorship._id}
+                      onClick={() => handleMentorshipClick(mentorship._id)}
+                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">
+                            {mentorship.title || "Mentorship Request"}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {mentorship.description}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {mentorship.status || "pending"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <TrendingUp className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No recent mentorships</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Donations */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <Heart className="h-5 w-5 text-red-600" />
+                  <CardTitle className="text-lg">Recent Donations</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAll("donations")}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentDonations.length > 0 ? (
+                  recentDonations.map((donation) => (
+                    <div
+                      key={donation._id}
+                      onClick={() => handleDonationClick(donation._id)}
+                      className="p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">
+                            {donation.campaign?.title || "Donation"}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Amount: ${donation.amount}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {new Date(donation.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <Heart className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No recent donations</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

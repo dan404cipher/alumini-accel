@@ -52,7 +52,7 @@ import { ShareJobDialog } from "./dialogs/ShareJobDialog";
 import JobApplicationForm from "./JobApplicationForm";
 import ApplicationManagementDashboard from "./ApplicationManagementDashboard";
 import ApplicationStatusTracking from "./ApplicationStatusTracking";
-import { jobAPI } from "@/lib/api";
+import { jobAPI, jobApplicationAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasPermission } from "@/utils/rolePermissions";
 
@@ -116,6 +116,18 @@ const JobBoard = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
+
+  // Load applied jobs from localStorage on mount (fallback in case API is slow)
+  useEffect(() => {
+    const stored = localStorage.getItem("appliedJobs");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as string[];
+        setAppliedJobIds(new Set(parsed));
+      } catch {}
+    }
+  }, []);
 
   // Load saved jobs from localStorage on component mount
   useEffect(() => {
@@ -181,6 +193,33 @@ const JobBoard = () => {
   const handleToggleExpanded = (jobId: string) => {
     setExpandedJobId(expandedJobId === jobId ? null : jobId);
   };
+
+  // Determine if current user applied to a job (from payload or cached ids)
+  const isJobApplied = useCallback(
+    (job: Job) => {
+      // First check if the job has applications data from backend
+      if (user?._id && (job as any)?.applications?.length) {
+        const apps = (job as any).applications as Array<{
+          applicantId?: string | { _id?: string; toString?: () => string };
+        }>;
+        const hasApplied = apps.some((a) => {
+          const idLike = a?.applicantId as any;
+          if (!idLike) return false;
+          // If populated user object
+          if (typeof idLike === "object" && idLike._id) {
+            return idLike._id === user._id;
+          }
+          // If ObjectId or string
+          const val = idLike?.toString ? idLike.toString() : (idLike as string);
+          return val === user._id;
+        });
+        if (hasApplied) return true;
+      }
+      // Fallback to cached applied job IDs
+      return appliedJobIds.has(job._id);
+    },
+    [appliedJobIds, user?._id]
+  );
 
   // Debounce search query
   useEffect(() => {
@@ -308,6 +347,26 @@ const JobBoard = () => {
       if (fetchJobsRef.current) {
         fetchJobsRef.current(1, false);
       }
+      // Load user's applied jobs to mark "Applied"
+      (async () => {
+        try {
+          const res = await jobApplicationAPI.getUserApplications({
+            page: 1,
+            limit: 500,
+          });
+          const apps = (res?.data?.applications || res?.data || []) as Array<{
+            jobId?: string;
+            job?: { _id: string };
+          }>;
+          const ids = new Set<string>();
+          apps.forEach((a) => {
+            const id = (a as any).jobId || (a as any).job?._id;
+            if (typeof id === "string" && id) ids.add(id);
+          });
+          setAppliedJobIds(ids);
+          localStorage.setItem("appliedJobs", JSON.stringify([...ids]));
+        } catch {}
+      })();
     } else if (!authLoading && !user) {
       setLoading(false);
       setError("Please log in to view jobs");
@@ -1367,7 +1426,12 @@ const JobBoard = () => {
                                   </div>
                                   <div className="flex items-center text-sm text-muted-foreground">
                                     <Users className="w-4 h-4 mr-1" />
-                                    {job.applicants || 0} applicants
+                                    {typeof job.applicationsCount === "number"
+                                      ? job.applicationsCount
+                                      : typeof job.applicants === "number"
+                                      ? job.applicants
+                                      : 0}{" "}
+                                    applicants
                                   </div>
                                 </div>
 
@@ -1428,14 +1492,25 @@ const JobBoard = () => {
                                       </span>
                                       <span className="sm:hidden">View</span>
                                     </Button>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => handleApplyForJob(job)}
-                                      className="text-xs lg:text-sm"
-                                    >
-                                      Apply Now
-                                    </Button>
+                                    {isJobApplied(job) ? (
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled
+                                        className="text-xs lg:text-sm"
+                                      >
+                                        Applied
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={() => handleApplyForJob(job)}
+                                        className="text-xs lg:text-sm"
+                                      >
+                                        Apply Now
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1659,7 +1734,21 @@ const JobBoard = () => {
               onSuccess={() => {
                 setShowApplicationForm(false);
                 setSelectedJobForApplication(null);
-                // Optionally refresh jobs or show success message
+                // Refresh jobs to update applications count
+                fetchJobsRef.current?.(1, false);
+                // Mark job as applied in UI
+                if (selectedJobForApplication?._id) {
+                  setAppliedJobIds((prev) => {
+                    const next = new Set(prev).add(
+                      selectedJobForApplication._id
+                    );
+                    localStorage.setItem(
+                      "appliedJobs",
+                      JSON.stringify([...next])
+                    );
+                    return next;
+                  });
+                }
               }}
               onCancel={() => {
                 setShowApplicationForm(false);

@@ -256,8 +256,7 @@ const NewsRoom = () => {
     user?.role === "coordinator" ||
     user?.role === "college_admin" ||
     user?.role === "hod" ||
-    user?.role === "staff" ||
-    user?.role === "alumni";
+    user?.role === "staff";
 
   // Handle create news
   const handleCreateNews = () => {

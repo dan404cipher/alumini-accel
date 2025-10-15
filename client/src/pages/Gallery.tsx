@@ -219,9 +219,13 @@ const Gallery: React.FC = () => {
     "Other",
   ];
 
-  // Check if user can create galleries (admin or coordinator)
+  // Check if user can create galleries (HOD, Staff, College Admin only)
   const canCreateGallery =
-    user && (user.role === "super_admin" || user.role === "coordinator");
+    user &&
+    (user.role === "super_admin" ||
+      user.role === "college_admin" ||
+      user.role === "hod" ||
+      user.role === "staff");
 
   const fetchGalleries = useCallback(async () => {
     try {
@@ -585,11 +589,11 @@ const Gallery: React.FC = () => {
                   )}
                 </div>
 
-                {/* Quick Actions */}
-                <div className="space-y-3 pt-4 border-t">
-                  <h3 className="text-sm font-semibold">Quick Actions</h3>
-                  <div className="space-y-2">
-                    {canCreateGallery && (
+                {/* Quick Actions - Only show if user can create galleries */}
+                {canCreateGallery && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <h3 className="text-sm font-semibold">Quick Actions</h3>
+                    <div className="space-y-2">
                       <Button
                         variant="default"
                         size="sm"
@@ -599,33 +603,9 @@ const Gallery: React.FC = () => {
                         <Plus className="w-4 h-4 mr-2" />
                         Create Gallery
                       </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Heart className="w-4 h-4 mr-2" />
-                      Favorites
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share Gallery
-                    </Button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* View Mode */}
                 <div className="space-y-3 pt-4 border-t">

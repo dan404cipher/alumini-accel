@@ -7,7 +7,8 @@ import {
   deleteGallery,
   getUserGalleries,
 } from "../controllers/galleryController";
-import { authenticateToken } from "../middleware/auth";
+import { authenticateToken, authorize } from "../middleware/auth";
+import { UserRole } from "../types";
 import { asyncHandler } from "../middleware/errorHandler";
 import { uploadGalleryImages } from "../config/multer";
 
@@ -49,9 +50,36 @@ router.post(
   })
 );
 
-// Gallery management (admin/coordinator only)
-router.post("/", asyncHandler(createGallery));
-router.put("/:id", asyncHandler(updateGallery));
-router.delete("/:id", asyncHandler(deleteGallery));
+// Gallery management (HOD, Staff, College Admin only)
+router.post(
+  "/",
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF
+  ),
+  asyncHandler(createGallery)
+);
+router.put(
+  "/:id",
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF
+  ),
+  asyncHandler(updateGallery)
+);
+router.delete(
+  "/:id",
+  authorize(
+    UserRole.SUPER_ADMIN,
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF
+  ),
+  asyncHandler(deleteGallery)
+);
 
 export default router;

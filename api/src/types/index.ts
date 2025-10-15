@@ -347,6 +347,7 @@ export interface IJobPost extends Document {
     max: number;
     currency: string;
   };
+  numberOfVacancies: number;
   description: string;
   requiredSkills: string[];
   requirements: string[];

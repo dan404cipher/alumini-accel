@@ -84,6 +84,12 @@ const jobPostSchema = new Schema<IJobPost>(
         enum: ["USD", "EUR", "GBP", "INR", "CAD", "AUD", "JPY", "CHF", "CNY"],
       },
     },
+    numberOfVacancies: {
+      type: Number,
+      required: true,
+      min: [1, "Number of vacancies must be at least 1"],
+      max: [1000, "Number of vacancies cannot exceed 1000"],
+    },
     description: {
       type: String,
       required: true,

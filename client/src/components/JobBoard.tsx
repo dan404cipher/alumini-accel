@@ -70,6 +70,7 @@ interface Job {
     max: number;
     currency: string;
   };
+  numberOfVacancies?: number;
   description: string;
   requirements: string[];
   benefits?: string[];
@@ -111,6 +112,7 @@ const JobBoard = () => {
   const [selectedIndustry, setSelectedIndustry] = useState("all");
   const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
   const [selectedRemoteWork, setSelectedRemoteWork] = useState("all");
+  const [selectedVacancies, setSelectedVacancies] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [isFetching, setIsFetching] = useState(false);
@@ -332,6 +334,7 @@ const JobBoard = () => {
       selectedType,
       selectedExperience,
       selectedIndustry,
+      selectedVacancies,
       isFetching,
     ]
   );
@@ -371,7 +374,14 @@ const JobBoard = () => {
       setLoading(false);
       setError("Please log in to view jobs");
     }
-  }, [user, authLoading, debouncedSearchQuery, selectedLocation, selectedType]);
+  }, [
+    user,
+    authLoading,
+    debouncedSearchQuery,
+    selectedLocation,
+    selectedType,
+    selectedVacancies,
+  ]);
 
   // Load more jobs when scrolling
   const loadMore = useCallback(() => {
@@ -579,6 +589,28 @@ const JobBoard = () => {
             break;
           case "200k+":
             if (salary < 200000) return false;
+            break;
+        }
+      }
+
+      // Number of vacancies filter
+      if (selectedVacancies !== "all" && job.numberOfVacancies) {
+        const vacancies = job.numberOfVacancies;
+        switch (selectedVacancies) {
+          case "1":
+            if (vacancies !== 1) return false;
+            break;
+          case "2-5":
+            if (vacancies < 2 || vacancies > 5) return false;
+            break;
+          case "6-10":
+            if (vacancies < 6 || vacancies > 10) return false;
+            break;
+          case "11-20":
+            if (vacancies < 11 || vacancies > 20) return false;
+            break;
+          case "20+":
+            if (vacancies < 20) return false;
             break;
         }
       }
@@ -861,6 +893,29 @@ const JobBoard = () => {
                   </Select>
                 </div>
 
+                {/* Number of Vacancies */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Number of Vacancies
+                  </label>
+                  <Select
+                    value={selectedVacancies}
+                    onValueChange={setSelectedVacancies}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select vacancies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Vacancies</SelectItem>
+                      <SelectItem value="1">1 vacancy</SelectItem>
+                      <SelectItem value="2-5">2-5 vacancies</SelectItem>
+                      <SelectItem value="6-10">6-10 vacancies</SelectItem>
+                      <SelectItem value="11-20">11-20 vacancies</SelectItem>
+                      <SelectItem value="20+">20+ vacancies</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Location */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Location</label>
@@ -899,7 +954,8 @@ const JobBoard = () => {
                   (selectedExperience && selectedExperience !== "all") ||
                   (selectedIndustry && selectedIndustry !== "all") ||
                   (selectedSalaryRange && selectedSalaryRange !== "all") ||
-                  (selectedRemoteWork && selectedRemoteWork !== "all")) && (
+                  (selectedRemoteWork && selectedRemoteWork !== "all") ||
+                  (selectedVacancies && selectedVacancies !== "all")) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -911,6 +967,7 @@ const JobBoard = () => {
                       setSelectedIndustry("all");
                       setSelectedSalaryRange("all");
                       setSelectedRemoteWork("all");
+                      setSelectedVacancies("all");
                     }}
                     className="w-full"
                   >
@@ -1130,63 +1187,70 @@ const JobBoard = () => {
                                         </Badge>
                                       )}
                                     </div>
-                                    <div className="flex gap-2">
+                                    {job.numberOfVacancies && (
+                                      <div className="flex items-center text-xs text-muted-foreground">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        {job.numberOfVacancies} vacancy
+                                        {job.numberOfVacancies > 1 ? "ies" : ""}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleSaveJob(job._id)}
+                                      className="text-yellow-600"
+                                    >
+                                      <Bookmark className="w-4 h-4 fill-current" />
+                                    </Button>
+                                    {canEditJob(job) && (
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => handleSaveJob(job._id)}
-                                        className="text-yellow-600"
+                                        onClick={() => handleEditJob(job)}
+                                        className="text-blue-600 hover:text-blue-700"
                                       >
-                                        <Bookmark className="w-4 h-4 fill-current" />
+                                        <Edit className="w-4 h-4" />
                                       </Button>
-                                      {canEditJob(job) && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditJob(job)}
-                                          className="text-blue-600 hover:text-blue-700"
-                                        >
-                                          <Edit className="w-4 h-4" />
-                                        </Button>
-                                      )}
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleShareJob(job)}
-                                        className="text-green-600 hover:text-green-700"
-                                      >
-                                        <Share2 className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleViewJob(job)}
-                                      >
-                                        <ExternalLink className="w-4 h-4 mr-2" />
-                                        View
-                                      </Button>
-                                      <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={() => {
-                                          if (job.applicationUrl) {
-                                            window.open(
-                                              job.applicationUrl,
-                                              "_blank"
-                                            );
-                                          } else {
-                                            // Show contact information or open email
-                                            const email = "contact@company.com";
-                                            window.open(
-                                              `mailto:${email}?subject=Application for ${job.position}`,
-                                              "_blank"
-                                            );
-                                          }
-                                        }}
-                                      >
-                                        Apply
-                                      </Button>
-                                    </div>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleShareJob(job)}
+                                      className="text-green-600 hover:text-green-700"
+                                    >
+                                      <Share2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewJob(job)}
+                                    >
+                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (job.applicationUrl) {
+                                          window.open(
+                                            job.applicationUrl,
+                                            "_blank"
+                                          );
+                                        } else {
+                                          // Show contact information or open email
+                                          const email = "contact@company.com";
+                                          window.open(
+                                            `mailto:${email}?subject=Application for ${job.position}`,
+                                            "_blank"
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Apply
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
@@ -1433,6 +1497,13 @@ const JobBoard = () => {
                                       : 0}{" "}
                                     applicants
                                   </div>
+                                  {job.numberOfVacancies && (
+                                    <div className="flex items-center text-sm text-muted-foreground">
+                                      <Users className="w-4 h-4 mr-1" />
+                                      {job.numberOfVacancies} vacancy
+                                      {job.numberOfVacancies > 1 ? "ies" : ""}
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">

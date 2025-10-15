@@ -59,6 +59,7 @@ export const PostJobDialog = ({
     salaryMin: "",
     salaryMax: "",
     currency: "USD",
+    numberOfVacancies: "1",
     description: "",
     requirements: "",
     benefits: "",
@@ -99,6 +100,21 @@ export const PostJobDialog = ({
 
     if (!formData.type) {
       newErrors.push("Job type is required");
+    }
+
+    // Number of vacancies validation
+    if (
+      !formData.numberOfVacancies ||
+      formData.numberOfVacancies.trim() === ""
+    ) {
+      newErrors.push("Number of vacancies is required");
+    } else {
+      const vacancies = parseInt(formData.numberOfVacancies);
+      if (isNaN(vacancies) || vacancies < 1) {
+        newErrors.push("Number of vacancies must be at least 1");
+      } else if (vacancies > 1000) {
+        newErrors.push("Number of vacancies cannot exceed 1000");
+      }
     }
 
     if (!formData.description.trim()) {
@@ -228,6 +244,7 @@ export const PostJobDialog = ({
         type: formData.type,
         remote: formData.location.toLowerCase().includes("remote"),
         salary: salaryRange,
+        numberOfVacancies: parseInt(formData.numberOfVacancies),
         description: formData.description.trim(),
         requirements: requirements,
         benefits: benefits,
@@ -257,6 +274,7 @@ export const PostJobDialog = ({
           salaryMin: "",
           salaryMax: "",
           currency: "USD",
+          numberOfVacancies: "1",
           description: "",
           requirements: "",
           benefits: "",
@@ -553,6 +571,24 @@ export const PostJobDialog = ({
                     <SelectItem value="internship">Internship</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="numberOfVacancies">Number of Vacancies *</Label>
+                <Input
+                  id="numberOfVacancies"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={formData.numberOfVacancies}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      numberOfVacancies: e.target.value,
+                    })
+                  }
+                  placeholder="1"
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="deadline">Application Deadline *</Label>

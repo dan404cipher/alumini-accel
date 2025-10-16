@@ -538,6 +538,17 @@ const AlumniDirectory = () => {
               </p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/connections")}
+              className="flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              My Connections
+            </Button>
+          </div>
         </div>
 
         {/* Loading State */}
@@ -896,8 +907,6 @@ const AlumniDirectory = () => {
                             </div>
                           )}
                         </div>
-
-                       
 
                         {/* Status Badges */}
                         <div className="mb-4">

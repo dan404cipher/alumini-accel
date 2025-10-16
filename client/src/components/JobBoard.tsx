@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   MapPin,
   Building,
@@ -102,9 +103,9 @@ const JobBoard = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
@@ -115,7 +116,7 @@ const JobBoard = () => {
   const [selectedVacancies, setSelectedVacancies] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [isFetching, setIsFetching] = useState(false);
+  const isFetchingRef = useRef(false);
   const [retryCount, setRetryCount] = useState(0);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
@@ -233,123 +234,111 @@ const JobBoard = () => {
   }, [searchQuery]);
 
   // Fetch jobs from API
-  const fetchJobs = useCallback(
-    async (pageNum = 1, append = false) => {
-      // Prevent multiple simultaneous requests
-      if (isFetching) return;
+  const fetchJobs = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (isFetchingRef.current) return;
 
-      try {
-        setIsFetching(true);
-        if (pageNum === 1) {
-          setLoading(true);
-        } else {
-          setLoadingMore(true);
+    try {
+      isFetchingRef.current = true;
+      setLoading(true);
+      setError(null);
+
+      const params: Record<string, string | number> = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
+      if (debouncedSearchQuery) params.q = debouncedSearchQuery;
+      if (selectedLocation && selectedLocation !== "all")
+        params.location = selectedLocation;
+      if (selectedType && selectedType !== "all") params.type = selectedType;
+      if (selectedExperience && selectedExperience !== "all")
+        params.experience = selectedExperience;
+      if (selectedIndustry && selectedIndustry !== "all")
+        params.industry = selectedIndustry;
+
+      const response = await jobAPI.getAllJobs(params);
+
+      // Reset retry count on successful request
+      setRetryCount(0);
+
+      if (response.success && response.data) {
+        const data = response.data as
+          | { jobs?: Job[]; pagination?: { totalPages: number } }
+          | Job[];
+        const jobsData = Array.isArray(data) ? { jobs: data } : data;
+        const newJobs = jobsData.jobs || [];
+
+        setJobs(newJobs);
+
+        if (jobsData.pagination) {
+          setTotalPages(jobsData.pagination.totalPages || 1);
         }
-        setError(null);
-
-        const params: Record<string, string | number> = {
-          page: pageNum,
-          limit: 10,
-        };
-        if (debouncedSearchQuery) params.q = debouncedSearchQuery;
-        if (selectedLocation && selectedLocation !== "all")
-          params.location = selectedLocation;
-        if (selectedType && selectedType !== "all") params.type = selectedType;
-        if (selectedExperience && selectedExperience !== "all")
-          params.experience = selectedExperience;
-        if (selectedIndustry && selectedIndustry !== "all")
-          params.industry = selectedIndustry;
-
-        const response = await jobAPI.getAllJobs(params);
-
-        // Reset retry count on successful request
-        setRetryCount(0);
-
-        if (response.success && response.data) {
-          const data = response.data as
-            | { jobs?: Job[]; pagination?: Record<string, string | number> }
-            | Job[];
-          const newJobs = Array.isArray(data) ? data : data.jobs || [];
-
-          // Debug: Log the first job to see what fields are available
-          if (newJobs.length > 0) {
-            // Jobs loaded successfully
-          }
-
-          if (append) {
-            setJobs((prev) => [...prev, ...newJobs]);
-          } else {
-            setJobs(newJobs);
-          }
-
-          // Check if there are more pages
-          if (data && typeof data === "object" && "pagination" in data) {
-            const pagination = data.pagination;
-            const hasMorePages = pagination.page < pagination.totalPages;
-            setHasMore(hasMorePages);
-          } else {
-            // If no pagination info, check if we got a full page
-            const hasMorePages = newJobs.length === 10;
-            setHasMore(hasMorePages);
-          }
-
-          // Safety check: if we got no jobs, there are no more pages
-          if (newJobs.length === 0) {
-            setHasMore(false);
-          }
-        } else {
-          setError("Failed to fetch jobs");
-        }
-      } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to fetch jobs";
-
-        // Handle 429 (Too Many Requests) with exponential backoff
-        if (err instanceof Error && err.message.includes("429")) {
-          setIsRateLimited(true);
-          setHasMore(false); // Stop infinite scroll when rate limited
-
-          // Set a cooldown period before allowing new requests
-          setTimeout(() => {
-            setIsRateLimited(false);
-            setRetryCount(0);
-          }, 30000); // 30 second cooldown
-
-          setError(
-            "Too many requests. Please wait a moment before trying again."
-          );
-          return;
-        }
-
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-        setIsFetching(false);
+      } else {
+        setError("Failed to fetch jobs");
       }
-    },
-    [
-      debouncedSearchQuery,
-      selectedLocation,
-      selectedType,
-      selectedExperience,
-      selectedIndustry,
-      selectedVacancies,
-      isFetching,
-    ]
-  );
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch jobs";
+
+      // Handle 429 (Too Many Requests) with exponential backoff
+      if (err instanceof Error && err.message.includes("429")) {
+        setIsRateLimited(true);
+
+        // Set a cooldown period before allowing new requests
+        setTimeout(() => {
+          setIsRateLimited(false);
+          setRetryCount(0);
+        }, 30000); // 30 second cooldown
+
+        setError(
+          "Too many requests. Please wait a moment before trying again."
+        );
+        return;
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [
+    currentPage,
+    itemsPerPage,
+    debouncedSearchQuery,
+    selectedLocation,
+    selectedType,
+    selectedExperience,
+    selectedIndustry,
+  ]);
 
   // Store the latest fetchJobs function in ref
   fetchJobsRef.current = fetchJobs;
 
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchQuery,
+    selectedLocation,
+    selectedType,
+    selectedExperience,
+    selectedIndustry,
+    selectedSalaryRange,
+    selectedRemoteWork,
+    selectedVacancies,
+  ]);
+
   // Load jobs when user is authenticated or filters change
   useEffect(() => {
     if (user && !authLoading) {
-      setPage(1);
-      setHasMore(true); // Reset hasMore when filters change
-      if (fetchJobsRef.current) {
-        fetchJobsRef.current(1, false);
-      }
+      fetchJobs();
       // Load user's applied jobs to mark "Applied"
       (async () => {
         try {
@@ -374,68 +363,12 @@ const JobBoard = () => {
       setLoading(false);
       setError("Please log in to view jobs");
     }
-  }, [
-    user,
-    authLoading,
-    debouncedSearchQuery,
-    selectedLocation,
-    selectedType,
-    selectedVacancies,
-  ]);
-
-  // Load more jobs when scrolling
-  const loadMore = useCallback(() => {
-    if (
-      hasMore &&
-      !loadingMore &&
-      !loading &&
-      !isFetching &&
-      !isRateLimited &&
-      fetchJobsRef.current &&
-      page < 50 // Reduced from 100 to prevent excessive requests
-    ) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchJobsRef.current(nextPage, true);
-    }
-  }, [hasMore, loadingMore, loading, isFetching, isRateLimited, page]);
-
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          hasMore &&
-          !loadingMore &&
-          !isFetching &&
-          !isRateLimited
-        ) {
-          loadMore();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    const currentRef = observerRef.current;
-    if (currentRef) {
-      observer.observe(currentRef);
-    }
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [loadMore, hasMore, loadingMore, isFetching, isRateLimited]);
+  }, [user, authLoading, fetchJobs]);
 
   // Refresh jobs after creating a new one
   const handleJobCreated = useCallback(() => {
-    setPage(1);
-    if (fetchJobsRef.current) {
-      fetchJobsRef.current(1, false);
-    }
-  }, []);
+    fetchJobs();
+  }, [fetchJobs]);
 
   // Handle save/unsave job
   const handleSaveJob = useCallback(
@@ -501,8 +434,8 @@ const JobBoard = () => {
   // Handle job updated
   const handleJobUpdated = useCallback(() => {
     // Refresh the jobs list
-    fetchJobsRef.current?.(1, false);
-  }, []);
+    fetchJobs();
+  }, [fetchJobs]);
 
   // Handle share job
   const handleShareJob = useCallback((job: Job) => {
@@ -1593,34 +1526,14 @@ const JobBoard = () => {
                   </div>
                 )}
 
-                {/* Infinite Scroll Trigger */}
-                {!showSavedJobs && (
-                  <div ref={observerRef} className="text-center py-4">
-                    {loadingMore && (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
-                        <span className="text-muted-foreground">
-                          Loading more jobs...
-                        </span>
-                      </div>
-                    )}
-                    {isRateLimited && (
-                      <div className="text-center py-4">
-                        <p className="text-orange-600 mb-2">
-                          ⚠️ Too many requests. Please wait before loading more
-                          jobs.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          This helps prevent server overload.
-                        </p>
-                      </div>
-                    )}
-                    {!hasMore && jobs.length > 0 && !isRateLimited && (
-                      <p className="text-muted-foreground">
-                        No more jobs to load
-                      </p>
-                    )}
-                  </div>
+                {/* Pagination */}
+                {!showSavedJobs && totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    className="mt-6"
+                  />
                 )}
               </div>
             )}

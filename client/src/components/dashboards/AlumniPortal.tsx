@@ -45,8 +45,6 @@ const AlumniPortal = () => {
   const [recentGalleries, setRecentGalleries] = useState<any[]>([]);
   const [recentCommunities, setRecentCommunities] = useState<any[]>([]);
   const [recentMentorships, setRecentMentorships] = useState<any[]>([]);
-  const [recentDonations, setRecentDonations] = useState<any[]>([]);
-  const [recentAlumni, setRecentAlumni] = useState<any[]>([]);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [recentCampaigns, setRecentCampaigns] = useState<any[]>([]);
   const [recentMentorshipPrograms, setRecentMentorshipPrograms] = useState<
@@ -188,24 +186,6 @@ const AlumniPortal = () => {
           setRecentMentorships(mentorshipsData.data?.mentorships || []);
         }
 
-        // Fetch recent donations
-        const donationsResponse = await fetch(`${baseUrl}/donations?limit=8`, {
-          headers,
-        });
-        if (donationsResponse.ok) {
-          const donationsData = await donationsResponse.json();
-          setRecentDonations(donationsData.data?.donations || []);
-        }
-
-        // Fetch recent alumni
-        const alumniResponse = await fetch(`${baseUrl}/alumni?limit=8`, {
-          headers,
-        });
-        if (alumniResponse.ok) {
-          const alumniData = await alumniResponse.json();
-          setRecentAlumni(alumniData.data?.alumni || []);
-        }
-
         // Fetch recent jobs
         const jobsResponse = await fetch(`${baseUrl}/jobs?limit=8`, {
           headers,
@@ -221,7 +201,6 @@ const AlumniPortal = () => {
         });
         if (campaignsResponse.ok) {
           const campaignsData = await campaignsResponse.json();
-          console.log("Campaigns API Response:", campaignsData);
           setRecentCampaigns(
             campaignsData.data?.campaigns || campaignsData.data || []
           );
@@ -251,7 +230,7 @@ const AlumniPortal = () => {
     };
 
     fetchRecentData();
-  }, []);
+  }, [user?.role]);
 
   // Navigation handlers
   const handleEventClick = (eventId: string) => {
@@ -272,14 +251,6 @@ const AlumniPortal = () => {
 
   const handleMentorshipClick = (mentorshipId: string) => {
     navigate(`/mentorship/${mentorshipId}`);
-  };
-
-  const handleDonationClick = (donationId: string) => {
-    navigate(`/donations/${donationId}`);
-  };
-
-  const handleAlumniClick = (alumniId: string) => {
-    navigate(`/alumni/${alumniId}`);
   };
 
   const handleJobClick = (jobId: string) => {
@@ -746,154 +717,6 @@ const AlumniPortal = () => {
               </CardContent>
             </Card>
 
-            {/* Recent Donations */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <div className="flex items-center space-x-2">
-                  <Heart className="h-5 w-5 text-red-600" />
-                  <CardTitle className="text-lg">Recent Donations</CardTitle>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleViewAll("donations")}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {recentDonations.length > 0 ? (
-                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
-                    {recentDonations.map((donation) => (
-                      <div
-                        key={donation._id}
-                        onClick={() => handleDonationClick(donation._id)}
-                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
-                      >
-                        <div className="relative">
-                          {donation.campaign?.image ? (
-                            <img
-                              src={donation.campaign.image}
-                              alt={donation.campaign?.title}
-                              className="w-full h-32 object-cover rounded-t-lg"
-                            />
-                          ) : (
-                            <div className="w-full h-32 bg-gradient-to-br from-red-100 to-red-200 rounded-t-lg flex items-center justify-center">
-                              <Heart className="h-8 w-8 text-red-400" />
-                            </div>
-                          )}
-                          <div className="absolute top-2 right-2">
-                            <Badge variant="secondary" className="text-xs">
-                              Donation
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="p-3">
-                          <h4 className="font-medium text-sm truncate group-hover:text-red-600 transition-colors">
-                            {donation.campaign?.title || "Donation"}
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Amount: ${donation.amount}
-                          </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-2">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {new Date(donation.createdAt).toLocaleDateString()}
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs text-gray-500">
-                              {donation.status || "completed"}
-                            </span>
-                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-red-500 transition-colors" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Heart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">No recent donations</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Recent Graduate Alumni */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <div className="flex items-center space-x-2">
-                  <User className="h-5 w-5 text-teal-600" />
-                  <CardTitle className="text-lg">
-                    Recent Graduate Alumni
-                  </CardTitle>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleViewAll("alumni")}
-                  className="text-teal-600 hover:text-teal-700"
-                >
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {recentAlumni.length > 0 ? (
-                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
-                    {recentAlumni.map((alumni) => (
-                      <div
-                        key={alumni._id}
-                        onClick={() => handleAlumniClick(alumni._id)}
-                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
-                      >
-                        <div className="relative">
-                          {alumni.profilePicture ? (
-                            <img
-                              src={alumni.profilePicture}
-                              alt={`${alumni.firstName} ${alumni.lastName}`}
-                              className="w-full h-32 object-cover rounded-t-lg"
-                            />
-                          ) : (
-                            <div className="w-full h-32 bg-gradient-to-br from-teal-100 to-teal-200 rounded-t-lg flex items-center justify-center">
-                              <User className="h-8 w-8 text-teal-400" />
-                            </div>
-                          )}
-                          <div className="absolute top-2 right-2">
-                            <Badge variant="secondary" className="text-xs">
-                              Alumni
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="p-3">
-                          <h4 className="font-medium text-sm truncate group-hover:text-teal-600 transition-colors">
-                            {alumni.firstName} {alumni.lastName}
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {alumni.currentPosition} at {alumni.currentCompany}
-                          </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-2">
-                            <Building2 className="h-3 w-3 mr-1" />
-                            Class of {alumni.graduationYear}
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs text-gray-500">
-                              {alumni.department}
-                            </span>
-                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-teal-500 transition-colors" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <User className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">No recent alumni</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Recent Jobs */}
             <div className="bg-white border rounded-lg">
               <div className="flex items-center justify-between p-6 border-b">
@@ -989,7 +812,6 @@ const AlumniPortal = () => {
                 {recentCampaigns.length > 0 ? (
                   <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                     {recentCampaigns.map((campaign) => {
-                      console.log("Campaign data:", campaign);
                       return (
                         <div
                           key={campaign._id}
@@ -1046,23 +868,24 @@ const AlumniPortal = () => {
             </div>
 
             {/* Recent Mentorship Programs */}
-            <div className="bg-white border rounded-lg">
-              <div className="flex items-center justify-between p-6 border-b">
-                <div className="flex items-center space-x-3">
-                  <GraduationCap className="h-5 w-5 text-gray-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <GraduationCap className="h-5 w-5 text-purple-600" />
+                  <CardTitle className="text-lg">
                     Recent Mentorship Programs
-                  </h2>
+                  </CardTitle>
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleViewAll("mentorship")}
-                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
+                  className="text-purple-600 hover:text-purple-700"
                 >
-                  <span>View All</span>
                   <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="p-6">
+                </Button>
+              </CardHeader>
+              <CardContent>
                 {recentMentorshipPrograms.length > 0 ? (
                   <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                     {recentMentorshipPrograms.map((program) => (
@@ -1071,56 +894,63 @@ const AlumniPortal = () => {
                         onClick={() =>
                           handleMentorshipProgramClick(program._id)
                         }
-                        className="flex-shrink-0 w-64 bg-gray-50 border rounded-lg cursor-pointer"
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="relative">
-                          {program.image ? (
+                          {program.mentor?.profilePicture ? (
                             <img
-                              src={program.image}
-                              alt={program.title}
+                              src={program.mentor.profilePicture}
+                              alt={`${program.mentor?.firstName} ${program.mentor?.lastName}`}
                               className="w-full h-32 object-cover rounded-t-lg"
                             />
                           ) : (
-                            <div className="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                              <GraduationCap className="h-8 w-8 text-gray-400" />
+                            <div className="w-full h-32 bg-gradient-to-br from-purple-100 to-purple-200 rounded-t-lg flex items-center justify-center">
+                              <GraduationCap className="h-8 w-8 text-purple-400" />
                             </div>
                           )}
                           <div className="absolute top-2 right-2">
-                            <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
+                            <Badge
+                              variant={
+                                program.status === "active"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="text-xs"
+                            >
                               {program.domain || "Mentorship"}
-                            </span>
+                            </Badge>
                           </div>
                         </div>
-                        <div className="p-4">
-                          <h4 className="font-medium text-sm text-gray-900 truncate">
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-purple-600 transition-colors">
                             {program.domain || "Mentorship Program"}
                           </h4>
-                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                             {program.description}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-3">
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
                             <User className="h-3 w-3 mr-1" />
                             {program.mentor?.firstName}{" "}
                             {program.mentor?.lastName}
                           </div>
-                          <div className="flex items-center justify-between mt-3">
+                          <div className="flex items-center justify-between mt-2">
                             <span className="text-xs text-gray-500">
                               {program.status || "Pending"}
                             </span>
-                            <ExternalLink className="h-3 w-3 text-gray-400" />
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-purple-500 transition-colors" />
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-8 text-gray-500">
                     <GraduationCap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent mentorship programs</p>
                   </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

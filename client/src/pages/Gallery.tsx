@@ -4,6 +4,7 @@ import Navigation from "@/components/Navigation";
 import { galleryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import Pagination from "@/components/ui/pagination";
 
 interface ApiError {
   response?: {
@@ -91,6 +92,9 @@ const Gallery: React.FC = () => {
   const [selectedSortBy, setSelectedSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
 
   // Filter galleries based on search and filter criteria
   const filterGalleries = (galleryItems: GalleryItem[]) => {
@@ -232,11 +236,19 @@ const Gallery: React.FC = () => {
       setLoading(true);
       const response = await galleryAPI.getAllGalleries({
         category: selectedCategory === "all" ? undefined : selectedCategory,
-        limit: 20,
+        page: currentPage,
+        limit: itemsPerPage,
       });
 
       if (response.success) {
-        setGalleries((response.data as { galleries: GalleryItem[] }).galleries);
+        const data = response.data as {
+          galleries: GalleryItem[];
+          pagination?: { totalPages: number };
+        };
+        setGalleries(data.galleries);
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages || 1);
+        }
       }
     } catch (error) {
       console.error("Error fetching galleries:", error);
@@ -248,11 +260,23 @@ const Gallery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, toast]);
+  }, [selectedCategory, currentPage, itemsPerPage, toast]);
 
   useEffect(() => {
     fetchGalleries();
   }, [fetchGalleries]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedDateRange, selectedSortBy]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -800,6 +824,16 @@ const Gallery: React.FC = () => {
                 </Card>
               ))}
             </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              className="mt-6"
+            />
           )}
         </div>
 

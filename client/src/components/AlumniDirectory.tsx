@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   MapPin,
   Building,
@@ -99,6 +100,9 @@ const AlumniDirectory = () => {
   const [registerNumberFilter, setRegisterNumberFilter] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
   const { toast } = useToast();
 
   // Handle profile click
@@ -111,16 +115,21 @@ const AlumniDirectory = () => {
       setLoading(true);
       setError(null);
       const response = await alumniAPI.getAllUsersDirectory({
-        limit: 50,
+        page: currentPage,
+        limit: itemsPerPage,
         tenantId: user?.tenantId,
       });
 
       if (
         response &&
         response.data &&
-        (response.data as { users: User[] }).users
+        (response.data as { users: User[]; pagination?: { totalPages: number } }).users
       ) {
-        setUsers((response.data as { users: User[] }).users);
+        const data = response.data as { users: User[]; pagination?: { totalPages: number } };
+        setUsers(data.users);
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages || 1);
+        }
       } else {
         setUsers([]);
       }
@@ -136,12 +145,24 @@ const AlumniDirectory = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, user?.tenantId]);
+  }, [toast, user?.tenantId, currentPage, itemsPerPage]);
 
   // Fetch users data from API
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedDepartment, selectedGraduationYear, selectedLocation, selectedExperience, selectedSkills, registerNumberFilter]);
 
   // Filter users based on search and filter criteria
   const filterUsers = (users: User[]) => {
@@ -976,12 +997,17 @@ const AlumniDirectory = () => {
           </div>
         )}
 
-        {/* Load More */}
-        <div className="text-center">
-          <Button variant="outline" size="lg">
-            Load More Users
-          </Button>
-        </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-8">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              className="justify-center"
+            />
+          </div>
+        )}
       </div>
 
       {/* Dialogs */}

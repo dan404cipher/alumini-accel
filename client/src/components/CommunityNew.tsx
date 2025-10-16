@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
@@ -542,6 +543,9 @@ const CommunityNew = () => {
   const [topCommunities, setTopCommunities] = useState<TopCommunity[]>([]);
   const [popularTags, setPopularTags] = useState<PopularTag[]>([]);
   const [loadingSidebar, setLoadingSidebar] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
 
   const categories = [
     { id: "all", name: "All Categories", icon: Globe },
@@ -592,6 +596,8 @@ const CommunityNew = () => {
       if (selectedCategory !== "all")
         params.append("category", selectedCategory);
       if (searchQuery) params.append("search", searchQuery);
+      params.append("page", currentPage.toString());
+      params.append("limit", itemsPerPage.toString());
 
       const response = await fetch(
         `${
@@ -608,7 +614,8 @@ const CommunityNew = () => {
 
       if (data.success) {
         // Transform the data to ensure isPublic field is properly set
-        const transformedCommunities = data.data.communities.map(
+        const communitiesData = data.data as { communities: Community[]; pagination?: { totalPages: number } };
+        const transformedCommunities = communitiesData.communities.map(
           (community: Community & { type?: string }) => ({
             ...community,
             // Handle different possible field names from backend
@@ -620,6 +627,9 @@ const CommunityNew = () => {
         );
 
         setCommunities(transformedCommunities);
+        if (communitiesData.pagination) {
+          setTotalPages(communitiesData.pagination.totalPages || 1);
+        }
       } else {
         setError("Failed to fetch communities");
       }
@@ -629,7 +639,19 @@ const CommunityNew = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, currentPage, itemsPerPage]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   const fetchCommunityPosts = useCallback(async (communityId: string) => {
     try {
@@ -2760,6 +2782,16 @@ const CommunityNew = () => {
                   );
                 })}
               </div>
+            )}
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                className="mt-6"
+              />
             )}
           </TabsContent>
 

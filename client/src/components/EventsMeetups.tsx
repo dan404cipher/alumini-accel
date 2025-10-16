@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   Calendar,
   MapPin,
@@ -166,6 +167,9 @@ const EventsMeetups = () => {
   const [showDayModal, setShowDayModal] = useState(false);
   const [savedEvents, setSavedEvents] = useState<string[]>([]);
   const [savingEvents, setSavingEvents] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
   const { user, loading: authLoading } = useAuth();
 
   // Use search query directly for now (no debouncing)
@@ -225,17 +229,46 @@ const EventsMeetups = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["events", refreshKey, user?.tenantId],
+    queryKey: ["events", refreshKey, user?.tenantId, currentPage],
     queryFn: () =>
       eventAPI.getAllEvents({
-        limit: 100,
+        page: currentPage,
+        limit: itemsPerPage,
         tenantId: user?.tenantId,
-      }), // Fetch up to 100 events for current college
+      }),
   });
 
   // Map API events to component format
   const apiEvents =
     (eventsResponse?.data as { events: Event[] } | undefined)?.events || [];
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchQuery,
+    selectedEventType,
+    selectedLocation,
+    selectedPrice,
+    selectedDateRange,
+  ]);
+
+  // Extract pagination info from API response
+  const paginationInfo = (
+    eventsResponse?.data as { pagination?: { totalPages: number } } | undefined
+  )?.pagination;
+  useEffect(() => {
+    if (paginationInfo) {
+      setTotalPages(paginationInfo.totalPages || 1);
+    }
+  }, [paginationInfo]);
 
   // Fetch my registrations and compute set of registered event ids
   const { data: myRegsResponse } = useQuery({
@@ -603,31 +636,32 @@ const EventsMeetups = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        {eventsList.map((event) => (
-          <Card
-            key={event.id}
-            className="group hover:shadow-medium transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0 h-full flex flex-col"
-          >
-            <div className="relative">
-              {getImageUrl(event.image) ? (
-                <img
-                  src={getImageUrl(event.image)!}
-                  alt={event.title}
-                  className={`w-full h-48 object-cover rounded-t-lg ${
-                    isEventPast(event.startDate) ? "opacity-75" : ""
-                  }`}
-                  onError={(e) => {
-                    // Hide image if it fails to load and show placeholder
-                    const img = e.currentTarget as HTMLImageElement;
-                    img.style.display = "none";
-
-                    // Show a placeholder div instead
-                    const placeholder = document.createElement("div");
-                    placeholder.className = `w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+          {eventsList.map((event) => (
+            <Card
+              key={event.id}
+              className="group hover:shadow-medium transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0 h-full flex flex-col"
+            >
+              <div className="relative">
+                {getImageUrl(event.image) ? (
+                  <img
+                    src={getImageUrl(event.image)!}
+                    alt={event.title}
+                    className={`w-full h-48 object-cover rounded-t-lg ${
                       isEventPast(event.startDate) ? "opacity-75" : ""
-                    }`;
-                    placeholder.innerHTML = `
+                    }`}
+                    onError={(e) => {
+                      // Hide image if it fails to load and show placeholder
+                      const img = e.currentTarget as HTMLImageElement;
+                      img.style.display = "none";
+
+                      // Show a placeholder div instead
+                      const placeholder = document.createElement("div");
+                      placeholder.className = `w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+                        isEventPast(event.startDate) ? "opacity-75" : ""
+                      }`;
+                      placeholder.innerHTML = `
                       <div class="text-center">
                         <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -635,257 +669,275 @@ const EventsMeetups = () => {
                         <p class="text-sm text-gray-500 font-medium">Image unavailable</p>
                       </div>
                     `;
-                    img.parentNode?.insertBefore(placeholder, img);
-                  }}
-                />
-              ) : (
-                <div
-                  className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
-                    isEventPast(event.startDate) ? "opacity-75" : ""
-                  }`}
-                >
-                  <div className="text-center">
-                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500 font-medium">
-                      No Image
-                    </p>
+                      img.parentNode?.insertBefore(placeholder, img);
+                    }}
+                  />
+                ) : (
+                  <div
+                    className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+                      isEventPast(event.startDate) ? "opacity-75" : ""
+                    }`}
+                  >
+                    <div className="text-center">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 font-medium">
+                        No Image
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
-              <div className="absolute top-4 right-4 flex flex-col gap-2">
-                <Badge
-                  variant={getEventTypeBadge(event.type)}
-                  className="flex items-center"
-                >
-                  {getEventTypeIcon(event.type)}
-                  <span className="ml-1">{event.type}</span>
-                </Badge>
-                {isEventPast(event.startDate) && (
-                  <Badge variant="secondary" className="bg-gray-500 text-white">
-                    Past Event
-                  </Badge>
                 )}
-                {!isEventPast(event.startDate) &&
-                  isRegistrationClosed(event) && (
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
+                  <Badge
+                    variant={getEventTypeBadge(event.type)}
+                    className="flex items-center"
+                  >
+                    {getEventTypeIcon(event.type)}
+                    <span className="ml-1">{event.type}</span>
+                  </Badge>
+                  {isEventPast(event.startDate) && (
                     <Badge
                       variant="secondary"
-                      className="bg-orange-500 text-white"
+                      className="bg-gray-500 text-white"
                     >
-                      Registration Closed
+                      Past Event
                     </Badge>
                   )}
-              </div>
-
-              {/* Save/Unsave button for alumni */}
-              {user?.role === "alumni" && (
-                <div className="absolute top-4 left-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-8 h-8 p-0 bg-white/90 hover:bg-white shadow-sm"
-                    disabled={savingEvents.has(event.id)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (savedEvents.includes(event.id)) {
-                        handleUnsaveEvent(event.id);
-                      } else {
-                        handleSaveEvent(event.id);
-                      }
-                    }}
-                  >
-                    <Bookmark
-                      className={`w-4 h-4 ${
-                        savedEvents.includes(event.id)
-                          ? "text-blue-600 fill-blue-600"
-                          : "text-gray-400"
-                      } ${savingEvents.has(event.id) ? "opacity-50" : ""}`}
-                    />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <CardContent className="p-4 lg:p-6 flex-1 flex flex-col">
-              <div className="flex-1">
-                <h3 className="text-base lg:text-lg font-semibold mb-2 line-clamp-2">
-                  {event.title}
-                </h3>
-                <p className="text-muted-foreground text-xs lg:text-sm mb-4 line-clamp-3">
-                  {event.description}
-                </p>
-
-                <div className="space-y-2 text-xs lg:text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span>{event.date}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-2" />
-                    <span>{event.time}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    <span className="truncate">{event.location}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Users className="w-4 h-4 mr-2" />
-                    <span>{event.attendees} attending</span>
-                  </div>
-                  {event.registrationDeadline && (
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-2" />
-                      <span>
-                        Registration closes:{" "}
-                        {new Date(
-                          event.registrationDeadline
-                        ).toLocaleDateString()}{" "}
-                        at{" "}
-                        {new Date(
-                          event.registrationDeadline
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                  )}
+                  {!isEventPast(event.startDate) &&
+                    isRegistrationClosed(event) && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-orange-500 text-white"
+                      >
+                        Registration Closed
+                      </Badge>
+                    )}
                 </div>
 
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {event.tags.slice(0, 3).map((tag, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-lg font-bold text-success">
-                    {event.price}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {event.attendees}/{event.maxAttendees}{" "}
-                    {event.attendees >= event.maxAttendees
-                      ? "spots filled"
-                      : "spots"}
-                  </span>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewEvent(event)}
-                    className="flex-1 text-xs lg:text-sm"
-                  >
-                    <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                    <span className="hidden sm:inline">View Details</span>
-                    <span className="sm:hidden">View</span>
-                  </Button>
-                  {canManageEvents && (
+                {/* Save/Unsave button for alumni */}
+                {user?.role === "alumni" && (
+                  <div className="absolute top-4 left-4">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      onClick={async () => {
-                        try {
-                          setParticipantsLoading(true);
-                          const res = await eventAPI.getParticipants(event.id);
-                          if (res.success && res.data) {
-                            const data = res.data as {
-                              participants?: Array<{
-                                user?: {
-                                  firstName?: string;
-                                  lastName?: string;
-                                  email?: string;
-                                };
-                                status?: string;
-                                registeredAt?: string;
-                                paymentStatus?: string;
-                                amountPaid?: number;
-                              }>;
-                            };
-                            setParticipants(data.participants || []);
-                            setIsParticipantsOpen(true);
-                          } else {
-                            alert(res.message || "Failed to load participants");
-                          }
-                        } catch (err) {
-                          console.error("Participants load error", err);
-                          alert("Failed to load participants");
-                        } finally {
-                          setParticipantsLoading(false);
+                      className="w-8 h-8 p-0 bg-white/90 hover:bg-white shadow-sm"
+                      disabled={savingEvents.has(event.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (savedEvents.includes(event.id)) {
+                          handleUnsaveEvent(event.id);
+                        } else {
+                          handleSaveEvent(event.id);
                         }
                       }}
-                      className="flex-1 text-xs lg:text-sm"
                     >
-                      Participants
+                      <Bookmark
+                        className={`w-4 h-4 ${
+                          savedEvents.includes(event.id)
+                            ? "text-blue-600 fill-blue-600"
+                            : "text-gray-400"
+                        } ${savingEvents.has(event.id) ? "opacity-50" : ""}`}
+                      />
                     </Button>
-                  )}
-                  {isRegistrationClosed(event) ? (
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs lg:text-sm"
-                      disabled
-                      variant="outline"
-                    >
-                      {isEventPast(event.startDate)
-                        ? "Event Ended"
-                        : event.attendees >= event.maxAttendees
-                        ? "Event Full"
-                        : "Registration Closed"}
-                    </Button>
-                  ) : registeredEventIds.has(event.id) ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="flex-1 text-xs lg:text-sm"
-                      onClick={() => navigate(`/events/${event.id}`)}
-                    >
-                      Registered
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs lg:text-sm"
-                      onClick={() => {
-                        setSelectedEventForRegistration(event);
-                        setIsRegistrationOpen(true);
-                      }}
-                    >
-                      Register
-                    </Button>
-                  )}
-                  {canManageEvents && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleEditEvent(event)}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Event
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteEvent(event)}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Event
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        ))}
+
+              <CardContent className="p-4 lg:p-6 flex-1 flex flex-col">
+                <div className="flex-1">
+                  <h3 className="text-base lg:text-lg font-semibold mb-2 line-clamp-2">
+                    {event.title}
+                  </h3>
+                  <p className="text-muted-foreground text-xs lg:text-sm mb-4 line-clamp-3">
+                    {event.description}
+                  </p>
+
+                  <div className="space-y-2 text-xs lg:text-sm text-muted-foreground mb-4">
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      <span>{event.date}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      <span>{event.time}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      <span className="truncate">{event.location}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Users className="w-4 h-4 mr-2" />
+                      <span>{event.attendees} attending</span>
+                    </div>
+                    {event.registrationDeadline && (
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-2" />
+                        <span>
+                          Registration closes:{" "}
+                          {new Date(
+                            event.registrationDeadline
+                          ).toLocaleDateString()}{" "}
+                          at{" "}
+                          {new Date(
+                            event.registrationDeadline
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {event.tags.slice(0, 3).map((tag, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-lg font-bold text-success">
+                      {event.price}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {event.attendees}/{event.maxAttendees}{" "}
+                      {event.attendees >= event.maxAttendees
+                        ? "spots filled"
+                        : "spots"}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewEvent(event)}
+                      className="flex-1 text-xs lg:text-sm"
+                    >
+                      <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                      <span className="hidden sm:inline">View Details</span>
+                      <span className="sm:hidden">View</span>
+                    </Button>
+                    {canManageEvents && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            setParticipantsLoading(true);
+                            const res = await eventAPI.getParticipants(
+                              event.id
+                            );
+                            if (res.success && res.data) {
+                              const data = res.data as {
+                                participants?: Array<{
+                                  user?: {
+                                    firstName?: string;
+                                    lastName?: string;
+                                    email?: string;
+                                  };
+                                  status?: string;
+                                  registeredAt?: string;
+                                  paymentStatus?: string;
+                                  amountPaid?: number;
+                                }>;
+                              };
+                              setParticipants(data.participants || []);
+                              setIsParticipantsOpen(true);
+                            } else {
+                              alert(
+                                res.message || "Failed to load participants"
+                              );
+                            }
+                          } catch (err) {
+                            console.error("Participants load error", err);
+                            alert("Failed to load participants");
+                          } finally {
+                            setParticipantsLoading(false);
+                          }
+                        }}
+                        className="flex-1 text-xs lg:text-sm"
+                      >
+                        Participants
+                      </Button>
+                    )}
+                    {isRegistrationClosed(event) ? (
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs lg:text-sm"
+                        disabled
+                        variant="outline"
+                      >
+                        {isEventPast(event.startDate)
+                          ? "Event Ended"
+                          : event.attendees >= event.maxAttendees
+                          ? "Event Full"
+                          : "Registration Closed"}
+                      </Button>
+                    ) : registeredEventIds.has(event.id) ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 text-xs lg:text-sm"
+                        onClick={() => navigate(`/events/${event.id}`)}
+                      >
+                        Registered
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs lg:text-sm"
+                        onClick={() => {
+                          setSelectedEventForRegistration(event);
+                          setIsRegistrationOpen(true);
+                        }}
+                      >
+                        Register
+                      </Button>
+                    )}
+                    {canManageEvents && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleEditEvent(event)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Event
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteEvent(event)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Event
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            className="mt-6"
+          />
+        )}
       </div>
     );
   };

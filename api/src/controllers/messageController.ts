@@ -3,6 +3,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { logger } from "../utils/logger";
 import Message from "../models/Message";
 import Connection from "../models/Connection";
+import User from "../models/User";
 import { ConnectionStatus } from "../types/connection";
 import { MessageRequest, MessageResponse, MessageType } from "../types/message";
 
@@ -36,20 +37,43 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  // Check if users are connected (case insensitive)
-  const connection = await Connection.findOne({
-    $or: [
-      { requester: senderId, recipient: recipientId },
-      { requester: recipientId, recipient: senderId },
-    ],
-    status: { $in: [ConnectionStatus.ACCEPTED, "accepted"] },
-  });
+  // Get sender's role to check if they have admin privileges
+  const sender = await User.findById(senderId).select("role");
+  const isAdminRole =
+    sender?.role &&
+    ["super_admin", "college_admin", "hod", "staff"].includes(sender.role);
 
-  if (!connection) {
-    return res.status(403).json({
-      success: false,
-      message: "You can only send messages to connected users",
+  console.log(
+    `🔍 Message Debug - Sender ID: ${senderId}, Role: ${sender?.role}, Is Admin: ${isAdminRole}`
+  );
+
+  // Check if users are connected (case insensitive) - skip for admin roles
+  if (!isAdminRole) {
+    // First check if there's already a conversation between these users
+    const existingMessage = await Message.findOne({
+      $or: [
+        { sender: senderId, recipient: recipientId },
+        { sender: recipientId, recipient: senderId },
+      ],
     });
+
+    // If no existing conversation, check for connection
+    if (!existingMessage) {
+      const connection = await Connection.findOne({
+        $or: [
+          { requester: senderId, recipient: recipientId },
+          { requester: recipientId, recipient: senderId },
+        ],
+        status: { $in: [ConnectionStatus.ACCEPTED, "accepted"] },
+      });
+
+      if (!connection) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only send messages to connected users",
+        });
+      }
+    }
   }
 
   // Create the message
@@ -119,20 +143,43 @@ export const getMessages = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  // Check if users are connected (case insensitive)
-  const connection = await Connection.findOne({
-    $or: [
-      { requester: senderId, recipient: recipientId },
-      { requester: recipientId, recipient: senderId },
-    ],
-    status: { $in: [ConnectionStatus.ACCEPTED, "accepted"] },
-  });
+  // Determine if current user has admin-like role (bypass connection check)
+  const sender = await User.findById(senderId).select("role");
+  const isAdminRole =
+    sender?.role &&
+    ["super_admin", "college_admin", "hod", "staff"].includes(sender.role);
 
-  if (!connection) {
-    return res.status(403).json({
-      success: false,
-      message: "You can only view messages with connected users",
+  console.log(
+    `🔍 GetMessages Debug - Sender ID: ${senderId}, Role: ${sender?.role}, Is Admin: ${isAdminRole}`
+  );
+
+  // Check if users are connected (case insensitive) - skip for admin-like roles
+  if (!isAdminRole) {
+    // First check if there's already a conversation between these users
+    const existingMessage = await Message.findOne({
+      $or: [
+        { sender: senderId, recipient: recipientId },
+        { sender: recipientId, recipient: senderId },
+      ],
     });
+
+    // If no existing conversation, check for connection
+    if (!existingMessage) {
+      const connection = await Connection.findOne({
+        $or: [
+          { requester: senderId, recipient: recipientId },
+          { requester: recipientId, recipient: senderId },
+        ],
+        status: { $in: [ConnectionStatus.ACCEPTED, "accepted"] },
+      });
+
+      if (!connection) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only view messages with connected users",
+        });
+      }
+    }
   }
 
   const messages = await Message.getMessagesBetween(

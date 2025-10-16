@@ -14,6 +14,7 @@ import Mentorship from "./mentorship";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
 import CommunityDetailNew from "../pages/CommunityDetailNew";
+import Messages from "../pages/Messages";
 import RoleBasedDashboard from "./RoleBasedDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -86,6 +87,8 @@ const Layout = () => {
         return <Donations />;
       case "mentorship":
         return <Mentorship />;
+      case "messages":
+        return <Messages />;
       case "about":
         // Redirect to the public About Us page
         navigate("/about");

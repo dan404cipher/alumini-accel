@@ -86,6 +86,20 @@ const Messages = () => {
     return () => clearTimeout(timeoutId);
   }, [searchParams]);
 
+  // Handle auto-selecting conversation when user parameter is provided
+  useEffect(() => {
+    const userId = searchParams.get("user");
+    if (userId && conversations.length > 0) {
+      const targetConversation = conversations.find(
+        (conv) => conv.user.id === userId
+      );
+      if (targetConversation && !selectedConversation) {
+        setSelectedConversation(targetConversation);
+        fetchMessages(targetConversation.user.id);
+      }
+    }
+  }, [conversations, searchParams, selectedConversation]);
+
   // Handle URL-based tab switching
   useEffect(() => {
     const path = location.pathname;
@@ -110,18 +124,6 @@ const Messages = () => {
       if (response.success) {
         const conversationsData = response.data || [];
         setConversations(conversationsData);
-
-        // Auto-select conversation if user ID is provided in URL
-        const userId = searchParams.get("user");
-        if (userId && conversationsData.length > 0) {
-          const targetConversation = conversationsData.find(
-            (conv) => conv.user.id === userId
-          );
-          if (targetConversation) {
-            setSelectedConversation(targetConversation);
-            fetchMessages(targetConversation.user.id);
-          }
-        }
       } else {
         console.error("❌ API Error:", response.message);
       }
@@ -191,6 +193,7 @@ const Messages = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      e.stopPropagation();
       sendMessage();
     }
   };
@@ -474,6 +477,7 @@ const Messages = () => {
                     <Button
                       onClick={sendMessage}
                       disabled={sending || !newMessage.trim()}
+                      type="button"
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -572,6 +576,7 @@ const Messages = () => {
                   onKeyPress={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
+                      e.stopPropagation();
                       handleSendMessage();
                     }
                   }}
@@ -581,6 +586,7 @@ const Messages = () => {
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || sending}
                   size="sm"
+                  type="button"
                 >
                   <Send className="h-4 w-4" />
                 </Button>

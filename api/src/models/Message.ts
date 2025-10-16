@@ -175,28 +175,38 @@ messageSchema.statics.getUnreadCount = function (userId: string) {
 // Static method to get all connected users (including those without messages)
 messageSchema.statics.getConnectedUsers = async function (userId: string) {
   try {
-    // First, get all accepted connections for this user (case insensitive)
-    const connections = await mongoose
-      .model("Connection")
-      .find({
-        status: { $in: ["ACCEPTED", "accepted"] },
-        $or: [
-          { requester: new mongoose.Types.ObjectId(userId) },
-          { recipient: new mongoose.Types.ObjectId(userId) },
-        ],
-      })
-      .populate("requester", "firstName lastName email profilePicture")
-      .populate("recipient", "firstName lastName email profilePicture");
+    // Get all users who have exchanged messages with this user
+    const messageUsers = await this.distinct("sender", {
+      $or: [
+        { sender: new mongoose.Types.ObjectId(userId) },
+        { recipient: new mongoose.Types.ObjectId(userId) },
+      ],
+    });
+
+    const recipientUsers = await this.distinct("recipient", {
+      $or: [
+        { sender: new mongoose.Types.ObjectId(userId) },
+        { recipient: new mongoose.Types.ObjectId(userId) },
+      ],
+    });
+
+    // Combine and deduplicate user IDs
+    const allUserIds = [...new Set([...messageUsers, ...recipientUsers])];
+
+    // Remove the current user from the list
+    const otherUserIds = allUserIds.filter(
+      (id) => id.toString() !== userId.toString()
+    );
+
+    // Get user details for all users who have exchanged messages
+    const users = await mongoose
+      .model("User")
+      .find({ _id: { $in: otherUserIds } })
+      .select("firstName lastName email profilePicture");
 
     const connectedUsers = [];
 
-    for (const connection of connections) {
-      // Determine the other user (not the current user)
-      const otherUser =
-        connection.requester._id.toString() === userId.toString()
-          ? connection.recipient
-          : connection.requester;
-
+    for (const otherUser of users) {
       // Skip if this is the current user (shouldn't happen but safety check)
       if (otherUser._id.toString() === userId.toString()) {
         continue;

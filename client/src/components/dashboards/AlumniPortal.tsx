@@ -44,6 +44,7 @@ const AlumniPortal = () => {
   const [recentCommunities, setRecentCommunities] = useState<any[]>([]);
   const [recentMentorships, setRecentMentorships] = useState<any[]>([]);
   const [recentDonations, setRecentDonations] = useState<any[]>([]);
+  const [recentAlumni, setRecentAlumni] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load college banner
@@ -188,6 +189,15 @@ const AlumniPortal = () => {
           const donationsData = await donationsResponse.json();
           setRecentDonations(donationsData.data?.donations || []);
         }
+
+        // Fetch recent alumni
+        const alumniResponse = await fetch(`${baseUrl}/alumni?limit=8`, {
+          headers,
+        });
+        if (alumniResponse.ok) {
+          const alumniData = await alumniResponse.json();
+          setRecentAlumni(alumniData.data?.alumni || []);
+        }
       } catch (error) {
         console.error("Error fetching recent data:", error);
       } finally {
@@ -223,30 +233,33 @@ const AlumniPortal = () => {
     navigate(`/donations/${donationId}`);
   };
 
+  const handleAlumniClick = (alumniId: string) => {
+    navigate(`/alumni/${alumniId}`);
+  };
+
   const handleViewAll = (section: string) => {
     navigate(`/${section}`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pt-20">
-      <div className="space-y-8">
+    <div className="min-h-screen bg-white p-6 lg:p-8 pt-20">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* College Banner */}
         {collegeBanner && (
-          <div className="relative overflow-hidden rounded-lg shadow-lg">
+          <div className="relative overflow-hidden rounded-lg shadow-sm border">
             <img
               src={collegeBanner}
               alt="College Banner"
-              className="w-full h-80 object-cover"
+              className="w-full h-64 object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 right-0 p-8">
+            <div className="absolute inset-0 bg-black/40"></div>
+            <div className="absolute bottom-0 left-0 right-0 p-6">
               <div className="max-w-4xl">
-                <h2 className="text-4xl font-bold text-white mb-4">
-                  Welcome to Your College Alumni Portal
+                <h2 className="text-3xl font-semibold text-white mb-2">
+                  Alumni Portal
                 </h2>
-                <p className="text-xl text-white/90 mb-6 max-w-2xl">
-                  Connect with fellow alumni, discover opportunities, and stay
-                  updated with college news
+                <p className="text-lg text-white/90 max-w-2xl">
+                  Connect with fellow alumni and stay updated with college news
                 </p>
               </div>
             </div>
@@ -254,63 +267,66 @@ const AlumniPortal = () => {
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border-b pb-6">
           <div>
-            <h1 className="text-3xl font-bold">Alumni Dashboard</h1>
-            <p className="text-muted-foreground">
-              Stay connected with your alma mater
+            <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600 mt-1">
+              Welcome back, {user?.firstName}
             </p>
           </div>
-          <Badge variant="outline" className="text-sm">
-            <User className="w-4 h-4 mr-2" />
-            Alumni
-          </Badge>
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <User className="h-4 w-4" />
+            <span>Alumni Member</span>
+          </div>
         </div>
 
         {/* Loading State */}
         {loading ? (
-          <div className="space-y-8">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                    <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="space-y-6">
+            {[...Array(7)].map((_, i) => (
+              <div key={i} className="bg-white border rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-5 bg-gray-200 rounded w-32"></div>
+                  <div className="h-8 bg-gray-200 rounded w-8"></div>
+                </div>
+                <div className="flex space-x-4">
+                  {[...Array(4)].map((_, j) => (
+                    <div
+                      key={j}
+                      className="w-64 h-40 bg-gray-100 rounded border"
+                    ></div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Recent Events */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                  <CardTitle className="text-lg">Recent Events</CardTitle>
+            <div className="bg-white border rounded-lg">
+              <div className="flex items-center justify-between p-6 border-b">
+                <div className="flex items-center space-x-3">
+                  <Calendar className="h-5 w-5 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Recent Events
+                  </h2>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={() => handleViewAll("events")}
-                  className="text-blue-600 hover:text-blue-700"
+                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
                 >
+                  <span>View All</span>
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent>
+                </button>
+              </div>
+              <div className="p-6">
                 {recentEvents.length > 0 ? (
                   <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                     {recentEvents.map((event) => (
                       <div
                         key={event._id}
                         onClick={() => handleEventClick(event._id)}
-                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                        className="flex-shrink-0 w-64 bg-gray-50 border rounded-lg cursor-pointer"
                       >
                         <div className="relative">
                           {event.image ? (
@@ -320,21 +336,21 @@ const AlumniPortal = () => {
                               className="w-full h-32 object-cover rounded-t-lg"
                             />
                           ) : (
-                            <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded-t-lg flex items-center justify-center">
-                              <Calendar className="h-8 w-8 text-blue-400" />
+                            <div className="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                              <Calendar className="h-8 w-8 text-gray-400" />
                             </div>
                           )}
                           <div className="absolute top-2 right-2">
-                            <Badge variant="secondary" className="text-xs">
+                            <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
                               {event.type || "Event"}
-                            </Badge>
+                            </span>
                           </div>
                         </div>
-                        <div className="p-3">
-                          <h4 className="font-medium text-sm truncate group-hover:text-blue-600 transition-colors">
+                        <div className="p-4">
+                          <h4 className="font-medium text-sm text-gray-900 truncate">
                             {event.title}
                           </h4>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
                             <Clock className="h-3 w-3 mr-1" />
                             {new Date(event.startDate).toLocaleDateString()}
                           </div>
@@ -344,49 +360,50 @@ const AlumniPortal = () => {
                               <span className="truncate">{event.location}</span>
                             </div>
                           )}
-                          <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center justify-between mt-3">
                             <span className="text-xs text-gray-500">
                               {event.currentAttendees || 0} attendees
                             </span>
-                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                            <ExternalLink className="h-3 w-3 text-gray-400" />
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-12 text-gray-500">
                     <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent events</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Recent News */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <div className="flex items-center space-x-2">
-                  <MessageSquare className="h-5 w-5 text-green-600" />
-                  <CardTitle className="text-lg">Recent News</CardTitle>
+            <div className="bg-white border rounded-lg">
+              <div className="flex items-center justify-between p-6 border-b">
+                <div className="flex items-center space-x-3">
+                  <MessageSquare className="h-5 w-5 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Recent News
+                  </h2>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={() => handleViewAll("news")}
-                  className="text-green-600 hover:text-green-700"
+                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
                 >
+                  <span>View All</span>
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent>
+                </button>
+              </div>
+              <div className="p-6">
                 {recentNews.length > 0 ? (
                   <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                     {recentNews.map((news) => (
                       <div
                         key={news._id}
                         onClick={() => handleNewsClick(news._id)}
-                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                        className="flex-shrink-0 w-64 bg-gray-50 border rounded-lg cursor-pointer"
                       >
                         <div className="relative">
                           {news.image ? (
@@ -396,70 +413,71 @@ const AlumniPortal = () => {
                               className="w-full h-32 object-cover rounded-t-lg"
                             />
                           ) : (
-                            <div className="w-full h-32 bg-gradient-to-br from-green-100 to-green-200 rounded-t-lg flex items-center justify-center">
-                              <MessageSquare className="h-8 w-8 text-green-400" />
+                            <div className="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                              <MessageSquare className="h-8 w-8 text-gray-400" />
                             </div>
                           )}
                           <div className="absolute top-2 right-2">
-                            <Badge variant="secondary" className="text-xs">
+                            <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
                               News
-                            </Badge>
+                            </span>
                           </div>
                         </div>
-                        <div className="p-3">
-                          <h4 className="font-medium text-sm truncate group-hover:text-green-600 transition-colors">
+                        <div className="p-4">
+                          <h4 className="font-medium text-sm text-gray-900 truncate">
                             {news.title}
                           </h4>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
                             {news.content}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-2">
+                          <div className="flex items-center text-xs text-gray-500 mt-3">
                             <Clock className="h-3 w-3 mr-1" />
                             {new Date(news.createdAt).toLocaleDateString()}
                           </div>
-                          <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center justify-between mt-3">
                             <span className="text-xs text-gray-500">
                               {news.author?.firstName} {news.author?.lastName}
                             </span>
-                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-green-500 transition-colors" />
+                            <ExternalLink className="h-3 w-3 text-gray-400" />
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-12 text-gray-500">
                     <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent news</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Recent Gallery */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <div className="flex items-center space-x-2">
-                  <ImageIcon className="h-5 w-5 text-purple-600" />
-                  <CardTitle className="text-lg">Recent Gallery</CardTitle>
+            <div className="bg-white border rounded-lg">
+              <div className="flex items-center justify-between p-6 border-b">
+                <div className="flex items-center space-x-3">
+                  <ImageIcon className="h-5 w-5 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Recent Gallery
+                  </h2>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={() => handleViewAll("gallery")}
-                  className="text-purple-600 hover:text-purple-700"
+                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
                 >
+                  <span>View All</span>
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent>
+                </button>
+              </div>
+              <div className="p-6">
                 {recentGalleries.length > 0 ? (
                   <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                     {recentGalleries.map((gallery) => (
                       <div
                         key={gallery._id}
                         onClick={() => handleGalleryClick(gallery._id)}
-                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                        className="flex-shrink-0 w-64 bg-gray-50 border rounded-lg cursor-pointer"
                       >
                         <div className="relative">
                           {gallery.images && gallery.images.length > 0 ? (
@@ -469,56 +487,53 @@ const AlumniPortal = () => {
                               className="w-full h-32 object-cover rounded-t-lg"
                             />
                           ) : (
-                            <div className="w-full h-32 bg-gradient-to-br from-purple-100 to-purple-200 rounded-t-lg flex items-center justify-center">
-                              <ImageIcon className="h-8 w-8 text-purple-400" />
+                            <div className="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                              <ImageIcon className="h-8 w-8 text-gray-400" />
                             </div>
                           )}
                           <div className="absolute top-2 right-2">
-                            <Badge variant="secondary" className="text-xs">
+                            <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
                               Gallery
-                            </Badge>
+                            </span>
                           </div>
                           {gallery.images && gallery.images.length > 1 && (
                             <div className="absolute bottom-2 right-2">
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-white/90"
-                              >
+                              <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
                                 +{gallery.images.length - 1} more
-                              </Badge>
+                              </span>
                             </div>
                           )}
                         </div>
-                        <div className="p-3">
-                          <h4 className="font-medium text-sm truncate group-hover:text-purple-600 transition-colors">
+                        <div className="p-4">
+                          <h4 className="font-medium text-sm text-gray-900 truncate">
                             {gallery.title}
                           </h4>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
                             {gallery.description}
                           </p>
-                          <div className="flex items-center text-xs text-gray-500 mt-2">
+                          <div className="flex items-center text-xs text-gray-500 mt-3">
                             <Eye className="h-3 w-3 mr-1" />
                             {gallery.images?.length || 0} photos
                           </div>
-                          <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center justify-between mt-3">
                             <span className="text-xs text-gray-500">
                               {gallery.createdBy?.firstName}{" "}
                               {gallery.createdBy?.lastName}
                             </span>
-                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                            <ExternalLink className="h-3 w-3 text-gray-400" />
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-12 text-gray-500">
                     <ImageIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent galleries</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Recent Communities */}
             <Card>
@@ -742,6 +757,81 @@ const AlumniPortal = () => {
                   <div className="text-center py-8 text-gray-500">
                     <Heart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-sm">No recent donations</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Graduate Alumni */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <div className="flex items-center space-x-2">
+                  <User className="h-5 w-5 text-teal-600" />
+                  <CardTitle className="text-lg">
+                    Recent Graduate Alumni
+                  </CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAll("alumni")}
+                  className="text-teal-600 hover:text-teal-700"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {recentAlumni.length > 0 ? (
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentAlumni.map((alumni) => (
+                      <div
+                        key={alumni._id}
+                        onClick={() => handleAlumniClick(alumni._id)}
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          {alumni.profilePicture ? (
+                            <img
+                              src={alumni.profilePicture}
+                              alt={`${alumni.firstName} ${alumni.lastName}`}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-teal-100 to-teal-200 rounded-t-lg flex items-center justify-center">
+                              <User className="h-8 w-8 text-teal-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs">
+                              Alumni
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-3">
+                          <h4 className="font-medium text-sm truncate group-hover:text-teal-600 transition-colors">
+                            {alumni.firstName} {alumni.lastName}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {alumni.currentPosition} at {alumni.currentCompany}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            Class of {alumni.graduationYear}
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {alumni.department}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-teal-500 transition-colors" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <User className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No recent alumni</p>
                   </div>
                 )}
               </CardContent>

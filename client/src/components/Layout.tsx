@@ -126,12 +126,14 @@ const Layout = () => {
 
   return (
     <div
-      className="min-h-screen bg-background flex flex-col"
-      style={{ overflowY: "auto" }}
+      className={`min-h-screen bg-background flex flex-col ${
+        isMessagesPage ? "h-screen overflow-hidden" : ""
+      }`}
+      style={isMessagesPage ? {} : { overflowY: "auto" }}
     >
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
-        className={`flex-1 w-full pt-16 ${
+        className={`flex-1 w-full pt-16 ${isMessagesPage ? "h-full" : ""} ${
           isDashboardPage ||
           isJobBoard ||
           isEventsPage ||
@@ -163,7 +165,9 @@ const Layout = () => {
             isMentorshipPage ||
             isMessagesPage ||
             isConnectionsPage
-              ? ""
+              ? isMessagesPage
+                ? "h-full flex flex-col"
+                : ""
               : "animate-fade-in-up"
           }
         >

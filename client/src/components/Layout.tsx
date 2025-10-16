@@ -167,18 +167,7 @@ const Layout = () => {
           {renderContent()}
         </div>
       </main>
-      {!isDashboardPage &&
-        !isJobBoard &&
-        !isEventsPage &&
-        !isNewsPage &&
-        !isGalleryPage &&
-        !isMediaPage &&
-        !isAlumniPage &&
-        !isCommunityPage &&
-        !isDonationsPage &&
-        !isMentorshipPage &&
-        !isMessagesPage &&
-        !isConnectionsPage && <Footer />}
+      <Footer />
     </div>
   );
 };

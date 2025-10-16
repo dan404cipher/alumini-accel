@@ -36,12 +36,24 @@ export const getAllEvents = async (req: Request, res: Response) => {
       .skip(skip)
       .limit(limit);
 
+    // Ensure currentAttendees reflects confirmed registrations in the response
+    const eventsWithCounts = events.map((evt: any) => {
+      const confirmed = Array.isArray(evt.attendees)
+        ? evt.attendees.filter((a: any) => a && a.status === "registered")
+            .length
+        : 0;
+      // Don't persist here; just override for response
+      const obj = evt.toObject ? evt.toObject() : evt;
+      obj.currentAttendees = confirmed;
+      return obj;
+    });
+
     const total = await Event.countDocuments(filter);
 
     return res.json({
       success: true,
       data: {
-        events,
+        events: eventsWithCounts,
         pagination: {
           page,
           limit,
@@ -73,9 +85,17 @@ export const getEventById = async (req: Request, res: Response) => {
       });
     }
 
+    // Ensure currentAttendees reflects confirmed registrations
+    const confirmed = Array.isArray(event.attendees)
+      ? event.attendees.filter((a: any) => a && a.status === "registered")
+          .length
+      : 0;
+    const eventObj = event.toObject ? event.toObject() : event;
+    eventObj.currentAttendees = confirmed;
+
     return res.json({
       success: true,
-      data: { event },
+      data: { event: eventObj },
     });
   } catch (error) {
     logger.error("Get event by ID error:", error);
@@ -261,7 +281,8 @@ export const updateEvent = async (req: Request, res: Response) => {
     // Check if user is the organizer or admin
     if (
       event.organizer.toString() !== req.user.id &&
-      req.user.role !== "admin"
+      req.user.role !== "super_admin" &&
+      req.user.role !== "college_admin"
     ) {
       return res.status(403).json({
         success: false,
@@ -363,7 +384,8 @@ export const updateEventWithImage = async (req: Request, res: Response) => {
     // Check if user is the organizer or admin
     if (
       event.organizer.toString() !== req.user.id &&
-      req.user.role !== "admin"
+      req.user.role !== "super_admin" &&
+      req.user.role !== "college_admin"
     ) {
       return res.status(403).json({
         success: false,
@@ -432,7 +454,8 @@ export const deleteEvent = async (req: Request, res: Response) => {
     // Check if user is the organizer or admin
     if (
       event.organizer.toString() !== req.user.id &&
-      req.user.role !== "admin"
+      req.user.role !== "super_admin" &&
+      req.user.role !== "college_admin"
     ) {
       return res.status(403).json({
         success: false,
@@ -499,17 +522,63 @@ export const registerForEvent = async (req: Request, res: Response) => {
       });
     }
 
-    event.attendees.push({
+    // Extract additional registration details from request body
+    const { phone, dietaryRequirements, emergencyContact, additionalNotes } =
+      req.body;
+
+    // Free vs Paid flow
+    if (!event.price || event.price === 0) {
+      // Free event: register immediately
+      const attendee = {
+        userId: req.user.id,
+        registeredAt: new Date(),
+        status: "registered" as const,
+        phone: phone || "",
+        dietaryRequirements: dietaryRequirements || "",
+        emergencyContact: emergencyContact || "",
+        additionalNotes: additionalNotes || "",
+        amountPaid: 0,
+        paymentStatus: "free" as const,
+      };
+      event.attendees.push(attendee as any);
+      await event.save();
+
+      return res.json({
+        success: true,
+        message: "Successfully registered for event",
+        data: {
+          status: "registered",
+          paymentRequired: false,
+          attendee,
+        },
+      });
+    }
+
+    // Paid event: store registration with pending payment status
+    const attendee = {
       userId: req.user.id,
       registeredAt: new Date(),
-      status: "registered",
-    });
-
+      status: "pending_payment" as const,
+      phone: phone || "",
+      dietaryRequirements: dietaryRequirements || "",
+      emergencyContact: emergencyContact || "",
+      additionalNotes: additionalNotes || "",
+      amountPaid: 0,
+      paymentStatus: "pending" as const,
+    };
+    event.attendees.push(attendee as any);
     await event.save();
 
     return res.json({
       success: true,
-      message: "Successfully registered for event",
+      message: "Payment required to complete registration",
+      data: {
+        status: "pending_payment",
+        paymentRequired: true,
+        amount: event.price,
+        currency: "INR",
+        attendee,
+      },
     });
   } catch (error) {
     logger.error("Register for event error:", error);
@@ -517,6 +586,106 @@ export const registerForEvent = async (req: Request, res: Response) => {
       success: false,
       message: "Failed to register for event",
     });
+  }
+};
+
+// Confirm paid registration (callback/webhook-safe manual endpoint)
+export const confirmPaidRegistration = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params; // event id
+    const { paymentStatus } = req.body; // expected 'success'
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found" });
+    }
+
+    if (paymentStatus !== "success") {
+      return res.status(400).json({
+        success: false,
+        message: "Payment not successful",
+      });
+    }
+
+    // Find existing registration and update it
+    const existingRegistration = event.attendees.find(
+      (attendee) => attendee.userId.toString() === req.user.id
+    );
+
+    if (!existingRegistration) {
+      return res.status(404).json({
+        success: false,
+        message: "No pending registration found",
+      });
+    }
+
+    // Update existing registration to confirmed
+    existingRegistration.status = "registered";
+    existingRegistration.paymentStatus = "successful";
+    existingRegistration.amountPaid = event.price;
+    await event.save();
+
+    return res.json({
+      success: true,
+      message: "Registration confirmed",
+      data: { status: "registered" },
+    });
+  } catch (error) {
+    logger.error("Confirm paid registration error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to confirm registration",
+    });
+  }
+};
+
+// Participants list for organizers
+export const getEventParticipants = async (req: Request, res: Response) => {
+  try {
+    const event = await Event.findById(req.params.id).populate(
+      "attendees.userId",
+      "firstName lastName email phone profilePicture"
+    );
+
+    if (!event) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found" });
+    }
+
+    // Only organizer or privileged roles can view participants
+    if (
+      event.organizer.toString() !== req.user.id &&
+      !["hod", "staff", "college_admin", "super_admin"].includes(req.user.role)
+    ) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    const participants = event.attendees.map((a: any) => ({
+      user: {
+        firstName: a.userId?.firstName || "",
+        lastName: a.userId?.lastName || "",
+        email: a.userId?.email || "",
+        phone: a.userId?.phone || "",
+      },
+      status: a.status || "registered",
+      registeredAt: a.registeredAt,
+      phone: a.phone || "",
+      dietaryRequirements: a.dietaryRequirements || "",
+      emergencyContact: a.emergencyContact || "",
+      additionalNotes: a.additionalNotes || "",
+      amountPaid: a.amountPaid || 0,
+      paymentStatus: a.paymentStatus || "free",
+    }));
+
+    return res.json({ success: true, data: { participants } });
+  } catch (error) {
+    logger.error("Get participants error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch participants" });
   }
 };
 
@@ -1022,4 +1191,6 @@ export default {
   saveEvent,
   unsaveEvent,
   getSavedEvents,
+  confirmPaidRegistration,
+  getEventParticipants,
 };

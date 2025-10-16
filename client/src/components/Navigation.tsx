@@ -82,34 +82,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         { id: "gallery", name: "Gallery", icon: Image },
       ],
     },
-    {
-      id: "messages",
-      name: "Messages",
-      icon: MessageCircle,
-      count: null,
-      hasDropdown: true,
-      dropdownItems: [
-        { id: "messages/inbox", name: "Inbox", icon: MessageCircle },
-        { id: "messages/sent", name: "Sent", icon: MessageCircle },
-        { id: "messages/drafts", name: "Drafts", icon: MessageCircle },
-      ],
-    },
-    {
-      id: "connections",
-      name: "Connections",
-      icon: UserPlus,
-      count: null,
-      hasDropdown: true,
-      dropdownItems: [
-        {
-          id: "connections/my-connections",
-          name: "My Connections",
-          icon: UserPlus,
-        },
-        { id: "connections/pending", name: "Pending Requests", icon: UserPlus },
-        { id: "connections/find", name: "Find Alumni", icon: Users },
-      ],
-    },
     { id: "community", name: "Community", icon: Users2, count: null },
     { id: "mentorship", name: "Mentorship", icon: GraduationCap, count: null },
     { id: "donations", name: "Donations", icon: Heart, count: null },
@@ -511,6 +483,22 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
           {/* Right side controls */}
           <div className="flex items-center space-x-2 md:space-x-3">
+            {/* Messages */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative p-2.5 hover:bg-green-50 hover:text-green-600 transition-all duration-200 hover:scale-105 group"
+              onClick={() => {
+                navigate("/messages");
+              }}
+            >
+              <MessageCircle className="w-5 h-5 group-hover:animate-pulse" />
+              {/* Message badge */}
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
+                2
+              </span>
+            </Button>
+
             {/* Notifications */}
             <Button
               variant="ghost"
@@ -710,6 +698,21 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-xl shadow-lg">
             <div className="px-4 py-6 space-y-3">
+              {/* Mobile Messages */}
+              <button
+                onClick={() => {
+                  navigate("/messages");
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 text-gray-700 hover:text-green-600 hover:bg-green-50 hover:scale-105 group"
+              >
+                <MessageCircle className="w-5 h-5 mr-3 group-hover:animate-pulse" />
+                <span className="flex-1 text-left font-medium">Messages</span>
+                <span className="w-5 h-5 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-md">
+                  2
+                </span>
+              </button>
+
               {/* Mobile Notifications */}
               <button
                 onClick={() => {

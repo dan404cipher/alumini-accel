@@ -164,11 +164,10 @@ export const updateNews = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user is the author or admin
+    // Check if user is the author or has appropriate role
     if (
       news.author.toString() !== req.user.id &&
-      req.user.role !== "admin" &&
-      req.user.role !== "super_admin"
+      !["super_admin", "college_admin", "hod", "staff"].includes(req.user.role)
     ) {
       return res.status(403).json({
         success: false,
@@ -215,11 +214,10 @@ export const updateNewsWithImage = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user is the author or admin
+    // Check if user is the author or has appropriate role
     if (
       news.author.toString() !== req.user.id &&
-      req.user.role !== "admin" &&
-      req.user.role !== "super_admin"
+      !["super_admin", "college_admin", "hod", "staff"].includes(req.user.role)
     ) {
       return res.status(403).json({
         success: false,
@@ -268,11 +266,10 @@ export const deleteNews = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user is the author or admin
+    // Check if user is the author or has appropriate role
     if (
       news.author.toString() !== req.user.id &&
-      req.user.role !== "admin" &&
-      req.user.role !== "super_admin"
+      !["super_admin", "college_admin", "hod", "staff"].includes(req.user.role)
     ) {
       return res.status(403).json({
         success: false,

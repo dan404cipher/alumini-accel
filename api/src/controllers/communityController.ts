@@ -39,10 +39,13 @@ export const createCommunity = async (
 
     // Check if user has permission to create communities
     const userRole = req.user?.role;
-    if (!["college_admin", "hod", "staff"].includes(userRole || "")) {
+    if (
+      !["super_admin", "college_admin", "hod", "staff"].includes(userRole || "")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Only College Admin, HOD, and Staff can create communities",
+        message:
+          "Only Super Admin, College Admin, HOD, and Staff can create communities",
       });
     }
 
@@ -305,8 +308,9 @@ export const updateCommunity = async (
     const isModerator =
       membership?.role === "moderator" || membership?.role === "admin";
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !isModerator && !isSuperAdmin) {
+    if (!isCreator && !isModerator && !isSuperAdmin && !isCollegeAdmin) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to update community",
@@ -363,8 +367,9 @@ export const deleteCommunity = async (
     // Check if user has permission to delete
     const isCreator = community.createdBy.toString() === userId.toString();
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !isSuperAdmin) {
+    if (!isCreator && !isSuperAdmin && !isCollegeAdmin) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to delete community",

@@ -195,6 +195,10 @@ const Messages = () => {
     }
   };
 
+  const handleSendMessage = () => {
+    sendMessage();
+  };
+
   const selectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     fetchMessages(conversation.user.id);

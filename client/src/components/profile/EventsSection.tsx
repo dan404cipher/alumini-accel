@@ -152,18 +152,29 @@ export const EventsSection = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {eventsRegistered.map((event, index) => (
+                  {eventsRegistered.map((event, index) => {
+                    const statusText =
+                      typeof (event as any).status === "string"
+                        ? (event as any).status
+                        : "registered";
+                    const registeredAtStr =
+                      typeof (event as any).registeredAt === "string"
+                        ? (event as any).registeredAt
+                        : "";
+                    const eventIdSafe =
+                      (event as any).eventId || (event as any).id || (event as any)._id;
+                    return (
                     <div
-                      key={event.eventId || index}
+                      key={eventIdSafe || index}
                       className="border rounded-lg p-4"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             <h4 className="font-semibold">Event {index + 1}</h4>
-                            <Badge className={getStatusColor(event.status)}>
-                              {event.status.charAt(0).toUpperCase() +
-                                event.status.slice(1)}
+                            <Badge className={getStatusColor(statusText)}>
+                              {statusText.charAt(0).toUpperCase() +
+                                statusText.slice(1)}
                             </Badge>
                           </div>
 
@@ -171,7 +182,7 @@ export const EventsSection = ({
                             <div className="flex items-center">
                               <Calendar className="w-4 h-4 mr-2" />
                               <span>
-                                Registered on {formatDate(event.registeredAt)}
+                                Registered on {registeredAtStr ? formatDate(registeredAtStr) : "-"}
                               </span>
                             </div>
 
@@ -188,20 +199,22 @@ export const EventsSection = ({
                         </div>
 
                         <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              (window.location.href = `/events/${event.eventId}`)
-                            }
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            View Event
-                          </Button>
+                          {eventIdSafe && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                (window.location.href = `/events/${eventIdSafe}`)
+                              }
+                            >
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              View Event
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>

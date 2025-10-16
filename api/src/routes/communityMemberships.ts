@@ -4,6 +4,8 @@ import {
   validateCommunityMembership,
   validateCommunityMembershipSuspension,
   validateId,
+  validateCommunityId,
+  validateMembershipId,
 } from "../middleware/validation";
 import {
   getMembershipRequests,
@@ -16,6 +18,7 @@ import {
   removeMember,
   getCommunityModerators,
   inviteToCommunity,
+  updateModeratorPermissions,
 } from "../controllers/communityMembershipController";
 
 const router = express.Router();
@@ -26,35 +29,42 @@ router.use(authenticate);
 // Membership management
 router.get(
   "/community/:communityId/requests",
-  validateId,
+  validateCommunityId,
   getMembershipRequests
 );
 router.get(
   "/community/:communityId/moderators",
-  validateId,
+  validateCommunityId,
   getCommunityModerators
 );
 
 // Membership actions
-router.post("/:membershipId/approve", validateId, approveMembership);
-router.post("/:membershipId/reject", validateId, rejectMembership);
+router.post("/:membershipId/approve", validateMembershipId, approveMembership);
+router.post("/:membershipId/reject", validateMembershipId, rejectMembership);
 router.post(
   "/:membershipId/suspend",
-  validateId,
+  validateMembershipId,
   validateCommunityMembershipSuspension,
   suspendMember
 );
-router.post("/:membershipId/unsuspend", validateId, unsuspendMember);
-router.post("/:membershipId/promote", validateId, promoteToModerator);
-router.post("/:membershipId/demote", validateId, demoteToMember);
-router.delete("/:membershipId", validateId, removeMember);
+router.post("/:membershipId/unsuspend", validateMembershipId, unsuspendMember);
+router.post("/:membershipId/promote", validateMembershipId, promoteToModerator);
+router.post("/:membershipId/demote", validateMembershipId, demoteToMember);
+router.delete("/:membershipId", validateMembershipId, removeMember);
 
 // Invitations
 router.post(
   "/community/:communityId/invite",
-  validateId,
+  validateCommunityId,
   validateCommunityMembership,
   inviteToCommunity
+);
+
+// Moderator permissions
+router.put(
+  "/:membershipId/permissions",
+  validateMembershipId,
+  updateModeratorPermissions
 );
 
 export default router;

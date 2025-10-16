@@ -59,6 +59,7 @@ export const PostJobDialog = ({
     salaryMin: "",
     salaryMax: "",
     currency: "USD",
+    numberOfVacancies: "1",
     description: "",
     requirements: "",
     benefits: "",
@@ -99,6 +100,21 @@ export const PostJobDialog = ({
 
     if (!formData.type) {
       newErrors.push("Job type is required");
+    }
+
+    // Number of vacancies validation
+    if (
+      !formData.numberOfVacancies ||
+      formData.numberOfVacancies.trim() === ""
+    ) {
+      newErrors.push("Number of vacancies is required");
+    } else {
+      const vacancies = parseInt(formData.numberOfVacancies);
+      if (isNaN(vacancies) || vacancies < 1) {
+        newErrors.push("Number of vacancies must be at least 1");
+      } else if (vacancies > 1000) {
+        newErrors.push("Number of vacancies cannot exceed 1000");
+      }
     }
 
     if (!formData.description.trim()) {
@@ -228,6 +244,7 @@ export const PostJobDialog = ({
         type: formData.type,
         remote: formData.location.toLowerCase().includes("remote"),
         salary: salaryRange,
+        numberOfVacancies: parseInt(formData.numberOfVacancies),
         description: formData.description.trim(),
         requirements: requirements,
         benefits: benefits,
@@ -257,6 +274,7 @@ export const PostJobDialog = ({
           salaryMin: "",
           salaryMax: "",
           currency: "USD",
+          numberOfVacancies: "1",
           description: "",
           requirements: "",
           benefits: "",
@@ -305,7 +323,7 @@ export const PostJobDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[820px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             {showPreview ? (
@@ -555,6 +573,24 @@ export const PostJobDialog = ({
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="numberOfVacancies">Number of Vacancies *</Label>
+                <Input
+                  id="numberOfVacancies"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={formData.numberOfVacancies}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      numberOfVacancies: e.target.value,
+                    })
+                  }
+                  placeholder="1"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="deadline">Application Deadline *</Label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -586,6 +622,30 @@ export const PostJobDialog = ({
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, currency: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                    <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="CAD">CAD (C$)</SelectItem>
+                    <SelectItem value="AUD">AUD (A$)</SelectItem>
+                    <SelectItem value="JPY">JPY (¥)</SelectItem>
+                    <SelectItem value="CHF">CHF (CHF)</SelectItem>
+                    <SelectItem value="CNY">CNY (¥)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="salaryMin">Min Salary *</Label>
                 <div className="relative">
@@ -645,30 +705,6 @@ export const PostJobDialog = ({
                     required
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select
-                  value={formData.currency}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, currency: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="GBP">GBP (£)</SelectItem>
-                    <SelectItem value="INR">INR (₹)</SelectItem>
-                    <SelectItem value="CAD">CAD (C$)</SelectItem>
-                    <SelectItem value="AUD">AUD (A$)</SelectItem>
-                    <SelectItem value="JPY">JPY (¥)</SelectItem>
-                    <SelectItem value="CHF">CHF (CHF)</SelectItem>
-                    <SelectItem value="CNY">CNY (¥)</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             <div className="space-y-2">

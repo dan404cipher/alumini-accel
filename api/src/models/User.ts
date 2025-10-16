@@ -196,6 +196,13 @@ const userSchema = new Schema<IUser>(
         ref: "Event",
       },
     ],
+    // Saved jobs for alumni
+    savedJobs: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "JobPost",
+      },
+    ],
   },
   {
     timestamps: true,

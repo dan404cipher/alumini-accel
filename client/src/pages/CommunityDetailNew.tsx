@@ -13,6 +13,9 @@ import {
   CommunityMobileSidebar,
   CommunityPostsTab,
   CommunityAboutTab,
+  ModeratorDashboard,
+  EditCommunityModal,
+  DeleteCommunityModal,
   Community,
   CommunityPost,
   PostFilters,
@@ -31,8 +34,11 @@ const CommunityDetailNew: React.FC = () => {
   const [postsLoading, setPostsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState<PostFilters>({
@@ -78,19 +84,22 @@ const CommunityDetailNew: React.FC = () => {
       const communityData = data.data.community || data.data;
       setCommunity(communityData);
 
-      // Check if user is member or admin
+      // Check if user is member, moderator, or admin
       const userId = user?._id;
       if (userId && communityData) {
         const memberCheck = communityData.members?.some(
           (member: { _id: string }) => member._id === userId
         );
+        const moderatorCheck = communityData.moderators?.some(
+          (mod: { _id: string }) => mod._id === userId
+        );
         const adminCheck =
           communityData.createdBy?._id === userId ||
-          communityData.moderators?.some(
-            (mod: { _id: string }) => mod._id === userId
-          );
+          user?.role === "super_admin" ||
+          user?.role === "college_admin";
 
         setIsMember(!!memberCheck);
+        setIsModerator(!!moderatorCheck);
         setIsAdmin(!!adminCheck);
       }
     } catch (error) {
@@ -103,7 +112,7 @@ const CommunityDetailNew: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, user?._id, toast]);
+  }, [id, user?._id, user?.role, toast]);
 
   // Fetch community posts
   const fetchCommunityPosts = useCallback(async () => {
@@ -286,6 +295,27 @@ const CommunityDetailNew: React.FC = () => {
     setShowCreateModal(true);
   };
 
+  // Handle edit community
+  const handleEditCommunity = () => {
+    setShowEditModal(true);
+  };
+
+  // Handle delete community
+  const handleDeleteCommunity = () => {
+    setShowDeleteModal(true);
+  };
+
+  // Handle successful edit/delete
+  const handleCommunityUpdate = () => {
+    fetchCommunity(); // Refresh community data
+  };
+
+  // Handle successful delete - redirect to communities page
+  const handleCommunityDelete = () => {
+    // Redirect to communities page after successful deletion
+    window.location.href = "/community";
+  };
+
   const handlePostCreated = () => {
     setShowCreateModal(false);
     fetchCommunityPosts();
@@ -350,6 +380,8 @@ const CommunityDetailNew: React.FC = () => {
         isAdmin={isAdmin}
         onJoinCommunity={handleJoinCommunity}
         onLeaveCommunity={handleLeaveCommunity}
+        onEditCommunity={handleEditCommunity}
+        onDeleteCommunity={handleDeleteCommunity}
       />
 
       {/* Main Content */}
@@ -369,6 +401,7 @@ const CommunityDetailNew: React.FC = () => {
             <CommunityDetailTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              isModerator={isModerator || isAdmin}
             >
               {activeTab === "posts" ? (
                 <CommunityPostsTab
@@ -377,7 +410,7 @@ const CommunityDetailNew: React.FC = () => {
                   filteredPosts={filteredPosts}
                   onRefreshPosts={fetchCommunityPosts}
                 />
-              ) : (
+              ) : activeTab === "about" ? (
                 <>
                   <CommunityAboutTab
                     community={community}
@@ -399,6 +432,8 @@ const CommunityDetailNew: React.FC = () => {
                     onClearFilters={clearFilters}
                   />
                 </>
+              ) : (
+                <ModeratorDashboard communityId={id || ""} isAdmin={isAdmin} />
               )}
             </CommunityDetailTabs>
           </div>
@@ -425,6 +460,22 @@ const CommunityDetailNew: React.FC = () => {
           onPostCreated={handlePostCreated}
         />
       )}
+
+      {/* Edit Community Modal */}
+      <EditCommunityModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        community={community}
+        onSuccess={handleCommunityUpdate}
+      />
+
+      {/* Delete Community Modal */}
+      <DeleteCommunityModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        community={community}
+        onSuccess={handleCommunityDelete}
+      />
     </div>
   );
 };

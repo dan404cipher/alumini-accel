@@ -112,6 +112,26 @@ export const applyForJob = async (req: AuthenticatedRequest, res: Response) => {
 
     await application.save();
 
+    // Also add the application to the JobPost's applications array
+    const jobPost = await JobPost.findById(jobId);
+    if (jobPost) {
+      // Check if application already exists in the job's applications array
+      const existingApplication = jobPost.applications.find(
+        (app: any) => app.applicantId.toString() === userId
+      );
+
+      if (!existingApplication) {
+        jobPost.applications.push({
+          applicantId: userId,
+          appliedAt: new Date(),
+          status: "pending",
+          resume: req.body.resume,
+          coverLetter: req.body.message,
+        });
+        await jobPost.save();
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message: "Application submitted successfully",

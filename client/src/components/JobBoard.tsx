@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   MapPin,
   Building,
@@ -52,7 +53,7 @@ import { ShareJobDialog } from "./dialogs/ShareJobDialog";
 import JobApplicationForm from "./JobApplicationForm";
 import ApplicationManagementDashboard from "./ApplicationManagementDashboard";
 import ApplicationStatusTracking from "./ApplicationStatusTracking";
-import { jobAPI } from "@/lib/api";
+import { jobAPI, jobApplicationAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasPermission } from "@/utils/rolePermissions";
 
@@ -70,6 +71,7 @@ interface Job {
     max: number;
     currency: string;
   };
+  numberOfVacancies?: number;
   description: string;
   requirements: string[];
   benefits?: string[];
@@ -101,9 +103,9 @@ const JobBoard = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
@@ -111,11 +113,38 @@ const JobBoard = () => {
   const [selectedIndustry, setSelectedIndustry] = useState("all");
   const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
   const [selectedRemoteWork, setSelectedRemoteWork] = useState("all");
+  const [selectedVacancies, setSelectedVacancies] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [isFetching, setIsFetching] = useState(false);
+  const isFetchingRef = useRef(false);
   const [retryCount, setRetryCount] = useState(0);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
+
+  // Load applied jobs from localStorage on mount (fallback in case API is slow)
+  useEffect(() => {
+    const stored = localStorage.getItem("appliedJobs");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as string[];
+        setAppliedJobIds(new Set(parsed));
+      } catch {}
+    }
+  }, []);
+
+  // Load saved jobs from localStorage on component mount
+  useEffect(() => {
+    const savedJobsFromStorage = localStorage.getItem("savedJobs");
+    if (savedJobsFromStorage) {
+      try {
+        const parsed = JSON.parse(savedJobsFromStorage);
+        setSavedJobs(new Set(parsed));
+      } catch (error) {
+        console.error("Error parsing saved jobs from localStorage:", error);
+        localStorage.removeItem("savedJobs");
+      }
+    }
+  }, []);
   const [showSavedJobs, setShowSavedJobs] = useState(false);
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -123,6 +152,10 @@ const JobBoard = () => {
   const [selectedJobForApplication, setSelectedJobForApplication] =
     useState<Job | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const postedJobsCount = useMemo(
+    () => jobs.filter((j) => j.postedBy._id === user?._id).length,
+    [jobs, user?._id]
+  );
   const [activeTab, setActiveTab] = useState("jobs");
   const observerRef = useRef<HTMLDivElement>(null);
   const fetchJobsRef = useRef<typeof fetchJobs>();
@@ -164,6 +197,33 @@ const JobBoard = () => {
     setExpandedJobId(expandedJobId === jobId ? null : jobId);
   };
 
+  // Determine if current user applied to a job (from payload or cached ids)
+  const isJobApplied = useCallback(
+    (job: Job) => {
+      // First check if the job has applications data from backend
+      if (user?._id && (job as any)?.applications?.length) {
+        const apps = (job as any).applications as Array<{
+          applicantId?: string | { _id?: string; toString?: () => string };
+        }>;
+        const hasApplied = apps.some((a) => {
+          const idLike = a?.applicantId as any;
+          if (!idLike) return false;
+          // If populated user object
+          if (typeof idLike === "object" && idLike._id) {
+            return idLike._id === user._id;
+          }
+          // If ObjectId or string
+          const val = idLike?.toString ? idLike.toString() : (idLike as string);
+          return val === user._id;
+        });
+        if (hasApplied) return true;
+      }
+      // Fallback to cached applied job IDs
+      return appliedJobIds.has(job._id);
+    },
+    [appliedJobIds, user?._id]
+  );
+
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -174,194 +234,188 @@ const JobBoard = () => {
   }, [searchQuery]);
 
   // Fetch jobs from API
-  const fetchJobs = useCallback(
-    async (pageNum = 1, append = false) => {
-      // Prevent multiple simultaneous requests
-      if (isFetching) return;
+  const fetchJobs = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (isFetchingRef.current) return;
 
-      try {
-        setIsFetching(true);
-        if (pageNum === 1) {
-          setLoading(true);
-        } else {
-          setLoadingMore(true);
+    try {
+      isFetchingRef.current = true;
+      setLoading(true);
+      setError(null);
+
+      const params: Record<string, string | number> = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
+      if (debouncedSearchQuery) params.q = debouncedSearchQuery;
+      if (selectedLocation && selectedLocation !== "all")
+        params.location = selectedLocation;
+      if (selectedType && selectedType !== "all") params.type = selectedType;
+      if (selectedExperience && selectedExperience !== "all")
+        params.experience = selectedExperience;
+      if (selectedIndustry && selectedIndustry !== "all")
+        params.industry = selectedIndustry;
+
+      const response = await jobAPI.getAllJobs(params);
+
+      // Reset retry count on successful request
+      setRetryCount(0);
+
+      if (response.success && response.data) {
+        const data = response.data as
+          | { jobs?: Job[]; pagination?: { totalPages: number } }
+          | Job[];
+        const jobsData = Array.isArray(data) ? { jobs: data } : data;
+        const newJobs = jobsData.jobs || [];
+
+        setJobs(newJobs);
+
+        if (jobsData.pagination) {
+          setTotalPages(jobsData.pagination.totalPages || 1);
         }
-        setError(null);
-
-        const params: Record<string, string | number> = {
-          page: pageNum,
-          limit: 10,
-        };
-        if (debouncedSearchQuery) params.q = debouncedSearchQuery;
-        if (selectedLocation && selectedLocation !== "all")
-          params.location = selectedLocation;
-        if (selectedType && selectedType !== "all") params.type = selectedType;
-        if (selectedExperience && selectedExperience !== "all")
-          params.experience = selectedExperience;
-        if (selectedIndustry && selectedIndustry !== "all")
-          params.industry = selectedIndustry;
-
-        const response = await jobAPI.getAllJobs(params);
-
-        // Reset retry count on successful request
-        setRetryCount(0);
-
-        if (response.success && response.data) {
-          const data = response.data as
-            | { jobs?: Job[]; pagination?: Record<string, string | number> }
-            | Job[];
-          const newJobs = Array.isArray(data) ? data : data.jobs || [];
-
-          // Debug: Log the first job to see what fields are available
-          if (newJobs.length > 0) {
-            // Jobs loaded successfully
-          }
-
-          if (append) {
-            setJobs((prev) => [...prev, ...newJobs]);
-          } else {
-            setJobs(newJobs);
-          }
-
-          // Check if there are more pages
-          if (data && typeof data === "object" && "pagination" in data) {
-            const pagination = data.pagination;
-            const hasMorePages = pagination.page < pagination.totalPages;
-            setHasMore(hasMorePages);
-          } else {
-            // If no pagination info, check if we got a full page
-            const hasMorePages = newJobs.length === 10;
-            setHasMore(hasMorePages);
-          }
-
-          // Safety check: if we got no jobs, there are no more pages
-          if (newJobs.length === 0) {
-            setHasMore(false);
-          }
-        } else {
-          setError("Failed to fetch jobs");
-        }
-      } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to fetch jobs";
-
-        // Handle 429 (Too Many Requests) with exponential backoff
-        if (err instanceof Error && err.message.includes("429")) {
-          setIsRateLimited(true);
-          setHasMore(false); // Stop infinite scroll when rate limited
-
-          // Set a cooldown period before allowing new requests
-          setTimeout(() => {
-            setIsRateLimited(false);
-            setRetryCount(0);
-          }, 30000); // 30 second cooldown
-
-          setError(
-            "Too many requests. Please wait a moment before trying again."
-          );
-          return;
-        }
-
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-        setIsFetching(false);
+      } else {
+        setError("Failed to fetch jobs");
       }
-    },
-    [
-      debouncedSearchQuery,
-      selectedLocation,
-      selectedType,
-      selectedExperience,
-      selectedIndustry,
-      isFetching,
-    ]
-  );
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch jobs";
+
+      // Handle 429 (Too Many Requests) with exponential backoff
+      if (err instanceof Error && err.message.includes("429")) {
+        setIsRateLimited(true);
+
+        // Set a cooldown period before allowing new requests
+        setTimeout(() => {
+          setIsRateLimited(false);
+          setRetryCount(0);
+        }, 30000); // 30 second cooldown
+
+        setError(
+          "Too many requests. Please wait a moment before trying again."
+        );
+        return;
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [
+    currentPage,
+    itemsPerPage,
+    debouncedSearchQuery,
+    selectedLocation,
+    selectedType,
+    selectedExperience,
+    selectedIndustry,
+  ]);
 
   // Store the latest fetchJobs function in ref
   fetchJobsRef.current = fetchJobs;
 
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchQuery,
+    selectedLocation,
+    selectedType,
+    selectedExperience,
+    selectedIndustry,
+    selectedSalaryRange,
+    selectedRemoteWork,
+    selectedVacancies,
+  ]);
+
   // Load jobs when user is authenticated or filters change
   useEffect(() => {
     if (user && !authLoading) {
-      setPage(1);
-      setHasMore(true); // Reset hasMore when filters change
-      if (fetchJobsRef.current) {
-        fetchJobsRef.current(1, false);
-      }
+      fetchJobs();
+      // Load user's applied jobs to mark "Applied"
+      (async () => {
+        try {
+          const res = await jobApplicationAPI.getUserApplications({
+            page: 1,
+            limit: 500,
+          });
+          const apps = (res?.data?.applications || res?.data || []) as Array<{
+            jobId?: string;
+            job?: { _id: string };
+          }>;
+          const ids = new Set<string>();
+          apps.forEach((a) => {
+            const id = (a as any).jobId || (a as any).job?._id;
+            if (typeof id === "string" && id) ids.add(id);
+          });
+          setAppliedJobIds(ids);
+          localStorage.setItem("appliedJobs", JSON.stringify([...ids]));
+        } catch {}
+      })();
     } else if (!authLoading && !user) {
       setLoading(false);
       setError("Please log in to view jobs");
     }
-  }, [user, authLoading, debouncedSearchQuery, selectedLocation, selectedType]);
-
-  // Load more jobs when scrolling
-  const loadMore = useCallback(() => {
-    if (
-      hasMore &&
-      !loadingMore &&
-      !loading &&
-      !isFetching &&
-      !isRateLimited &&
-      fetchJobsRef.current &&
-      page < 50 // Reduced from 100 to prevent excessive requests
-    ) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchJobsRef.current(nextPage, true);
-    }
-  }, [hasMore, loadingMore, loading, isFetching, isRateLimited, page]);
-
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          hasMore &&
-          !loadingMore &&
-          !isFetching &&
-          !isRateLimited
-        ) {
-          loadMore();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    const currentRef = observerRef.current;
-    if (currentRef) {
-      observer.observe(currentRef);
-    }
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [loadMore, hasMore, loadingMore, isFetching, isRateLimited]);
+  }, [user, authLoading, fetchJobs]);
 
   // Refresh jobs after creating a new one
   const handleJobCreated = useCallback(() => {
-    setPage(1);
-    if (fetchJobsRef.current) {
-      fetchJobsRef.current(1, false);
-    }
-  }, []);
+    fetchJobs();
+  }, [fetchJobs]);
 
   // Handle save/unsave job
-  const handleSaveJob = useCallback((jobId: string) => {
-    setSavedJobs((prev) => {
-      const newSaved = new Set(prev);
-      if (newSaved.has(jobId)) {
-        newSaved.delete(jobId);
-      } else {
-        newSaved.add(jobId);
+  const handleSaveJob = useCallback(
+    async (jobId: string) => {
+      try {
+        const isCurrentlySaved = savedJobs.has(jobId);
+
+        if (isCurrentlySaved) {
+          // Unsave job
+          await jobAPI.unsaveJob(jobId);
+        } else {
+          // Save job
+          await jobAPI.saveJob(jobId);
+        }
+
+        // Update local state
+        setSavedJobs((prev) => {
+          const newSaved = new Set(prev);
+          if (newSaved.has(jobId)) {
+            newSaved.delete(jobId);
+          } else {
+            newSaved.add(jobId);
+          }
+
+          // Save to localStorage as backup
+          localStorage.setItem("savedJobs", JSON.stringify([...newSaved]));
+
+          return newSaved;
+        });
+      } catch (error) {
+        console.error("Error saving/unsaving job:", error);
+        // Fallback to localStorage only
+        setSavedJobs((prev) => {
+          const newSaved = new Set(prev);
+          if (newSaved.has(jobId)) {
+            newSaved.delete(jobId);
+          } else {
+            newSaved.add(jobId);
+          }
+
+          localStorage.setItem("savedJobs", JSON.stringify([...newSaved]));
+          return newSaved;
+        });
       }
-      return newSaved;
-    });
-  }, []);
+    },
+    [savedJobs]
+  );
 
   // Handle view job details - navigate to job detail page
   const handleViewJob = useCallback(
@@ -380,8 +434,8 @@ const JobBoard = () => {
   // Handle job updated
   const handleJobUpdated = useCallback(() => {
     // Refresh the jobs list
-    fetchJobsRef.current?.(1, false);
-  }, []);
+    fetchJobs();
+  }, [fetchJobs]);
 
   // Handle share job
   const handleShareJob = useCallback((job: Job) => {
@@ -468,6 +522,28 @@ const JobBoard = () => {
             break;
           case "200k+":
             if (salary < 200000) return false;
+            break;
+        }
+      }
+
+      // Number of vacancies filter
+      if (selectedVacancies !== "all" && job.numberOfVacancies) {
+        const vacancies = job.numberOfVacancies;
+        switch (selectedVacancies) {
+          case "1":
+            if (vacancies !== 1) return false;
+            break;
+          case "2-5":
+            if (vacancies < 2 || vacancies > 5) return false;
+            break;
+          case "6-10":
+            if (vacancies < 6 || vacancies > 10) return false;
+            break;
+          case "11-20":
+            if (vacancies < 11 || vacancies > 20) return false;
+            break;
+          case "20+":
+            if (vacancies < 20) return false;
             break;
         }
       }
@@ -750,6 +826,29 @@ const JobBoard = () => {
                   </Select>
                 </div>
 
+                {/* Number of Vacancies */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Number of Vacancies
+                  </label>
+                  <Select
+                    value={selectedVacancies}
+                    onValueChange={setSelectedVacancies}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select vacancies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Vacancies</SelectItem>
+                      <SelectItem value="1">1 vacancy</SelectItem>
+                      <SelectItem value="2-5">2-5 vacancies</SelectItem>
+                      <SelectItem value="6-10">6-10 vacancies</SelectItem>
+                      <SelectItem value="11-20">11-20 vacancies</SelectItem>
+                      <SelectItem value="20+">20+ vacancies</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Location */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Location</label>
@@ -788,7 +887,8 @@ const JobBoard = () => {
                   (selectedExperience && selectedExperience !== "all") ||
                   (selectedIndustry && selectedIndustry !== "all") ||
                   (selectedSalaryRange && selectedSalaryRange !== "all") ||
-                  (selectedRemoteWork && selectedRemoteWork !== "all")) && (
+                  (selectedRemoteWork && selectedRemoteWork !== "all") ||
+                  (selectedVacancies && selectedVacancies !== "all")) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -800,6 +900,7 @@ const JobBoard = () => {
                       setSelectedIndustry("all");
                       setSelectedSalaryRange("all");
                       setSelectedRemoteWork("all");
+                      setSelectedVacancies("all");
                     }}
                     className="w-full"
                   >
@@ -827,6 +928,23 @@ const JobBoard = () => {
                         className="ml-auto bg-primary text-primary-foreground"
                       >
                         {savedJobs.size}
+                      </Badge>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => setActiveTab("received-applications")}
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    My Posted Jobs
+                    {postedJobsCount > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-auto bg-primary text-primary-foreground"
+                      >
+                        {postedJobsCount}
                       </Badge>
                     )}
                   </Button>
@@ -1002,63 +1120,70 @@ const JobBoard = () => {
                                         </Badge>
                                       )}
                                     </div>
-                                    <div className="flex gap-2">
+                                    {job.numberOfVacancies && (
+                                      <div className="flex items-center text-xs text-muted-foreground">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        {job.numberOfVacancies} vacancy
+                                        {job.numberOfVacancies > 1 ? "ies" : ""}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleSaveJob(job._id)}
+                                      className="text-yellow-600"
+                                    >
+                                      <Bookmark className="w-4 h-4 fill-current" />
+                                    </Button>
+                                    {canEditJob(job) && (
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => handleSaveJob(job._id)}
-                                        className="text-yellow-600"
+                                        onClick={() => handleEditJob(job)}
+                                        className="text-blue-600 hover:text-blue-700"
                                       >
-                                        <Bookmark className="w-4 h-4 fill-current" />
+                                        <Edit className="w-4 h-4" />
                                       </Button>
-                                      {canEditJob(job) && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditJob(job)}
-                                          className="text-blue-600 hover:text-blue-700"
-                                        >
-                                          <Edit className="w-4 h-4" />
-                                        </Button>
-                                      )}
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleShareJob(job)}
-                                        className="text-green-600 hover:text-green-700"
-                                      >
-                                        <Share2 className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleViewJob(job)}
-                                      >
-                                        <ExternalLink className="w-4 h-4 mr-2" />
-                                        View
-                                      </Button>
-                                      <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={() => {
-                                          if (job.applicationUrl) {
-                                            window.open(
-                                              job.applicationUrl,
-                                              "_blank"
-                                            );
-                                          } else {
-                                            // Show contact information or open email
-                                            const email = "contact@company.com";
-                                            window.open(
-                                              `mailto:${email}?subject=Application for ${job.position}`,
-                                              "_blank"
-                                            );
-                                          }
-                                        }}
-                                      >
-                                        Apply
-                                      </Button>
-                                    </div>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleShareJob(job)}
+                                      className="text-green-600 hover:text-green-700"
+                                    >
+                                      <Share2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewJob(job)}
+                                    >
+                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (job.applicationUrl) {
+                                          window.open(
+                                            job.applicationUrl,
+                                            "_blank"
+                                          );
+                                        } else {
+                                          // Show contact information or open email
+                                          const email = "contact@company.com";
+                                          window.open(
+                                            `mailto:${email}?subject=Application for ${job.position}`,
+                                            "_blank"
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Apply
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
@@ -1298,8 +1423,20 @@ const JobBoard = () => {
                                   </div>
                                   <div className="flex items-center text-sm text-muted-foreground">
                                     <Users className="w-4 h-4 mr-1" />
-                                    {job.applicants || 0} applicants
+                                    {typeof job.applicationsCount === "number"
+                                      ? job.applicationsCount
+                                      : typeof job.applicants === "number"
+                                      ? job.applicants
+                                      : 0}{" "}
+                                    applicants
                                   </div>
+                                  {job.numberOfVacancies && (
+                                    <div className="flex items-center text-sm text-muted-foreground">
+                                      <Users className="w-4 h-4 mr-1" />
+                                      {job.numberOfVacancies} vacancy
+                                      {job.numberOfVacancies > 1 ? "ies" : ""}
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">
@@ -1359,14 +1496,25 @@ const JobBoard = () => {
                                       </span>
                                       <span className="sm:hidden">View</span>
                                     </Button>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => handleApplyForJob(job)}
-                                      className="text-xs lg:text-sm"
-                                    >
-                                      Apply Now
-                                    </Button>
+                                    {isJobApplied(job) ? (
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled
+                                        className="text-xs lg:text-sm"
+                                      >
+                                        Applied
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={() => handleApplyForJob(job)}
+                                        className="text-xs lg:text-sm"
+                                      >
+                                        Apply Now
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1378,34 +1526,14 @@ const JobBoard = () => {
                   </div>
                 )}
 
-                {/* Infinite Scroll Trigger */}
-                {!showSavedJobs && (
-                  <div ref={observerRef} className="text-center py-4">
-                    {loadingMore && (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
-                        <span className="text-muted-foreground">
-                          Loading more jobs...
-                        </span>
-                      </div>
-                    )}
-                    {isRateLimited && (
-                      <div className="text-center py-4">
-                        <p className="text-orange-600 mb-2">
-                          ⚠️ Too many requests. Please wait before loading more
-                          jobs.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          This helps prevent server overload.
-                        </p>
-                      </div>
-                    )}
-                    {!hasMore && jobs.length > 0 && !isRateLimited && (
-                      <p className="text-muted-foreground">
-                        No more jobs to load
-                      </p>
-                    )}
-                  </div>
+                {/* Pagination */}
+                {!showSavedJobs && totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    className="mt-6"
+                  />
                 )}
               </div>
             )}
@@ -1415,7 +1543,6 @@ const JobBoard = () => {
           <TabsContent value="my-applications" className="space-y-6">
             <Card className="shadow-medium">
               <CardContent className="p-6">
-                
                 <ApplicationStatusTracking />
               </CardContent>
             </Card>
@@ -1591,7 +1718,21 @@ const JobBoard = () => {
               onSuccess={() => {
                 setShowApplicationForm(false);
                 setSelectedJobForApplication(null);
-                // Optionally refresh jobs or show success message
+                // Refresh jobs to update applications count
+                fetchJobsRef.current?.(1, false);
+                // Mark job as applied in UI
+                if (selectedJobForApplication?._id) {
+                  setAppliedJobIds((prev) => {
+                    const next = new Set(prev).add(
+                      selectedJobForApplication._id
+                    );
+                    localStorage.setItem(
+                      "appliedJobs",
+                      JSON.stringify([...next])
+                    );
+                    return next;
+                  });
+                }
               }}
               onCancel={() => {
                 setShowApplicationForm(false);

@@ -124,8 +124,34 @@ const eventSchema = new Schema<IEvent>(
         },
         status: {
           type: String,
-          enum: ["registered", "attended", "cancelled"],
+          enum: ["registered", "attended", "cancelled", "pending_payment"],
           default: "registered",
+        },
+        // Additional registration details
+        phone: {
+          type: String,
+          trim: true,
+        },
+        dietaryRequirements: {
+          type: String,
+          trim: true,
+        },
+        emergencyContact: {
+          type: String,
+          trim: true,
+        },
+        additionalNotes: {
+          type: String,
+          trim: true,
+        },
+        amountPaid: {
+          type: Number,
+          default: 0,
+        },
+        paymentStatus: {
+          type: String,
+          enum: ["free", "pending", "successful", "failed"],
+          default: "free",
         },
       },
     ],
@@ -203,7 +229,7 @@ eventSchema.virtual("organizerDetails", {
 });
 
 // Virtual for attendees count
-eventSchema.virtual("attendeesCount").get(function () {
+eventSchema.virtual("totalAttendees").get(function () {
   return this.attendees.length;
 });
 
@@ -305,6 +331,23 @@ eventSchema.statics.findByLocation = function (location: string) {
     location: { $regex: location, $options: "i" },
   }).populate("organizer", "firstName lastName email profilePicture");
 };
+
+// Middleware to sync currentAttendees with attendees.length before saving
+eventSchema.pre("save", function (next) {
+  if (this.isModified("attendees")) {
+    // Count only confirmed registrations
+    try {
+      const confirmedCount = Array.isArray(this.attendees)
+        ? this.attendees.filter((a: any) => a && a.status === "registered")
+            .length
+        : 0;
+      this.currentAttendees = confirmedCount;
+    } catch (_err) {
+      this.currentAttendees = 0;
+    }
+  }
+  next();
+});
 
 // Ensure virtual fields are serialized
 eventSchema.set("toJSON", { virtuals: true });

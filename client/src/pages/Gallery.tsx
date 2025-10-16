@@ -4,6 +4,7 @@ import Navigation from "@/components/Navigation";
 import { galleryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import Pagination from "@/components/ui/pagination";
 
 interface ApiError {
   response?: {
@@ -91,6 +92,9 @@ const Gallery: React.FC = () => {
   const [selectedSortBy, setSelectedSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
 
   // Filter galleries based on search and filter criteria
   const filterGalleries = (galleryItems: GalleryItem[]) => {
@@ -219,20 +223,32 @@ const Gallery: React.FC = () => {
     "Other",
   ];
 
-  // Check if user can create galleries (admin or coordinator)
+  // Check if user can create galleries (HOD, Staff, College Admin only)
   const canCreateGallery =
-    user && (user.role === "super_admin" || user.role === "coordinator");
+    user &&
+    (user.role === "super_admin" ||
+      user.role === "college_admin" ||
+      user.role === "hod" ||
+      user.role === "staff");
 
   const fetchGalleries = useCallback(async () => {
     try {
       setLoading(true);
       const response = await galleryAPI.getAllGalleries({
         category: selectedCategory === "all" ? undefined : selectedCategory,
-        limit: 20,
+        page: currentPage,
+        limit: itemsPerPage,
       });
 
       if (response.success) {
-        setGalleries((response.data as { galleries: GalleryItem[] }).galleries);
+        const data = response.data as {
+          galleries: GalleryItem[];
+          pagination?: { totalPages: number };
+        };
+        setGalleries(data.galleries);
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages || 1);
+        }
       }
     } catch (error) {
       console.error("Error fetching galleries:", error);
@@ -244,11 +260,23 @@ const Gallery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, toast]);
+  }, [selectedCategory, currentPage, itemsPerPage, toast]);
 
   useEffect(() => {
     fetchGalleries();
   }, [fetchGalleries]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedDateRange, selectedSortBy]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -585,11 +613,11 @@ const Gallery: React.FC = () => {
                   )}
                 </div>
 
-                {/* Quick Actions */}
-                <div className="space-y-3 pt-4 border-t">
-                  <h3 className="text-sm font-semibold">Quick Actions</h3>
-                  <div className="space-y-2">
-                    {canCreateGallery && (
+                {/* Quick Actions - Only show if user can create galleries */}
+                {canCreateGallery && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <h3 className="text-sm font-semibold">Quick Actions</h3>
+                    <div className="space-y-2">
                       <Button
                         variant="default"
                         size="sm"
@@ -599,33 +627,9 @@ const Gallery: React.FC = () => {
                         <Plus className="w-4 h-4 mr-2" />
                         Create Gallery
                       </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Heart className="w-4 h-4 mr-2" />
-                      Favorites
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share Gallery
-                    </Button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* View Mode */}
                 <div className="space-y-3 pt-4 border-t">
@@ -820,6 +824,16 @@ const Gallery: React.FC = () => {
                 </Card>
               ))}
             </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              className="mt-6"
+            />
           )}
         </div>
 

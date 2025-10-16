@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   Calendar,
   MapPin,
@@ -43,10 +44,12 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from "lucide-react";
 import { CreateEventDialog } from "./dialogs/CreateEventDialog";
 import { EditEventDialog } from "./dialogs/EditEventDialog";
 import { DeleteEventDialog } from "./dialogs/DeleteEventDialog";
+import { RegistrationFormDialog } from "./dialogs/RegistrationFormDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { eventAPI } from "@/lib/api";
@@ -56,6 +59,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Event {
   _id: string;
@@ -118,13 +127,49 @@ const EventsMeetups = () => {
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [participants, setParticipants] = useState<
+    Array<{
+      user?: {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string;
+      };
+      status?: string;
+      registeredAt?: string;
+      paymentStatus?: string;
+      amountPaid?: number;
+      // Optional extended fields captured during registration
+      phone?: string;
+      phoneNumber?: string;
+      dietary?: string | string[];
+      dietaryRequirements?: string | string[];
+      emergencyContact?: { name?: string; phone?: string } | string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
+      additionalNotes?: string;
+      notes?: string;
+    }>
+  >([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
+  const [selectedEventForRegistration, setSelectedEventForRegistration] =
+    useState<MappedEvent | null>(null);
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(
+    new Set()
+  );
   const [showMyEvents, setShowMyEvents] = useState(false);
+  const [showSavedEvents, setShowSavedEvents] = useState(false);
   const [showCalendarView, setShowCalendarView] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
   const [savedEvents, setSavedEvents] = useState<string[]>([]);
   const [savingEvents, setSavingEvents] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
   const { user, loading: authLoading } = useAuth();
 
   // Use search query directly for now (no debouncing)
@@ -138,8 +183,9 @@ const EventsMeetups = () => {
         try {
           const response = await eventAPI.getSavedEvents();
           if (response.success && response.data) {
-            const events = (response.data as any).events;
-            setSavedEvents(events.map((event: any) => event._id));
+            const events = (response.data as { events: Array<{ _id: string }> })
+              .events;
+            setSavedEvents(events.map((event) => event._id));
           }
         } catch (error) {
           console.error("Failed to load saved events:", error);
@@ -183,17 +229,60 @@ const EventsMeetups = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["events", refreshKey, user?.tenantId],
+    queryKey: ["events", refreshKey, user?.tenantId, currentPage],
     queryFn: () =>
       eventAPI.getAllEvents({
-        limit: 100,
+        page: currentPage,
+        limit: itemsPerPage,
         tenantId: user?.tenantId,
-      }), // Fetch up to 100 events for current college
+      }),
   });
 
   // Map API events to component format
   const apiEvents =
     (eventsResponse?.data as { events: Event[] } | undefined)?.events || [];
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchQuery,
+    selectedEventType,
+    selectedLocation,
+    selectedPrice,
+    selectedDateRange,
+  ]);
+
+  // Extract pagination info from API response
+  const paginationInfo = (
+    eventsResponse?.data as { pagination?: { totalPages: number } } | undefined
+  )?.pagination;
+  useEffect(() => {
+    if (paginationInfo) {
+      setTotalPages(paginationInfo.totalPages || 1);
+    }
+  }, [paginationInfo]);
+
+  // Fetch my registrations and compute set of registered event ids
+  const { data: myRegsResponse } = useQuery({
+    queryKey: ["my-registrations", user?._id, refreshKey],
+    queryFn: () => eventAPI.getMyRegistrations({ limit: 200 }),
+    enabled: !!user, // only when logged in
+  });
+
+  useEffect(() => {
+    const events =
+      (myRegsResponse?.data as { events?: { _id: string }[] } | undefined)
+        ?.events || [];
+    setRegisteredEventIds(new Set(events.map((e) => e._id)));
+  }, [myRegsResponse]);
 
   const mappedEvents = apiEvents.map((event: Event): MappedEvent => {
     return {
@@ -359,11 +448,13 @@ const EventsMeetups = () => {
     });
   };
 
-  // Filter events for "My Events" or "Saved Events" based on user role
+  // Filter events for "My Events" or "Registered Events" based on user role
   const myEvents = mappedEvents.filter((event) => {
     if (user?.role === "alumni") {
-      // For alumni, show saved/bookmarked events
-      return savedEvents.includes(event.id);
+      // For alumni, show events based on toggle: registered vs saved
+      return showSavedEvents
+        ? savedEvents.includes(event.id)
+        : registeredEventIds.has(event.id);
     } else {
       // For other roles, show events organized by current user
       return (
@@ -434,6 +525,17 @@ const EventsMeetups = () => {
     setRefreshKey((prev) => prev + 1);
   };
 
+  // Quick action handlers for alumni filters
+  const handleShowRegisteredQuick = () => {
+    setShowMyEvents(true);
+    setShowSavedEvents(false);
+  };
+
+  const handleShowSavedQuick = () => {
+    setShowMyEvents(true);
+    setShowSavedEvents(true);
+  };
+
   // Helper function to check if event is in the past
   const isEventPast = (eventDate: string) => {
     const eventDateObj = new Date(eventDate);
@@ -458,6 +560,11 @@ const EventsMeetups = () => {
 
     // If event has passed, registration is closed
     if (isEventPast(event.startDate)) {
+      return true;
+    }
+
+    // If event is at full capacity, registration is closed
+    if (event.attendees >= event.maxAttendees) {
       return true;
     }
 
@@ -529,31 +636,32 @@ const EventsMeetups = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        {eventsList.map((event) => (
-          <Card
-            key={event.id}
-            className="group hover:shadow-medium transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0 h-full flex flex-col"
-          >
-            <div className="relative">
-              {getImageUrl(event.image) ? (
-                <img
-                  src={getImageUrl(event.image)!}
-                  alt={event.title}
-                  className={`w-full h-48 object-cover rounded-t-lg ${
-                    isEventPast(event.startDate) ? "opacity-75" : ""
-                  }`}
-                  onError={(e) => {
-                    // Hide image if it fails to load and show placeholder
-                    const img = e.currentTarget as HTMLImageElement;
-                    img.style.display = "none";
-
-                    // Show a placeholder div instead
-                    const placeholder = document.createElement("div");
-                    placeholder.className = `w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+          {eventsList.map((event) => (
+            <Card
+              key={event.id}
+              className="group hover:shadow-medium transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0 h-full flex flex-col"
+            >
+              <div className="relative">
+                {getImageUrl(event.image) ? (
+                  <img
+                    src={getImageUrl(event.image)!}
+                    alt={event.title}
+                    className={`w-full h-48 object-cover rounded-t-lg ${
                       isEventPast(event.startDate) ? "opacity-75" : ""
-                    }`;
-                    placeholder.innerHTML = `
+                    }`}
+                    onError={(e) => {
+                      // Hide image if it fails to load and show placeholder
+                      const img = e.currentTarget as HTMLImageElement;
+                      img.style.display = "none";
+
+                      // Show a placeholder div instead
+                      const placeholder = document.createElement("div");
+                      placeholder.className = `w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+                        isEventPast(event.startDate) ? "opacity-75" : ""
+                      }`;
+                      placeholder.innerHTML = `
                       <div class="text-center">
                         <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -561,197 +669,275 @@ const EventsMeetups = () => {
                         <p class="text-sm text-gray-500 font-medium">Image unavailable</p>
                       </div>
                     `;
-                    img.parentNode?.insertBefore(placeholder, img);
-                  }}
-                />
-              ) : (
-                <div
-                  className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
-                    isEventPast(event.startDate) ? "opacity-75" : ""
-                  }`}
-                >
-                  <div className="text-center">
-                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500 font-medium">
-                      No Image
-                    </p>
+                      img.parentNode?.insertBefore(placeholder, img);
+                    }}
+                  />
+                ) : (
+                  <div
+                    className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg flex items-center justify-center ${
+                      isEventPast(event.startDate) ? "opacity-75" : ""
+                    }`}
+                  >
+                    <div className="text-center">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500 font-medium">
+                        No Image
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
-              <div className="absolute top-4 right-4 flex flex-col gap-2">
-                <Badge
-                  variant={getEventTypeBadge(event.type)}
-                  className="flex items-center"
-                >
-                  {getEventTypeIcon(event.type)}
-                  <span className="ml-1">{event.type}</span>
-                </Badge>
-                {isEventPast(event.startDate) && (
-                  <Badge variant="secondary" className="bg-gray-500 text-white">
-                    Past Event
-                  </Badge>
                 )}
-                {!isEventPast(event.startDate) &&
-                  isRegistrationClosed(event) && (
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
+                  <Badge
+                    variant={getEventTypeBadge(event.type)}
+                    className="flex items-center"
+                  >
+                    {getEventTypeIcon(event.type)}
+                    <span className="ml-1">{event.type}</span>
+                  </Badge>
+                  {isEventPast(event.startDate) && (
                     <Badge
                       variant="secondary"
-                      className="bg-orange-500 text-white"
+                      className="bg-gray-500 text-white"
                     >
-                      Registration Closed
+                      Past Event
                     </Badge>
                   )}
+                  {!isEventPast(event.startDate) &&
+                    isRegistrationClosed(event) && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-orange-500 text-white"
+                      >
+                        Registration Closed
+                      </Badge>
+                    )}
+                </div>
+
+                {/* Save/Unsave button for alumni */}
+                {user?.role === "alumni" && (
+                  <div className="absolute top-4 left-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-8 h-8 p-0 bg-white/90 hover:bg-white shadow-sm"
+                      disabled={savingEvents.has(event.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (savedEvents.includes(event.id)) {
+                          handleUnsaveEvent(event.id);
+                        } else {
+                          handleSaveEvent(event.id);
+                        }
+                      }}
+                    >
+                      <Bookmark
+                        className={`w-4 h-4 ${
+                          savedEvents.includes(event.id)
+                            ? "text-blue-600 fill-blue-600"
+                            : "text-gray-400"
+                        } ${savingEvents.has(event.id) ? "opacity-50" : ""}`}
+                      />
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              {/* Save/Unsave button for alumni */}
-              {user?.role === "alumni" && (
-                <div className="absolute top-4 left-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-8 h-8 p-0 bg-white/90 hover:bg-white shadow-sm"
-                    disabled={savingEvents.has(event.id)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (savedEvents.includes(event.id)) {
-                        handleUnsaveEvent(event.id);
-                      } else {
-                        handleSaveEvent(event.id);
-                      }
-                    }}
-                  >
-                    <Bookmark
-                      className={`w-4 h-4 ${
-                        savedEvents.includes(event.id)
-                          ? "text-blue-600 fill-blue-600"
-                          : "text-gray-400"
-                      } ${savingEvents.has(event.id) ? "opacity-50" : ""}`}
-                    />
-                  </Button>
-                </div>
-              )}
-            </div>
+              <CardContent className="p-4 lg:p-6 flex-1 flex flex-col">
+                <div className="flex-1">
+                  <h3 className="text-base lg:text-lg font-semibold mb-2 line-clamp-2">
+                    {event.title}
+                  </h3>
+                  <p className="text-muted-foreground text-xs lg:text-sm mb-4 line-clamp-3">
+                    {event.description}
+                  </p>
 
-            <CardContent className="p-4 lg:p-6 flex-1 flex flex-col">
-              <div className="flex-1">
-                <h3 className="text-base lg:text-lg font-semibold mb-2 line-clamp-2">
-                  {event.title}
-                </h3>
-                <p className="text-muted-foreground text-xs lg:text-sm mb-4 line-clamp-3">
-                  {event.description}
-                </p>
-
-                <div className="space-y-2 text-xs lg:text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span>{event.date}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-2" />
-                    <span>{event.time}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    <span className="truncate">{event.location}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Users className="w-4 h-4 mr-2" />
-                    <span>{event.attendees} attending</span>
-                  </div>
-                  {event.registrationDeadline && (
+                  <div className="space-y-2 text-xs lg:text-sm text-muted-foreground mb-4">
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      <span>{event.date}</span>
+                    </div>
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-2" />
-                      <span>
-                        Registration closes:{" "}
-                        {new Date(
-                          event.registrationDeadline
-                        ).toLocaleDateString()}{" "}
-                        at{" "}
-                        {new Date(
-                          event.registrationDeadline
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <span>{event.time}</span>
                     </div>
-                  )}
+                    <div className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      <span className="truncate">{event.location}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Users className="w-4 h-4 mr-2" />
+                      <span>{event.attendees} attending</span>
+                    </div>
+                    {event.registrationDeadline && (
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-2" />
+                        <span>
+                          Registration closes:{" "}
+                          {new Date(
+                            event.registrationDeadline
+                          ).toLocaleDateString()}{" "}
+                          at{" "}
+                          {new Date(
+                            event.registrationDeadline
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {event.tags.slice(0, 3).map((tag, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {event.tags.slice(0, 3).map((tag, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+                <div className="mt-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-lg font-bold text-success">
+                      {event.price}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {event.attendees}/{event.maxAttendees}{" "}
+                      {event.attendees >= event.maxAttendees
+                        ? "spots filled"
+                        : "spots"}
+                    </span>
+                  </div>
 
-              <div className="mt-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-lg font-bold text-success">
-                    {event.price}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {event.attendees}/{event.maxAttendees} spots
-                  </span>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewEvent(event)}
-                    className="flex-1 text-xs lg:text-sm"
-                  >
-                    <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                    <span className="hidden sm:inline">View Details</span>
-                    <span className="sm:hidden">View</span>
-                  </Button>
-                  {isRegistrationClosed(event) ? (
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
-                      size="sm"
-                      className="flex-1 text-xs lg:text-sm"
-                      disabled
                       variant="outline"
+                      size="sm"
+                      onClick={() => handleViewEvent(event)}
+                      className="flex-1 text-xs lg:text-sm"
                     >
-                      {isEventPast(event.startDate)
-                        ? "Event Ended"
-                        : "Registration Closed"}
+                      <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                      <span className="hidden sm:inline">View Details</span>
+                      <span className="sm:hidden">View</span>
                     </Button>
-                  ) : (
-                    <Button size="sm" className="flex-1 text-xs lg:text-sm">
-                      Register
-                    </Button>
-                  )}
-                  {canManageEvents && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleEditEvent(event)}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Event
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteEvent(event)}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Event
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                    {canManageEvents && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            setParticipantsLoading(true);
+                            const res = await eventAPI.getParticipants(
+                              event.id
+                            );
+                            if (res.success && res.data) {
+                              const data = res.data as {
+                                participants?: Array<{
+                                  user?: {
+                                    firstName?: string;
+                                    lastName?: string;
+                                    email?: string;
+                                  };
+                                  status?: string;
+                                  registeredAt?: string;
+                                  paymentStatus?: string;
+                                  amountPaid?: number;
+                                }>;
+                              };
+                              setParticipants(data.participants || []);
+                              setIsParticipantsOpen(true);
+                            } else {
+                              alert(
+                                res.message || "Failed to load participants"
+                              );
+                            }
+                          } catch (err) {
+                            console.error("Participants load error", err);
+                            alert("Failed to load participants");
+                          } finally {
+                            setParticipantsLoading(false);
+                          }
+                        }}
+                        className="flex-1 text-xs lg:text-sm"
+                      >
+                        Participants
+                      </Button>
+                    )}
+                    {isRegistrationClosed(event) ? (
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs lg:text-sm"
+                        disabled
+                        variant="outline"
+                      >
+                        {isEventPast(event.startDate)
+                          ? "Event Ended"
+                          : event.attendees >= event.maxAttendees
+                          ? "Event Full"
+                          : "Registration Closed"}
+                      </Button>
+                    ) : registeredEventIds.has(event.id) ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 text-xs lg:text-sm"
+                        onClick={() => navigate(`/events/${event.id}`)}
+                      >
+                        Registered
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs lg:text-sm"
+                        onClick={() => {
+                          setSelectedEventForRegistration(event);
+                          setIsRegistrationOpen(true);
+                        }}
+                      >
+                        Register
+                      </Button>
+                    )}
+                    {canManageEvents && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleEditEvent(event)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Event
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteEvent(event)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Event
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            className="mt-6"
+          />
+        )}
       </div>
     );
   };
@@ -845,6 +1031,95 @@ const EventsMeetups = () => {
         return newSet;
       });
     }
+  };
+
+  // CSV Export function
+  const exportParticipantsToCSV = () => {
+    if (participants.length === 0) return;
+
+    const headers = [
+      "First Name",
+      "Last Name",
+      "Email",
+      "Phone Number",
+      "Dietary Requirements",
+      "Emergency Contact Name",
+      "Emergency Contact Phone",
+      "Additional Notes",
+      "Registration Status",
+      "Payment Status",
+      "Amount Paid",
+      "Registered At",
+    ];
+
+    const csvData = participants.map((p) => {
+      const firstName = p.user?.firstName || "";
+      const lastName = p.user?.lastName || "";
+      const email = p.user?.email || "";
+      const phone = p.phone || p.phoneNumber || p.user?.phone || "";
+      const dietaryRaw = p.dietaryRequirements ?? p.dietary;
+      const dietary = Array.isArray(dietaryRaw)
+        ? dietaryRaw.filter(Boolean).join(", ")
+        : dietaryRaw || "";
+
+      let emergencyName = p.emergencyContactName || "";
+      let emergencyPhone = p.emergencyContactPhone || "";
+      if (typeof p.emergencyContact === "object" && p.emergencyContact) {
+        emergencyName = emergencyName || p.emergencyContact.name || "";
+        emergencyPhone = emergencyPhone || p.emergencyContact.phone || "";
+      } else if (typeof p.emergencyContact === "string") {
+        emergencyName = emergencyName || p.emergencyContact;
+      }
+
+      const notes = p.additionalNotes || p.notes || "";
+      const statusText = typeof p.status === "string" ? p.status : "registered";
+      const registeredAtStr = p.registeredAt
+        ? new Date(p.registeredAt).toLocaleString()
+        : "";
+
+      return [
+        firstName,
+        lastName,
+        email,
+        phone,
+        dietary,
+        emergencyName,
+        emergencyPhone,
+        notes,
+        statusText,
+        p.paymentStatus || "",
+        p.amountPaid || 0,
+        registeredAtStr,
+      ];
+    });
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map((row) =>
+        row
+          .map((field) =>
+            typeof field === "string" && field.includes(",")
+              ? `"${field.replace(/"/g, '""')}"`
+              : field
+          )
+          .join(",")
+      ),
+    ].join("\n");
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `event-participants-${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Handle Calendar View toggle
@@ -1102,14 +1377,31 @@ const EventsMeetups = () => {
                     </Button>
                   )}
                   <Button
-                    variant={showMyEvents ? "default" : "outline"}
+                    variant={
+                      showMyEvents && !showSavedEvents ? "default" : "outline"
+                    }
                     size="sm"
-                    onClick={handleMyEvents}
+                    onClick={handleShowRegisteredQuick}
                     className="w-full justify-start"
                   >
                     <Bookmark className="w-4 h-4 mr-2" />
-                    {user?.role === "alumni" ? "Saved Events" : "My Events"}
+                    {user?.role === "alumni"
+                      ? "Registered Events"
+                      : "My Events"}
                   </Button>
+                  {user?.role === "alumni" && (
+                    <Button
+                      variant={
+                        showMyEvents && showSavedEvents ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={handleShowSavedQuick}
+                      className="w-full justify-start"
+                    >
+                      <Bookmark className="w-4 h-4 mr-2" />
+                      Saved Events
+                    </Button>
+                  )}
                   <Button
                     variant={showCalendarView ? "default" : "outline"}
                     size="sm"
@@ -1205,7 +1497,9 @@ const EventsMeetups = () => {
                 filteredUpcomingEvents,
                 showMyEvents
                   ? user?.role === "alumni"
-                    ? "No Upcoming Saved Events"
+                    ? showSavedEvents
+                      ? "No Upcoming Saved Events"
+                      : "No Upcoming Registered Events"
                     : "No Upcoming My Events"
                   : "No Upcoming Events"
               )}
@@ -1216,7 +1510,9 @@ const EventsMeetups = () => {
                 filteredTodayEvents,
                 showMyEvents
                   ? user?.role === "alumni"
-                    ? "No Saved Events Today"
+                    ? showSavedEvents
+                      ? "No Saved Events Today"
+                      : "No Registered Events Today"
                     : "No My Events Today"
                   : "No Events Today"
               )}
@@ -1227,7 +1523,9 @@ const EventsMeetups = () => {
                 filteredPastEvents,
                 showMyEvents
                   ? user?.role === "alumni"
-                    ? "No Past Saved Events"
+                    ? showSavedEvents
+                      ? "No Past Saved Events"
+                      : "No Past Registered Events"
                     : "No Past My Events"
                   : "No Past Events"
               )}
@@ -1500,6 +1798,146 @@ const EventsMeetups = () => {
         }
         onEventDeleted={handleEventDeleted}
       />
+
+      {/* Registration Form Dialog */}
+      <RegistrationFormDialog
+        isOpen={isRegistrationOpen}
+        onClose={() => {
+          setIsRegistrationOpen(false);
+          setSelectedEventForRegistration(null);
+        }}
+        event={selectedEventForRegistration}
+        onRegistrationSuccess={() => {
+          // Refresh events list or show success message
+          setRefreshKey((prev) => prev + 1);
+        }}
+      />
+      {/* Participants Dialog */}
+      <Dialog open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Registered Participants</span>
+              {participants.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportParticipantsToCSV}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </Button>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+            {participantsLoading ? (
+              <div className="text-sm text-muted-foreground">Loading...</div>
+            ) : participants.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                No participants yet.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {participants.map((p, idx) => {
+                  const firstName = p.user?.firstName || "";
+                  const lastName = p.user?.lastName || "";
+                  const email = p.user?.email || "";
+                  const phone = p.phone || p.phoneNumber || p.user?.phone || "";
+                  const registeredAtStr = p.registeredAt
+                    ? new Date(p.registeredAt).toLocaleString()
+                    : "";
+                  const dietaryRaw = p.dietaryRequirements ?? p.dietary;
+                  const dietary = Array.isArray(dietaryRaw)
+                    ? dietaryRaw.filter(Boolean).join(", ")
+                    : dietaryRaw || "";
+                  let emergencyName = p.emergencyContactName || "";
+                  let emergencyPhone = p.emergencyContactPhone || "";
+                  if (
+                    typeof p.emergencyContact === "object" &&
+                    p.emergencyContact
+                  ) {
+                    emergencyName =
+                      emergencyName || p.emergencyContact.name || "";
+                    emergencyPhone =
+                      emergencyPhone || p.emergencyContact.phone || "";
+                  } else if (typeof p.emergencyContact === "string") {
+                    // If backend stored a single string, show as name/phone combined
+                    emergencyName = emergencyName || p.emergencyContact;
+                  }
+                  const notes = p.additionalNotes || p.notes || "";
+                  const statusText =
+                    typeof p.status === "string" ? p.status : "registered";
+                  return (
+                    <div key={idx} className="py-2 text-sm flex flex-col">
+                      <div className="font-medium">
+                        {firstName} {lastName}
+                      </div>
+                      <div className="text-muted-foreground">{email}</div>
+                      {registeredAtStr && (
+                        <div className="text-muted-foreground text-xs">
+                          Registered on {registeredAtStr}
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-1 text-xs">
+                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                          {statusText}
+                        </span>
+                        {p.paymentStatus && (
+                          <span className="px-2 py-0.5 rounded bg-green-50 text-green-700">
+                            {p.paymentStatus}
+                          </span>
+                        )}
+                      </div>
+                      {/* Detailed fields */}
+                      <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                        <div>
+                          <span className="font-semibold">First Name *</span>:{" "}
+                          {firstName || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Last Name *</span>:{" "}
+                          {lastName || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Email *</span>:{" "}
+                          {email || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Phone Number *</span>:{" "}
+                          {phone || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Dietary Requirements
+                          </span>
+                          : {dietary || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Emergency Contact
+                          </span>
+                          :{" "}
+                          {[emergencyName, emergencyPhone]
+                            .filter(Boolean)
+                            .join(" ") || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Additional Notes
+                          </span>
+                          : {notes || "-"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

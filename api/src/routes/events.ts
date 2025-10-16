@@ -57,6 +57,15 @@ router.get(
   asyncHandler(eventController.getSavedEvents)
 );
 
+// @route   GET /api/v1/events/my-registrations
+// @desc    Get events the current user is registered for
+// @access  Private
+router.get(
+  "/my-registrations",
+  authenticateToken,
+  asyncHandler(eventController.getMyAttendingEvents)
+);
+
 // @route   GET /api/v1/events/:id
 // @desc    Get event by ID
 // @access  Private
@@ -161,6 +170,26 @@ router.delete(
   asyncHandler(eventController.unregisterFromEvent)
 );
 
+// @route   POST /api/v1/events/:id/confirm-registration
+// @desc    Confirm paid registration after successful payment
+// @access  Private
+router.post(
+  "/:id/confirm-registration",
+  authenticateToken,
+  ...validateRequest(validateId),
+  asyncHandler(eventController.confirmPaidRegistration)
+);
+
+// @route   GET /api/v1/events/:id/participants
+// @desc    Get participants list for organizers/admins
+// @access  Private
+router.get(
+  "/:id/participants",
+  authenticateToken,
+  ...validateRequest(validateId),
+  asyncHandler(eventController.getEventParticipants)
+);
+
 // @route   POST /api/v1/events/:id/feedback
 // @desc    Submit event feedback
 // @access  Private
@@ -179,6 +208,11 @@ router.get(
   authenticateToken,
   asyncHandler(eventController.getUpcomingEvents)
 );
+
+// @route   GET /api/v1/events/my-registrations
+// @desc    Get events the current user is registered for
+// @access  Private
+// (moved above "/:id" to avoid param capture)
 
 // @route   GET /api/v1/events/search
 // @desc    Search events

@@ -120,8 +120,11 @@ export const updateGallery = asyncHandler(
       });
     }
 
-    // Check permissions: creator or admin
-    if (gallery.createdBy.toString() !== userId && userRole !== "super_admin") {
+    // Check permissions: creator or has appropriate role
+    if (
+      gallery.createdBy.toString() !== userId &&
+      !["super_admin", "college_admin", "hod", "staff"].includes(userRole)
+    ) {
       return res.status(403).json({
         success: false,
         message: "You don't have permission to update this gallery",
@@ -164,8 +167,11 @@ export const deleteGallery = asyncHandler(
       });
     }
 
-    // Check permissions: creator or admin
-    if (gallery.createdBy.toString() !== userId && userRole !== "super_admin") {
+    // Check permissions: creator or has appropriate role
+    if (
+      gallery.createdBy.toString() !== userId &&
+      !["super_admin", "college_admin", "hod", "staff"].includes(userRole)
+    ) {
       return res.status(403).json({
         success: false,
         message: "You don't have permission to delete this gallery",

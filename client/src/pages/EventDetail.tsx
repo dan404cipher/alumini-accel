@@ -34,6 +34,7 @@ import { eventAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { EditEventDialog } from "@/components/dialogs/EditEventDialog";
 import { DeleteEventDialog } from "@/components/dialogs/DeleteEventDialog";
+import { RegistrationFormDialog } from "@/components/dialogs/RegistrationFormDialog";
 import ShareEventDialog from "@/components/dialogs/ShareEventDialog";
 import {
   DropdownMenu,
@@ -86,6 +87,8 @@ const EventDetail = () => {
   const [isDeleteEventOpen, setIsDeleteEventOpen] = useState(false);
   const [isShareEventOpen, setIsShareEventOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
 
   // Fetch event data
   const {
@@ -101,6 +104,17 @@ const EventDetail = () => {
   // Extract event data from API response
   const event =
     eventResponse?.data?.event || (eventResponse?.data as Event | undefined);
+
+  // Check if user is registered for this event
+  useEffect(() => {
+    if (event && user) {
+      const userRegistered = event.attendees?.some(
+        (attendee: any) =>
+          attendee.userId?._id === user._id || attendee.userId === user._id
+      );
+      setIsRegistered(!!userRegistered);
+    }
+  }, [event, user]);
 
   // Load saved events from localStorage
   useEffect(() => {
@@ -139,12 +153,7 @@ const EventDetail = () => {
   // Handle register for event
   const handleRegister = () => {
     if (!event) return;
-
-    // TODO: Implement event registration API call
-    toast({
-      title: "Registration Successful",
-      description: "You have successfully registered for this event.",
-    });
+    setIsRegistrationOpen(true);
   };
 
   // Handle edit event
@@ -430,6 +439,11 @@ const EventDetail = () => {
                         ? "Event Ended"
                         : "Registration Closed"}
                     </Button>
+                  ) : isRegistered ? (
+                    <Button variant="secondary" className="flex-1 sm:flex-none">
+                      <Users className="w-4 h-4 mr-2" />
+                      Registered
+                    </Button>
                   ) : (
                     <Button
                       onClick={handleRegister}
@@ -663,9 +677,6 @@ const EventDetail = () => {
                   <p className="text-gray-500 italic">
                     No speakers available for this event.
                   </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Debug: speakers = {JSON.stringify(event.speakers)}
-                  </p>
                 </CardContent>
               </Card>
             )}
@@ -706,9 +717,6 @@ const EventDetail = () => {
                 <CardContent>
                   <p className="text-gray-500 italic">
                     No agenda items available for this event.
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Debug: agenda = {JSON.stringify(event.agenda)}
                   </p>
                 </CardContent>
               </Card>
@@ -880,6 +888,35 @@ const EventDetail = () => {
             isOpen={isShareEventOpen}
             onClose={() => setIsShareEventOpen(false)}
             event={event as any}
+          />
+        )}
+
+        {/* Registration Form Dialog */}
+        {event && (
+          <RegistrationFormDialog
+            isOpen={isRegistrationOpen}
+            onClose={() => setIsRegistrationOpen(false)}
+            event={{
+              id: event._id,
+              title: event.title,
+              date: new Date(event.startDate).toLocaleDateString(),
+              time: new Date(event.startDate).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              location: event.location,
+              price: event.price ? `$${event.price}` : "Free",
+              maxAttendees: event.maxAttendees || 0,
+              attendees: event.currentAttendees || 0,
+            }}
+            onRegistrationSuccess={() => {
+              setIsRegistered(true);
+              toast({
+                title: "Registration Successful!",
+                description: "You have successfully registered for this event.",
+                variant: "default",
+              });
+            }}
           />
         )}
       </div>

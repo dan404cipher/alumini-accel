@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +90,9 @@ const NewsRoom = () => {
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSavedArticles, setShowSavedArticles] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
 
   // Fetch news data
   const {
@@ -96,10 +100,12 @@ const NewsRoom = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["news", user?.tenantId],
+    queryKey: ["news", user?.tenantId, currentPage],
     queryFn: async () => {
       try {
         const response = await newsAPI.getAllNews({
+          page: currentPage,
+          limit: itemsPerPage,
           tenantId: user?.tenantId,
         });
         return response;
@@ -112,6 +118,28 @@ const NewsRoom = () => {
   });
 
   const news = newsResponse?.data?.news || [];
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedDateRange, showSavedArticles]);
+
+  // Extract pagination info from API response
+  const paginationInfo = (
+    newsResponse?.data as { pagination?: { totalPages: number } } | undefined
+  )?.pagination;
+  useEffect(() => {
+    if (paginationInfo) {
+      setTotalPages(paginationInfo.totalPages || 1);
+    }
+  }, [paginationInfo]);
 
   // Filter news based on search and filter criteria
   const filterNews = (newsItems: News[]) => {
@@ -256,8 +284,7 @@ const NewsRoom = () => {
     user?.role === "coordinator" ||
     user?.role === "college_admin" ||
     user?.role === "hod" ||
-    user?.role === "staff" ||
-    user?.role === "alumni";
+    user?.role === "staff";
 
   // Handle create news
   const handleCreateNews = () => {
@@ -774,6 +801,16 @@ const NewsRoom = () => {
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            className="mt-6"
+          />
         )}
       </div>
 

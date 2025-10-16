@@ -120,6 +120,14 @@
   display: none;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* AlumniAccel Design System - Professional education platform with warm community feel */
 
 @layer base {

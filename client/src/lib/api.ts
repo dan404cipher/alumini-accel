@@ -1091,6 +1091,31 @@ export const jobAPI = {
       params,
     });
   },
+
+  // Save a job
+  saveJob: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/jobs/${id}/save`,
+    });
+  },
+
+  // Unsave a job
+  unsaveJob: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/jobs/${id}/save`,
+    });
+  },
+
+  // Get saved jobs
+  getSavedJobs: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/jobs/saved",
+      params,
+    });
+  },
 };
 
 // Job Application API functions
@@ -1378,10 +1403,45 @@ export const eventAPI = {
   },
 
   // Register for event
-  registerForEvent: async (id: string) => {
+  registerForEvent: async (
+    id: string,
+    registrationData?: {
+      phone?: string;
+      dietaryRequirements?: string;
+      emergencyContact?: string;
+      additionalNotes?: string;
+    }
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/events/${id}/register`,
+      data: registrationData,
+    });
+  },
+
+  // Confirm registration after successful payment
+  confirmRegistration: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${id}/confirm-registration`,
+      data: { paymentStatus: "success" },
+    });
+  },
+
+  // Get participants (organizers/admins)
+  getParticipants: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/events/${id}/participants`,
+    });
+  },
+
+  // Get events the current user is registered for
+  getMyRegistrations: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/events/my-registrations",
+      params,
     });
   },
 

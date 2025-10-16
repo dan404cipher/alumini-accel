@@ -1064,16 +1064,24 @@ const CollegeAdminDashboard = () => {
                           </div>
                           <div className="text-right">
                             <p className="font-medium">
-                              {event.attendees || 0} attendees
+                              {Array.isArray(event.attendees)
+                                ? event.attendees.length
+                                : typeof event.attendees === "number"
+                                ? event.attendees
+                                : 0}{" "}
+                              attendees
                             </p>
                             <Badge
                               variant={
+                                typeof event.status === "string" &&
                                 event.status === "completed"
                                   ? "default"
                                   : "secondary"
                               }
                             >
-                              {event.status}
+                              {typeof event.status === "string"
+                                ? event.status
+                                : "scheduled"}
                             </Badge>
                           </div>
                         </div>

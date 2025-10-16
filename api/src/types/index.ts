@@ -177,6 +177,7 @@ export interface IUser extends Document {
   isProfileComplete: boolean;
   profileCompletionPercentage: number;
   savedEvents?: string[];
+  savedJobs?: string[];
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -346,6 +347,7 @@ export interface IJobPost extends Document {
     max: number;
     currency: string;
   };
+  numberOfVacancies: number;
   description: string;
   requiredSkills: string[];
   requirements: string[];
@@ -402,7 +404,14 @@ export interface IEvent extends Document {
   attendees: Array<{
     userId: string;
     registeredAt: Date;
-    status: "registered" | "attended" | "cancelled";
+    status: "registered" | "attended" | "cancelled" | "pending_payment";
+    // Additional registration details
+    phone?: string;
+    dietaryRequirements?: string;
+    emergencyContact?: string;
+    additionalNotes?: string;
+    amountPaid?: number;
+    paymentStatus?: "free" | "pending" | "successful" | "failed";
   }>;
   photos: string[];
   feedback: Array<{

@@ -641,3 +641,68 @@ export const inviteToCommunity = async (
     });
   }
 };
+
+// Update moderator permissions
+export const updateModeratorPermissions = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { membershipId } = req.params;
+    const { permissions } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    const membership = await CommunityMembership.findById(membershipId);
+    if (!membership) {
+      return res.status(404).json({
+        success: false,
+        message: "Membership not found",
+      });
+    }
+
+    // Check if user can update moderator permissions
+    const userMembership = await CommunityMembership.findOne({
+      communityId: membership.communityId,
+      userId: userId,
+      status: "approved",
+    });
+
+    const community = await Community.findById(membership.communityId);
+    const isCreator = community?.createdBy.toString() === userId.toString();
+    const canModerate = (userMembership as any)?.canModerate() || false;
+    const isSuperAdmin = req.user?.role === "super_admin";
+
+    if (!isCreator && !canModerate && !isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to update moderator permissions",
+      });
+    }
+
+    // Update permissions
+    if (permissions) {
+      membership.permissions = { ...membership.permissions, ...permissions };
+    }
+
+    await membership.save();
+
+    return res.json({
+      success: true,
+      message: "Moderator permissions updated successfully",
+      data: membership,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Error updating moderator permissions",
+      error: error.message,
+    });
+  }
+};

@@ -281,7 +281,8 @@ export const updateEvent = async (req: Request, res: Response) => {
     // Check if user is the organizer or admin
     if (
       event.organizer.toString() !== req.user.id &&
-      req.user.role !== "admin"
+      req.user.role !== "super_admin" &&
+      req.user.role !== "college_admin"
     ) {
       return res.status(403).json({
         success: false,
@@ -383,7 +384,8 @@ export const updateEventWithImage = async (req: Request, res: Response) => {
     // Check if user is the organizer or admin
     if (
       event.organizer.toString() !== req.user.id &&
-      req.user.role !== "admin"
+      req.user.role !== "super_admin" &&
+      req.user.role !== "college_admin"
     ) {
       return res.status(403).json({
         success: false,
@@ -452,7 +454,8 @@ export const deleteEvent = async (req: Request, res: Response) => {
     // Check if user is the organizer or admin
     if (
       event.organizer.toString() !== req.user.id &&
-      req.user.role !== "admin"
+      req.user.role !== "super_admin" &&
+      req.user.role !== "college_admin"
     ) {
       return res.status(403).json({
         success: false,

@@ -29,6 +29,8 @@ import {
   Clock,
   Eye,
   ExternalLink,
+  Target,
+  GraduationCap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantAPI } from "@/lib/api";
@@ -45,6 +47,11 @@ const AlumniPortal = () => {
   const [recentMentorships, setRecentMentorships] = useState<any[]>([]);
   const [recentDonations, setRecentDonations] = useState<any[]>([]);
   const [recentAlumni, setRecentAlumni] = useState<any[]>([]);
+  const [recentJobs, setRecentJobs] = useState<any[]>([]);
+  const [recentCampaigns, setRecentCampaigns] = useState<any[]>([]);
+  const [recentMentorshipPrograms, setRecentMentorshipPrograms] = useState<
+    any[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   // Load college banner
@@ -198,6 +205,44 @@ const AlumniPortal = () => {
           const alumniData = await alumniResponse.json();
           setRecentAlumni(alumniData.data?.alumni || []);
         }
+
+        // Fetch recent jobs
+        const jobsResponse = await fetch(`${baseUrl}/jobs?limit=8`, {
+          headers,
+        });
+        if (jobsResponse.ok) {
+          const jobsData = await jobsResponse.json();
+          setRecentJobs(jobsData.data?.jobs || []);
+        }
+
+        // Fetch recent campaigns
+        const campaignsResponse = await fetch(`${baseUrl}/campaigns?limit=8`, {
+          headers,
+        });
+        if (campaignsResponse.ok) {
+          const campaignsData = await campaignsResponse.json();
+          console.log("Campaigns API Response:", campaignsData);
+          setRecentCampaigns(
+            campaignsData.data?.campaigns || campaignsData.data || []
+          );
+        }
+
+        // Fetch recent mentorship programs
+        const mentorshipProgramsResponse = await fetch(
+          `${baseUrl}/mentorship?limit=8`,
+          {
+            headers,
+          }
+        );
+        if (mentorshipProgramsResponse.ok) {
+          const mentorshipProgramsData =
+            await mentorshipProgramsResponse.json();
+          setRecentMentorshipPrograms(
+            mentorshipProgramsData.data?.mentorships ||
+              mentorshipProgramsData.data ||
+              []
+          );
+        }
       } catch (error) {
         console.error("Error fetching recent data:", error);
       } finally {
@@ -235,6 +280,18 @@ const AlumniPortal = () => {
 
   const handleAlumniClick = (alumniId: string) => {
     navigate(`/alumni/${alumniId}`);
+  };
+
+  const handleJobClick = (jobId: string) => {
+    navigate(`/jobs/${jobId}`);
+  };
+
+  const handleCampaignClick = (campaignId: string) => {
+    navigate(`/campaigns/${campaignId}`);
+  };
+
+  const handleMentorshipProgramClick = (programId: string) => {
+    navigate(`/mentorship/${programId}`);
   };
 
   const handleViewAll = (section: string) => {
@@ -540,7 +597,7 @@ const AlumniPortal = () => {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <Users className="h-5 w-5 text-orange-600" />
-                  <CardTitle className="text-lg">Recent Communities</CardTitle>
+                  <CardTitle className="text-lg">Top Communities</CardTitle>
                 </div>
                 <Button
                   variant="ghost"
@@ -836,6 +893,234 @@ const AlumniPortal = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Recent Jobs */}
+            <div className="bg-white border rounded-lg">
+              <div className="flex items-center justify-between p-6 border-b">
+                <div className="flex items-center space-x-3">
+                  <Briefcase className="h-5 w-5 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Active Jobs
+                  </h2>
+                </div>
+                <button
+                  onClick={() => handleViewAll("jobs")}
+                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
+                >
+                  <span>View All</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="p-6">
+                {recentJobs.length > 0 ? (
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentJobs.map((job) => (
+                      <div
+                        key={job._id}
+                        onClick={() => handleJobClick(job._id)}
+                        className="flex-shrink-0 w-64 bg-gray-50 border rounded-lg cursor-pointer"
+                      >
+                        <div className="relative">
+                          {job.company?.logo ? (
+                            <img
+                              src={job.company.logo}
+                              alt={job.company.name}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                              <Briefcase className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
+                              {job.type || "Job"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h4 className="font-medium text-sm text-gray-900 truncate">
+                            {job.title}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                            {job.description}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-3">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {job.company?.name || "Company"}
+                          </div>
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-xs text-gray-500">
+                              {job.location || "Location"}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No recent jobs</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Campaigns */}
+            <div className="bg-white border rounded-lg">
+              <div className="flex items-center justify-between p-6 border-b">
+                <div className="flex items-center space-x-3">
+                  <Target className="h-5 w-5 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Active Campaigns
+                  </h2>
+                </div>
+                <button
+                  onClick={() => handleViewAll("campaigns")}
+                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
+                >
+                  <span>View All</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="p-6">
+                {recentCampaigns.length > 0 ? (
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentCampaigns.map((campaign) => {
+                      console.log("Campaign data:", campaign);
+                      return (
+                        <div
+                          key={campaign._id}
+                          onClick={() => handleCampaignClick(campaign._id)}
+                          className="flex-shrink-0 w-64 bg-gray-50 border rounded-lg cursor-pointer"
+                        >
+                          <div className="relative">
+                            {campaign.imageUrl || campaign.images?.[0] ? (
+                              <img
+                                src={campaign.imageUrl || campaign.images[0]}
+                                alt={campaign.title}
+                                className="w-full h-32 object-cover rounded-t-lg"
+                              />
+                            ) : (
+                              <div className="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                                <Target className="h-8 w-8 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="absolute top-2 right-2">
+                              <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
+                                Campaign
+                              </span>
+                            </div>
+                          </div>
+                          <div className="p-4">
+                            <h4 className="font-medium text-sm text-gray-900 truncate">
+                              {campaign.title}
+                            </h4>
+                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                              {campaign.description}
+                            </p>
+                            <div className="flex items-center text-xs text-gray-500 mt-3">
+                              <DollarSign className="h-3 w-3 mr-1" />$
+                              {campaign.targetAmount || 0} goal
+                            </div>
+                            <div className="flex items-center justify-between mt-3">
+                              <span className="text-xs text-gray-500">
+                                {campaign.status || "Active"}
+                              </span>
+                              <ExternalLink className="h-3 w-3 text-gray-400" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <Target className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No recent campaigns</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Mentorship Programs */}
+            <div className="bg-white border rounded-lg">
+              <div className="flex items-center justify-between p-6 border-b">
+                <div className="flex items-center space-x-3">
+                  <GraduationCap className="h-5 w-5 text-gray-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Recent Mentorship Programs
+                  </h2>
+                </div>
+                <button
+                  onClick={() => handleViewAll("mentorship")}
+                  className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
+                >
+                  <span>View All</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="p-6">
+                {recentMentorshipPrograms.length > 0 ? (
+                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                    {recentMentorshipPrograms.map((program) => (
+                      <div
+                        key={program._id}
+                        onClick={() =>
+                          handleMentorshipProgramClick(program._id)
+                        }
+                        className="flex-shrink-0 w-64 bg-gray-50 border rounded-lg cursor-pointer"
+                      >
+                        <div className="relative">
+                          {program.image ? (
+                            <img
+                              src={program.image}
+                              alt={program.title}
+                              className="w-full h-32 object-cover rounded-t-lg"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-gray-200 rounded-t-lg flex items-center justify-center">
+                              <GraduationCap className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <span className="bg-white text-xs px-2 py-1 rounded text-gray-600">
+                              {program.domain || "Mentorship"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h4 className="font-medium text-sm text-gray-900 truncate">
+                            {program.domain || "Mentorship Program"}
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                            {program.description}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 mt-3">
+                            <User className="h-3 w-3 mr-1" />
+                            {program.mentor?.firstName}{" "}
+                            {program.mentor?.lastName}
+                          </div>
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-xs text-gray-500">
+                              {program.status || "Pending"}
+                            </span>
+                            <ExternalLink className="h-3 w-3 text-gray-400" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <GraduationCap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No recent mentorship programs</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

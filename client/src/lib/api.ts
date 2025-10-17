@@ -697,6 +697,36 @@ export const userAPI = {
       data: { alumniData },
     });
   },
+
+  exportAlumniData: async (format: "excel" | "csv" = "excel") => {
+    const response = await api.get(`/users/export-alumni?format=${format}`, {
+      responseType: "blob",
+    });
+
+    // Create download link
+    const blob = new Blob([response.data], {
+      type:
+        format === "csv"
+          ? "text/csv"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    const filename = `alumni_data_${new Date().toISOString().split("T")[0]}.${
+      format === "csv" ? "csv" : "xlsx"
+    }`;
+    link.download = filename;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true, filename };
+  },
 };
 
 // Alumni API functions

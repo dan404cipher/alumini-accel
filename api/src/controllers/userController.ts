@@ -4,6 +4,7 @@ import { logger } from "../utils/logger";
 import { UserRole, UserStatus } from "../types";
 import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
+import * as XLSX from "xlsx";
 
 // Get all users (admin only)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -792,6 +793,304 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
   }
 };
 
+// Simple test endpoint to check alumni data (no auth for testing)
+export const testAlumniDataNoAuth = async (req: Request, res: Response) => {
+  try {
+    // For testing, get all alumni without tenant filtering
+    const filter: any = { role: "alumni" };
+
+    const alumni = await User.find(filter)
+      .select(
+        "firstName lastName email phone department graduationYear currentCompany currentPosition bio linkedinProfile website status createdAt"
+      )
+      .lean();
+
+    const exportData = alumni.map((alumni) => ({
+      "First Name": alumni.firstName || "",
+      "Last Name": alumni.lastName || "",
+      Email: alumni.email || "",
+      Phone: alumni.phone || "",
+      Department: alumni.department || "",
+      "Graduation Year": alumni.graduationYear || "",
+      "Current Company": alumni.currentCompany || "",
+      "Current Position": alumni.currentPosition || "",
+      Bio: alumni.bio || "",
+      "LinkedIn Profile": alumni.linkedinProfile || "",
+      Website: alumni.website || "",
+      Status: alumni.status || "",
+      "Created At": alumni.createdAt
+        ? new Date(alumni.createdAt).toLocaleDateString()
+        : "",
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: alumni.length,
+      data: exportData.slice(0, 5), // Return first 5 records for testing
+      message: `Found ${alumni.length} alumni records`,
+    });
+  } catch (error) {
+    console.error("Test alumni data error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Simple test endpoint to check alumni data
+export const testAlumniData = async (req: Request, res: Response) => {
+  try {
+    const filter: any = { role: "alumni" };
+
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    const alumni = await User.find(filter)
+      .select(
+        "firstName lastName email phone department graduationYear currentCompany currentPosition bio linkedinProfile website status createdAt"
+      )
+      .lean();
+
+    const exportData = alumni.map((alumni) => ({
+      "First Name": alumni.firstName || "",
+      "Last Name": alumni.lastName || "",
+      Email: alumni.email || "",
+      Phone: alumni.phone || "",
+      Department: alumni.department || "",
+      "Graduation Year": alumni.graduationYear || "",
+      "Current Company": alumni.currentCompany || "",
+      "Current Position": alumni.currentPosition || "",
+      Bio: alumni.bio || "",
+      "LinkedIn Profile": alumni.linkedinProfile || "",
+      Website: alumni.website || "",
+      Status: alumni.status || "",
+      "Created At": alumni.createdAt
+        ? new Date(alumni.createdAt).toLocaleDateString()
+        : "",
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: alumni.length,
+      data: exportData.slice(0, 5), // Return first 5 records for testing
+      message: `Found ${alumni.length} alumni records`,
+    });
+  } catch (error) {
+    console.error("Test alumni data error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Test endpoint for export debugging
+export const testExport = async (req: Request, res: Response) => {
+  try {
+    console.log("Test export - User:", req.user);
+    console.log("Test export - Query:", req.query);
+
+    const filter: any = { role: "alumni" };
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    const alumni = await User.find(filter)
+      .select("-password -refreshToken")
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      user: req.user,
+      filter,
+      alumniCount: alumni?.length || 0,
+      sampleAlumni: alumni?.slice(0, 2) || [],
+    });
+  } catch (error) {
+    console.error("Test export error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Export all alumni data as Excel/CSV
+export const exportAlumniData = async (req: Request, res: Response) => {
+  try {
+    const { format = "excel" } = req.query;
+
+    // Debug logging
+    console.log("Export request - User:", req.user);
+    console.log("Export request - Format:", format);
+
+    // 🔒 MULTI-TENANT FILTERING: Only export alumni from same college (unless super admin)
+    const filter: any = { role: "alumni" };
+
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    console.log("Export filter:", filter);
+
+    // Get all alumni with only basic fields - no complex data
+    const alumni = await User.find(filter)
+      .select(
+        "firstName lastName email phone department graduationYear currentCompany currentPosition bio linkedinProfile website status createdAt"
+      )
+      .lean();
+
+    console.log("Found alumni count:", alumni?.length || 0);
+
+    if (!alumni || alumni.length === 0) {
+      // Return empty file for blob requests
+      if (format === "csv") {
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.csv"`
+        );
+        return res.send("No alumni data found");
+      } else {
+        // Create empty Excel file
+        const worksheet = XLSX.utils.json_to_sheet([
+          { Message: "No alumni data found" },
+        ]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Alumni Data");
+
+        const excelBuffer = XLSX.write(workbook, {
+          type: "buffer",
+          bookType: "xlsx",
+        });
+
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.xlsx"`
+        );
+        return res.send(excelBuffer);
+      }
+    }
+
+    // Prepare data for export - only basic text fields
+    const exportData = alumni.map((alumni) => ({
+      "First Name": alumni.firstName || "",
+      "Last Name": alumni.lastName || "",
+      Email: alumni.email || "",
+      Phone: alumni.phone || "",
+      Department: alumni.department || "",
+      "Graduation Year": alumni.graduationYear || "",
+      "Current Company": alumni.currentCompany || "",
+      "Current Position": alumni.currentPosition || "",
+      Bio: alumni.bio || "",
+      "LinkedIn Profile": alumni.linkedinProfile || "",
+      Website: alumni.website || "",
+      Status: alumni.status || "",
+      "Created At": alumni.createdAt
+        ? new Date(alumni.createdAt).toLocaleDateString()
+        : "",
+    }));
+
+    if (format === "csv") {
+      // Convert to CSV - simplified
+      const csvHeaders = Object.keys(exportData[0]).join(",");
+      const csvRows = exportData.map((row) =>
+        Object.values(row)
+          .map((value) => {
+            const stringValue = String(value || "");
+            // Escape quotes and wrap in quotes if contains comma
+            if (
+              stringValue.includes(",") ||
+              stringValue.includes('"') ||
+              stringValue.includes("\n")
+            ) {
+              return `"${stringValue.replace(/"/g, '""')}"`;
+            }
+            return stringValue;
+          })
+          .join(",")
+      );
+      const csvContent = [csvHeaders, ...csvRows].join("\n");
+
+      console.log("CSV Content length:", csvContent.length);
+      console.log("CSV Headers:", csvHeaders);
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.csv"`
+      );
+      return res.send(csvContent);
+    } else {
+      // Default to Excel format
+      console.log("Generating Excel with", exportData.length, "records");
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Alumni Data");
+
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      console.log("Excel buffer size:", excelBuffer.length);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.xlsx"`
+      );
+      return res.send(excelBuffer);
+    }
+  } catch (error) {
+    logger.error("Error exporting alumni data:", error);
+    console.error("Export error details:", error);
+
+    // Return proper error response for blob requests
+    if (req.query.format === "csv") {
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="error_${new Date().toISOString().split("T")[0]}.csv"`
+      );
+      return res.send(
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } else {
+      // Create error Excel file
+      const worksheet = XLSX.utils.json_to_sheet([
+        { Error: error instanceof Error ? error.message : "Unknown error" },
+      ]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Error");
+
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="error_${new Date().toISOString().split("T")[0]}.xlsx"`
+      );
+      return res.send(excelBuffer);
+    }
+  }
+};
+
 export default {
   getAllUsers,
   createUser,
@@ -805,4 +1104,6 @@ export default {
   bulkUpdateUsers,
   uploadProfileImage,
   bulkCreateAlumni,
+  exportAlumniData,
+  testExport,
 };

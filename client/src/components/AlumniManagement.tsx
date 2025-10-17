@@ -28,6 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import BulkUploadAlumni from "./BulkUploadAlumni";
+import ExportAlumniData from "./ExportAlumniData";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus,
@@ -317,6 +318,7 @@ const AlumniManagement = () => {
         </div>
         <div className="flex space-x-2">
           <BulkUploadAlumni />
+          <ExportAlumniData />
           <Dialog
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}

@@ -40,14 +40,43 @@ router.post(
   asyncHandler(userController.createUser)
 );
 
-// @route   GET /api/v1/users/:id
-// @desc    Get user by ID
+// @route   GET /api/v1/users/search
+// @desc    Search users
 // @access  Private
 router.get(
-  "/:id",
+  "/search",
   authenticateToken,
-  ...validateRequest(validateId),
-  asyncHandler(userController.getUserById)
+  asyncHandler(userController.searchUsers)
+);
+
+// @route   POST /api/v1/users/bulk-alumni
+// @desc    Bulk create alumni from CSV/Excel data
+// @access  Private/Super Admin, College Admin, HOD, Staff
+router.post(
+  "/bulk-alumni",
+  authenticateToken,
+  requireUserCreation, // Super Admin, College Admin, HOD, and Staff can create users
+  asyncHandler(userController.bulkCreateAlumni)
+);
+
+// @route   GET /api/v1/users/test-export
+// @desc    Test export functionality
+// @access  Private/Super Admin, College Admin, HOD, Staff
+router.get(
+  "/test-export",
+  authenticateToken,
+  requireUserCreation,
+  asyncHandler(userController.testExport)
+);
+
+// @route   GET /api/v1/users/export-alumni
+// @desc    Export all alumni data as Excel/CSV
+// @access  Private/Super Admin, College Admin, HOD, Staff
+router.get(
+  "/export-alumni",
+  authenticateToken,
+  requireUserCreation, // Super Admin, College Admin, HOD, and Staff can export
+  asyncHandler(userController.exportAlumniData)
 );
 
 // @route   PUT /api/v1/users/profile
@@ -60,15 +89,14 @@ router.put(
   asyncHandler(userController.updateProfile)
 );
 
-// @route   PUT /api/v1/users/:id
-// @desc    Update any user by ID (Super Admin only)
-// @access  Private/Super Admin
-router.put(
+// @route   GET /api/v1/users/:id
+// @desc    Get user by ID
+// @access  Private
+router.get(
   "/:id",
   authenticateToken,
-  requireSuperAdmin,
-  ...validateRequest([...validateId, ...validateProfileUpdate]),
-  asyncHandler(userController.updateUserById)
+  ...validateRequest(validateId),
+  asyncHandler(userController.getUserById)
 );
 
 // @route   POST /api/v1/users/profile-image
@@ -79,6 +107,17 @@ router.post(
   authenticateToken,
   uploadProfileImage.single("profileImage") as any,
   asyncHandler(userController.uploadProfileImage)
+);
+
+// @route   PUT /api/v1/users/:id
+// @desc    Update any user by ID (Super Admin only)
+// @access  Private/Super Admin
+router.put(
+  "/:id",
+  authenticateToken,
+  requireSuperAdmin,
+  ...validateRequest([...validateId, ...validateProfileUpdate]),
+  asyncHandler(userController.updateUserById)
 );
 
 // @route   DELETE /api/v1/users/:id
@@ -101,25 +140,6 @@ router.put(
   requireAdmin,
   ...validateRequest(validateId),
   asyncHandler(userController.updateUserStatus)
-);
-
-// @route   GET /api/v1/users/search
-// @desc    Search users
-// @access  Private
-router.get(
-  "/search",
-  authenticateToken,
-  asyncHandler(userController.searchUsers)
-);
-
-// @route   POST /api/v1/users/bulk-alumni
-// @desc    Bulk create alumni from CSV/Excel data
-// @access  Private/Super Admin, College Admin, HOD, Staff
-router.post(
-  "/bulk-alumni",
-  authenticateToken,
-  requireUserCreation, // Super Admin, College Admin, HOD, and Staff can create users
-  asyncHandler(userController.bulkCreateAlumni)
 );
 
 export default router;

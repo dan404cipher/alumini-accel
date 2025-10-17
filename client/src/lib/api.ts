@@ -2170,6 +2170,7 @@ export const messageAPI = {
     recipientId: string;
     content: string;
     messageType?: string;
+    replyTo?: string;
   }) => {
     return apiRequest({
       method: "POST",
@@ -2226,6 +2227,15 @@ export const messageAPI = {
     return apiRequest({
       method: "DELETE",
       url: `/messages/${messageId}`,
+    });
+  },
+
+  // Edit a message
+  editMessage: async (messageId: string, content: string) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/messages/${messageId}`,
+      data: { content },
     });
   },
 };

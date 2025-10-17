@@ -32,6 +32,24 @@ const messageSchema = new Schema<IMessage>(
     readAt: {
       type: Date,
     },
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    editedAt: {
+      type: Date,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    replyTo: {
+      type: mongoose.Types.ObjectId as any,
+      ref: "Message",
+    },
   },
   {
     timestamps: true,
@@ -62,9 +80,18 @@ messageSchema.statics.getMessagesBetween = function (
       { sender: userId1, recipient: userId2 },
       { sender: userId2, recipient: userId1 },
     ],
+    isDeleted: { $ne: true }, // Exclude deleted messages
   })
     .populate("sender", "firstName lastName email profilePicture")
     .populate("recipient", "firstName lastName email profilePicture")
+    .populate({
+      path: "replyTo",
+      select: "content sender",
+      populate: {
+        path: "sender",
+        select: "firstName lastName",
+      },
+    })
     .sort({ createdAt: 1 })
     .limit(limit)
     .skip((page - 1) * limit);

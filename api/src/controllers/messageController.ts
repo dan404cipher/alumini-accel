@@ -13,7 +13,8 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
     recipientId,
     content,
     messageType = MessageType.TEXT,
-  } = req.body as MessageRequest;
+    replyTo,
+  } = req.body as MessageRequest & { replyTo?: string };
   const senderId = req.user?._id;
 
   if (!senderId) {
@@ -82,14 +83,23 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
     recipient: recipientId,
     content: content.trim(),
     messageType,
+    replyTo: replyTo || undefined,
   });
 
   await message.save();
 
-  // Populate sender and recipient details
+  // Populate sender, recipient, and replyTo details
   await message.populate([
     { path: "sender", select: "firstName lastName email profilePicture" },
     { path: "recipient", select: "firstName lastName email profilePicture" },
+    {
+      path: "replyTo",
+      select: "content sender",
+      populate: {
+        path: "sender",
+        select: "firstName lastName",
+      },
+    },
   ]);
 
   logger.info(`Message sent from ${senderId} to ${recipientId}`);
@@ -117,6 +127,20 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
       messageType: message.messageType,
       isRead: message.isRead,
       readAt: message.readAt?.toISOString(),
+      isEdited: message.isEdited,
+      editedAt: message.editedAt?.toISOString(),
+      isDeleted: message.isDeleted,
+      deletedAt: message.deletedAt?.toISOString(),
+      replyTo: message.replyTo
+        ? {
+            id: (message.replyTo as any)._id,
+            content: (message.replyTo as any).content,
+            sender: {
+              firstName: (message.replyTo as any).sender.firstName,
+              lastName: (message.replyTo as any).sender.lastName,
+            },
+          }
+        : undefined,
       createdAt: message.createdAt.toISOString(),
       updatedAt: message.updatedAt.toISOString(),
     } as MessageResponse,
@@ -222,6 +246,20 @@ export const getMessages = asyncHandler(async (req: Request, res: Response) => {
         messageType: message.messageType,
         isRead: message.isRead,
         readAt: message.readAt?.toISOString(),
+        isEdited: message.isEdited,
+        editedAt: message.editedAt?.toISOString(),
+        isDeleted: message.isDeleted,
+        deletedAt: message.deletedAt?.toISOString(),
+        replyTo: message.replyTo
+          ? {
+              id: (message.replyTo as any)._id,
+              content: (message.replyTo as any).content,
+              sender: {
+                firstName: (message.replyTo as any).sender.firstName,
+                lastName: (message.replyTo as any).sender.lastName,
+              },
+            }
+          : undefined,
         createdAt: message.createdAt.toISOString(),
         updatedAt: message.updatedAt.toISOString(),
       })) as MessageResponse[],
@@ -354,9 +392,12 @@ export const deleteMessage = asyncHandler(
       });
     }
 
-    await Message.findByIdAndDelete(messageId);
+    await Message.findByIdAndUpdate(messageId, {
+      isDeleted: true,
+      deletedAt: new Date(),
+    });
 
-    logger.info(`Message ${messageId} deleted by user ${userId}`);
+    logger.info(`Message ${messageId} soft deleted by user ${userId}`);
 
     return res.status(200).json({
       success: true,
@@ -365,6 +406,79 @@ export const deleteMessage = asyncHandler(
   }
 );
 
+// Edit a message
+export const editMessage = asyncHandler(async (req: Request, res: Response) => {
+  const { messageId } = req.params;
+  const { content } = req.body;
+  const userId = req.user?._id;
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "User not authenticated",
+    });
+  }
+
+  if (!content || content.trim().length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Message content is required",
+    });
+  }
+
+  if (content.length > 1000) {
+    return res.status(400).json({
+      success: false,
+      message: "Message content cannot exceed 1000 characters",
+    });
+  }
+
+  const message = await Message.findById(messageId);
+
+  if (!message) {
+    return res.status(404).json({
+      success: false,
+      message: "Message not found",
+    });
+  }
+
+  if (message.sender.toString() !== userId.toString()) {
+    return res.status(403).json({
+      success: false,
+      message: "You can only edit your own messages",
+    });
+  }
+
+  if (message.isDeleted) {
+    return res.status(400).json({
+      success: false,
+      message: "Cannot edit deleted message",
+    });
+  }
+
+  // Update the message
+  const updatedMessage = await Message.findByIdAndUpdate(
+    messageId,
+    {
+      content: content.trim(),
+      isEdited: true,
+      editedAt: new Date(),
+    },
+    { new: true }
+  )
+    .populate("sender", "firstName lastName email profilePicture")
+    .populate("recipient", "firstName lastName email profilePicture")
+    .populate("replyTo", "content sender");
+
+  logger.info(`Message ${messageId} edited by user ${userId}`);
+
+  return res.status(200).json({
+    success: true,
+    message: "Message updated successfully",
+    data: updatedMessage,
+  });
+});
+
 export default {
   sendMessage,
   getMessages,
@@ -372,4 +486,5 @@ export default {
   markAsRead,
   getUnreadCount,
   deleteMessage,
+  editMessage,
 };

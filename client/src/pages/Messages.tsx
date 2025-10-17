@@ -124,13 +124,16 @@ const Messages = () => {
 
   const fetchConversations = async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
       // Add a small delay to prevent rapid successive calls
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const response = await messageAPI.getConversations();
+      const response = await messageAPI.getConversations({
+        page: 1,
+        limit: 20,
+      });
 
       if (response.success) {
-        const conversationsData = response.data || [];
+        const conversationsData = (response.data as Conversation[]) || [];
         setConversations(conversationsData);
       } else {
         console.error("❌ API Error:", response.message);
@@ -151,7 +154,7 @@ const Messages = () => {
     try {
       const response = await messageAPI.getMessages(recipientId, { limit: 50 });
       if (response.success) {
-        setMessages(response.data.messages || []);
+        setMessages((response.data as any).messages || []);
       }
     } catch (error) {
       console.error("Error fetching messages:", error);

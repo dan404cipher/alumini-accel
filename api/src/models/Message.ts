@@ -65,7 +65,7 @@ messageSchema.statics.getMessagesBetween = function (
   })
     .populate("sender", "firstName lastName email profilePicture")
     .populate("recipient", "firstName lastName email profilePicture")
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .limit(limit)
     .skip((page - 1) * limit);
 };
@@ -173,7 +173,11 @@ messageSchema.statics.getUnreadCount = function (userId: string) {
 };
 
 // Static method to get all connected users (including those without messages)
-messageSchema.statics.getConnectedUsers = async function (userId: string) {
+messageSchema.statics.getConnectedUsers = async function (
+  userId: string,
+  limit: number = 20,
+  page: number = 1
+) {
   try {
     // Get all users who have exchanged messages with this user
     const messageUsers = await this.distinct("sender", {
@@ -262,7 +266,12 @@ messageSchema.statics.getConnectedUsers = async function (userId: string) {
       }
     });
 
-    return connectedUsers;
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedUsers = connectedUsers.slice(startIndex, endIndex);
+
+    return paginatedUsers;
   } catch (error) {
     console.error("Error in getConnectedUsers:", error);
     throw error;
@@ -278,7 +287,11 @@ export interface IMessageModel extends Model<IMessage> {
     page?: number
   ): Promise<IMessage[]>;
   getConversations(userId: string): Promise<any[]>;
-  getConnectedUsers(userId: string): Promise<any[]>;
+  getConnectedUsers(
+    userId: string,
+    limit?: number,
+    page?: number
+  ): Promise<any[]>;
   markMessagesAsRead(senderId: string, recipientId: string): Promise<any>;
   getUnreadCount(userId: string): Promise<number>;
 }

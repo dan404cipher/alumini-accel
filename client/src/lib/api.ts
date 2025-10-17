@@ -2194,10 +2194,14 @@ export const messageAPI = {
   },
 
   // Get all conversations for a user
-  getConversations: async () => {
+  getConversations: async (params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
     return apiRequest({
       method: "GET",
-      url: "/messages/conversations",
+      url: `/messages/conversations?${queryParams.toString()}`,
     });
   },
 

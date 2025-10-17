@@ -238,6 +238,7 @@ export const getMessages = asyncHandler(async (req: Request, res: Response) => {
 export const getConversations = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.user?._id;
+    const { page = 1, limit = 20 } = req.query;
 
     if (!userId) {
       return res.status(401).json({
@@ -246,12 +247,21 @@ export const getConversations = asyncHandler(
       });
     }
 
-    // Get all connected users (including those without messages)
-    const connectedUsers = await Message.getConnectedUsers(userId);
+    // Get connected users with pagination
+    const connectedUsers = await Message.getConnectedUsers(
+      userId,
+      Number(limit),
+      Number(page)
+    );
 
     return res.status(200).json({
       success: true,
       data: connectedUsers,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: connectedUsers.length,
+      },
     });
   }
 );

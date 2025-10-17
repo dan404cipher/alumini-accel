@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import BulkUploadAlumni from "./BulkUploadAlumni";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus,
@@ -314,179 +315,195 @@ const AlumniManagement = () => {
             Create and manage alumni accounts
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Alumni Account
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Alumni Account</DialogTitle>
-              <DialogDescription>
-                Create a new alumni account with profile information. Make sure
-                to use a unique email address that hasn't been registered
-                before.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateAlumni} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex space-x-2">
+          <BulkUploadAlumni />
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Alumni Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Alumni Account</DialogTitle>
+                <DialogDescription>
+                  Create a new alumni account with profile information. Make
+                  sure to use a unique email address that hasn't been registered
+                  before.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateAlumni} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input
+                      id="firstName"
+                      value={newAlumni.firstName}
+                      onChange={(e) =>
+                        setNewAlumni({
+                          ...newAlumni,
+                          firstName: e.target.value,
+                        })
+                      }
+                      placeholder="Enter first name"
+                      className={formErrors.firstName ? "border-red-500" : ""}
+                    />
+                    {formErrors.firstName && (
+                      <p className="text-sm text-red-500">
+                        {formErrors.firstName}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input
+                      id="lastName"
+                      value={newAlumni.lastName}
+                      onChange={(e) =>
+                        setNewAlumni({ ...newAlumni, lastName: e.target.value })
+                      }
+                      placeholder="Enter last name"
+                      className={formErrors.lastName ? "border-red-500" : ""}
+                    />
+                    {formErrors.lastName && (
+                      <p className="text-sm text-red-500">
+                        {formErrors.lastName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
+                  <Label htmlFor="email">Email Address *</Label>
                   <Input
-                    id="firstName"
-                    value={newAlumni.firstName}
+                    id="email"
+                    type="email"
+                    value={newAlumni.email}
                     onChange={(e) =>
-                      setNewAlumni({ ...newAlumni, firstName: e.target.value })
+                      setNewAlumni({ ...newAlumni, email: e.target.value })
                     }
-                    placeholder="Enter first name"
-                    className={formErrors.firstName ? "border-red-500" : ""}
+                    placeholder="Enter email address"
+                    className={formErrors.email ? "border-red-500" : ""}
                   />
-                  {formErrors.firstName && (
+                  {formErrors.email && (
+                    <p className="text-sm text-red-500">{formErrors.email}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newAlumni.password}
+                    onChange={(e) =>
+                      setNewAlumni({ ...newAlumni, password: e.target.value })
+                    }
+                    placeholder="Enter password"
+                    className={formErrors.password ? "border-red-500" : ""}
+                  />
+                  {formErrors.password && (
                     <p className="text-sm text-red-500">
-                      {formErrors.firstName}
+                      {formErrors.password}
                     </p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={newAlumni.lastName}
-                    onChange={(e) =>
-                      setNewAlumni({ ...newAlumni, lastName: e.target.value })
-                    }
-                    placeholder="Enter last name"
-                    className={formErrors.lastName ? "border-red-500" : ""}
-                  />
-                  {formErrors.lastName && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.lastName}
-                    </p>
-                  )}
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newAlumni.email}
-                  onChange={(e) =>
-                    setNewAlumni({ ...newAlumni, email: e.target.value })
-                  }
-                  placeholder="Enter email address"
-                  className={formErrors.email ? "border-red-500" : ""}
-                />
-                {formErrors.email && (
-                  <p className="text-sm text-red-500">{formErrors.email}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={newAlumni.password}
-                  onChange={(e) =>
-                    setNewAlumni({ ...newAlumni, password: e.target.value })
-                  }
-                  placeholder="Enter password"
-                  className={formErrors.password ? "border-red-500" : ""}
-                />
-                {formErrors.password && (
-                  <p className="text-sm text-red-500">{formErrors.password}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="college">College *</Label>
-                  <Select
-                    value={newAlumni.collegeId}
-                    onValueChange={(value) =>
-                      setNewAlumni({ ...newAlumni, collegeId: value })
-                    }
-                  >
-                    <SelectTrigger
-                      className={formErrors.collegeId ? "border-red-500" : ""}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="college">College *</Label>
+                    <Select
+                      value={newAlumni.collegeId}
+                      onValueChange={(value) =>
+                        setNewAlumni({ ...newAlumni, collegeId: value })
+                      }
                     >
-                      <SelectValue placeholder="Select college" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colleges.map((college) => (
-                        <SelectItem key={college._id} value={college._id}>
-                          {college.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.collegeId && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.collegeId}
-                    </p>
-                  )}
+                      <SelectTrigger
+                        className={formErrors.collegeId ? "border-red-500" : ""}
+                      >
+                        <SelectValue placeholder="Select college" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colleges.map((college) => (
+                          <SelectItem key={college._id} value={college._id}>
+                            {college.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.collegeId && (
+                      <p className="text-sm text-red-500">
+                        {formErrors.collegeId}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department *</Label>
+                    <Input
+                      id="department"
+                      value={newAlumni.department}
+                      onChange={(e) =>
+                        setNewAlumni({
+                          ...newAlumni,
+                          department: e.target.value,
+                        })
+                      }
+                      placeholder="Enter department"
+                      className={formErrors.department ? "border-red-500" : ""}
+                    />
+                    {formErrors.department && (
+                      <p className="text-sm text-red-500">
+                        {formErrors.department}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="department">Department *</Label>
+                  <Label htmlFor="graduationYear">Graduation Year *</Label>
                   <Input
-                    id="department"
-                    value={newAlumni.department}
+                    id="graduationYear"
+                    type="number"
+                    value={newAlumni.graduationYear}
                     onChange={(e) =>
-                      setNewAlumni({ ...newAlumni, department: e.target.value })
+                      setNewAlumni({
+                        ...newAlumni,
+                        graduationYear:
+                          parseInt(e.target.value) || new Date().getFullYear(),
+                      })
                     }
-                    placeholder="Enter department"
-                    className={formErrors.department ? "border-red-500" : ""}
+                    placeholder="Enter graduation year"
+                    className={
+                      formErrors.graduationYear ? "border-red-500" : ""
+                    }
                   />
-                  {formErrors.department && (
+                  {formErrors.graduationYear && (
                     <p className="text-sm text-red-500">
-                      {formErrors.department}
+                      {formErrors.graduationYear}
                     </p>
                   )}
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="graduationYear">Graduation Year *</Label>
-                <Input
-                  id="graduationYear"
-                  type="number"
-                  value={newAlumni.graduationYear}
-                  onChange={(e) =>
-                    setNewAlumni({
-                      ...newAlumni,
-                      graduationYear:
-                        parseInt(e.target.value) || new Date().getFullYear(),
-                    })
-                  }
-                  placeholder="Enter graduation year"
-                  className={formErrors.graduationYear ? "border-red-500" : ""}
-                />
-                {formErrors.graduationYear && (
-                  <p className="text-sm text-red-500">
-                    {formErrors.graduationYear}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createLoading}>
-                  {createLoading ? "Creating..." : "Create Alumni"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={createLoading}>
+                    {createLoading ? "Creating..." : "Create Alumni"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Search and Filter */}

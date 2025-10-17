@@ -112,4 +112,14 @@ router.get(
   asyncHandler(userController.searchUsers)
 );
 
+// @route   POST /api/v1/users/bulk-alumni
+// @desc    Bulk create alumni from CSV/Excel data
+// @access  Private/Super Admin, College Admin, HOD, Staff
+router.post(
+  "/bulk-alumni",
+  authenticateToken,
+  requireUserCreation, // Super Admin, College Admin, HOD, and Staff can create users
+  asyncHandler(userController.bulkCreateAlumni)
+);
+
 export default router;

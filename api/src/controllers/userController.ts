@@ -628,6 +628,170 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
   }
 };
 
+// Bulk create alumni from CSV/Excel data
+export const bulkCreateAlumni = async (req: Request, res: Response) => {
+  try {
+    const { alumniData } = req.body;
+    const currentUser = req.user;
+
+    if (!alumniData || !Array.isArray(alumniData)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid alumni data format",
+      });
+    }
+
+    if (alumniData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No alumni data provided",
+      });
+    }
+
+    if (alumniData.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot create more than 100 alumni at once",
+      });
+    }
+
+    // Validate user permissions
+    if (
+      !currentUser ||
+      !["super_admin", "college_admin", "hod", "staff"].includes(
+        currentUser.role
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to create alumni",
+      });
+    }
+
+    const results = {
+      successful: [] as Array<{
+        row: number;
+        email: string;
+        name: string;
+        password: string;
+      }>,
+      failed: [] as Array<{
+        row: number;
+        email: string;
+        error: string;
+      }>,
+      total: alumniData.length,
+    };
+
+    // Process each alumni record
+    for (let i = 0; i < alumniData.length; i++) {
+      const alumniRecord = alumniData[i];
+      const rowNumber = i + 1;
+
+      try {
+        // Validate required fields
+        if (
+          !alumniRecord.firstName ||
+          !alumniRecord.lastName ||
+          !alumniRecord.email
+        ) {
+          results.failed.push({
+            row: rowNumber,
+            email: alumniRecord.email || "N/A",
+            error: "Missing required fields: firstName, lastName, or email",
+          });
+          continue;
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({
+          email: alumniRecord.email.toLowerCase(),
+        });
+        if (existingUser) {
+          results.failed.push({
+            row: rowNumber,
+            email: alumniRecord.email,
+            error: "User with this email already exists",
+          });
+          continue;
+        }
+
+        // Generate password if not provided
+        const password =
+          alumniRecord.password ||
+          `Alumni${Math.random().toString(36).slice(-8)}`;
+
+        // Determine tenantId based on user role
+        let tenantId = alumniRecord.collegeId;
+        if (currentUser.role !== "super_admin" && currentUser.tenantId) {
+          tenantId = currentUser.tenantId;
+        }
+
+        // Create user data
+        const userData = {
+          firstName: alumniRecord.firstName.trim(),
+          lastName: alumniRecord.lastName.trim(),
+          email: alumniRecord.email.toLowerCase().trim(),
+          password: await bcrypt.hash(password, 12),
+          role: UserRole.ALUMNI,
+          status: UserStatus.ACTIVE,
+          tenantId: tenantId,
+          phone: alumniRecord.phoneNumber || alumniRecord.phone || "",
+          department: alumniRecord.department || "",
+          graduationYear:
+            alumniRecord.graduationYear || new Date().getFullYear(),
+          currentCompany: alumniRecord.currentCompany || "",
+          currentPosition: alumniRecord.currentPosition || "",
+          bio: alumniRecord.bio || "",
+          location: alumniRecord.address || alumniRecord.location || "",
+          linkedinProfile: alumniRecord.linkedinProfile || "",
+          twitterHandle: alumniRecord.twitterHandle || "",
+          githubProfile: alumniRecord.githubProfile || "",
+          website: alumniRecord.website || "",
+          dateOfBirth: alumniRecord.dateOfBirth
+            ? new Date(alumniRecord.dateOfBirth)
+            : undefined,
+          gender: alumniRecord.gender || undefined,
+        };
+
+        // Create the user
+        const newUser = new User(userData);
+        await newUser.save();
+
+        results.successful.push({
+          row: rowNumber,
+          email: newUser.email,
+          name: `${newUser.firstName} ${newUser.lastName}`,
+          password: alumniRecord.password ? "User provided" : password, // Only show generated password
+        });
+
+        logger.info(
+          `Bulk alumni creation: Created user ${newUser.email} by ${currentUser.email}`
+        );
+      } catch (error: any) {
+        results.failed.push({
+          row: rowNumber,
+          email: alumniRecord.email || "N/A",
+          error: error.message || "Unknown error occurred",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Bulk alumni creation completed. ${results.successful.length} successful, ${results.failed.length} failed.`,
+      data: results,
+    });
+  } catch (error: any) {
+    logger.error("Bulk alumni creation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to process bulk alumni creation",
+      error: error.message,
+    });
+  }
+};
+
 export default {
   getAllUsers,
   createUser,
@@ -640,4 +804,5 @@ export default {
   getUserStats,
   bulkUpdateUsers,
   uploadProfileImage,
+  bulkCreateAlumni,
 };

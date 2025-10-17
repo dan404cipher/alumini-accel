@@ -665,6 +665,38 @@ export const userAPI = {
       throw error;
     }
   },
+
+  // Bulk create alumni from CSV/Excel data
+  bulkCreateAlumni: async (
+    alumniData: Array<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      password?: string;
+      collegeId?: string;
+      department?: string;
+      graduationYear?: number;
+      currentCompany?: string;
+      currentPosition?: string;
+      phoneNumber?: string;
+      phone?: string;
+      address?: string;
+      location?: string;
+      bio?: string;
+      linkedinProfile?: string;
+      twitterHandle?: string;
+      githubProfile?: string;
+      website?: string;
+      dateOfBirth?: string;
+      gender?: string;
+    }>
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: "/users/bulk-alumni",
+      data: { alumniData },
+    });
+  },
 };
 
 // Alumni API functions

@@ -94,6 +94,7 @@ const Messages = () => {
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -204,6 +205,11 @@ const Messages = () => {
         await fetchMessages(selectedConversation.user.id);
         // Refresh conversations to update last message
         await fetchConversations();
+
+        // Refocus the input after sending
+        setTimeout(() => {
+          messageInputRef.current?.focus();
+        }, 100);
       } else {
         toast({
           title: "Error",
@@ -322,16 +328,29 @@ const Messages = () => {
   const startReply = (message: Message) => {
     setReplyingToMessage(message);
     setNewMessage("");
+    // Focus the input after starting reply
+    setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 100);
   };
 
   // Cancel reply
   const cancelReply = () => {
     setReplyingToMessage(null);
+    // Focus the input after canceling reply
+    setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 100);
   };
 
   const selectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     fetchMessages(conversation.user.id);
+
+    // Focus the input after selecting a conversation
+    setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 200);
   };
 
   const getImageUrl = (profilePicture?: string, name?: string) => {
@@ -401,11 +420,7 @@ const Messages = () => {
                 }}
                 className="mb-4"
               >
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="inbox">Inbox</TabsTrigger>
-                  <TabsTrigger value="sent">Sent</TabsTrigger>
-                  <TabsTrigger value="drafts">Drafts</TabsTrigger>
-                </TabsList>
+                
               </Tabs>
 
               <div className="relative">
@@ -721,6 +736,7 @@ const Messages = () => {
 
                   <div className="flex space-x-2">
                     <Input
+                      ref={messageInputRef}
                       placeholder={
                         replyingToMessage
                           ? "Type your reply..."

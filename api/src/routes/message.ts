@@ -38,4 +38,9 @@ router.patch("/:messageId/read", asyncHandler(messageController.markAsRead));
 // @access  Private
 router.delete("/:messageId", asyncHandler(messageController.deleteMessage));
 
+// @route   PUT /api/v1/messages/:messageId
+// @desc    Edit a message
+// @access  Private
+router.put("/:messageId", asyncHandler(messageController.editMessage));
+
 export default router;

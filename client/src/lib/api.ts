@@ -665,6 +665,68 @@ export const userAPI = {
       throw error;
     }
   },
+
+  // Bulk create alumni from CSV/Excel data
+  bulkCreateAlumni: async (
+    alumniData: Array<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      password?: string;
+      collegeId?: string;
+      department?: string;
+      graduationYear?: number;
+      currentCompany?: string;
+      currentPosition?: string;
+      phoneNumber?: string;
+      phone?: string;
+      address?: string;
+      location?: string;
+      bio?: string;
+      linkedinProfile?: string;
+      twitterHandle?: string;
+      githubProfile?: string;
+      website?: string;
+      dateOfBirth?: string;
+      gender?: string;
+    }>
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: "/users/bulk-alumni",
+      data: { alumniData },
+    });
+  },
+
+  exportAlumniData: async (format: "excel" | "csv" = "excel") => {
+    const response = await api.get(`/users/export-alumni?format=${format}`, {
+      responseType: "blob",
+    });
+
+    // Create download link
+    const blob = new Blob([response.data], {
+      type:
+        format === "csv"
+          ? "text/csv"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    const filename = `alumni_data_${new Date().toISOString().split("T")[0]}.${
+      format === "csv" ? "csv" : "xlsx"
+    }`;
+    link.download = filename;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true, filename };
+  },
 };
 
 // Alumni API functions
@@ -2170,6 +2232,7 @@ export const messageAPI = {
     recipientId: string;
     content: string;
     messageType?: string;
+    replyTo?: string;
   }) => {
     return apiRequest({
       method: "POST",
@@ -2194,10 +2257,14 @@ export const messageAPI = {
   },
 
   // Get all conversations for a user
-  getConversations: async () => {
+  getConversations: async (params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
     return apiRequest({
       method: "GET",
-      url: "/messages/conversations",
+      url: `/messages/conversations?${queryParams.toString()}`,
     });
   },
 
@@ -2222,6 +2289,15 @@ export const messageAPI = {
     return apiRequest({
       method: "DELETE",
       url: `/messages/${messageId}`,
+    });
+  },
+
+  // Edit a message
+  editMessage: async (messageId: string, content: string) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/messages/${messageId}`,
+      data: { content },
     });
   },
 };

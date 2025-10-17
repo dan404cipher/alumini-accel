@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,12 @@ import {
   Trash2,
   Check,
   CheckCheck,
+  Edit,
+  Reply,
 } from "lucide-react";
 import { messageAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import Footer from "@/components/Footer";
-import Navigation from "@/components/Navigation";
 
 interface Message {
   id: string;
@@ -41,6 +41,18 @@ interface Message {
   messageType: string;
   isRead: boolean;
   readAt?: string;
+  isEdited: boolean;
+  editedAt?: string;
+  isDeleted: boolean;
+  deletedAt?: string;
+  replyTo?: {
+    id: string;
+    content: string;
+    sender: {
+      firstName: string;
+      lastName: string;
+    };
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -73,9 +85,25 @@ const Messages = () => {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMessageTab, setActiveMessageTab] = useState("inbox");
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(
+    null
+  );
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     // Debounce the API call to prevent rapid successive requests
@@ -85,6 +113,20 @@ const Messages = () => {
 
     return () => clearTimeout(timeoutId);
   }, [searchParams]);
+
+  // Handle auto-selecting conversation when user parameter is provided
+  useEffect(() => {
+    const userId = searchParams.get("user");
+    if (userId && conversations.length > 0) {
+      const targetConversation = conversations.find(
+        (conv) => conv.user.id === userId
+      );
+      if (targetConversation && !selectedConversation) {
+        setSelectedConversation(targetConversation);
+        fetchMessages(targetConversation.user.id);
+      }
+    }
+  }, [conversations, searchParams, selectedConversation]);
 
   // Handle URL-based tab switching
   useEffect(() => {
@@ -102,26 +144,17 @@ const Messages = () => {
 
   const fetchConversations = async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
       // Add a small delay to prevent rapid successive calls
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const response = await messageAPI.getConversations();
+      const response = await messageAPI.getConversations({
+        page: 1,
+        limit: 20,
+      });
 
       if (response.success) {
-        const conversationsData = response.data || [];
+        const conversationsData = (response.data as Conversation[]) || [];
         setConversations(conversationsData);
-
-        // Auto-select conversation if user ID is provided in URL
-        const userId = searchParams.get("user");
-        if (userId && conversationsData.length > 0) {
-          const targetConversation = conversationsData.find(
-            (conv) => conv.user.id === userId
-          );
-          if (targetConversation) {
-            setSelectedConversation(targetConversation);
-            fetchMessages(targetConversation.user.id);
-          }
-        }
       } else {
         console.error("❌ API Error:", response.message);
       }
@@ -141,7 +174,8 @@ const Messages = () => {
     try {
       const response = await messageAPI.getMessages(recipientId, { limit: 50 });
       if (response.success) {
-        setMessages(response.data.messages || []);
+        const messagesData = (response.data as any).messages || [];
+        setMessages(messagesData);
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -161,14 +195,21 @@ const Messages = () => {
       const response = await messageAPI.sendMessage({
         recipientId: selectedConversation.user.id,
         content: newMessage.trim(),
+        replyTo: replyingToMessage?.id,
       });
 
       if (response.success) {
         setNewMessage("");
+        setReplyingToMessage(null); // Clear reply after sending
         // Refresh messages
         await fetchMessages(selectedConversation.user.id);
         // Refresh conversations to update last message
         await fetchConversations();
+
+        // Refocus the input after sending
+        setTimeout(() => {
+          messageInputRef.current?.focus();
+        }, 100);
       } else {
         toast({
           title: "Error",
@@ -191,6 +232,7 @@ const Messages = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      e.stopPropagation();
       sendMessage();
     }
   };
@@ -199,9 +241,116 @@ const Messages = () => {
     sendMessage();
   };
 
+  // Edit message function
+  const handleEditMessage = async (messageId: string) => {
+    try {
+      const response = await messageAPI.editMessage(messageId, editingContent);
+      if (response.success) {
+        // Update the message in the messages array
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.id === messageId
+              ? {
+                  ...msg,
+                  content: editingContent,
+                  isEdited: true,
+                  editedAt: new Date().toISOString(),
+                }
+              : msg
+          )
+        );
+        setEditingMessageId(null);
+        setEditingContent("");
+        toast({
+          title: "Success",
+          description: "Message updated successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to update message",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error editing message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update message",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Delete message function
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const response = await messageAPI.deleteMessage(messageId);
+      if (response.success) {
+        // Remove the message from the messages array
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => msg.id !== messageId)
+        );
+        toast({
+          title: "Success",
+          description: "Message deleted successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to delete message",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Start editing a message
+  const startEditing = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditingContent(message.content);
+  };
+
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditingContent("");
+  };
+
+  // Start replying to a message
+  const startReply = (message: Message) => {
+    setReplyingToMessage(message);
+    setNewMessage("");
+    // Focus the input after starting reply
+    setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 100);
+  };
+
+  // Cancel reply
+  const cancelReply = () => {
+    setReplyingToMessage(null);
+    // Focus the input after canceling reply
+    setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 100);
+  };
+
   const selectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     fetchMessages(conversation.user.id);
+
+    // Focus the input after selecting a conversation
+    setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 200);
   };
 
   const getImageUrl = (profilePicture?: string, name?: string) => {
@@ -244,21 +393,17 @@ const Messages = () => {
 
   if (loading) {
     return (
-      <div className="h-screen bg-gray-50 flex flex-col overflow-hidden pt-16">
-        <div className="container mx-auto px-4 py-8 flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-semibold mb-2">Loading messages...</h3>
-          </div>
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <h3 className="text-lg font-semibold mb-2">Loading messages...</h3>
         </div>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col pt-16">
-      <Navigation activeTab="messages" onTabChange={() => {}} />
+    <div className="h-full bg-gray-50 flex flex-col overflow-hidden">
       <div className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col min-h-0">
         <div className="flex flex-1 bg-white rounded-lg shadow-lg overflow-hidden min-h-0">
           {/* Conversations List */}
@@ -275,11 +420,7 @@ const Messages = () => {
                 }}
                 className="mb-4"
               >
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="inbox">Inbox</TabsTrigger>
-                  <TabsTrigger value="sent">Sent</TabsTrigger>
-                  <TabsTrigger value="drafts">Drafts</TabsTrigger>
-                </TabsList>
+                
               </Tabs>
 
               <div className="relative">
@@ -407,7 +548,10 @@ const Messages = () => {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div
+                  className="flex-1 overflow-y-auto p-4 space-y-4"
+                  ref={messagesEndRef}
+                >
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
                       <MessageCircle className="h-8 w-8 mx-auto mb-2" />
@@ -419,19 +563,38 @@ const Messages = () => {
                       </p>
                     </div>
                   ) : (
-                    messages
-                      .slice()
-                      .reverse()
-                      .map((message) => {
-                        const isOwnMessage =
-                          message.sender.id === currentUser?._id;
-                        return (
-                          <div
-                            key={message.id}
-                            className={`flex ${
-                              isOwnMessage ? "justify-end" : "justify-start"
-                            }`}
-                          >
+                    messages.map((message) => {
+                      const isOwnMessage =
+                        message.sender.id === currentUser?._id;
+                      const isEditing = editingMessageId === message.id;
+
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${
+                            isOwnMessage ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          <div className="group relative">
+                            {/* Reply indicator */}
+                            {message.replyTo && (
+                              <div
+                                className={`mb-2 p-2 rounded-lg border-l-4 ${
+                                  isOwnMessage
+                                    ? "bg-blue-50 border-blue-300"
+                                    : "bg-gray-50 border-gray-300"
+                                }`}
+                              >
+                                <p className="text-xs text-gray-600 mb-1">
+                                  Replying to {message.replyTo.sender.firstName}{" "}
+                                  {message.replyTo.sender.lastName}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {message.replyTo.content}
+                                </p>
+                              </div>
+                            )}
+
                             <div
                               className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                                 isOwnMessage
@@ -439,33 +602,146 @@ const Messages = () => {
                                   : "bg-gray-200 text-gray-900"
                               }`}
                             >
-                              <p className="text-sm">{message.content}</p>
-                              <div className="flex items-center justify-end mt-1 space-x-1">
-                                <span className="text-xs opacity-70">
-                                  {formatTime(message.createdAt)}
-                                </span>
-                                {isOwnMessage && (
-                                  <div className="text-xs opacity-70">
-                                    {message.isRead ? (
-                                      <CheckCheck className="h-3 w-3" />
-                                    ) : (
-                                      <Check className="h-3 w-3" />
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={editingContent}
+                                    onChange={(e) =>
+                                      setEditingContent(e.target.value)
+                                    }
+                                    className="w-full p-2 rounded border text-gray-900 text-sm resize-none"
+                                    rows={2}
+                                    maxLength={1000}
+                                  />
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        handleEditMessage(message.id)
+                                      }
+                                      disabled={!editingContent.trim()}
+                                      className="text-xs"
+                                    >
+                                      Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={cancelEditing}
+                                      className="text-xs"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-sm">{message.content}</p>
+                                  {message.isEdited && (
+                                    <p className="text-xs opacity-70 italic">
+                                      (edited)
+                                    </p>
+                                  )}
+                                  <div className="flex items-center justify-end mt-1 space-x-1">
+                                    <span className="text-xs opacity-70">
+                                      {formatTime(message.createdAt)}
+                                    </span>
+                                    {isOwnMessage && (
+                                      <div className="text-xs opacity-70">
+                                        {message.isRead ? (
+                                          <CheckCheck className="h-3 w-3" />
+                                        ) : (
+                                          <Check className="h-3 w-3" />
+                                        )}
+                                      </div>
                                     )}
                                   </div>
-                                )}
-                              </div>
+                                </>
+                              )}
                             </div>
+
+                            {/* Action buttons - only show on hover for own messages */}
+                            {isOwnMessage && !isEditing && (
+                              <div className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex space-x-1 bg-white rounded-lg shadow-lg p-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => startEditing(message)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      handleDeleteMessage(message.id)
+                                    }
+                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Reply button - show for all messages */}
+                            {!isEditing && (
+                              <div className="absolute -left-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startReply(message)}
+                                  className="h-6 w-6 p-0 bg-white rounded-lg shadow-lg"
+                                >
+                                  <Reply className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                        );
-                      })
+                        </div>
+                      );
+                    })
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Message Input */}
                 <div className="p-4 border-t border-gray-200">
+                  {/* Reply context */}
+                  {replyingToMessage && (
+                    <div className="mb-3 p-3 bg-blue-50 border-l-4 border-blue-300 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">
+                            Replying to {replyingToMessage.sender.firstName}{" "}
+                            {replyingToMessage.sender.lastName}
+                          </p>
+                          <p className="text-xs text-blue-600 truncate">
+                            {replyingToMessage.content}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={cancelReply}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex space-x-2">
                     <Input
-                      placeholder="Type a message..."
+                      ref={messageInputRef}
+                      placeholder={
+                        replyingToMessage
+                          ? "Type your reply..."
+                          : "Type a message..."
+                      }
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
@@ -474,6 +750,7 @@ const Messages = () => {
                     <Button
                       onClick={sendMessage}
                       disabled={sending || !newMessage.trim()}
+                      type="button"
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -535,14 +812,14 @@ const Messages = () => {
                 <div
                   key={message.id}
                   className={`flex ${
-                    message.sender.id === currentUser?.id
+                    message.sender.id === currentUser?._id
                       ? "justify-end"
                       : "justify-start"
                   }`}
                 >
                   <div
                     className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      message.sender.id === currentUser?.id
+                      message.sender.id === currentUser?._id
                         ? "bg-blue-600 text-white"
                         : "bg-gray-200 text-gray-900"
                     }`}
@@ -550,7 +827,7 @@ const Messages = () => {
                     <p className="text-sm">{message.content}</p>
                     <p
                       className={`text-xs mt-1 ${
-                        message.sender.id === currentUser?.id
+                        message.sender.id === currentUser?._id
                           ? "text-blue-100"
                           : "text-gray-500"
                       }`}
@@ -560,6 +837,7 @@ const Messages = () => {
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Mobile Message Input */}
@@ -572,6 +850,7 @@ const Messages = () => {
                   onKeyPress={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
+                      e.stopPropagation();
                       handleSendMessage();
                     }
                   }}
@@ -581,6 +860,7 @@ const Messages = () => {
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || sending}
                   size="sm"
+                  type="button"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -589,7 +869,6 @@ const Messages = () => {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   );
 };

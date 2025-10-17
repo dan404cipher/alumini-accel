@@ -506,7 +506,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               className="relative p-2.5 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105 group"
               onClick={() => {
                 // TODO: Implement notifications functionality
-                console.log("Notifications clicked");
               }}
             >
               <Bell className="w-5 h-5 group-hover:animate-pulse" />
@@ -716,7 +715,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               {/* Mobile Notifications */}
               <button
                 onClick={() => {
-                  console.log("Mobile notifications clicked");
                   setMobileMenuOpen(false);
                 }}
                 className="flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:scale-105 group"

@@ -32,6 +32,24 @@ const messageSchema = new Schema<IMessage>(
     readAt: {
       type: Date,
     },
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    editedAt: {
+      type: Date,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    replyTo: {
+      type: mongoose.Types.ObjectId as any,
+      ref: "Message",
+    },
   },
   {
     timestamps: true,
@@ -62,10 +80,19 @@ messageSchema.statics.getMessagesBetween = function (
       { sender: userId1, recipient: userId2 },
       { sender: userId2, recipient: userId1 },
     ],
+    isDeleted: { $ne: true }, // Exclude deleted messages
   })
     .populate("sender", "firstName lastName email profilePicture")
     .populate("recipient", "firstName lastName email profilePicture")
-    .sort({ createdAt: -1 })
+    .populate({
+      path: "replyTo",
+      select: "content sender",
+      populate: {
+        path: "sender",
+        select: "firstName lastName",
+      },
+    })
+    .sort({ createdAt: 1 })
     .limit(limit)
     .skip((page - 1) * limit);
 };
@@ -173,30 +200,44 @@ messageSchema.statics.getUnreadCount = function (userId: string) {
 };
 
 // Static method to get all connected users (including those without messages)
-messageSchema.statics.getConnectedUsers = async function (userId: string) {
+messageSchema.statics.getConnectedUsers = async function (
+  userId: string,
+  limit: number = 20,
+  page: number = 1
+) {
   try {
-    // First, get all accepted connections for this user (case insensitive)
-    const connections = await mongoose
-      .model("Connection")
-      .find({
-        status: { $in: ["ACCEPTED", "accepted"] },
-        $or: [
-          { requester: new mongoose.Types.ObjectId(userId) },
-          { recipient: new mongoose.Types.ObjectId(userId) },
-        ],
-      })
-      .populate("requester", "firstName lastName email profilePicture")
-      .populate("recipient", "firstName lastName email profilePicture");
+    // Get all users who have exchanged messages with this user
+    const messageUsers = await this.distinct("sender", {
+      $or: [
+        { sender: new mongoose.Types.ObjectId(userId) },
+        { recipient: new mongoose.Types.ObjectId(userId) },
+      ],
+    });
+
+    const recipientUsers = await this.distinct("recipient", {
+      $or: [
+        { sender: new mongoose.Types.ObjectId(userId) },
+        { recipient: new mongoose.Types.ObjectId(userId) },
+      ],
+    });
+
+    // Combine and deduplicate user IDs
+    const allUserIds = [...new Set([...messageUsers, ...recipientUsers])];
+
+    // Remove the current user from the list
+    const otherUserIds = allUserIds.filter(
+      (id) => id.toString() !== userId.toString()
+    );
+
+    // Get user details for all users who have exchanged messages
+    const users = await mongoose
+      .model("User")
+      .find({ _id: { $in: otherUserIds } })
+      .select("firstName lastName email profilePicture");
 
     const connectedUsers = [];
 
-    for (const connection of connections) {
-      // Determine the other user (not the current user)
-      const otherUser =
-        connection.requester._id.toString() === userId.toString()
-          ? connection.recipient
-          : connection.requester;
-
+    for (const otherUser of users) {
       // Skip if this is the current user (shouldn't happen but safety check)
       if (otherUser._id.toString() === userId.toString()) {
         continue;
@@ -252,7 +293,12 @@ messageSchema.statics.getConnectedUsers = async function (userId: string) {
       }
     });
 
-    return connectedUsers;
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedUsers = connectedUsers.slice(startIndex, endIndex);
+
+    return paginatedUsers;
   } catch (error) {
     console.error("Error in getConnectedUsers:", error);
     throw error;
@@ -268,7 +314,11 @@ export interface IMessageModel extends Model<IMessage> {
     page?: number
   ): Promise<IMessage[]>;
   getConversations(userId: string): Promise<any[]>;
-  getConnectedUsers(userId: string): Promise<any[]>;
+  getConnectedUsers(
+    userId: string,
+    limit?: number,
+    page?: number
+  ): Promise<any[]>;
   markMessagesAsRead(senderId: string, recipientId: string): Promise<any>;
   getUnreadCount(userId: string): Promise<number>;
 }

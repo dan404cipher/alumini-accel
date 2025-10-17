@@ -9,6 +9,11 @@ export interface IMessage extends Document {
   messageType: MessageType;
   isRead: boolean;
   readAt?: Date;
+  isEdited: boolean;
+  editedAt?: Date;
+  isDeleted: boolean;
+  deletedAt?: Date;
+  replyTo?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +54,18 @@ export interface MessageResponse {
   messageType: MessageType;
   isRead: boolean;
   readAt?: string;
+  isEdited: boolean;
+  editedAt?: string;
+  isDeleted: boolean;
+  deletedAt?: string;
+  replyTo?: {
+    id: string;
+    content: string;
+    sender: {
+      firstName: string;
+      lastName: string;
+    };
+  };
   createdAt: string;
   updatedAt: string;
 }

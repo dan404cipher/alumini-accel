@@ -53,18 +53,6 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/about" element={<AboutUs />} />
-              <Route path="/gallery" element={<Gallery />} />
-              <Route path="/connections" element={<Connections />} />
-              <Route
-                path="/connections/my-connections"
-                element={<Connections />}
-              />
-              <Route path="/connections/pending" element={<Connections />} />
-              <Route path="/connections/find" element={<Connections />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/messages/inbox" element={<Messages />} />
-              <Route path="/messages/sent" element={<Messages />} />
-              <Route path="/messages/drafts" element={<Messages />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/cookies" element={<CookiePolicy />} />
@@ -208,6 +196,87 @@ const App = () => {
 
               <Route
                 path="/mentorship"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/gallery"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/connections"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/connections/my-connections"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/connections/pending"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/connections/find"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/messages"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/messages/inbox"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/messages/sent"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/messages/drafts"
                 element={
                   <ProtectedRoute>
                     <Layout />

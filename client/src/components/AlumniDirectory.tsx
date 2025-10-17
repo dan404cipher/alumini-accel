@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { messageAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -10,6 +13,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -17,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Pagination from "@/components/ui/pagination";
+import Pagination from "@/components/ui/Pagination";
 import {
   MapPin,
   Building,
@@ -47,8 +59,6 @@ import {
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import ConnectionButton from "./ConnectionButton";
 import { alumniAPI } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 
 // User interface (for both students and alumni)
 interface User {
@@ -103,11 +113,85 @@ const AlumniDirectory = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(12);
+  const sendingMessageRef = useRef<string | null>(null);
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [customMessage, setCustomMessage] = useState("");
   const { toast } = useToast();
 
   // Handle profile click
   const handleProfileClick = (alumniId: string) => {
     navigate(`/alumni/${alumniId}`);
+  };
+
+  // Check if user has admin privileges to send messages
+  const canSendMessage =
+    user?.role &&
+    ["super_admin", "college_admin", "hod", "staff"].includes(user.role);
+
+  // Handle opening message dialog
+  const handleSendMessage = (recipientId: string, recipientName: string) => {
+    setSelectedRecipient({ id: recipientId, name: recipientName });
+    setCustomMessage("");
+    setMessageDialogOpen(true);
+  };
+
+  // Handle actually sending the message
+  const handleSendCustomMessage = async () => {
+    if (!selectedRecipient || !customMessage.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prevent duplicate sends using ref to avoid state update delays
+    if (sendingMessageRef.current === selectedRecipient.id) {
+      return;
+    }
+
+    sendingMessageRef.current = selectedRecipient.id;
+
+    try {
+      const response = await messageAPI.sendMessage({
+        recipientId: selectedRecipient.id,
+        content: customMessage.trim(),
+      });
+
+      if (response.success) {
+        toast({
+          title: "Message Sent",
+          description: `Message sent to ${selectedRecipient.name}`,
+        });
+        setMessageDialogOpen(false);
+        setCustomMessage("");
+        setSelectedRecipient(null);
+        // Small delay to ensure message is processed before navigation
+        setTimeout(() => {
+          navigate(`/messages?user=${selectedRecipient.id}`);
+        }, 500);
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to send message",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      sendingMessageRef.current = null;
+    }
   };
 
   const fetchUsers = useCallback(async () => {
@@ -123,9 +207,17 @@ const AlumniDirectory = () => {
       if (
         response &&
         response.data &&
-        (response.data as { users: User[]; pagination?: { totalPages: number } }).users
+        (
+          response.data as {
+            users: User[];
+            pagination?: { totalPages: number };
+          }
+        ).users
       ) {
-        const data = response.data as { users: User[]; pagination?: { totalPages: number } };
+        const data = response.data as {
+          users: User[];
+          pagination?: { totalPages: number };
+        };
         setUsers(data.users);
         if (data.pagination) {
           setTotalPages(data.pagination.totalPages || 1);
@@ -156,13 +248,21 @@ const AlumniDirectory = () => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     // Scroll to top when page changes
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedDepartment, selectedGraduationYear, selectedLocation, selectedExperience, selectedSkills, registerNumberFilter]);
+  }, [
+    searchQuery,
+    selectedDepartment,
+    selectedGraduationYear,
+    selectedLocation,
+    selectedExperience,
+    selectedSkills,
+    registerNumberFilter,
+  ]);
 
   // Filter users based on search and filter criteria
   const filterUsers = (users: User[]) => {
@@ -851,12 +951,29 @@ const AlumniDirectory = () => {
                           >
                             View
                           </Button>
-                          <ConnectionButton
-                            userId={directoryUser.id}
-                            userName={directoryUser.name}
-                            variant="default"
-                            size="sm"
-                          />
+                          {!canSendMessage && (
+                            <ConnectionButton
+                              userId={directoryUser.id}
+                              userName={directoryUser.name}
+                              variant="default"
+                              size="sm"
+                            />
+                          )}
+                          {canSendMessage && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSendMessage(
+                                  directoryUser.id,
+                                  directoryUser.name
+                                );
+                              }}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </Button>
+                          )}
                           {directoryUser.linkedinProfile && (
                             <Button
                               variant="ghost"
@@ -965,13 +1082,32 @@ const AlumniDirectory = () => {
                           >
                             View Profile
                           </Button>
-                          <ConnectionButton
-                            userId={directoryUser.id}
-                            userName={directoryUser.name}
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                          />
+                          {!canSendMessage && (
+                            <ConnectionButton
+                              userId={directoryUser.id}
+                              userName={directoryUser.name}
+                              variant="default"
+                              size="sm"
+                              className="flex-1"
+                            />
+                          )}
+                          {canSendMessage && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSendMessage(
+                                  directoryUser.id,
+                                  directoryUser.name
+                                );
+                              }}
+                              className="flex-1"
+                            >
+                              <MessageCircle className="w-4 h-4 mr-1" />
+                              Message
+                            </Button>
+                          )}
                           {directoryUser.linkedinProfile && (
                             <Button
                               variant="ghost"
@@ -1015,6 +1151,59 @@ const AlumniDirectory = () => {
         open={isAddAlumniOpen}
         onOpenChange={setIsAddAlumniOpen}
       />
+
+      {/* Message Dialog */}
+      <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Message</DialogTitle>
+            <DialogDescription>
+              Send a message to {selectedRecipient?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="message">Message</Label>
+              <Textarea
+                id="message"
+                placeholder="Type your message here..."
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMessageDialogOpen(false);
+                  setCustomMessage("");
+                  setSelectedRecipient(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendCustomMessage}
+                disabled={
+                  !customMessage.trim() ||
+                  sendingMessageRef.current === selectedRecipient?.id
+                }
+              >
+                {sendingMessageRef.current === selectedRecipient?.id ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Sending...
+                  </>
+                ) : (
+                  "Send Message"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

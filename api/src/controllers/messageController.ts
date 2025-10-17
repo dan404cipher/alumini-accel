@@ -44,10 +44,6 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
     sender?.role &&
     ["super_admin", "college_admin", "hod", "staff"].includes(sender.role);
 
-  console.log(
-    `🔍 Message Debug - Sender ID: ${senderId}, Role: ${sender?.role}, Is Admin: ${isAdminRole}`
-  );
-
   // Check if users are connected (case insensitive) - skip for admin roles
   if (!isAdminRole) {
     // First check if there's already a conversation between these users
@@ -172,10 +168,6 @@ export const getMessages = asyncHandler(async (req: Request, res: Response) => {
   const isAdminRole =
     sender?.role &&
     ["super_admin", "college_admin", "hod", "staff"].includes(sender.role);
-
-  console.log(
-    `🔍 GetMessages Debug - Sender ID: ${senderId}, Role: ${sender?.role}, Is Admin: ${isAdminRole}`
-  );
 
   // Check if users are connected (case insensitive) - skip for admin-like roles
   if (!isAdminRole) {

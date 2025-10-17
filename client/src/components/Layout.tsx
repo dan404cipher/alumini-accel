@@ -16,6 +16,7 @@ import EventDetail from "../pages/EventDetail";
 import CommunityDetailNew from "../pages/CommunityDetailNew";
 import Messages from "../pages/Messages";
 import Gallery from "../pages/Gallery";
+import Connections from "../pages/Connections";
 import RoleBasedDashboard from "./RoleBasedDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -69,7 +70,6 @@ const Layout = () => {
       location.pathname.startsWith("/community/") &&
       location.pathname !== "/community"
     ) {
-      console.log("Routing to CommunityDetailNew for:", location.pathname);
       return <CommunityDetailNew />;
     }
 
@@ -98,6 +98,8 @@ const Layout = () => {
         return <Mentorship />;
       case "messages":
         return <Messages />;
+      case "connections":
+        return <Connections />;
       case "about":
         // Redirect to the public About Us page
         return null;

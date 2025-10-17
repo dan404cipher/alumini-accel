@@ -152,16 +152,12 @@ const AlumniDirectory = () => {
 
     // Prevent duplicate sends using ref to avoid state update delays
     if (sendingMessageRef.current === selectedRecipient.id) {
-      console.log("Message already being sent to this user");
       return;
     }
 
     sendingMessageRef.current = selectedRecipient.id;
 
     try {
-      console.log(
-        `Sending message to ${selectedRecipient.name} (${selectedRecipient.id})`
-      );
       const response = await messageAPI.sendMessage({
         recipientId: selectedRecipient.id,
         content: customMessage.trim(),

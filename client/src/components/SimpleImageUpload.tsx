@@ -24,29 +24,15 @@ const SimpleImageUpload: React.FC<SimpleImageUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  console.log("=== SIMPLE IMAGE UPLOAD COMPONENT RENDERED ===");
-  console.log("Props:", { currentImage, isLoading, maxSize });
-  console.log("State:", { imageFile: !!imageFile, previewUrl });
-
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      console.log("=== FILE SELECTION DEBUG ===");
       const file = event.target.files?.[0];
       if (!file) {
-        console.log("No file selected");
         return;
       }
 
-      console.log("File selected:", file.name, file.size, file.type);
-
       // Check file size
       if (file.size > maxSize * 1024 * 1024) {
-        console.log(
-          "File too large:",
-          file.size,
-          "max:",
-          maxSize * 1024 * 1024
-        );
         toast({
           title: "File too large",
           description: `Please select an image smaller than ${maxSize}MB`,
@@ -57,7 +43,6 @@ const SimpleImageUpload: React.FC<SimpleImageUploadProps> = ({
 
       // Check file type
       if (!file.type.startsWith("image/")) {
-        console.log("Invalid file type:", file.type);
         toast({
           title: "Invalid file type",
           description: "Please select a valid image file",
@@ -66,28 +51,21 @@ const SimpleImageUpload: React.FC<SimpleImageUploadProps> = ({
         return;
       }
 
-      console.log("File validation passed, setting up preview...");
       setImageFile(file);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
       onImageChange(file);
-      console.log("=== FILE SELECTION DEBUG END ===");
     },
     [maxSize, toast, onImageChange]
   );
 
   const handleUpload = async () => {
     if (!imageFile) {
-      console.log("No image file to upload");
       return;
     }
 
-    console.log("=== UPLOAD DEBUG START ===");
-    console.log("Starting upload for file:", imageFile.name);
-
     try {
       await onImageUpload(imageFile);
-      console.log("Upload completed successfully");
       // Reset after successful upload
       setImageFile(null);
       setPreviewUrl("");
@@ -95,7 +73,6 @@ const SimpleImageUpload: React.FC<SimpleImageUploadProps> = ({
     } catch (error) {
       console.error("Upload failed:", error);
     }
-    console.log("=== UPLOAD DEBUG END ===");
   };
 
   const resetImage = () => {

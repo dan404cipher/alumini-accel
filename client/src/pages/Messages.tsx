@@ -21,6 +21,7 @@ import { messageAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotificationContext } from "@/contexts/NotificationContext";
+import { useMessagesContext } from "@/contexts/MessagesContext";
 
 interface Message {
   id: string;
@@ -94,6 +95,14 @@ const Messages = () => {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const { refreshUnreadCount } = useNotificationContext();
+  const {
+    messages: socketMessages,
+    setMessages: setSocketMessages,
+    joinConversation,
+    leaveConversation,
+    markMessagesAsRead,
+    isTyping,
+  } = useMessagesContext();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +152,16 @@ const Messages = () => {
       setActiveMessageTab("inbox");
     }
   }, [location.pathname]);
+
+  // Cleanup socket connections on unmount
+  useEffect(() => {
+    return () => {
+      if (selectedConversation && currentUser) {
+        const conversationId = `${currentUser.id}_${selectedConversation.user.id}`;
+        leaveConversation(conversationId);
+      }
+    };
+  }, [selectedConversation, currentUser, leaveConversation]);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -212,6 +231,11 @@ const Messages = () => {
       if (response.success) {
         setNewMessage("");
         setReplyingToMessage(null); // Clear reply after sending
+
+        // Add message to socket messages for real-time update
+        const newMessageData = response.data;
+        setSocketMessages((prev) => [...prev, newMessageData]);
+
         // Refresh messages
         await fetchMessages(selectedConversation.user.id);
         // Refresh conversations to update last message
@@ -358,8 +382,21 @@ const Messages = () => {
   };
 
   const selectConversation = (conversation: Conversation) => {
+    // Leave previous conversation room if exists
+    if (selectedConversation) {
+      const prevConversationId = `${currentUser?.id}_${selectedConversation.user.id}`;
+      leaveConversation(prevConversationId);
+    }
+
     setSelectedConversation(conversation);
     fetchMessages(conversation.user.id);
+
+    // Join new conversation room for real-time updates
+    const conversationId = `${currentUser?.id}_${conversation.user.id}`;
+    joinConversation(conversationId);
+
+    // Mark messages as read
+    markMessagesAsRead(conversationId, conversation.user.id);
 
     // Focus the input after selecting a conversation
     setTimeout(() => {

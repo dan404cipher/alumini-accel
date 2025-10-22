@@ -6,6 +6,7 @@ import Connection from "../models/Connection";
 import User from "../models/User";
 import { ConnectionStatus } from "../types/connection";
 import { MessageRequest, MessageResponse, MessageType } from "../types/message";
+import { socketService } from "../index";
 
 // Send a message
 export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
@@ -99,6 +100,21 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
   ]);
 
   logger.info(`Message sent from ${senderId} to ${recipientId}`);
+
+  // Emit socket event for real-time message
+  if (socketService) {
+    socketService.emitNewMessage({
+      id: message._id,
+      conversationId: `${senderId}_${recipientId}`,
+      sender: message.sender,
+      recipient: message.recipient,
+      content: message.content,
+      messageType: message.messageType,
+      isRead: message.isRead,
+      createdAt: message.createdAt,
+      replyTo: message.replyTo,
+    });
+  }
 
   return res.status(201).json({
     success: true,

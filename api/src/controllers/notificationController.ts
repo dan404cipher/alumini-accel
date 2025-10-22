@@ -3,6 +3,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { logger } from "../utils/logger";
 import { Notification } from "../models/Notification";
 import { INotification } from "../types";
+import { socketService } from "../index";
 
 // Get all notifications for a user
 export const getNotifications = asyncHandler(
@@ -101,6 +102,15 @@ export const markAsRead = asyncHandler(async (req: Request, res: Response) => {
       });
     }
 
+    // Emit socket event for notification update
+    if (socketService) {
+      socketService.emitNotificationUpdate(
+        userId.toString(),
+        notification._id.toString(),
+        "read"
+      );
+    }
+
     return res.json({
       success: true,
       data: notification,
@@ -129,6 +139,11 @@ export const markAllAsRead = asyncHandler(
 
     try {
       const result = await Notification.markAllAsRead(userId.toString());
+
+      // Emit socket event for notification count update
+      if (socketService) {
+        socketService.emitNotificationCountUpdate(userId.toString(), 0);
+      }
 
       return res.json({
         success: true,
@@ -169,6 +184,15 @@ export const deleteNotification = asyncHandler(
           success: false,
           message: "Notification not found",
         });
+      }
+
+      // Emit socket event for notification deletion
+      if (socketService) {
+        socketService.emitNotificationUpdate(
+          userId.toString(),
+          notification._id.toString(),
+          "deleted"
+        );
       }
 
       return res.json({
@@ -221,6 +245,11 @@ export const createNotification = asyncHandler(
         relatedEntity,
         expiresAt: expiresAt ? new Date(expiresAt) : undefined,
       });
+
+      // Emit socket event for new notification
+      if (socketService) {
+        socketService.emitNewNotification(notification);
+      }
 
       return res.status(201).json({
         success: true,

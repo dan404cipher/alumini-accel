@@ -21,10 +21,8 @@ export const useNotificationCount = (): UseNotificationCountReturn => {
       const response = await notificationAPI.getUnreadCount();
 
       if (response.success && response.data) {
-        const count =
-          typeof response.data === "number"
-            ? response.data
-            : response.data.count || 0;
+        const data = response.data as { count?: number } | number;
+        const count = typeof data === "number" ? data : data.count || 0;
 
         setNotificationCount(count);
       } else {

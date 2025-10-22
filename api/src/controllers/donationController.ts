@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Donation from "../models/Donation";
+import PaymentService from "../services/paymentService";
 
 // Get all donations
 export const getAllDonations = async (req: Request, res: Response) => {
@@ -64,9 +65,12 @@ export const createDonation = async (req: Request, res: Response) => {
   try {
     const donationData = {
       ...req.body,
-      donor: req.user?.id,
+      // If donor information is provided in the request body, use it
+      // Otherwise, use the authenticated user as donor
+      donor: req.body.donorName ? null : req.user?.id,
       tenantId: req.user?.tenantId,
-      paymentStatus: "pending",
+      paymentStatus: "successful", // Since payment is already verified
+      paidAt: new Date(), // Set payment completion time
     };
 
     const donation = new Donation(donationData);
@@ -260,6 +264,93 @@ export const getDonationStats = async (req: Request, res: Response) => {
   }
 };
 
+// Verify donation payment
+export const verifyDonationPayment = async (req: Request, res: Response) => {
+  try {
+    const { donationId, orderId, paymentId, signature } = req.body;
+
+    if (!donationId || !orderId || !paymentId || !signature) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Donation ID, Order ID, Payment ID, and Signature are required",
+      });
+    }
+
+    // Find the donation
+    const donation = await Donation.findById(donationId);
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        message: "Donation not found",
+      });
+    }
+
+    // Verify payment signature
+    const isValidSignature = PaymentService.verifyPayment(
+      orderId,
+      paymentId,
+      signature
+    );
+
+    if (!isValidSignature) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment signature",
+      });
+    }
+
+    // Get payment details from Razorpay
+    const paymentResult = await PaymentService.getPaymentDetails(paymentId);
+
+    if (
+      !paymentResult.success ||
+      !paymentResult.payment ||
+      paymentResult.payment.status !== "captured"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment verification failed",
+      });
+    }
+
+    // Update donation with successful payment
+    donation.paymentStatus = "successful";
+    donation.paymentId = paymentId;
+    donation.orderId = orderId;
+    donation.paymentMethod = paymentResult.payment.method;
+    donation.paidAt = new Date();
+
+    await donation.save();
+
+    // Update campaign statistics
+    if (donation.campaignId) {
+      const Campaign = require("../models/Campaign").default;
+      const campaign = await Campaign.findById(donation.campaignId);
+      if (campaign) {
+        await campaign.updateStatistics();
+      }
+    }
+
+    await donation.populate("donor", "firstName lastName email");
+    if (donation.campaignId) {
+      await donation.populate("campaignId", "title");
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Donation payment verified successfully",
+      data: donation,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error verifying donation payment",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
 export default {
   getAllDonations,
   getDonationById,
@@ -270,4 +361,5 @@ export default {
   getDonationsByRecipient,
   getMyDonations,
   getDonationStats,
+  verifyDonationPayment,
 };

@@ -36,7 +36,8 @@ export type PaymentMethod =
   | "Net Banking"
   | "UPI QR"
   | "Wallet"
-  | "EMI";
+  | "EMI"
+  | "Razorpay";
 
 export interface DonorInfo {
   firstName: string;

@@ -102,6 +102,16 @@ export interface CreateDonationData {
   donationType?: string;
   message?: string;
   anonymous?: boolean;
+  // Donor information
+  donorName?: string;
+  donorEmail?: string;
+  donorPhone?: string;
+  donorAddress?: string;
+  taxDeductible?: boolean;
+  // Razorpay payment fields
+  paymentId?: string;
+  orderId?: string;
+  signature?: string;
 }
 
 class DonationApiService {

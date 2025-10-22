@@ -614,7 +614,10 @@ const CommunityNew = () => {
 
       if (data.success) {
         // Transform the data to ensure isPublic field is properly set
-        const communitiesData = data.data as { communities: Community[]; pagination?: { totalPages: number } };
+        const communitiesData = data.data as {
+          communities: Community[];
+          pagination?: { totalPages: number };
+        };
         const transformedCommunities = communitiesData.communities.map(
           (community: Community & { type?: string }) => ({
             ...community,
@@ -645,7 +648,7 @@ const CommunityNew = () => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     // Scroll to top when page changes
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Reset to first page when filters change
@@ -1191,7 +1194,7 @@ const CommunityNew = () => {
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
         }/communities/${communityId}/leave`,
         {
-          method: "POST",
+          method: "DELETE",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -2783,7 +2786,7 @@ const CommunityNew = () => {
                 })}
               </div>
             )}
-            
+
             {/* Pagination */}
             {totalPages > 1 && (
               <Pagination

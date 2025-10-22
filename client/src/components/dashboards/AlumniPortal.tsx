@@ -641,7 +641,7 @@ const AlumniPortal = () => {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="h-5 w-5 text-indigo-600" />
-                  <CardTitle className="text-lg">Recent Mentorships</CardTitle>
+                  <CardTitle className="text-lg">Active Mentorships </CardTitle>
                 </div>
                 <Button
                   variant="ghost"

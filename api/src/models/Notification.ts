@@ -98,7 +98,6 @@ const notificationSchema = new Schema<INotification>(
     },
     expiresAt: {
       type: Date,
-      index: true,
     },
     // Reference to related entity (optional)
     relatedEntity: {

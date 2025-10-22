@@ -3,7 +3,9 @@ import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import CommunityPost from "../models/CommunityPost";
 import User from "../models/User";
+import { Notification } from "../models/Notification";
 import { IUser } from "../types";
+import { socketService } from "../index";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -236,7 +238,11 @@ export const getCommunityById = async (
     }
 
     // Check if user can view this community
-    if (community.type === "hidden" && userId) {
+    let canViewFullContent = true;
+    if (
+      (community.type === "hidden" || community.type === "closed") &&
+      userId
+    ) {
       const membership = await CommunityMembership.findOne({
         communityId: id,
         userId: userId,
@@ -244,14 +250,36 @@ export const getCommunityById = async (
       });
 
       if (!membership) {
-        return res.status(403).json({
-          success: false,
-          message: "Access denied to hidden community",
-        });
+        canViewFullContent = false;
       }
     }
 
-    // Get recent posts
+    // If user can't view full content, return basic info only
+    if (!canViewFullContent) {
+      return res.json({
+        success: true,
+        data: {
+          community: {
+            _id: community._id,
+            name: community.name,
+            description: community.description,
+            type: community.type,
+            category: community.category,
+            coverImage: community.coverImage,
+            logo: community.logo,
+            createdBy: community.createdBy,
+            memberCount: community.memberCount,
+            postCount: community.postCount,
+            createdAt: community.createdAt,
+            // Don't include members, moderators, posts, or other sensitive data
+          },
+          recentPosts: [], // Empty for non-members
+          requiresMembership: true,
+        },
+      });
+    }
+
+    // Get recent posts for members
     const recentPosts = await (CommunityPost as any).findByCommunity(id, {
       limit: 10,
     });
@@ -261,6 +289,7 @@ export const getCommunityById = async (
       data: {
         community,
         recentPosts,
+        requiresMembership: false,
       },
     });
   } catch (error: any) {
@@ -471,6 +500,60 @@ export const joinCommunity = async (
 
       await membership.save();
 
+      // Send notification to community admins/moderators about new join request
+      try {
+        // Get all admins and moderators of the community
+        const adminMemberships = await CommunityMembership.find({
+          communityId: id,
+          status: "approved",
+          role: { $in: ["admin", "moderator"] },
+        }).populate("userId", "firstName lastName email");
+
+        // Also include the community creator
+        const creator = await User.findById(community.createdBy);
+
+        const adminsToNotify = [
+          ...adminMemberships.map((m) => m.userId),
+          ...(creator ? [creator] : []),
+        ].filter(
+          (admin, index, self) =>
+            admin &&
+            self.findIndex((a) => a._id.toString() === admin._id.toString()) ===
+              index
+        );
+
+        // Send notification to each admin
+        for (const admin of adminsToNotify) {
+          if (admin._id.toString() !== userId.toString()) {
+            // Don't notify the requester
+            const notification = await Notification.createNotification({
+              userId: admin._id.toString(),
+              title: "New Community Join Request",
+              message: `${req.user?.firstName} ${req.user?.lastName} wants to join "${community.name}"`,
+              type: "info",
+              category: "community",
+              actionUrl: `/communities/${id}`,
+              metadata: {
+                communityId: id,
+                communityName: community.name,
+                requesterId: userId.toString(),
+                requesterName: `${req.user?.firstName} ${req.user?.lastName}`,
+              },
+            });
+
+            // Emit real-time notification
+            if (socketService) {
+              socketService.emitNewNotification(notification);
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error(
+          "Error creating join request notifications:",
+          notificationError
+        );
+      }
+
       return res.json({
         success: true,
         message: "Membership request sent",
@@ -547,6 +630,35 @@ export const getCommunityMembers = async (
   try {
     const { id } = req.params;
     const { page = 1, limit = 50, role, status = "approved" } = req.query;
+    const userId = req.user?._id;
+
+    // Check if community exists and user has access
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Check if user can view members
+    if (
+      (community.type === "hidden" || community.type === "closed") &&
+      userId
+    ) {
+      const membership = await CommunityMembership.findOne({
+        communityId: id,
+        userId: userId,
+        status: "approved",
+      });
+
+      if (!membership) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied to ${community.type} community members. You must be a member to view this content.`,
+        });
+      }
+    }
 
     const skip = (Number(page) - 1) * Number(limit);
 

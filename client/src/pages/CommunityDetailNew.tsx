@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import CreateDiscussionModal from "@/components/CreateDiscussionModal";
 
 // Import the new components and types
@@ -39,6 +40,8 @@ const CommunityDetailNew: React.FC = () => {
   const [isMember, setIsMember] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
+  const [requiresMembership, setRequiresMembership] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState<PostFilters>({
@@ -47,6 +50,79 @@ const CommunityDetailNew: React.FC = () => {
     priority: "all",
     sortBy: "newest",
   });
+
+  // Check user's membership status
+  const checkMembershipStatus = useCallback(async () => {
+    if (!id || !user?._id) return;
+
+    try {
+      // Try to fetch community details - this will tell us if user is a member
+      const response = await fetch(
+        `http://localhost:3000/api/v1/communities/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const communityData = data.data.community || data.data;
+
+        // If we get full community data (not just basic info), user is a member
+        if (communityData.members && Array.isArray(communityData.members)) {
+          const userMembership = communityData.members.find(
+            (member: any) => member._id === user._id
+          );
+
+          if (userMembership) {
+            setIsMember(true);
+          }
+        }
+      } else if (response.status === 403) {
+        // User is not a member of private community
+        // We'll check for pending requests separately
+        await checkPendingRequest();
+      }
+    } catch (error) {
+      console.error("Error checking membership status:", error);
+    }
+  }, [id, user?._id]);
+
+  // Check if user has a pending request
+  const checkPendingRequest = useCallback(async () => {
+    if (!id || !user?._id) return;
+
+    try {
+      // Try to join - if we get "already pending" error, user has pending request
+      const response = await fetch(
+        `http://localhost:3000/api/v1/communities/${id}/join`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (
+        response.status === 400 &&
+        responseData.message?.includes("pending")
+      ) {
+        setHasPendingRequest(true);
+      } else if (
+        response.status === 400 &&
+        responseData.message?.includes("Already a member")
+      ) {
+        setIsMember(true);
+      }
+    } catch (error) {
+      // Ignore errors - this is just a check
+    }
+  }, [id, user?._id]);
 
   // Fetch community data
   const fetchCommunity = useCallback(async () => {
@@ -83,6 +159,7 @@ const CommunityDetailNew: React.FC = () => {
       const data = await response.json();
       const communityData = data.data.community || data.data;
       setCommunity(communityData);
+      setRequiresMembership(data.data.requiresMembership || false);
 
       // Check if user is member, moderator, or admin
       const userId = user?._id;
@@ -228,9 +305,14 @@ const CommunityDetailNew: React.FC = () => {
   const handleJoinCommunity = async () => {
     if (!id) return;
 
+    const targetId = id;
+
+    // Use the ID from URL params (always a string)
+    const communityIdString = targetId;
+
     try {
       const response = await fetch(
-        `http://localhost:3000/api/v1/communities/${id}/join`,
+        `http://localhost:3000/api/v1/communities/${communityIdString}/join`,
         {
           method: "POST",
           headers: {
@@ -239,15 +321,54 @@ const CommunityDetailNew: React.FC = () => {
         }
       );
 
+      const responseData = await response.json();
+
       if (!response.ok) {
+        // Check if it's an "already pending" error
+        if (
+          response.status === 400 &&
+          responseData.message?.includes("pending")
+        ) {
+          setHasPendingRequest(true);
+          toast({
+            title: "Request Already Pending",
+            description:
+              "You already have a pending request for this community.",
+            variant: "default",
+          });
+          return;
+        }
         throw new Error("Failed to join community");
       }
 
-      setIsMember(true);
-      toast({
-        title: "Success",
-        description: "You have joined the community!",
-      });
+      // Check if it's a direct join or pending request
+      if (responseData.message === "Successfully joined community") {
+        setIsMember(true);
+        setHasPendingRequest(false);
+        toast({
+          title: "Success",
+          description: "You have joined the community!",
+        });
+      } else if (responseData.message === "Membership request sent") {
+        setHasPendingRequest(true);
+        toast({
+          title: "Request Sent",
+          description:
+            "Your request to join has been sent to the community admins.",
+        });
+      } else {
+        // Handle other success cases (like "Request processed successfully")
+        if (
+          responseData.message?.includes("pending") ||
+          responseData.message?.includes("request")
+        ) {
+          setHasPendingRequest(true);
+        }
+        toast({
+          title: "Success",
+          description: responseData.message || "Request processed successfully",
+        });
+      }
     } catch (error) {
       console.error("Error joining community:", error);
       toast({
@@ -265,7 +386,7 @@ const CommunityDetailNew: React.FC = () => {
       const response = await fetch(
         `http://localhost:3000/api/v1/communities/${id}/leave`,
         {
-          method: "POST",
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -328,7 +449,8 @@ const CommunityDetailNew: React.FC = () => {
   // Effects
   useEffect(() => {
     fetchCommunity();
-  }, [fetchCommunity]);
+    checkMembershipStatus();
+  }, [fetchCommunity, checkMembershipStatus]);
 
   useEffect(() => {
     if (activeTab === "posts" && community) {
@@ -398,44 +520,106 @@ const CommunityDetailNew: React.FC = () => {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 h-full">
           <div className="flex-1 overflow-y-auto px-4 py-6">
-            <CommunityDetailTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              isModerator={isModerator || isAdmin}
-            >
-              {activeTab === "posts" ? (
-                <CommunityPostsTab
-                  posts={posts}
-                  postsLoading={postsLoading}
-                  filteredPosts={filteredPosts}
-                  onRefreshPosts={fetchCommunityPosts}
-                />
-              ) : activeTab === "about" ? (
-                <>
-                  <CommunityAboutTab
-                    community={community}
-                    isMember={isMember}
-                    isAdmin={isAdmin}
-                    onJoinCommunity={handleJoinCommunity}
-                    onLeaveCommunity={handleLeaveCommunity}
-                    onCreatePost={handleCreatePost}
+            {requiresMembership && !isMember ? (
+              /* Membership Required Section */
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg
+                      className="w-8 h-8 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Join {community?.name} to Access Content
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    This is a private community. You need to be a member to view
+                    posts, discussions, and other content.
+                  </p>
+                  <div className="space-y-4">
+                    {hasPendingRequest ? (
+                      <>
+                        <Button
+                          disabled
+                          className="w-full bg-gray-400 text-white px-6 py-3 rounded-lg font-medium cursor-not-allowed"
+                        >
+                          Request Pending
+                        </Button>
+                        <p className="text-sm text-gray-500">
+                          Your request is pending approval from community
+                          administrators
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleJoinCommunity}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium"
+                        >
+                          Request to Join Community
+                        </Button>
+                        <p className="text-sm text-gray-500">
+                          Your request will be reviewed by community
+                          administrators
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <CommunityDetailTabs
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                isModerator={isModerator || isAdmin}
+              >
+                {activeTab === "posts" ? (
+                  <CommunityPostsTab
+                    posts={posts}
+                    postsLoading={postsLoading}
+                    filteredPosts={filteredPosts}
+                    onRefreshPosts={fetchCommunityPosts}
                   />
-                  <CommunityMobileSidebar
-                    community={community}
-                    isMember={isMember}
+                ) : activeTab === "about" ? (
+                  <>
+                    <CommunityAboutTab
+                      community={community}
+                      isMember={isMember}
+                      isAdmin={isAdmin}
+                      onJoinCommunity={handleJoinCommunity}
+                      onLeaveCommunity={handleLeaveCommunity}
+                      onCreatePost={handleCreatePost}
+                    />
+                    <CommunityMobileSidebar
+                      community={community}
+                      isMember={isMember}
+                      isAdmin={isAdmin}
+                      onJoinCommunity={handleJoinCommunity}
+                      onLeaveCommunity={handleLeaveCommunity}
+                      onCreatePost={handleCreatePost}
+                      filters={filters}
+                      onFilterChange={updateFilter}
+                      onClearFilters={clearFilters}
+                    />
+                  </>
+                ) : (
+                  <ModeratorDashboard
+                    communityId={id || ""}
                     isAdmin={isAdmin}
-                    onJoinCommunity={handleJoinCommunity}
-                    onLeaveCommunity={handleLeaveCommunity}
-                    onCreatePost={handleCreatePost}
-                    filters={filters}
-                    onFilterChange={updateFilter}
-                    onClearFilters={clearFilters}
                   />
-                </>
-              ) : (
-                <ModeratorDashboard communityId={id || ""} isAdmin={isAdmin} />
-              )}
-            </CommunityDetailTabs>
+                )}
+              </CommunityDetailTabs>
+            )}
           </div>
         </div>
 

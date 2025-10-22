@@ -143,7 +143,10 @@ export const getCommunityPosts = async (
     }
 
     // Check if user can view posts
-    if (community.type === "hidden" && userId) {
+    if (
+      (community.type === "hidden" || community.type === "closed") &&
+      userId
+    ) {
       const membership = await CommunityMembership.findOne({
         communityId: communityId,
         userId: userId,
@@ -153,7 +156,7 @@ export const getCommunityPosts = async (
       if (!membership) {
         return res.status(403).json({
           success: false,
-          message: "Access denied to hidden community",
+          message: `Access denied to ${community.type} community posts. You must be a member to view this content.`,
         });
       }
     }

@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import CommunityMembership from "../models/CommunityMembership";
 import Community from "../models/Community";
+import { Notification } from "../models/Notification";
 import { IUser } from "../types";
+import { socketService } from "../index";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -112,6 +114,32 @@ export const approveMembership = async (
       await community.save();
     }
 
+    // Send notification to the user who was approved
+    try {
+      if (community) {
+        const notification = await Notification.createNotification({
+          userId: membership.userId.toString(),
+          title: "Community Request Approved",
+          message: `Your request to join "${community.name}" has been approved!`,
+          type: "success",
+          category: "community",
+          actionUrl: `/communities/${(community._id as any).toString()}`,
+          metadata: {
+            communityId: (community._id as any).toString(),
+            communityName: community.name,
+            approvedBy: userId.toString(),
+          },
+        });
+
+        // Emit real-time notification
+        if (socketService) {
+          socketService.emitNewNotification(notification);
+        }
+      }
+    } catch (notificationError) {
+      console.error("Error creating approval notification:", notificationError);
+    }
+
     return res.json({
       success: true,
       message: "Membership approved successfully",
@@ -172,6 +200,35 @@ export const rejectMembership = async (
     // Reject membership
     (membership as any).rejectMembership();
     await membership.save();
+
+    // Send notification to the user who was rejected
+    try {
+      if (community) {
+        const notification = await Notification.createNotification({
+          userId: membership.userId.toString(),
+          title: "Community Request Rejected",
+          message: `Your request to join "${community.name}" has been rejected.`,
+          type: "info",
+          category: "community",
+          actionUrl: `/communities`,
+          metadata: {
+            communityId: (community._id as any).toString(),
+            communityName: community.name,
+            rejectedBy: userId.toString(),
+          },
+        });
+
+        // Emit real-time notification
+        if (socketService) {
+          socketService.emitNewNotification(notification);
+        }
+      }
+    } catch (notificationError) {
+      console.error(
+        "Error creating rejection notification:",
+        notificationError
+      );
+    }
 
     return res.json({
       success: true,

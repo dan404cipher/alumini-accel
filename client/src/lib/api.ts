@@ -2689,5 +2689,91 @@ export const communityAPI = {
   },
 };
 
+// Notification API functions
+export const notificationAPI = {
+  // Get all notifications for a user
+  getNotifications: async (params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    type?: string;
+    isRead?: boolean;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.type) queryParams.append("type", params.type);
+    if (typeof params?.isRead === "boolean") {
+      queryParams.append("isRead", params.isRead.toString());
+    }
+
+    return apiRequest({
+      method: "GET",
+      url: `/notifications?${queryParams.toString()}`,
+    });
+  },
+
+  // Get unread notification count
+  getUnreadCount: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/notifications/unread-count",
+    });
+  },
+
+  // Mark a notification as read
+  markAsRead: async (notificationId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/notifications/${notificationId}/read`,
+    });
+  },
+
+  // Mark all notifications as read
+  markAllAsRead: async () => {
+    return apiRequest({
+      method: "PATCH",
+      url: "/notifications/mark-all-read",
+    });
+  },
+
+  // Delete a notification
+  deleteNotification: async (notificationId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/notifications/${notificationId}`,
+    });
+  },
+
+  // Get notification statistics
+  getNotificationStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/notifications/stats",
+    });
+  },
+
+  // Create a notification (admin/system use)
+  createNotification: async (data: {
+    userId: string;
+    title: string;
+    message: string;
+    type?: "info" | "success" | "warning" | "error";
+    category?: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+    actionUrl?: string;
+    metadata?: Record<string, any>;
+    relatedEntity?: { type: string; id: string };
+    expiresAt?: Date;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/notifications",
+      data,
+    });
+  },
+};
+
 // Export the API instance and functions
 export default api;

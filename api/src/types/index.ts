@@ -1,6 +1,5 @@
 import { Request } from "express";
-import { Document } from "mongoose";
-import mongoose from "mongoose";
+import mongoose, { Document } from "mongoose";
 
 // Export connection types
 export * from "./connection";
@@ -594,15 +593,23 @@ export interface EmailTemplate {
 // Notification Interface
 export interface INotification extends Document {
   _id: string;
-  userId: string;
+  userId: mongoose.Types.ObjectId;
   title: string;
   message: string;
   type: "info" | "success" | "warning" | "error";
   isRead: boolean;
   actionUrl?: string;
   metadata?: Record<string, any>;
+  category?: string;
+  priority?: "low" | "medium" | "high" | "urgent";
+  expiresAt?: Date;
+  relatedEntity?: {
+    type: string;
+    id: mongoose.Types.ObjectId;
+  };
   createdAt: Date;
   updatedAt: Date;
+  timeAgo?: string;
 }
 
 // Analytics Interface

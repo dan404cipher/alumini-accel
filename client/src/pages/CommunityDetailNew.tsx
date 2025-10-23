@@ -18,6 +18,7 @@ import {
   CommunityMembersTab,
   CommunityJoinRequestsTab,
   CommunityModeratorsTab,
+  ReportsTab,
   EditCommunityModal,
   DeleteCommunityModal,
   Community,
@@ -652,6 +653,12 @@ const CommunityDetailNew: React.FC = () => {
                     communityId={id || ""}
                     isAdmin={isAdmin}
                     onRoleChange={fetchCommunity}
+                  />
+                ) : activeTab === "reports" ? (
+                  <ReportsTab
+                    communityId={id || ""}
+                    isAdmin={isAdmin}
+                    isModerator={isModerator}
                   />
                 ) : activeTab === "admin" ? (
                   <ModeratorDashboard

@@ -13,6 +13,8 @@ export { default as CommunityModeratorsTab } from "./CommunityModeratorsTab";
 export { default as EditCommunityModal } from "./EditCommunityModal";
 export { default as DeleteCommunityModal } from "./DeleteCommunityModal";
 export { default as CommunityPostCard } from "./CommunityPostCard";
+export { default as ActionMenu } from "./ActionMenu";
+export { default as ReportsTab } from "./ReportsTab";
 
 // Export types
 export * from "./types";

@@ -34,10 +34,18 @@ export const getMembershipRequests = async (
 
     const community = await Community.findById(communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = membership?.role === "admin";
     const canModerate = (membership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to view membership requests",
@@ -94,10 +102,18 @@ export const approveMembership = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to approve memberships",
@@ -187,10 +203,18 @@ export const rejectMembership = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to reject memberships",
@@ -278,10 +302,18 @@ export const suspendMember = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to suspend members",
@@ -347,10 +379,18 @@ export const unsuspendMember = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to unsuspend members",
@@ -408,10 +448,50 @@ export const promoteToModerator = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    // Debug logging
+    console.log("=== DEBUG PROMOTE PERMISSIONS ===");
+    console.log("User ID:", userId);
+    console.log("Community ID:", membership.communityId);
+    console.log("User Membership:", userMembership);
+    console.log("Community:", community);
+    console.log("isCreator:", isCreator);
+    console.log("isAdmin:", isAdmin);
+    console.log("canModerate:", canModerate);
+    console.log("isSuperAdmin:", isSuperAdmin);
+    console.log("isCollegeAdmin:", isCollegeAdmin);
+    console.log("User Role:", req.user?.role);
+    console.log("================================");
+
+    // If user is creator but doesn't have proper membership record, create/fix it
+    if (isCreator && (!userMembership || userMembership.role !== "admin")) {
+      console.log("Fixing creator membership record...");
+      if (userMembership) {
+        userMembership.role = "admin";
+        await userMembership.save();
+      } else {
+        const newMembership = new CommunityMembership({
+          communityId: membership.communityId,
+          userId: userId,
+          role: "admin",
+          status: "approved",
+          joinedAt: new Date(),
+        });
+        await newMembership.save();
+      }
+    }
+
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to promote members",
@@ -475,10 +555,18 @@ export const demoteToMember = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to demote moderators",
@@ -550,10 +638,18 @@ export const removeMember = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to remove members",
@@ -653,6 +749,7 @@ export const inviteToCommunity = async (
     const isCreator = community?.createdBy.toString() === userId.toString();
     const canInvite = (membership as any)?.canInvite() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
     if (!isCreator && !canInvite && !isSuperAdmin) {
       return res.status(403).json({
@@ -733,10 +830,18 @@ export const updateModeratorPermissions = async (
 
     const community = await Community.findById(membership.communityId);
     const isCreator = community?.createdBy.toString() === userId.toString();
+    const isAdmin = userMembership?.role === "admin";
     const canModerate = (userMembership as any)?.canModerate() || false;
     const isSuperAdmin = req.user?.role === "super_admin";
+    const isCollegeAdmin = req.user?.role === "college_admin";
 
-    if (!isCreator && !canModerate && !isSuperAdmin) {
+    if (
+      !isCreator &&
+      !isAdmin &&
+      !canModerate &&
+      !isSuperAdmin &&
+      !isCollegeAdmin
+    ) {
       return res.status(403).json({
         success: false,
         message: "Insufficient permissions to update moderator permissions",

@@ -22,12 +22,18 @@ import {
 } from "lucide-react";
 import { CommunityPost } from "./types";
 import { LikeButton, ShareButton, CommentSection } from "./engagement";
+import { ActionMenu } from "./ActionMenu";
+import { useAuth } from "@/contexts/AuthContext";
+import { reportAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface CommunityPostCardProps {
   post: CommunityPost;
 }
 
 const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null
   );
@@ -95,6 +101,89 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
         return <MessageSquare className="w-4 h-4" />;
     }
   };
+
+  // Action handlers
+  const handleEditPost = () => {
+    // TODO: Implement edit post functionality
+    toast({
+      title: "Info",
+      description: "Edit post functionality coming soon",
+    });
+  };
+
+  const handleDeletePost = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/v1/community-posts/${post._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Post deleted successfully",
+        });
+        // Refresh the page or update the posts list
+        window.location.reload();
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to delete post",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReportPost = async (reason: string, description: string) => {
+    try {
+      await reportAPI.createReport({
+        entityId: post._id,
+        entityType: "post",
+        reason,
+        description,
+      });
+    } catch (error) {
+      console.error("Error reporting post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to report post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSharePost = () => {
+    // The ShareButton component already handles sharing
+    // This is just a fallback
+    navigator.clipboard.writeText(
+      `${window.location.origin}/community/post/${post._id}`
+    );
+    toast({
+      title: "Success",
+      description: "Post link copied to clipboard",
+    });
+  };
+
+  // Check user permissions
+  const isAuthor = user?._id === post.authorId;
+  const canEdit = isAuthor;
+  const canDelete = isAuthor; // TODO: Add moderator/admin permissions
+  const canReport = !isAuthor;
+  const canShare = true;
 
   const getCategoryColor = (category?: string) => {
     switch (category) {
@@ -249,6 +338,20 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
                   {post.priority}
                 </Badge>
               )}
+              <ActionMenu
+                entityId={post._id}
+                entityType="post"
+                entityAuthorId={post.authorId}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                canReport={canReport}
+                canShare={canShare}
+                onEdit={handleEditPost}
+                onDelete={handleDeletePost}
+                onReport={handleReportPost}
+                onShare={handleSharePost}
+                size="sm"
+              />
             </div>
           </div>
         </CardHeader>

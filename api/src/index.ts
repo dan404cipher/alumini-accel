@@ -48,6 +48,7 @@ import likesRoutes from "./routes/likes";
 import commentsRoutes from "./routes/comments";
 import sharesRoutes from "./routes/shares";
 import paymentRoutes from "./routes/payment";
+import reportRoutes from "./routes/reports";
 
 // Load environment variables
 dotenv.config();
@@ -245,6 +246,7 @@ app.use("/api/v1", likesRoutes);
 app.use("/api/v1", commentsRoutes);
 app.use("/api/v1", sharesRoutes);
 app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/reports", reportRoutes);
 
 // Serve static files with CORS headers
 app.use(

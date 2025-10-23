@@ -2775,5 +2775,72 @@ export const notificationAPI = {
   },
 };
 
+// Report API functions
+export const reportAPI = {
+  // Create a report
+  createReport: async (data: {
+    entityId: string;
+    entityType: "post" | "comment";
+    reason: string;
+    description?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/reports",
+      data,
+    });
+  },
+
+  // Get reports for a specific entity
+  getEntityReports: async (
+    entityId: string,
+    entityType: "post" | "comment"
+  ) => {
+    return apiRequest({
+      method: "GET",
+      url: `/reports/entity/${entityId}/${entityType}`,
+    });
+  },
+
+  // Get user's own reports
+  getUserReports: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/reports/user",
+    });
+  },
+
+  // Get pending reports (admin only)
+  getPendingReports: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/reports/pending",
+    });
+  },
+
+  // Get community reports (moderators can use this)
+  getCommunityReports: async (communityId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/reports/community/${communityId}`,
+    });
+  },
+
+  // Update report status (admin only)
+  updateReportStatus: async (
+    reportId: string,
+    data: {
+      status: "pending" | "reviewed" | "resolved" | "dismissed";
+      resolution?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/reports/${reportId}`,
+      data,
+    });
+  },
+};
+
 // Export the API instance and functions
 export default api;

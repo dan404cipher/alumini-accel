@@ -28,11 +28,13 @@ interface Moderator {
 interface CommunityModeratorsTabProps {
   communityId: string;
   isAdmin: boolean;
+  onRoleChange?: () => void;
 }
 
 const CommunityModeratorsTab: React.FC<CommunityModeratorsTabProps> = ({
   communityId,
   isAdmin,
+  onRoleChange,
 }) => {
   const { toast } = useToast();
   const [moderators, setModerators] = useState<Moderator[]>([]);
@@ -104,12 +106,23 @@ const CommunityModeratorsTab: React.FC<CommunityModeratorsTabProps> = ({
       });
 
       const data = await response.json();
+
       if (data.success) {
         toast({
           title: "Success",
           description: `Moderator ${action}ed successfully`,
         });
         fetchModerators();
+        // Refresh community data to update role states
+        if (onRoleChange) {
+          onRoleChange();
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || `Failed to ${action} moderator`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({

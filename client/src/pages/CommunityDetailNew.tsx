@@ -76,7 +76,7 @@ const CommunityDetailNew: React.FC = () => {
         // If we get full community data (not just basic info), user is a member
         if (communityData.members && Array.isArray(communityData.members)) {
           const userMembership = communityData.members.find(
-            (member: any) => member._id === user._id
+            (member: { _id: string }) => member._id === user._id
           );
 
           if (userMembership) {
@@ -643,6 +643,7 @@ const CommunityDetailNew: React.FC = () => {
                   <CommunityMembersTab
                     communityId={id || ""}
                     isAdmin={isAdmin}
+                    onRoleChange={fetchCommunity}
                   />
                 ) : activeTab === "join-requests" ? (
                   <CommunityJoinRequestsTab communityId={id || ""} />
@@ -650,6 +651,7 @@ const CommunityDetailNew: React.FC = () => {
                   <CommunityModeratorsTab
                     communityId={id || ""}
                     isAdmin={isAdmin}
+                    onRoleChange={fetchCommunity}
                   />
                 ) : activeTab === "admin" ? (
                   <ModeratorDashboard

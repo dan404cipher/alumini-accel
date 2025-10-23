@@ -23,11 +23,13 @@ interface Member {
 interface CommunityMembersTabProps {
   communityId: string;
   isAdmin: boolean;
+  onRoleChange?: () => void;
 }
 
 const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
   communityId,
   isAdmin,
+  onRoleChange,
 }) => {
   const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
@@ -101,12 +103,23 @@ const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
       });
 
       const data = await response.json();
+
       if (data.success) {
         toast({
           title: "Success",
           description: `Member ${action}ed successfully`,
         });
         fetchMembers();
+        // Refresh community data to update role states
+        if (onRoleChange) {
+          onRoleChange();
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || `Failed to ${action} member`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({

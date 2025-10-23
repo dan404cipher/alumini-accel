@@ -104,8 +104,16 @@ const CommentItem: React.FC<CommentItemProps> = ({
   };
 
   // Check user permissions
-  const canEdit = isOwner;
-  const canDelete = isOwner; // TODO: Add moderator/admin permissions
+  const isAdmin =
+    user?.role === "admin" ||
+    user?.role === "super_admin" ||
+    user?.role === "college_admin";
+  const isModerator = user?.role === "moderator";
+  const isHOD = user?.role === "hod";
+  const isStaff = user?.role === "staff";
+
+  const canEdit = isOwner || isAdmin || isModerator || isHOD || isStaff;
+  const canDelete = isOwner || isAdmin || isModerator || isHOD || isStaff;
   const canReport = !isOwner;
 
   const formatTimeAgo = (dateString: string) => {

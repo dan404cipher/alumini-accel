@@ -23,6 +23,7 @@ import {
 import { CommunityPost } from "./types";
 import { LikeButton, ShareButton, CommentSection } from "./engagement";
 import { ActionMenu } from "./ActionMenu";
+import EditPostModal from "./EditPostModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { reportAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +35,7 @@ interface CommunityPostCardProps {
 const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null
   );
@@ -104,11 +106,13 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
 
   // Action handlers
   const handleEditPost = () => {
-    // TODO: Implement edit post functionality
-    toast({
-      title: "Info",
-      description: "Edit post functionality coming soon",
-    });
+    setShowEditModal(true);
+  };
+
+  const handlePostUpdated = () => {
+    setShowEditModal(false);
+    // Refresh the page to show updated post
+    window.location.reload();
   };
 
   const handleDeletePost = async () => {
@@ -179,9 +183,17 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
   };
 
   // Check user permissions
-  const isAuthor = user?._id === post.authorId;
-  const canEdit = isAuthor;
-  const canDelete = isAuthor; // TODO: Add moderator/admin permissions
+  const isAuthor = user?._id === post.authorId?._id;
+  const isAdmin =
+    user?.role === "admin" ||
+    user?.role === "super_admin" ||
+    user?.role === "college_admin";
+  const isModerator = user?.role === "moderator";
+  const isHOD = user?.role === "hod";
+  const isStaff = user?.role === "staff";
+
+  const canEdit = isAuthor || isAdmin || isModerator || isHOD || isStaff;
+  const canDelete = isAuthor || isAdmin || isModerator || isHOD || isStaff;
   const canReport = !isAuthor;
   const canShare = true;
 
@@ -578,6 +590,14 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
           className="mt-2"
         />
       )}
+
+      {/* Edit Post Modal */}
+      <EditPostModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        post={post}
+        onPostUpdated={handlePostUpdated}
+      />
     </div>
   );
 };

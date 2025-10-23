@@ -10,11 +10,12 @@ export { default as ModeratorDashboard } from "./ModeratorDashboard";
 export { default as CommunityMembersTab } from "./CommunityMembersTab";
 export { default as CommunityJoinRequestsTab } from "./CommunityJoinRequestsTab";
 export { default as CommunityModeratorsTab } from "./CommunityModeratorsTab";
+export { default as ReportsTab } from "./ReportsTab";
 export { default as EditCommunityModal } from "./EditCommunityModal";
 export { default as DeleteCommunityModal } from "./DeleteCommunityModal";
 export { default as CommunityPostCard } from "./CommunityPostCard";
+export { default as EditPostModal } from "./EditPostModal";
 export { default as ActionMenu } from "./ActionMenu";
-export { default as ReportsTab } from "./ReportsTab";
 
 // Export types
 export * from "./types";

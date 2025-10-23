@@ -17,14 +17,18 @@ import {
   getUserCommunities,
   searchCommunities,
   getUserMembershipStatus,
+  getTopCommunities,
 } from "../controllers/communityController";
 
 const router = express.Router();
 
-// Apply authentication to all routes
+// Public routes (no authentication required)
+router.get("/top", getTopCommunities);
+
+// Apply authentication to all other routes
 router.use(authenticate);
 
-// All routes are now protected
+// All other routes are now protected
 router.get("/", getAllCommunities);
 router.get("/search", validateCommunitySearch, searchCommunities);
 router.get("/:id", validateId, getCommunityById);

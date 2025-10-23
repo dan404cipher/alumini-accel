@@ -62,7 +62,9 @@ const CommunityDetailNew: React.FC = () => {
     try {
       // Try to fetch community details - this will tell us if user is a member
       const response = await fetch(
-        `http://localhost:3000/api/v1/communities/${id}`,
+        `${
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+        }/communities/${id}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -102,7 +104,9 @@ const CommunityDetailNew: React.FC = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/v1/communities/${id}/membership-status`,
+        `${
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+        }/communities/${id}/membership-status`,
         {
           method: "GET",
           headers: {
@@ -139,7 +143,9 @@ const CommunityDetailNew: React.FC = () => {
     }
 
     console.log("Fetching community with ID:", id);
-    const url = `http://localhost:3000/api/v1/communities/${id}`;
+    const url = `${
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+    }/communities/${id}`;
     console.log("Fetching from URL:", url);
 
     try {
@@ -212,9 +218,9 @@ const CommunityDetailNew: React.FC = () => {
       }
 
       const queryString = params.toString();
-      const url = `http://localhost:3000/api/v1/community-posts/community/${id}${
-        queryString ? `?${queryString}` : ""
-      }`;
+      const url = `${
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+      }/community-posts/community/${id}${queryString ? `?${queryString}` : ""}`;
 
       const response = await fetch(url, {
         headers: {
@@ -338,7 +344,9 @@ const CommunityDetailNew: React.FC = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/v1/communities/${communityIdString}/join`,
+        `${
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+        }/communities/${communityIdString}/join`,
         {
           method: "POST",
           headers: {
@@ -410,7 +418,9 @@ const CommunityDetailNew: React.FC = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/v1/communities/${id}/leave`,
+        `${
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+        }/communities/${id}/leave`,
         {
           method: "DELETE",
           headers: {

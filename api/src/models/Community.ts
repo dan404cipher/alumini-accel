@@ -213,7 +213,7 @@ CommunitySchema.virtual("statistics").get(function () {
   return {
     memberCount: this.memberCount,
     postCount: this.postCount,
-    moderatorCount: this.moderators.length,
+    moderatorCount: this.moderators?.length || 0,
   };
 });
 

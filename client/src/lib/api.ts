@@ -2687,6 +2687,30 @@ export const communityAPI = {
       url: "/community/stats",
     });
   },
+
+  // Get trending posts for a community
+  getTrendingPosts: async (communityId: string, limit: number = 5) => {
+    return apiRequest({
+      method: "GET",
+      url: `/community-posts/community/${communityId}/trending?limit=${limit}`,
+    });
+  },
+
+  // Get popular tags for a community
+  getPopularTags: async (communityId: string, limit: number = 8) => {
+    return apiRequest({
+      method: "GET",
+      url: `/community-posts/community/${communityId}/popular-tags?limit=${limit}`,
+    });
+  },
+
+  // Get top communities (most active)
+  getTopCommunities: async (limit: number = 5) => {
+    return apiRequest({
+      method: "GET",
+      url: `/communities/top?limit=${limit}`,
+    });
+  },
 };
 
 // Notification API functions

@@ -735,62 +735,39 @@ const CommunityNew = () => {
     const fetchSidebarData = async () => {
       setLoadingSidebar(true);
       try {
-        // Mock data for now - replace with actual API calls
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API delay
+        // Fetch real top communities
+        console.log("🔍 Fetching top communities...");
+        const topCommunitiesResponse = await communityAPI.getTopCommunities(5);
+        console.log("📊 Top communities response:", topCommunitiesResponse);
 
-        const mockTopCommunities: TopCommunity[] = [
-          {
-            id: "1",
-            name: "Computer Science Alumni",
-            memberCount: 1250,
-            postCount: 89,
-            category: "department",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "2",
-            name: "Entrepreneurship Hub",
-            memberCount: 890,
-            postCount: 67,
-            category: "entrepreneurship_startups",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "3",
-            name: "Class of 2020",
-            memberCount: 2100,
-            postCount: 145,
-            category: "batch",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "4",
-            name: "Tech Professionals",
-            memberCount: 567,
-            postCount: 34,
-            category: "professional_career",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "5",
-            name: "Research Scholars",
-            memberCount: 445,
-            postCount: 78,
-            category: "academic_research",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-        ];
+        if (
+          topCommunitiesResponse.success &&
+          Array.isArray(topCommunitiesResponse.data)
+        ) {
+          console.log(
+            "✅ Successfully got communities data:",
+            topCommunitiesResponse.data
+          );
+          const transformedCommunities = topCommunitiesResponse.data.map(
+            (community: any) => ({
+              id: community._id,
+              name: community.name,
+              memberCount: community.memberCount || 0,
+              postCount: community.postCount || 0,
+              category: community.category,
+              isPublic: community.type === "open",
+              coverImage: community.coverImage,
+              logo: community.logo,
+            })
+          );
+          console.log("🔄 Transformed communities:", transformedCommunities);
+          setTopCommunities(transformedCommunities);
+        } else {
+          console.log("❌ No communities data or invalid response");
+          setTopCommunities([]);
+        }
 
+        // Mock popular tags for now (can be replaced with real API later)
         const mockPopularTags: PopularTag[] = [
           { name: "career", count: 156, color: "bg-blue-100 text-blue-800" },
           {
@@ -824,7 +801,6 @@ const CommunityNew = () => {
           { name: "investment", count: 43, color: "bg-gray-100 text-gray-800" },
         ];
 
-        setTopCommunities(mockTopCommunities);
         setPopularTags(mockPopularTags);
       } catch (error) {
         console.error("Error fetching sidebar data:", error);
@@ -3220,7 +3196,7 @@ const CommunityNew = () => {
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : topCommunities.length > 0 ? (
                 <div className="space-y-4">
                   {topCommunities.map((community, index) => (
                     <div
@@ -3247,6 +3223,16 @@ const CommunityNew = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Communities Yet
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Communities will appear here once they're created.
+                  </p>
                 </div>
               )}
             </CardContent>

@@ -166,14 +166,14 @@ const AlumniPortal = () => {
           setRecentGalleries(galleriesData.data?.galleries || []);
         }
 
-        // Fetch recent communities
+        // Fetch top communities
         const communitiesResponse = await fetch(
-          `${baseUrl}/communities?limit=8`,
+          `${baseUrl}/communities/top?limit=8`,
           { headers }
         );
         if (communitiesResponse.ok) {
           const communitiesData = await communitiesResponse.json();
-          setRecentCommunities(communitiesData.data?.communities || []);
+          setRecentCommunities(communitiesData.data || []);
         }
 
         // Fetch recent mentorships

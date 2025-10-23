@@ -6,6 +6,7 @@ import User from "../models/User";
 import { Notification } from "../models/Notification";
 import { IUser } from "../types";
 import { socketService } from "../index";
+import { asyncHandler } from "../middleware/errorHandler";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -914,3 +915,77 @@ export const searchCommunities = async (
     });
   }
 };
+
+// Get top communities (most active)
+export const getTopCommunities = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { limit = 5 } = req.query;
+
+    console.log("🔍 Fetching top communities with limit:", limit);
+
+    // First, let's check if there are any communities at all
+    const totalCommunities = await Community.countDocuments();
+    console.log("📊 Total communities in database:", totalCommunities);
+
+    // Get communities sorted by member count and activity
+    const topCommunities = await Community.aggregate([
+      {
+        $lookup: {
+          from: "communityposts",
+          localField: "_id",
+          foreignField: "communityId",
+          as: "posts",
+        },
+      },
+      {
+        $addFields: {
+          postCount: { $size: "$posts" },
+          activityScore: {
+            $add: [
+              { $multiply: ["$memberCount", 2] }, // Member count weighted more
+              { $size: "$posts" }, // Post count
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          type: { $in: ["open", "closed"] }, // Only show public/closed communities
+        },
+      },
+      {
+        $sort: { activityScore: -1 },
+      },
+      {
+        $limit: parseInt(limit as string),
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          category: 1,
+          type: 1,
+          memberCount: 1,
+          postCount: 1,
+          logo: 1,
+          coverImage: 1,
+          createdAt: 1,
+        },
+      },
+    ]);
+
+    console.log("🎯 Top communities found:", topCommunities.length);
+    console.log("📋 Communities data:", topCommunities);
+
+    // If no communities found, return empty array
+    if (topCommunities.length === 0) {
+      console.log("⚠️ No communities found, returning empty array");
+    }
+
+    res.json({
+      success: true,
+      data: topCommunities,
+    });
+  }
+);

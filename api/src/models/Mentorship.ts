@@ -70,6 +70,23 @@ const mentorshipSchema = new Schema<IMentorship>(
     endDate: {
       type: Date,
     },
+    cancelledAt: {
+      type: Date,
+    },
+    cancelledBy: {
+      type: mongoose.Types.ObjectId as any,
+      ref: "User",
+    },
+    duration: {
+      type: Number,
+      min: [1, "Duration must be at least 1 week"],
+      max: [52, "Duration cannot exceed 52 weeks"],
+    },
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: [2000, "Notes cannot exceed 2000 characters"],
+    },
     sessions: [
       {
         date: {

@@ -135,6 +135,29 @@ class MentorshipApiService {
     });
   }
 
+  async updateMentorship(
+    id: string,
+    data: {
+      domain?: string;
+      goals?: string[];
+      duration?: number;
+      startDate?: string;
+      endDate?: string;
+      notes?: string;
+    }
+  ): Promise<ApiResponse<any>> {
+    return this.makeRequest<ApiResponse<any>>(`/mentorship/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMentorship(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<ApiResponse<any>>(`/mentorship/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   // Mentorship Sessions
   async addSession(
     mentorshipId: string,

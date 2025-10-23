@@ -35,10 +35,16 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantAPI } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import MentorshipActionMenu from "@/components/mentorship/MentorshipActionMenu";
+import EditMentorshipDialog from "@/components/dialogs/EditMentorshipDialog";
+import DeleteMentorshipDialog from "@/components/dialogs/DeleteMentorshipDialog";
 
 const AlumniPortal = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Debug logging
+  console.log("🔍 AlumniPortal User:", user);
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [recentNews, setRecentNews] = useState<any[]>([]);
@@ -51,6 +57,9 @@ const AlumniPortal = () => {
     any[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedMentorship, setSelectedMentorship] = useState<any>(null);
 
   // Load college banner
   useEffect(() => {
@@ -183,7 +192,10 @@ const AlumniPortal = () => {
         );
         if (mentorshipsResponse.ok) {
           const mentorshipsData = await mentorshipsResponse.json();
-          setRecentMentorships(mentorshipsData.data?.mentorships || []);
+          console.log("🔍 Mentorships API Response:", mentorshipsData);
+          const mentorships = mentorshipsData.data?.mentorships || [];
+          console.log("🔍 Setting mentorships:", mentorships);
+          setRecentMentorships(mentorships);
         }
 
         // Fetch recent jobs
@@ -251,6 +263,30 @@ const AlumniPortal = () => {
 
   const handleMentorshipClick = (mentorshipId: string) => {
     navigate(`/mentorship/${mentorshipId}`);
+  };
+
+  const handleEditMentorship = (mentorship: any) => {
+    setSelectedMentorship(mentorship);
+    setShowEditDialog(true);
+  };
+
+  const handleDeleteMentorship = (mentorship: any) => {
+    setSelectedMentorship(mentorship);
+    setShowDeleteDialog(true);
+  };
+
+  const handleEditSuccess = () => {
+    // Refresh mentorships data
+    fetchRecentData();
+    setShowEditDialog(false);
+    setSelectedMentorship(null);
+  };
+
+  const handleDeleteSuccess = () => {
+    // Refresh mentorships data
+    fetchRecentData();
+    setShowDeleteDialog(false);
+    setSelectedMentorship(null);
   };
 
   const handleJobClick = (jobId: string) => {
@@ -658,8 +694,7 @@ const AlumniPortal = () => {
                     {recentMentorships.map((mentorship) => (
                       <div
                         key={mentorship._id}
-                        onClick={() => handleMentorshipClick(mentorship._id)}
-                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all group relative"
                       >
                         <div className="relative">
                           {mentorship.mentor?.profilePicture ? (
@@ -685,8 +720,26 @@ const AlumniPortal = () => {
                               {mentorship.status || "pending"}
                             </Badge>
                           </div>
+                          {/* Action Menu */}
+                          <div className="absolute top-2 left-2">
+                            {console.log(
+                              "🔍 Rendering MentorshipActionMenu for:",
+                              mentorship._id
+                            )}
+                            <MentorshipActionMenu
+                              mentorship={mentorship}
+                              currentUser={user}
+                              onEdit={() => handleEditMentorship(mentorship)}
+                              onDelete={() =>
+                                handleDeleteMentorship(mentorship)
+                              }
+                            />
+                          </div>
                         </div>
-                        <div className="p-3">
+                        <div
+                          className="p-3 cursor-pointer"
+                          onClick={() => handleMentorshipClick(mentorship._id)}
+                        >
                           <h4 className="font-medium text-sm truncate group-hover:text-indigo-600 transition-colors">
                             {mentorship.title || "Mentorship Request"}
                           </h4>
@@ -954,6 +1007,22 @@ const AlumniPortal = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Mentorship Dialog */}
+      <EditMentorshipDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        mentorship={selectedMentorship}
+        onSuccess={handleEditSuccess}
+      />
+
+      {/* Delete Mentorship Dialog */}
+      <DeleteMentorshipDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        mentorship={selectedMentorship}
+        onSuccess={handleDeleteSuccess}
+      />
     </div>
   );
 };

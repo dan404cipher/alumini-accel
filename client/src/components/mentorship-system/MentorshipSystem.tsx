@@ -3,7 +3,7 @@
 // Page: Refactored from monolithic mentorship.tsx (1327 lines) into structured system
 // Purpose: Main orchestrator for the mentorship management system
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Users,
   UserCheck,
@@ -32,6 +32,28 @@ import { MentorDetailsModal } from "./modals/MentorDetailsModal";
 import { filterMentors, truncateText } from "./utils";
 import type { Mentor } from "./types";
 
+// Define mentorship interface locally
+interface IMentorship {
+  _id: string;
+  domain: string;
+  description: string;
+  status: string;
+  mentor: { _id: string; firstName: string; lastName: string };
+  mentee: { _id: string; firstName: string; lastName: string };
+  duration: number;
+  goals: string[];
+  startDate: string;
+  endDate: string;
+}
+import MentorshipActionMenu from "../mentorship/MentorshipActionMenu";
+import EditMentorshipDialog from "../dialogs/EditMentorshipDialog";
+import DeleteMentorshipDialog from "../dialogs/DeleteMentorshipDialog";
+import EditMentorDialog from "../dialogs/EditMentorDialog";
+import DeleteMentorDialog from "../dialogs/DeleteMentorDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { mentorshipApi } from "@/services/mentorshipApi";
+import { useToast } from "@/hooks/use-toast";
+
 // Sample mentor data for demonstration
 const sampleMentors: Mentor[] = [
   {
@@ -52,7 +74,7 @@ const sampleMentors: Mentor[] = [
     testimonial:
       "I have mentored 15+ developers over the years, helping them land roles at top tech companies. My approach is to understand each mentee's unique goals and create customized learning plans.",
     rating: 4.9,
-    mentores: 15,
+    mentees: 15,
   },
   {
     name: "Michael Rodriguez",
@@ -72,7 +94,7 @@ const sampleMentors: Mentor[] = [
     testimonial:
       "Passionate about helping others transition into product management roles. I focus on practical skills and real-world projects.",
     rating: 4.8,
-    mentores: 10,
+    mentees: 10,
   },
   {
     name: "Dr. Lisa Johnson",
@@ -92,7 +114,7 @@ const sampleMentors: Mentor[] = [
     testimonial:
       "I specialize in mentoring graduate students and early-career researchers. My track record includes several successful PhD completions.",
     rating: 5.0,
-    mentores: 8,
+    mentees: 8,
   },
 ];
 
@@ -119,6 +141,22 @@ const sampleMentors: Mentor[] = [
 
 const MentorshipSystem: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Mentorship management state
+  const [myMentorships, setMyMentorships] = useState<IMentorship[]>([]);
+  const [loadingMentorships, setLoadingMentorships] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedMentorship, setSelectedMentorship] =
+    useState<IMentorship | null>(null);
+
+  // Mentor management state
+  const [showEditMentorDialog, setShowEditMentorDialog] = useState(false);
+  const [showDeleteMentorDialog, setShowDeleteMentorDialog] = useState(false);
+  const [selectedMentorForEdit, setSelectedMentorForEdit] =
+    useState<Mentor | null>(null);
 
   // Mentor details modal state
   const [mentorDetailsModal, setMentorDetailsModal] = useState<{
@@ -142,6 +180,94 @@ const MentorshipSystem: React.FC = () => {
       mentor: null,
     });
   };
+
+  // Load user's mentorships
+  const loadMyMentorships = useCallback(async () => {
+    if (!user?._id) return;
+
+    setLoadingMentorships(true);
+    try {
+      const response = await mentorshipApi.getMyMentorships();
+      console.log("Mentorship API response:", response);
+
+      if (response.success && response.data) {
+        // Ensure data is an array
+        const mentorships = Array.isArray(response.data) ? response.data : [];
+        console.log("Setting mentorships:", mentorships);
+        setMyMentorships(mentorships);
+      } else {
+        console.log("No mentorships data found");
+        setMyMentorships([]);
+      }
+    } catch (error) {
+      console.error("Error loading mentorships:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load mentorships",
+        variant: "destructive",
+      });
+      setMyMentorships([]);
+    } finally {
+      setLoadingMentorships(false);
+    }
+  }, [user?._id, toast]);
+
+  // Handle edit mentorship
+  const handleEditMentorship = (mentorship: IMentorship) => {
+    setSelectedMentorship(mentorship);
+    setShowEditDialog(true);
+  };
+
+  // Handle delete mentorship
+  const handleDeleteMentorship = (mentorship: IMentorship) => {
+    setSelectedMentorship(mentorship);
+    setShowDeleteDialog(true);
+  };
+
+  // Handle edit success
+  const handleEditSuccess = () => {
+    loadMyMentorships();
+    setShowEditDialog(false);
+    setSelectedMentorship(null);
+  };
+
+  // Handle delete success
+  const handleDeleteSuccess = () => {
+    loadMyMentorships();
+    setShowDeleteDialog(false);
+    setSelectedMentorship(null);
+  };
+
+  // Handle edit mentor
+  const handleEditMentor = (mentor: Mentor) => {
+    setSelectedMentorForEdit(mentor);
+    setShowEditMentorDialog(true);
+  };
+
+  // Handle delete mentor
+  const handleDeleteMentor = (mentor: Mentor) => {
+    setSelectedMentorForEdit(mentor);
+    setShowDeleteMentorDialog(true);
+  };
+
+  // Handle mentor edit success
+  const handleMentorEditSuccess = () => {
+    // TODO: Refresh mentors list
+    setShowEditMentorDialog(false);
+    setSelectedMentorForEdit(null);
+  };
+
+  // Handle mentor delete success
+  const handleMentorDeleteSuccess = () => {
+    // TODO: Refresh mentors list
+    setShowDeleteMentorDialog(false);
+    setSelectedMentorForEdit(null);
+  };
+
+  // Load mentorships on component mount
+  useEffect(() => {
+    loadMyMentorships();
+  }, [loadMyMentorships]);
 
   const {
     // State: mentors, requests, activeTab, openForm, openRequestForm, selectedMentor, contentModal, filters
@@ -479,6 +605,8 @@ const MentorshipSystem: React.FC = () => {
                             handleRequestMentorship(mentor)
                           }
                           onViewDetails={handleViewMentorDetails}
+                          onEdit={handleEditMentor}
+                          onDelete={handleDeleteMentor}
                         />
                       ))}
                     </div>
@@ -518,9 +646,100 @@ const MentorshipSystem: React.FC = () => {
             <div className="bg-white border rounded-lg shadow-sm">
               <div className="p-4">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Active Mentorships
+                  My Mentorships
                 </h2>
-                <p className="text-gray-600">No active mentorships yet.</p>
+                {loadingMentorships ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-gray-600 mt-2">Loading mentorships...</p>
+                  </div>
+                ) : !Array.isArray(myMentorships) ||
+                  myMentorships.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">No mentorships found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {myMentorships.map((mentorship) => (
+                      <div
+                        key={mentorship._id}
+                        className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {mentorship.domain}
+                              </h3>
+                              <span
+                                className={`px-2 py-1 text-xs rounded-full ${
+                                  mentorship.status === "active"
+                                    ? "bg-green-100 text-green-800"
+                                    : mentorship.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {mentorship.status}
+                              </span>
+                            </div>
+                            <p className="text-gray-600 mb-2">
+                              {mentorship.description}
+                            </p>
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <span>
+                                <strong>Mentor:</strong>{" "}
+                                {mentorship.mentor?.firstName}{" "}
+                                {mentorship.mentor?.lastName}
+                              </span>
+                              <span>
+                                <strong>Mentee:</strong>{" "}
+                                {mentorship.mentee?.firstName}{" "}
+                                {mentorship.mentee?.lastName}
+                              </span>
+                              {mentorship.duration && (
+                                <span>
+                                  <strong>Duration:</strong>{" "}
+                                  {mentorship.duration} weeks
+                                </span>
+                              )}
+                            </div>
+                            {mentorship.goals &&
+                              mentorship.goals.length > 0 && (
+                                <div className="mt-2">
+                                  <strong className="text-sm text-gray-700">
+                                    Goals:
+                                  </strong>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {mentorship.goals.map(
+                                      (goal: string, index: number) => (
+                                        <span
+                                          key={index}
+                                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                                        >
+                                          {goal}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                          <div className="ml-4">
+                            <MentorshipActionMenu
+                              mentorship={mentorship}
+                              currentUser={user}
+                              onEdit={() => handleEditMentorship(mentorship)}
+                              onDelete={() =>
+                                handleDeleteMentorship(mentorship)
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -575,6 +794,38 @@ const MentorshipSystem: React.FC = () => {
             onClose={handleCloseMentorDetails}
             mentor={mentorDetailsModal.mentor}
             onRequestMentorship={handleRequestMentorship}
+          />
+
+          {/* Edit Mentorship Dialog */}
+          <EditMentorshipDialog
+            open={showEditDialog}
+            onOpenChange={setShowEditDialog}
+            mentorship={selectedMentorship}
+            onSuccess={handleEditSuccess}
+          />
+
+          {/* Delete Mentorship Dialog */}
+          <DeleteMentorshipDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+            mentorship={selectedMentorship}
+            onSuccess={handleDeleteSuccess}
+          />
+
+          {/* Edit Mentor Dialog */}
+          <EditMentorDialog
+            open={showEditMentorDialog}
+            onOpenChange={setShowEditMentorDialog}
+            mentor={selectedMentorForEdit}
+            onSuccess={handleMentorEditSuccess}
+          />
+
+          {/* Delete Mentor Dialog */}
+          <DeleteMentorDialog
+            open={showDeleteMentorDialog}
+            onOpenChange={setShowDeleteMentorDialog}
+            mentor={selectedMentorForEdit}
+            onSuccess={handleMentorDeleteSuccess}
           />
         </div>
       </div>

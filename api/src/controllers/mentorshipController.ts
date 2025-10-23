@@ -408,6 +408,143 @@ export const updateSession = async (req: Request, res: Response) => {
   }
 };
 
+// Update mentorship details
+export const updateMentorship = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { domain, goals, duration, startDate, endDate, notes } = req.body;
+    const userId = req.user?.id;
+
+    const mentorship = await Mentorship.findById(id);
+
+    if (!mentorship) {
+      return res.status(404).json({
+        success: false,
+        message: "Mentorship not found",
+      });
+    }
+
+    // Check permissions: mentor or mentee can update
+    if (
+      mentorship.mentorId.toString() !== userId &&
+      mentorship.menteeId.toString() !== userId
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to update this mentorship",
+      });
+    }
+
+    // Only allow updates for pending or active mentorships
+    // But admins can update any mentorship
+    const isAdmin = [
+      "super_admin",
+      "college_admin",
+      "admin",
+      "moderator",
+      "hod",
+      "staff",
+    ].includes(req.user?.role);
+    if (!["pending", "active"].includes(mentorship.status) && !isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot update completed or rejected mentorships",
+      });
+    }
+
+    // Update fields
+    if (domain !== undefined) mentorship.domain = domain;
+    if (goals !== undefined) mentorship.goals = goals;
+    if (duration !== undefined) mentorship.duration = duration;
+    if (startDate !== undefined) mentorship.startDate = new Date(startDate);
+    if (endDate !== undefined) mentorship.endDate = new Date(endDate);
+    if (notes !== undefined) mentorship.notes = notes;
+
+    await mentorship.save();
+
+    // Populate the response
+    await mentorship.populate([
+      { path: "mentor", select: "firstName lastName email profilePicture" },
+      { path: "mentee", select: "firstName lastName email profilePicture" },
+    ]);
+
+    return res.json({
+      success: true,
+      message: "Mentorship updated successfully",
+      data: mentorship,
+    });
+  } catch (error) {
+    logger.error("Update mentorship error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update mentorship",
+    });
+  }
+};
+
+// Delete/Cancel mentorship
+export const deleteMentorship = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    const mentorship = await Mentorship.findById(id);
+
+    if (!mentorship) {
+      return res.status(404).json({
+        success: false,
+        message: "Mentorship not found",
+      });
+    }
+
+    // Check permissions: mentor, mentee, or admin can delete
+    const isMentor = mentorship.mentorId.toString() === userId;
+    const isMentee = mentorship.menteeId.toString() === userId;
+    const isAdmin = [
+      "super_admin",
+      "college_admin",
+      "admin",
+      "moderator",
+      "hod",
+      "staff",
+    ].includes(userRole);
+
+    if (!isMentor && !isMentee && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to delete this mentorship",
+      });
+    }
+
+    // Only allow deletion for pending or active mentorships
+    // But admins can delete any mentorship
+    if (!["pending", "active"].includes(mentorship.status) && !isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete completed or rejected mentorships",
+      });
+    }
+
+    // Soft delete by setting status to cancelled
+    mentorship.status = MentorshipStatus.CANCELLED;
+    mentorship.cancelledAt = new Date();
+    mentorship.cancelledBy = userId;
+    await mentorship.save();
+
+    return res.json({
+      success: true,
+      message: "Mentorship cancelled successfully",
+    });
+  } catch (error) {
+    logger.error("Delete mentorship error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete mentorship",
+    });
+  }
+};
+
 // Submit mentorship feedback
 export const submitFeedback = async (req: Request, res: Response) => {
   try {
@@ -671,6 +808,8 @@ export default {
   acceptMentorship,
   rejectMentorship,
   completeMentorship,
+  updateMentorship,
+  deleteMentorship,
   addSession,
   updateSession,
   submitFeedback,

@@ -445,6 +445,10 @@ export interface IMentorship extends Document {
   rejectedAt?: Date;
   rejectionReason?: string;
   completedAt?: Date;
+  cancelledAt?: Date;
+  cancelledBy?: string;
+  duration?: number;
+  notes?: string;
   sessions: Array<{
     _id?: string;
     date: Date;

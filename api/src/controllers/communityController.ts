@@ -695,6 +695,64 @@ export const getCommunityMembers = async (
   }
 };
 
+// Get user's membership status for a specific community
+export const getUserMembershipStatus = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Check if community exists
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Find user's membership status
+    const membership = await CommunityMembership.findOne({
+      communityId: id,
+      userId: userId,
+    });
+
+    console.log(
+      "🔍 Backend - Checking membership for user:",
+      userId,
+      "community:",
+      id
+    );
+    console.log("🔍 Backend - Found membership:", membership);
+
+    return res.json({
+      success: true,
+      data: {
+        isMember: membership?.status === "approved",
+        hasPendingRequest: membership?.status === "pending",
+        membershipStatus: membership?.status || null,
+        role: membership?.role || null,
+        joinedAt: membership?.joinedAt || null,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching membership status",
+      error: error.message,
+    });
+  }
+};
+
 // Get user's communities
 export const getUserCommunities = async (
   req: AuthenticatedRequest,

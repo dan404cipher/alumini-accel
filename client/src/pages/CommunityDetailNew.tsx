@@ -82,8 +82,7 @@ const CommunityDetailNew: React.FC = () => {
         }
       } else if (response.status === 403) {
         // User is not a member of private community
-        // We'll check for pending requests separately
-        await checkPendingRequest();
+        // Pending request status will be checked separately
       }
     } catch (error) {
       console.error("Error checking membership status:", error);
@@ -94,33 +93,37 @@ const CommunityDetailNew: React.FC = () => {
   const checkPendingRequest = useCallback(async () => {
     if (!id || !user?._id) return;
 
+    console.log("🔍 Checking pending request for community:", id);
+    console.log("🔍 User ID:", user._id);
+
     try {
-      // Try to join - if we get "already pending" error, user has pending request
       const response = await fetch(
-        `http://localhost:3000/api/v1/communities/${id}/join`,
+        `http://localhost:3000/api/v1/communities/${id}/membership-status`,
         {
-          method: "POST",
+          method: "GET",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
 
+      console.log("🔍 Membership status response:", response.status);
       const responseData = await response.json();
+      console.log("🔍 Membership status data:", responseData);
 
-      if (
-        response.status === 400 &&
-        responseData.message?.includes("pending")
-      ) {
-        setHasPendingRequest(true);
-      } else if (
-        response.status === 400 &&
-        responseData.message?.includes("Already a member")
-      ) {
-        setIsMember(true);
+      if (responseData.success && responseData.data) {
+        const { isMember, hasPendingRequest } = responseData.data;
+        console.log(
+          "🔍 Setting state - isMember:",
+          isMember,
+          "hasPendingRequest:",
+          hasPendingRequest
+        );
+        setIsMember(isMember);
+        setHasPendingRequest(hasPendingRequest);
       }
     } catch (error) {
-      // Ignore errors - this is just a check
+      console.error("🔍 Error checking membership status:", error);
     }
   }, [id, user?._id]);
 
@@ -305,6 +308,25 @@ const CommunityDetailNew: React.FC = () => {
   const handleJoinCommunity = async () => {
     if (!id) return;
 
+    // Don't allow joining if already a member or has pending request
+    if (isMember) {
+      toast({
+        title: "Already a Member",
+        description: "You are already a member of this community.",
+        variant: "default",
+      });
+      return;
+    }
+
+    if (hasPendingRequest) {
+      toast({
+        title: "Request Already Pending",
+        description: "You already have a pending request for this community.",
+        variant: "default",
+      });
+      return;
+    }
+
     const targetId = id;
 
     // Use the ID from URL params (always a string)
@@ -450,7 +472,8 @@ const CommunityDetailNew: React.FC = () => {
   useEffect(() => {
     fetchCommunity();
     checkMembershipStatus();
-  }, [fetchCommunity, checkMembershipStatus]);
+    checkPendingRequest(); // Always check pending request status
+  }, [fetchCommunity, checkMembershipStatus, checkPendingRequest]);
 
   useEffect(() => {
     if (activeTab === "posts" && community) {

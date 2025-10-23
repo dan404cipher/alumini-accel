@@ -16,6 +16,7 @@ import {
   getCommunityMembers,
   getUserCommunities,
   searchCommunities,
+  getUserMembershipStatus,
 } from "../controllers/communityController";
 
 const router = express.Router();
@@ -37,6 +38,7 @@ router.delete("/:id", validateId, deleteCommunity);
 router.post("/:id/join", validateId, joinCommunity);
 router.delete("/:id/leave", validateId, leaveCommunity);
 router.get("/:id/members", validateId, getCommunityMembers);
+router.get("/:id/membership-status", validateId, getUserMembershipStatus);
 router.get("/user/communities", getUserCommunities);
 
 export default router;

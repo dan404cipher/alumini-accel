@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { notificationAPI } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UseNotificationCountReturn {
   notificationCount: number;
@@ -10,10 +11,18 @@ interface UseNotificationCountReturn {
 
 export const useNotificationCount = (): UseNotificationCountReturn => {
   const [notificationCount, setNotificationCount] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const fetchNotificationCount = useCallback(async () => {
+    // Only fetch if user is authenticated
+    if (!user) {
+      setNotificationCount(0);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -39,21 +48,23 @@ export const useNotificationCount = (): UseNotificationCountReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
-  // Fetch notification count on mount
+  // Fetch notification count when user changes
   useEffect(() => {
     fetchNotificationCount();
   }, [fetchNotificationCount]);
 
-  // Set up polling to refresh notification count every 60 seconds
+  // Set up polling to refresh notification count every 60 seconds (only when user is authenticated)
   useEffect(() => {
+    if (!user) return;
+
     const interval = setInterval(() => {
       fetchNotificationCount();
     }, 60000); // Poll every 60 seconds
 
     return () => clearInterval(interval);
-  }, [fetchNotificationCount]);
+  }, [fetchNotificationCount, user]);
 
   return {
     notificationCount,

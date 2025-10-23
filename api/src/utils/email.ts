@@ -1,16 +1,5 @@
-import nodemailer from 'nodemailer';
-import { logger } from './logger';
-
-// Email configuration
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+import nodemailer from "nodemailer";
+import { logger } from "./logger";
 
 // Email interface
 interface EmailOptions {
@@ -29,8 +18,19 @@ interface EmailOptions {
 // Send email function
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
   try {
+    // Create transporter inside the function to ensure env vars are loaded
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com", // Use IPv4 directly
+      port: parseInt(process.env.SMTP_PORT || "587"),
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
     const mailOptions = {
-      from: options.from || process.env.SMTP_FROM || 'AlumniAccel <noreply@alumniaccel.com>',
+      from: options.from || `AlumniAccel <${process.env.SMTP_USER}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -39,15 +39,15 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    logger.info('Email sent successfully:', {
+    logger.info("Email sent successfully:", {
       messageId: info.messageId,
       to: options.to,
-      subject: options.subject
+      subject: options.subject,
     });
 
     return true;
   } catch (error) {
-    logger.error('Email sending failed:', error);
+    logger.error("Email sending failed:", error);
     return false;
   }
 };
@@ -56,7 +56,7 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
 export const emailTemplates = {
   // Welcome email template
   welcome: (firstName: string, verificationUrl: string) => ({
-    subject: 'Welcome to AlumniAccel - Verify Your Email',
+    subject: "Welcome to AlumniAccel - Verify Your Email",
     html: `
       <!DOCTYPE html>
       <html>
@@ -97,12 +97,12 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   // Password reset template
   passwordReset: (firstName: string, resetUrl: string) => ({
-    subject: 'Password Reset Request - AlumniAccel',
+    subject: "Password Reset Request - AlumniAccel",
     html: `
       <!DOCTYPE html>
       <html>
@@ -143,11 +143,16 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   // Event invitation template
-  eventInvitation: (firstName: string, eventTitle: string, eventDate: string, eventUrl: string) => ({
+  eventInvitation: (
+    firstName: string,
+    eventTitle: string,
+    eventDate: string,
+    eventUrl: string
+  ) => ({
     subject: `You're Invited: ${eventTitle} - AlumniAccel`,
     html: `
       <!DOCTYPE html>
@@ -188,12 +193,12 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   // Newsletter template
   newsletter: (firstName: string, content: string, unsubscribeUrl: string) => ({
-    subject: 'AlumniAccel Newsletter',
+    subject: "AlumniAccel Newsletter",
     html: `
       <!DOCTYPE html>
       <html>
@@ -226,11 +231,16 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   // Job notification template
-  jobNotification: (firstName: string, jobTitle: string, companyName: string, jobUrl: string) => ({
+  jobNotification: (
+    firstName: string,
+    jobTitle: string,
+    companyName: string,
+    jobUrl: string
+  ) => ({
     subject: `New Job Opportunity: ${jobTitle} at ${companyName}`,
     html: `
       <!DOCTYPE html>
@@ -271,18 +281,28 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
-  })
+    `,
+  }),
 };
 
 // Verify email configuration
 export const verifyEmailConfig = async (): Promise<boolean> => {
   try {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: parseInt(process.env.SMTP_PORT || "587"),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
     await transporter.verify();
-    logger.info('Email configuration verified successfully');
+    logger.info("Email configuration verified successfully");
     return true;
   } catch (error) {
-    logger.error('Email configuration verification failed:', error);
+    logger.error("Email configuration verification failed:", error);
     return false;
   }
 };
@@ -290,5 +310,5 @@ export const verifyEmailConfig = async (): Promise<boolean> => {
 export default {
   sendEmail,
   emailTemplates,
-  verifyEmailConfig
-}; 
+  verifyEmailConfig,
+};

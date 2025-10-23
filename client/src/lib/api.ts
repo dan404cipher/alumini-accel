@@ -36,7 +36,12 @@ api.interceptors.request.use(
       }
     }
 
-    const token = localStorage.getItem("token");
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -142,8 +147,15 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Try to refresh token
-        const refreshToken = localStorage.getItem("refreshToken");
+        // Try to refresh token - check both storages
+        let refreshToken = localStorage.getItem("refreshToken");
+        let storageType = "localStorage";
+
+        if (!refreshToken) {
+          refreshToken = sessionStorage.getItem("refreshToken");
+          storageType = "sessionStorage";
+        }
+
         if (refreshToken) {
           const response = await axios.post(
             `${API_BASE_URL}/auth/refresh-token`,
@@ -153,8 +165,15 @@ api.interceptors.response.use(
           );
 
           const { token, refreshToken: newRefreshToken } = response.data.data;
-          localStorage.setItem("token", token);
-          localStorage.setItem("refreshToken", newRefreshToken);
+
+          // Store in the same storage type as the original token
+          if (storageType === "localStorage") {
+            localStorage.setItem("token", token);
+            localStorage.setItem("refreshToken", newRefreshToken);
+          } else {
+            sessionStorage.setItem("token", token);
+            sessionStorage.setItem("refreshToken", newRefreshToken);
+          }
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -165,6 +184,9 @@ api.interceptors.response.use(
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
         localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("user");
         window.location.href = "/login";
         return Promise.reject(refreshError);
       }
@@ -200,6 +222,7 @@ export const apiRequest = async <T>(
   config: AxiosRequestConfig
 ): Promise<ApiResponse<T>> => {
   try {
+    console.log("apiRequest called with config:", config);
     const response = await api(config);
     return response.data;
   } catch (error: unknown) {
@@ -236,6 +259,7 @@ export const authAPI = {
 
   // Login user
   login: async (credentials: { email: string; password: string }) => {
+    console.log("authAPI.login called with:", credentials);
     return apiRequest({
       method: "POST",
       url: "/auth/login",
@@ -612,7 +636,8 @@ export const userAPI = {
           success: true,
           message: "User request approved and account created",
           data: {
-            user: createUserResponse.data?.user || createUserResponse.data,
+            user:
+              (createUserResponse.data as any)?.user || createUserResponse.data,
           },
         };
       } else {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { messageAPI } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UseUnreadCountReturn {
   unreadCount: number;
@@ -10,10 +11,18 @@ interface UseUnreadCountReturn {
 
 export const useUnreadCount = (): UseUnreadCountReturn => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const fetchUnreadCount = useCallback(async () => {
+    // Only fetch if user is authenticated
+    if (!user) {
+      setUnreadCount(0);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -41,21 +50,23 @@ export const useUnreadCount = (): UseUnreadCountReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
-  // Fetch unread count on mount
+  // Fetch unread count when user changes
   useEffect(() => {
     fetchUnreadCount();
   }, [fetchUnreadCount]);
 
-  // Set up polling to refresh unread count every 30 seconds
+  // Set up polling to refresh unread count every 30 seconds (only when user is authenticated)
   useEffect(() => {
+    if (!user) return;
+
     const interval = setInterval(() => {
       fetchUnreadCount();
     }, 30000); // Poll every 30 seconds
 
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, user]);
 
   return {
     unreadCount,

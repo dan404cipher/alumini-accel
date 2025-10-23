@@ -35,7 +35,11 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (
+    email: string,
+    password: string,
+    rememberMe?: boolean
+  ) => Promise<boolean>;
   register: (userData: {
     email: string;
     password: string;
@@ -66,7 +70,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check if user is authenticated on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem("token");
+      // Skip automatic login if user is on reset password page
+      if (window.location.pathname === "/reset-password") {
+        setLoading(false);
+        return;
+      }
+
+      // Check localStorage first (remember me), then sessionStorage
+      let token = localStorage.getItem("token");
+      let refreshToken = localStorage.getItem("refreshToken");
+      let userData = localStorage.getItem("user");
+      let storageType = "localStorage";
+
+      if (!token) {
+        token = sessionStorage.getItem("token");
+        refreshToken = sessionStorage.getItem("refreshToken");
+        userData = sessionStorage.getItem("user");
+        storageType = "sessionStorage";
+      }
+
       if (token) {
         try {
           const response = await authAPI.getCurrentUser();
@@ -81,16 +103,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const userData = (response.data as { user: User }).user;
             setUser(userData);
           } else {
-            // Token is invalid, clear it
+            // Token is invalid, clear it from both storages
             localStorage.removeItem("token");
             localStorage.removeItem("refreshToken");
             localStorage.removeItem("user");
+            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("refreshToken");
+            sessionStorage.removeItem("user");
           }
         } catch (err) {
-          // Error fetching user, clear tokens
+          // Error fetching user, clear tokens from both storages
           localStorage.removeItem("token");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("refreshToken");
+          sessionStorage.removeItem("user");
         }
       }
       setLoading(false);
@@ -100,11 +128,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // Login function
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (
+    email: string,
+    password: string,
+    rememberMe: boolean = false
+  ): Promise<boolean> => {
     try {
       setLoading(true);
       setError(null);
 
+      console.log("AuthContext login called with:", {
+        email,
+        password,
+        rememberMe,
+      });
       const response = await authAPI.login({ email, password });
 
       if (
@@ -124,9 +161,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         // Store tokens and user data
-        localStorage.setItem("token", token);
-        localStorage.setItem("refreshToken", refreshToken);
-        localStorage.setItem("user", JSON.stringify(userData));
+        if (rememberMe) {
+          // Store in localStorage for persistent login
+          localStorage.setItem("token", token);
+          localStorage.setItem("refreshToken", refreshToken);
+          localStorage.setItem("user", JSON.stringify(userData));
+        } else {
+          // Store in sessionStorage for session-only login
+          sessionStorage.setItem("token", token);
+          sessionStorage.setItem("refreshToken", refreshToken);
+          sessionStorage.setItem("user", JSON.stringify(userData));
+        }
 
         setUser(userData);
         return true;
@@ -203,6 +248,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("user");
       setUser(null);
       setError(null);
     }

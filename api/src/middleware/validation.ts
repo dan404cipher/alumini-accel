@@ -556,10 +556,6 @@ export const validateEmail = [
 
 // Password reset validation
 export const validatePasswordReset = [
-  body("email")
-    .isEmail()
-    .normalizeEmail()
-    .withMessage("Please provide a valid email address"),
   body("token")
     .isString()
     .isLength({ min: 1 })

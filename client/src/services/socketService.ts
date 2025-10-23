@@ -35,7 +35,11 @@ class SocketService {
   }
 
   private connect() {
-    const token = localStorage.getItem("token");
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
 
     if (!token) {
       console.warn("No authentication token found, skipping socket connection");

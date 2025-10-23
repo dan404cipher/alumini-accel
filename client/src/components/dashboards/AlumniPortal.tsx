@@ -596,8 +596,8 @@ const AlumniPortal = () => {
                               className="w-full h-32 object-cover rounded-t-lg"
                             />
                           ) : (
-                            <div className="w-full h-32 bg-gradient-to-br from-orange-100 to-orange-200 rounded-t-lg flex items-center justify-center">
-                              <Users className="h-8 w-8 text-orange-400" />
+                            <div className="w-full h-32 bg-gray-100 rounded-t-lg flex items-center justify-center">
+                              <Users className="h-8 w-8 text-gray-500" />
                             </div>
                           )}
                           <div className="absolute top-2 right-2">

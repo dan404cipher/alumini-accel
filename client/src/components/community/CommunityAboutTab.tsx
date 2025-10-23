@@ -446,7 +446,7 @@ const CommunityAboutTab: React.FC<CommunityAboutTabProps> = ({
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        {isMember ? (
+        {isMember && !isAdmin ? (
           <>
             <Button
               onClick={onCreatePost}
@@ -466,7 +466,7 @@ const CommunityAboutTab: React.FC<CommunityAboutTabProps> = ({
               Leave Community
             </Button>
           </>
-        ) : (
+        ) : !isMember ? (
           <Button
             onClick={onJoinCommunity}
             className="flex-1 sm:flex-none"
@@ -475,7 +475,16 @@ const CommunityAboutTab: React.FC<CommunityAboutTabProps> = ({
             <UserPlus className="w-4 h-4 mr-2" />
             Join Community
           </Button>
-        )}
+        ) : isAdmin ? (
+          <Button
+            onClick={onCreatePost}
+            className="flex-1 sm:flex-none"
+            size="lg"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Create Post
+          </Button>
+        ) : null}
         {isAdmin && (
           <Button variant="outline" className="flex-1 sm:flex-none" size="lg">
             <Settings className="w-4 h-4 mr-2" />

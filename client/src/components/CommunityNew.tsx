@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Pagination from "@/components/ui/pagination";
+import Pagination from "@/components/ui/Pagination";
 import {
   Dialog,
   DialogContent,
@@ -196,7 +196,12 @@ const CommunityNew = () => {
   const { toast } = useToast();
 
   // State management
-  const [activeTab, setActiveTab] = useState("communities");
+  const [activeTab, setActiveTab] = useState("my-communities");
+
+  // Debug active tab changes
+  useEffect(() => {
+    console.log("🔍 Active tab changed to:", activeTab);
+  }, [activeTab]);
   const [communityActiveTab, setCommunityActiveTab] = useState("posts"); // Post when inside a community
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -720,7 +725,7 @@ const CommunityNew = () => {
 
   // Load data when component mounts or filters change
   useEffect(() => {
-    if (activeTab === "communities") {
+    if (activeTab === "communities" || activeTab === "my-communities") {
       fetchCommunities();
     }
   }, [activeTab, selectedCategory, searchQuery, fetchCommunities]);
@@ -1696,10 +1701,18 @@ const CommunityNew = () => {
   const isUserMember = useCallback(
     (community: Community) => {
       if (!user || !community) return false;
-      return (
+
+      const isMember =
         community.members &&
-        community.members.some((member) => member._id === user._id)
-      );
+        community.members.some((member) => member._id === user._id);
+
+      console.log(`🔍 Checking membership for ${community.name}:`, {
+        userId: user._id,
+        members: community.members?.map((m) => m._id),
+        isMember,
+      });
+
+      return isMember;
     },
     [user]
   );
@@ -1711,7 +1724,17 @@ const CommunityNew = () => {
       return;
     }
 
-    const joined = communities.filter((community) => isUserMember(community));
+    console.log("🔍 Filtering joined communities...");
+    console.log("User:", user._id);
+    console.log("Communities:", communities.length);
+
+    const joined = communities.filter((community) => {
+      const isMember = isUserMember(community);
+      console.log(`Community ${community.name}: isMember = ${isMember}`);
+      return isMember;
+    });
+
+    console.log("Joined communities:", joined.length);
     setJoinedCommunities(joined);
   }, [communities, user, isUserMember]);
 
@@ -2516,45 +2539,38 @@ const CommunityNew = () => {
           </TabsList>
 
           {/* Communities Tab */}
-          <TabsContent value="communities" className="space-y-4">
-            {communities.length === 0 && !loading ? (
-              <div className="text-center py-12">
-                <Users2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No communities yet
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  Be the first to create a community!
-                </p>
-                {/* Only show Create Community button for College Admin, HOD, and Staff */}
-                {user?.role &&
-                  ["super_admin", "college_admin", "hod", "staff"].includes(
-                    user.role
-                  ) && (
-                    <Button onClick={() => setCommunityDialogOpen(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Community
-                    </Button>
-                  )}
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {communities.map((community) => {
-                  const CategoryIcon = getCategoryIcon(community.category);
-                  const isMember = isUserMember(community);
-                  const isAdmin = isUserAdmin(community);
+          <TabsContent value="communities" className="space-y-6">
+            {/* Joined Communities Section */}
+            {joinedCommunities.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-blue-600" />
+                    Your Joined Communities
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab("my-communities")}
+                  >
+                    View All
+                  </Button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {joinedCommunities.slice(0, 6).map((community) => {
+                    const CategoryIcon = getCategoryIcon(community.category);
+                    const isMember = isUserMember(community);
+                    const isAdmin = isUserAdmin(community);
 
-                  return (
-                    <Card
-                      key={community._id}
-                      className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
-                      onClick={() => handleViewCommunity(community)}
-                    >
-                      {/* Community Card Content */}
-                      <CardContent className="p-6 pb-2">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
+                    return (
+                      <Card
+                        key={community._id}
+                        className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden border-blue-200 bg-blue-50/30"
+                        onClick={() => handleViewCommunity(community)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 flex-shrink-0">
                               {community.logo ? (
                                 <img
                                   src={community.logo}
@@ -2562,121 +2578,214 @@ const CommunityNew = () => {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <CategoryIcon className="w-6 h-6 text-gray-600" />
+                                <CategoryIcon className="w-5 h-5 text-gray-600" />
                               )}
                             </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 truncate">
                                 {community.name}
                               </h3>
-                              <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                                {community.description}
+                              <p className="text-sm text-gray-600 truncate">
+                                {community.category?.replace(/_/g, " ")}
                               </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <CategoryIcon className="w-3 h-3" />
-                                <span className="capitalize">
-                                  {community.category}
-                                </span>
-                                <span>•</span>
-                                <span>{community.memberCount} members</span>
-                                {!community.isPublic && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-amber-600">
-                                      Private
-                                    </span>
-                                  </>
-                                )}
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {isAdmin ? "Admin" : "Member"}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {community.type || "Community"}
+                                </Badge>
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {isMember && (
-                              <Badge variant="secondary" className="text-xs">
-                                Member
-                              </Badge>
-                            )}
-                            {isAdmin && (
-                              <Badge variant="default" className="text-xs">
-                                Admin
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Tags */}
-                        {community.tags && community.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {community.tags.slice(0, 3).map((tag) => (
-                              <Badge
-                                key={tag}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
-                            {community.tags.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{community.tags.length - 3} more
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Stats */}
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="w-4 h-4" />
-                              {community.postCount || 0} posts
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              <span>
-                                Active{" "}
-                                {new Date(
-                                  community.createdAt
-                                ).toLocaleDateString()}
-                              </span>
-                            </span>
-                          </div>
-                          <Button variant="outline" size="sm">
-                            {isMember ? "View" : "Join"}
-                          </Button>
-                        </div>
-
-                        {/* Moderator Tools - Only show for admins */}
-                        {isAdmin && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-xs text-gray-600">
-                                <Shield className="w-3 h-3" />
-                                <span>Moderator Tools</span>
-                              </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-xs h-6 px-2"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // TODO: Add manage community functionality
-                                  }}
-                                >
-                                  <Settings className="w-3 h-3 mr-1" />
-                                  Manage
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+                {joinedCommunities.length > 6 && (
+                  <div className="text-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab("my-communities")}
+                    >
+                      View All {joinedCommunities.length} Joined Communities
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* All Communities Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Users2 className="w-5 h-5 text-gray-600" />
+                  All Communities
+                </h2>
+              </div>
+
+              {communities.length === 0 && !loading ? (
+                <div className="text-center py-12">
+                  <Users2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No communities yet
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Be the first to create a community!
+                  </p>
+                  {/* Only show Create Community button for College Admin, HOD, and Staff */}
+                  {user?.role &&
+                    ["super_admin", "college_admin", "hod", "staff"].includes(
+                      user.role
+                    ) && (
+                      <Button onClick={() => setCommunityDialogOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Community
+                      </Button>
+                    )}
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {communities.map((community) => {
+                    const CategoryIcon = getCategoryIcon(community.category);
+                    const isMember = isUserMember(community);
+                    const isAdmin = isUserAdmin(community);
+
+                    return (
+                      <Card
+                        key={community._id}
+                        className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+                        onClick={() => handleViewCommunity(community)}
+                      >
+                        {/* Community Card Content */}
+                        <CardContent className="p-6 pb-2">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-start space-x-4">
+                              <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
+                                {community.logo ? (
+                                  <img
+                                    src={community.logo}
+                                    alt={`${community.name} logo`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <CategoryIcon className="w-6 h-6 text-gray-600" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                                  {community.name}
+                                </h3>
+                                <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                                  {community.description}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <CategoryIcon className="w-3 h-3" />
+                                  <span className="capitalize">
+                                    {community.category}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{community.memberCount} members</span>
+                                  {!community.isPublic && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-amber-600">
+                                        Private
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isMember && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Member
+                                </Badge>
+                              )}
+                              {isAdmin && (
+                                <Badge variant="default" className="text-xs">
+                                  Admin
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Tags */}
+                          {community.tags && community.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {community.tags.slice(0, 3).map((tag) => (
+                                <Badge
+                                  key={tag}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {community.tags.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{community.tags.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Stats */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <MessageCircle className="w-4 h-4" />
+                                {community.postCount || 0} posts
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                <span>
+                                  Active{" "}
+                                  {new Date(
+                                    community.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
+                              </span>
+                            </div>
+                            <Button variant="outline" size="sm">
+                              {isMember ? "View" : "Join"}
+                            </Button>
+                          </div>
+
+                          {/* Moderator Tools - Only show for admins */}
+                          {isAdmin && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                  <Shield className="w-3 h-3" />
+                                  <span>Moderator Tools</span>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs h-6 px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // TODO: Add manage community functionality
+                                    }}
+                                  >
+                                    <Settings className="w-3 h-3 mr-1" />
+                                    Manage
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* My Communities Tab */}

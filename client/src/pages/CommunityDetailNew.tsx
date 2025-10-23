@@ -15,6 +15,9 @@ import {
   CommunityPostsTab,
   CommunityAboutTab,
   ModeratorDashboard,
+  CommunityMembersTab,
+  CommunityJoinRequestsTab,
+  CommunityModeratorsTab,
   EditCommunityModal,
   DeleteCommunityModal,
   Community,
@@ -605,6 +608,7 @@ const CommunityDetailNew: React.FC = () => {
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
                 isModerator={isModerator || isAdmin}
+                isAdmin={isAdmin}
               >
                 {activeTab === "posts" ? (
                   <CommunityPostsTab
@@ -635,6 +639,23 @@ const CommunityDetailNew: React.FC = () => {
                       onClearFilters={clearFilters}
                     />
                   </>
+                ) : activeTab === "members" ? (
+                  <CommunityMembersTab
+                    communityId={id || ""}
+                    isAdmin={isAdmin}
+                  />
+                ) : activeTab === "join-requests" ? (
+                  <CommunityJoinRequestsTab communityId={id || ""} />
+                ) : activeTab === "moderators" ? (
+                  <CommunityModeratorsTab
+                    communityId={id || ""}
+                    isAdmin={isAdmin}
+                  />
+                ) : activeTab === "admin" ? (
+                  <ModeratorDashboard
+                    communityId={id || ""}
+                    isAdmin={isAdmin}
+                  />
                 ) : (
                   <ModeratorDashboard
                     communityId={id || ""}

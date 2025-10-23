@@ -259,7 +259,14 @@ const MentorshipSystem: React.FC = () => {
 
   // Handle mentor delete success
   const handleMentorDeleteSuccess = () => {
-    // TODO: Refresh mentors list
+    // Remove the deleted mentor from the mentors list
+    if (selectedMentorForEdit) {
+      setMentors((prevMentors) =>
+        prevMentors.filter(
+          (mentor) => mentor.userId !== selectedMentorForEdit.userId
+        )
+      );
+    }
     setShowDeleteMentorDialog(false);
     setSelectedMentorForEdit(null);
   };
@@ -281,6 +288,9 @@ const MentorshipSystem: React.FC = () => {
     filters,
     loading,
     error,
+
+    // Setters
+    setMentors,
 
     // Actions
     handleAddMentor,

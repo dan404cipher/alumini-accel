@@ -504,7 +504,10 @@ export const promoteToModerator = async (
 
     // Add to community moderators
     if (community) {
-      (community as any).addModerator(membership.userId);
+      console.log("Adding moderator to community:", membership.userId);
+      console.log("Community moderators before:", community.moderators);
+      (community as any).addModerator(membership.userId.toString());
+      console.log("Community moderators after:", community.moderators);
       await community.save();
     }
 
@@ -587,7 +590,7 @@ export const demoteToMember = async (
 
     // Remove from community moderators
     if (community) {
-      (community as any).removeModerator(membership.userId);
+      (community as any).removeModerator(membership.userId.toString());
       await community.save();
     }
 

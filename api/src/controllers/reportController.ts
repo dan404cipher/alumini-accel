@@ -261,6 +261,20 @@ export const getCommunityReports = asyncHandler(
     const isSuperAdmin = req.user?.role === "super_admin";
     const isCollegeAdmin = req.user?.role === "college_admin";
 
+    // Debug logging
+    console.log("=== DEBUG COMMUNITY REPORTS PERMISSIONS ===");
+    console.log("User ID:", userId);
+    console.log("Community ID:", communityId);
+    console.log("User Membership:", membership);
+    console.log("Community:", community);
+    console.log("isCreator:", isCreator);
+    console.log("isAdmin:", isAdmin);
+    console.log("canModerate:", canModerate);
+    console.log("isSuperAdmin:", isSuperAdmin);
+    console.log("isCollegeAdmin:", isCollegeAdmin);
+    console.log("User Role:", req.user?.role);
+    console.log("==========================================");
+
     if (
       !isCreator &&
       !isAdmin &&

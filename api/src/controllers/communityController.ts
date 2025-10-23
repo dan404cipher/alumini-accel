@@ -481,7 +481,7 @@ export const joinCommunity = async (
       await membership.save();
 
       // Add to community members
-      (community as any).addMember(userId);
+      (community as any).addMember(userId.toString());
       await community.save();
 
       return res.json({
@@ -585,27 +585,49 @@ export const leaveCommunity = async (
       });
     }
 
-    const membership = await CommunityMembership.findOne({
+    let membership = await CommunityMembership.findOne({
       communityId: id,
       userId: userId,
       status: "approved",
     });
 
-    if (!membership) {
+    // If no approved membership found, check if user is in community members array
+    // This handles cases where membership sync might be inconsistent
+    const community = await Community.findById(id);
+    const isInMembersArray = community?.members?.some(
+      (memberId: any) => memberId.toString() === userId.toString()
+    );
+
+    if (!membership && !isInMembersArray) {
       return res.status(404).json({
         success: false,
         message: "Not a member of this community",
       });
     }
 
+    // If user is in members array but no membership record, create one
+    if (!membership && isInMembersArray) {
+      console.log("Creating missing membership record for user:", userId);
+      const newMembership = new CommunityMembership({
+        communityId: id,
+        userId: userId,
+        role: "member",
+        status: "approved",
+        joinedAt: new Date(),
+      });
+      await newMembership.save();
+      membership = newMembership;
+    }
+
     // Leave community
-    (membership as any).leaveCommunity();
-    await membership.save();
+    if (membership) {
+      (membership as any).leaveCommunity();
+      await membership.save();
+    }
 
     // Remove from community members
-    const community = await Community.findById(id);
     if (community) {
-      (community as any).removeMember(userId);
+      (community as any).removeMember(userId.toString());
       await community.save();
     }
 

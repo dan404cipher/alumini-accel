@@ -466,7 +466,7 @@ const CommunityAboutTab: React.FC<CommunityAboutTabProps> = ({
               Leave Community
             </Button>
           </>
-        ) : !isMember ? (
+        ) : !isMember && !isAdmin ? (
           <Button
             onClick={onJoinCommunity}
             className="flex-1 sm:flex-none"

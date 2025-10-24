@@ -303,7 +303,7 @@ const CommunityMobileSidebar: React.FC<CommunityMobileSidebarProps> = ({
                   <span className="sm:hidden">Leave</span>
                 </Button>
               </>
-            ) : !isMember ? (
+            ) : !isMember && !isAdmin ? (
               <Button
                 variant="default"
                 size="sm"

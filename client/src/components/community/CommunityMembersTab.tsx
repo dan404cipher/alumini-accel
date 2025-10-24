@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Users, UserX, Ban, EyeOff, Trash2, Crown, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Member {
   _id: string;
@@ -32,6 +33,7 @@ const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
   onRoleChange,
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Helper function to get auth token
   const getAuthToken = (): string => {
@@ -155,10 +157,22 @@ const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
     }
   };
 
-  // Filter members by role
-  const filteredMembers = members.filter(
-    (member) => roleFilter === "all" || member.role === roleFilter
-  );
+  // Filter members by role and exclude College Admins and Community Admins
+  const filteredMembers = members.filter((member) => {
+    // Exclude College Admins and Community Admins from the members list
+    const isCollegeAdmin = member.userId?.role === "college_admin";
+    const isSuperAdmin = member.userId?.role === "super_admin";
+    const isCommunityCreator =
+      member.role === "admin" && member.userId?._id === user?._id;
+
+    // Don't show College Admins, Super Admins, or Community Creators in members list
+    if (isCollegeAdmin || isSuperAdmin || isCommunityCreator) {
+      return false;
+    }
+
+    // Apply role filter
+    return roleFilter === "all" || member.role === roleFilter;
+  });
 
   return (
     <div className="space-y-6">
@@ -174,7 +188,7 @@ const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
         </div>
         <Badge variant="secondary" className="flex items-center gap-1">
           <Users className="w-4 h-4" />
-          {members.length} Members
+          {filteredMembers.length} Members
         </Badge>
       </div>
 
@@ -185,28 +199,29 @@ const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
           size="sm"
           onClick={() => setRoleFilter("all")}
         >
-          All ({members.length})
+          All ({filteredMembers.length})
         </Button>
         <Button
           variant={roleFilter === "member" ? "default" : "outline"}
           size="sm"
           onClick={() => setRoleFilter("member")}
         >
-          Members ({members.filter((m) => m.role === "member").length})
+          Members ({filteredMembers.filter((m) => m.role === "member").length})
         </Button>
         <Button
           variant={roleFilter === "moderator" ? "default" : "outline"}
           size="sm"
           onClick={() => setRoleFilter("moderator")}
         >
-          Moderators ({members.filter((m) => m.role === "moderator").length})
+          Moderators (
+          {filteredMembers.filter((m) => m.role === "moderator").length})
         </Button>
         <Button
           variant={roleFilter === "admin" ? "default" : "outline"}
           size="sm"
           onClick={() => setRoleFilter("admin")}
         >
-          Admins ({members.filter((m) => m.role === "admin").length})
+          Admins ({filteredMembers.filter((m) => m.role === "admin").length})
         </Button>
       </div>
 
@@ -314,32 +329,42 @@ const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
                       Demote to Member
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleMemberAction(member._id, "suspend")}
-                  >
-                    <Ban className="w-4 h-4 mr-1" />
-                    Suspend
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      handleMemberAction(member._id, "disable-photo")
-                    }
-                  >
-                    <EyeOff className="w-4 h-4 mr-1" />
-                    Disable Photo
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleMemberAction(member._id, "remove")}
-                  >
-                    <UserX className="w-4 h-4 mr-1" />
-                    Remove
-                  </Button>
+                  {/* Don't show Suspend and Disable Photo buttons for admins */}
+                  {member.role !== "admin" && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleMemberAction(member._id, "suspend")
+                        }
+                      >
+                        <Ban className="w-4 h-4 mr-1" />
+                        Suspend
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleMemberAction(member._id, "disable-photo")
+                        }
+                      >
+                        <EyeOff className="w-4 h-4 mr-1" />
+                        Disable Photo
+                      </Button>
+                    </>
+                  )}
+                  {/* Don't show Remove button for admins */}
+                  {member.role !== "admin" && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleMemberAction(member._id, "remove")}
+                    >
+                      <UserX className="w-4 h-4 mr-1" />
+                      Remove
+                    </Button>
+                  )}
                 </div>
               </div>
             ))

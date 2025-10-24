@@ -119,7 +119,7 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
                 <span className="hidden sm:inline">Leave</span>
                 <span className="sm:hidden">Leave</span>
               </Button>
-            ) : !isMember ? (
+            ) : !isMember && !isAdmin ? (
               <Button
                 onClick={onJoinCommunity}
                 size="sm"

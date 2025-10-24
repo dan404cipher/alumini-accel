@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,8 @@ import {
   CommunityMobileSidebar,
   CommunityPostsTab,
   CommunityAboutTab,
-  ModeratorDashboard,
   CommunityMembersTab,
   CommunityJoinRequestsTab,
-  CommunityModeratorsTab,
   ReportsTab,
   EditCommunityModal,
   DeleteCommunityModal,
@@ -28,6 +26,7 @@ import {
 
 const CommunityDetailNew: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -683,28 +682,18 @@ const CommunityDetailNew: React.FC = () => {
                   />
                 ) : activeTab === "join-requests" ? (
                   <CommunityJoinRequestsTab communityId={id || ""} />
-                ) : activeTab === "moderators" ? (
-                  <CommunityModeratorsTab
-                    communityId={id || ""}
-                    isAdmin={isAdmin}
-                    onRoleChange={fetchCommunity}
-                  />
                 ) : activeTab === "reports" ? (
                   <ReportsTab
                     communityId={id || ""}
                     isAdmin={isAdmin}
                     isModerator={isModerator}
                   />
-                ) : activeTab === "admin" ? (
-                  <ModeratorDashboard
-                    communityId={id || ""}
-                    isAdmin={isAdmin}
-                  />
                 ) : (
-                  <ModeratorDashboard
-                    communityId={id || ""}
-                    isAdmin={isAdmin}
-                  />
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">
+                      Select a tab to view content
+                    </p>
+                  </div>
                 )}
               </CommunityDetailTabs>
             )}

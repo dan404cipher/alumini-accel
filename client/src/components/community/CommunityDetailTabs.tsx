@@ -27,8 +27,8 @@ const CommunityDetailTabs: React.FC<CommunityDetailTabsProps> = ({
 }) => {
   // Calculate grid columns based on user role
   const getGridCols = () => {
-    if (isAdmin) return "grid-cols-7"; // Posts, About, Members, Join Requests, Moderators, Reports, Admin
-    if (isModerator) return "grid-cols-5"; // Posts, About, Members, Moderator, Reports
+    if (isAdmin) return "grid-cols-5"; // Posts, About, Members, Join Requests, Reports
+    if (isModerator) return "grid-cols-5"; // Posts, About, Members, Join Requests, Reports
     return "grid-cols-2"; // Posts, About
   };
 
@@ -72,25 +72,11 @@ const CommunityDetailTabs: React.FC<CommunityDetailTabsProps> = ({
               <span className="hidden sm:inline">Requests</span>
             </TabsTrigger>
             <TabsTrigger
-              value="moderators"
-              className="flex items-center gap-2 text-xs sm:text-sm"
-            >
-              <Crown className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Moderators</span>
-            </TabsTrigger>
-            <TabsTrigger
               value="reports"
               className="flex items-center gap-2 text-xs sm:text-sm"
             >
               <Flag className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Reports</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="admin"
-              className="flex items-center gap-2 text-xs sm:text-sm"
-            >
-              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Admin</span>
             </TabsTrigger>
           </>
         )}
@@ -106,11 +92,11 @@ const CommunityDetailTabs: React.FC<CommunityDetailTabsProps> = ({
               <span className="hidden sm:inline">Members</span>
             </TabsTrigger>
             <TabsTrigger
-              value="moderator"
+              value="join-requests"
               className="flex items-center gap-2 text-xs sm:text-sm"
             >
-              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Moderator</span>
+              <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Requests</span>
             </TabsTrigger>
             <TabsTrigger
               value="reports"

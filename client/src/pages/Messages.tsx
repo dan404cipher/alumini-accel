@@ -158,7 +158,7 @@ const Messages = () => {
     return () => {
       if (selectedConversation && currentUser) {
         // Create consistent conversation ID (sorted to ensure both users use same ID)
-        const userIds = [currentUser.id, selectedConversation.user.id].sort();
+        const userIds = [currentUser._id, selectedConversation.user.id].sort();
         const conversationId = `${userIds[0]}_${userIds[1]}`;
         leaveConversation(conversationId);
       }
@@ -233,10 +233,6 @@ const Messages = () => {
       if (response.success) {
         setNewMessage("");
         setReplyingToMessage(null); // Clear reply after sending
-
-        // Add message to socket messages for real-time update
-        const newMessageData = response.data;
-        setSocketMessages((prev) => [...prev, newMessageData]);
 
         // Refresh messages
         await fetchMessages(selectedConversation.user.id);
@@ -386,7 +382,7 @@ const Messages = () => {
   const selectConversation = (conversation: Conversation) => {
     // Leave previous conversation room if exists
     if (selectedConversation) {
-      const prevConversationId = `${currentUser?.id}_${selectedConversation.user.id}`;
+      const prevConversationId = `${currentUser?._id}_${selectedConversation.user.id}`;
       leaveConversation(prevConversationId);
     }
 
@@ -395,7 +391,7 @@ const Messages = () => {
 
     // Join new conversation room for real-time updates
     // Create consistent conversation ID (sorted to ensure both users use same ID)
-    const userIds = [currentUser?.id, conversation.user.id].sort();
+    const userIds = [currentUser?._id, conversation.user.id].sort();
     const conversationId = `${userIds[0]}_${userIds[1]}`;
     joinConversation(conversationId);
 

@@ -10,7 +10,14 @@ import ReactCrop, {
 } from "react-image-crop";
 
 // Type assertion to fix ReactCrop TypeScript issues
-const CropComponent = ReactCrop as any;
+const CropComponent = ReactCrop as React.ComponentType<{
+  crop?: Crop;
+  onChange?: (crop: Crop, percentageCrop: any) => void;
+  onComplete?: (crop: PixelCrop, percentageCrop: any) => void;
+  aspect?: number;
+  minWidth?: number;
+  children: React.ReactNode;
+}>;
 import "react-image-crop/dist/ReactCrop.css";
 import {
   Card,
@@ -68,46 +75,74 @@ interface Project {
   technologies: string[];
   startDate: string;
   endDate?: string;
-  url?: string;
+  isOngoing: boolean;
   githubUrl?: string;
+  liveUrl?: string;
+  teamMembers: Array<{
+    name: string;
+    role: string;
+  }>;
 }
 
 interface Internship {
   _id?: string;
   company: string;
   position: string;
-  description: string;
+  description?: string;
   startDate: string;
   endDate?: string;
+  isOngoing: boolean;
   location?: string;
+  isRemote: boolean;
+  stipend?: {
+    amount: number;
+    currency: string;
+  };
+  skills: string[];
+  certificateFile?: string;
 }
 
 interface Research {
   _id?: string;
   title: string;
   description: string;
-  supervisor: string;
+  supervisor?: string;
   startDate: string;
   endDate?: string;
-  publication?: string;
+  isOngoing: boolean;
+  publicationUrl?: string;
+  conferenceUrl?: string;
+  keywords: string[];
+  status: "ongoing" | "completed" | "published" | "presented";
+  publicationFile?: string;
+  conferenceFile?: string;
 }
 
 interface Certification {
   _id?: string;
   name: string;
   issuer: string;
-  issueDate: string;
+  date: string;
   expiryDate?: string;
   credentialId?: string;
-  url?: string;
+  credentialUrl?: string;
+  credentialFile?: string;
 }
 
 interface ConnectionRequest {
   _id: string;
-  from: string;
-  to: string;
+  userId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profilePicture?: string;
+    role: string;
+  };
   status: "pending" | "accepted" | "rejected";
-  createdAt: string;
+  requestedAt: string;
+  respondedAt?: string;
+  message?: string;
 }
 
 interface EventRegistration {
@@ -1213,7 +1248,8 @@ const Profile = () => {
                     <ConnectionsSection
                       connections={(profileData?.connections as string[]) || []}
                       connectionRequests={
-                        (profileData?.connectionRequests as any[]) || []
+                        (profileData?.connectionRequests as ConnectionRequest[]) ||
+                        []
                       }
                       isEditing={isEditing}
                       onUpdate={handleProfileUpdate}
@@ -1464,7 +1500,7 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <ProjectsSection
-                  projects={(profileData?.projects as any[]) || []}
+                  projects={(profileData?.projects as Project[]) || []}
                   isEditing={isEditing}
                   onUpdate={handleProfileUpdate}
                   userRole={profile.user.role}
@@ -1478,7 +1514,7 @@ const Profile = () => {
               >
                 <InternshipsSection
                   internships={
-                    (profileData?.internshipExperience as any[]) || []
+                    (profileData?.internshipExperience as Internship[]) || []
                   }
                   isEditing={isEditing}
                   userRole={profile.user.role}
@@ -1492,7 +1528,7 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <ResearchSection
-                  research={(profileData?.researchWork as any[]) || []}
+                  research={(profileData?.researchWork as Research[]) || []}
                   isEditing={isEditing}
                   userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
@@ -1505,7 +1541,9 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <CertificationsSection
-                  certifications={(profileData?.certifications as any[]) || []}
+                  certifications={
+                    (profileData?.certifications as Certification[]) || []
+                  }
                   isEditing={isEditing}
                   userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
@@ -1520,7 +1558,8 @@ const Profile = () => {
                 <ConnectionsSection
                   connections={(profileData?.connections as string[]) || []}
                   connectionRequests={
-                    (profileData?.connectionRequests as any[]) || []
+                    (profileData?.connectionRequests as ConnectionRequest[]) ||
+                    []
                   }
                   isEditing={isEditing}
                   onUpdate={handleProfileUpdate}

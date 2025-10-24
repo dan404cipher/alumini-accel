@@ -78,6 +78,20 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { communityAPI } from "@/lib/api";
+
+// Helper function to get auth token
+const getAuthToken = (): string => {
+  // Check localStorage first (remember me), then sessionStorage
+  let token = localStorage.getItem("token");
+  if (!token) {
+    token = sessionStorage.getItem("token");
+  }
+  if (!token) {
+    throw new Error("Access token is required");
+  }
+  return token;
+};
 
 // Interfaces for Community features
 interface Community {
@@ -610,7 +624,7 @@ const CommunityNew = () => {
         }/communities?${params}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -672,7 +686,7 @@ const CommunityNew = () => {
         }/community-posts/community/${communityId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -703,7 +717,7 @@ const CommunityNew = () => {
         }/communities/${communityId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -842,7 +856,7 @@ const CommunityNew = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: formData,
         }
@@ -881,7 +895,7 @@ const CommunityNew = () => {
         }/users/search?q=${encodeURIComponent(query)}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1075,7 +1089,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify(requestBody),
         }
@@ -1139,7 +1153,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1178,7 +1192,7 @@ const CommunityNew = () => {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1317,7 +1331,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify(postData),
         }
@@ -1386,7 +1400,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
@@ -1428,7 +1442,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
@@ -1470,7 +1484,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
@@ -1509,7 +1523,7 @@ const CommunityNew = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1549,7 +1563,7 @@ const CommunityNew = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1597,7 +1611,7 @@ const CommunityNew = () => {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );

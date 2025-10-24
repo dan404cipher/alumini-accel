@@ -76,6 +76,19 @@ const ResetPassword = () => {
       return;
     }
 
+    // Check password complexity
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/;
+    if (!passwordRegex.test(formData.password)) {
+      toast({
+        title: "Password requirements not met",
+        description:
+          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(
@@ -213,6 +226,20 @@ const ResetPassword = () => {
                     <Eye className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
                   )}
                 </Button>
+              </div>
+
+              {/* Password Requirements */}
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs font-medium text-blue-800 mb-2">
+                  Password Requirements:
+                </p>
+                <ul className="text-xs text-blue-700 space-y-1">
+                  <li>• At least 8 characters long</li>
+                  <li>• One uppercase letter (A-Z)</li>
+                  <li>• One lowercase letter (a-z)</li>
+                  <li>• One number (0-9)</li>
+                  <li>• One special character (@$!%*?&)</li>
+                </ul>
               </div>
             </div>
 

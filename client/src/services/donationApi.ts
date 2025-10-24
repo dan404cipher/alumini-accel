@@ -121,13 +121,21 @@ class DonationApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = localStorage.getItem("token");
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+
+    if (!token) {
+      throw new Error("Access token is required");
+    }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
-        Authorization: token ? `Bearer ${token}` : "",
+        Authorization: `Bearer ${token}`,
         ...options.headers,
       },
     });

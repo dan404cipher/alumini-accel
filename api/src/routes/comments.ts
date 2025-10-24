@@ -16,7 +16,7 @@ router.get(
 // Create a new comment on a post
 router.post(
   "/posts/:postId/comments",
-  authMiddleware.authenticateToken,
+  authMiddleware.authenticateToken,  
   ...validationMiddleware.validatePostId,
   [
     body("content")

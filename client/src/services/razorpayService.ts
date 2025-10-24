@@ -69,6 +69,18 @@ class RazorpayService {
     this.loadRazorpayScript();
   }
 
+  private getAuthToken(): string {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      throw new Error("User not authenticated. Please log in first.");
+    }
+    return token;
+  }
+
   public static getInstance(): RazorpayService {
     if (!RazorpayService.instance) {
       RazorpayService.instance = new RazorpayService();
@@ -115,11 +127,7 @@ class RazorpayService {
     };
   }> {
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("User not authenticated. Please log in first.");
-      }
+      const token = this.getAuthToken();
 
       console.log("Creating order with data:", orderData);
       console.log("API URL:", `${API_BASE_URL}/payments/donation/order`);
@@ -128,7 +136,7 @@ class RazorpayService {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(orderData),
       });
@@ -156,13 +164,14 @@ class RazorpayService {
     paymentData: RazorpayPaymentData
   ): Promise<{ success: boolean; message?: string; data?: unknown }> {
     try {
+      const token = this.getAuthToken();
       console.log("Verifying payment with data:", paymentData);
 
       const response = await fetch(`${API_BASE_URL}/payments/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(paymentData),
       });

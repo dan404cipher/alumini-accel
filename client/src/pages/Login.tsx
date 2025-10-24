@@ -190,9 +190,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Side - College Information */}
-      <div className="lg:w-1/2 bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 relative overflow-hidden min-h-[50vh] lg:min-h-screen">
+      <div className="lg:w-1/2 bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 relative overflow-hidden h-[50vh] lg:h-screen">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
@@ -440,9 +440,9 @@ const Login = () => {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-background to-muted/20 min-h-[50vh] lg:min-h-screen">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-background to-muted/20 h-[50vh] lg:h-screen overflow-y-auto">
         <Card className="w-full max-w-md shadow-2xl border-0 bg-white/95 backdrop-blur-sm animate-fade-in-up">
-          <CardHeader className="space-y-2 p-6 sm:p-8">
+          <CardHeader className="space-y-2 p-4 sm:p-6">
             <CardTitle className="text-2xl sm:text-3xl font-bold text-center text-primary">
               Welcome Back
             </CardTitle>
@@ -450,8 +450,8 @@ const Login = () => {
               Sign in to your account to continue
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6 sm:p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
+          <CardContent className="p-4 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email
@@ -534,62 +534,6 @@ const Login = () => {
                       Forgot password?
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Reset Password</DialogTitle>
-                      <DialogDescription>
-                        Enter your email address and we'll send you a link to
-                        reset your password.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleForgotPassword} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="forgot-email"
-                          className="text-sm font-medium"
-                        >
-                          Email Address
-                        </Label>
-                        <div className="relative group">
-                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                          <Input
-                            id="forgot-email"
-                            type="email"
-                            placeholder="Enter your email"
-                            value={forgotPasswordEmail}
-                            onChange={(e) =>
-                              setForgotPasswordEmail(e.target.value)
-                            }
-                            className="pl-10 h-11 border-2 focus:border-primary transition-all duration-200"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setForgotPasswordOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={forgotPasswordLoading}
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          {forgotPasswordLoading ? (
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Sending...
-                            </div>
-                          ) : (
-                            "Send Reset Link"
-                          )}
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
                 </Dialog>
               </div>
 
@@ -609,7 +553,68 @@ const Login = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            {/* Forgot Password Dialog */}
+            <Dialog
+              open={forgotPasswordOpen}
+              onOpenChange={setForgotPasswordOpen}
+            >
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Reset Password</DialogTitle>
+                  <DialogDescription>
+                    Enter your email address and we'll send you a link to reset
+                    your password.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="forgot-email"
+                      className="text-sm font-medium"
+                    >
+                      Email Address
+                    </Label>
+                    <div className="relative group">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={forgotPasswordEmail}
+                        onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                        className="pl-10 h-11 border-2 focus:border-primary transition-all duration-200"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setForgotPasswordOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={forgotPasswordLoading}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {forgotPasswordLoading ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sending...
+                        </div>
+                      ) : (
+                        "Send Reset Link"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <div className="mt-4 text-center">
               <div className="p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-xl border border-border/50">
                 <p className="text-sm font-medium text-foreground mb-2">
                   Need access?

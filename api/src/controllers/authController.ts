@@ -13,6 +13,10 @@ import { UserRole, UserStatus } from "../types";
 import { sendEmail } from "../utils/email";
 import { sendSMS } from "../utils/sms";
 import { AppError } from "../middleware/errorHandler";
+import {
+  checkAndCreateProfileCompletionNotification,
+  updateProfileCompletion,
+} from "../utils/profileCompletion";
 
 // Register new user
 export const register = async (req: Request, res: Response) => {
@@ -162,6 +166,12 @@ export const login = async (req: Request, res: Response) => {
     user.lastLoginAt = new Date();
     await user.save();
 
+    // Update profile completion and check for notifications (for alumni only)
+    if (user.role === UserRole.ALUMNI) {
+      await updateProfileCompletion(user._id);
+      await checkAndCreateProfileCompletionNotification(user._id);
+    }
+
     // Generate tokens
     const token = generateToken(user._id, user.role, user.tenantId);
     const refreshToken = generateRefreshToken(user._id);
@@ -245,8 +255,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
     await user.save();
 
     // Send reset email
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-    await sendEmail({
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    logger.info(`Sending password reset email to: ${user.email}`);
+    logger.info(`Reset URL: ${resetUrl}`);
+
+    const emailSent = await sendEmail({
       to: user.email,
       subject: "Password Reset Request - AlumniAccel",
       html: `
@@ -262,6 +277,15 @@ export const forgotPassword = async (req: Request, res: Response) => {
       `,
     });
 
+    if (!emailSent) {
+      logger.error(`Failed to send password reset email to: ${user.email}`);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send password reset email",
+      });
+    }
+
+    logger.info(`Password reset email sent successfully to: ${user.email}`);
     return res.json({
       success: true,
       message: "Password reset email sent",

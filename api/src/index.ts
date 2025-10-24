@@ -1,4 +1,5 @@
 import express from "express";
+import { createServer } from "http";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
@@ -12,6 +13,7 @@ import "express-async-errors";
 // Import configurations
 import connectDB from "./config/database";
 import { logger } from "./utils/logger";
+import SocketService from "./services/socketService";
 
 // Import middleware
 import { globalErrorHandler, notFound } from "./middleware/errorHandler";
@@ -33,6 +35,7 @@ import docsRoutes from "./routes/docs";
 import galleryRoutes from "./routes/gallery";
 import connectionRoutes from "./routes/connection";
 import messageRoutes from "./routes/message";
+import notificationRoutes from "./routes/notification";
 import tenantRoutes from "./routes/tenantRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
 import communityRoutes from "./routes/community";
@@ -44,21 +47,30 @@ import uploadRoutes from "./routes/upload";
 import likesRoutes from "./routes/likes";
 import commentsRoutes from "./routes/comments";
 import sharesRoutes from "./routes/shares";
+import paymentRoutes from "./routes/payment";
+import reportRoutes from "./routes/reports";
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || "development";
+
+// Initialize Socket.IO service
+let socketService: SocketService;
 
 // Connect to database
 const startServer = async () => {
   try {
     await connectDB();
 
+    // Initialize Socket.IO
+    socketService = new SocketService(server);
+
     // Start server
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       logger.info(
         `🚀 AlumniAccel API server running on port ${PORT} in ${NODE_ENV} mode`
       );
@@ -67,6 +79,9 @@ const startServer = async () => {
       );
       logger.info(
         `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
+      );
+      logger.info(
+        `🔌 Socket.IO server initialized for real-time communication`
       );
     });
   } catch (error) {
@@ -97,6 +112,7 @@ app.use(
       process.env.NODE_ENV === "production"
         ? process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:3000"]
         : [
+            "http://localhost:5173",
             "http://localhost:8080",
             "http://localhost:8081",
             "http://localhost:3000",
@@ -216,6 +232,7 @@ app.use("/api/v1/docs", docsRoutes);
 app.use("/api/v1/gallery", galleryRoutes);
 app.use("/api/v1/connections", connectionRoutes);
 app.use("/api/v1/messages", messageRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/tenants", tenantRoutes);
 app.use("/api/v1/college", tenantRoutes);
 app.use("/api/v1/campaigns", campaignRoutes);
@@ -228,6 +245,8 @@ app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1", likesRoutes);
 app.use("/api/v1", commentsRoutes);
 app.use("/api/v1", sharesRoutes);
+app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/reports", reportRoutes);
 
 // Serve static files with CORS headers
 app.use(
@@ -286,4 +305,6 @@ process.on("uncaughtException", (err: Error) => {
 // Start the server
 startServer();
 
+// Export socket service for use in other modules
+export { socketService };
 export default app;

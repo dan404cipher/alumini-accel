@@ -21,13 +21,28 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { Calendar, MapPin, Phone, Mail, User } from "lucide-react";
 
 const basicProfileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        // Allow empty string or undefined
+        if (!val || val.trim() === "") return true;
+        // Validate phone format if provided
+        return /^\+?[\d\s-()]+$/.test(val.trim());
+      },
+      {
+        message:
+          "Please provide a valid phone number (e.g., +1 636-962-1215 or (636) 962-1215)",
+      }
+    ),
   dateOfBirth: z.string().optional(),
   gender: z.enum(["male", "female", "other"]).optional(),
   bio: z.string().max(500, "Bio cannot exceed 500 characters").optional(),
@@ -87,12 +102,23 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
     try {
       setIsLoading(true);
 
-      // Convert dateOfBirth to ISO8601 format if present
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      // Convert dateOfBirth to ISO8601 format if present and clean up phone field
       const formattedData = {
         ...data,
         dateOfBirth: data.dateOfBirth
           ? new Date(data.dateOfBirth).toISOString()
           : undefined,
+        phone:
+          data.phone && data.phone.trim() !== ""
+            ? data.phone.trim()
+            : undefined,
       };
 
       const apiUrl =
@@ -101,7 +127,7 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(formattedData),
       });
@@ -194,13 +220,16 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
                 id="phone"
                 type="tel"
                 {...register("phone")}
-                placeholder="Enter your phone number"
+                placeholder="e.g., +1 636-962-1215 or (636) 962-1215"
                 className="pl-10"
               />
             </div>
             {errors.phone && (
               <p className="text-sm text-red-600">{errors.phone.message}</p>
             )}
+            <p className="text-xs text-gray-500">
+              Optional. Include country code for international numbers.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

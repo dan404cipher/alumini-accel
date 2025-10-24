@@ -6,6 +6,7 @@ import Connection from "../models/Connection";
 import User from "../models/User";
 import { ConnectionStatus } from "../types/connection";
 import { MessageRequest, MessageResponse, MessageType } from "../types/message";
+import { socketService } from "../index";
 
 // Send a message
 export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
@@ -99,6 +100,39 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
   ]);
 
   logger.info(`Message sent from ${senderId} to ${recipientId}`);
+
+  // Emit socket event for real-time message
+  logger.info(`🔍 Socket service available: ${!!socketService}`);
+  if (socketService) {
+    // Create consistent conversation ID (sorted to ensure both users use same ID)
+    const userIds = [senderId, recipientId].sort();
+    const conversationId = `${userIds[0]}_${userIds[1]}`;
+
+    logger.info(
+      `📤 Emitting new_message event to conversation: ${conversationId}`
+    );
+    logger.info(`📤 Message data:`, {
+      id: message._id,
+      conversationId,
+      senderId: senderId,
+      recipientId: recipientId,
+      content: message.content,
+    });
+
+    socketService.emitNewMessage({
+      id: message._id,
+      conversationId: conversationId,
+      sender: message.sender,
+      recipient: message.recipient,
+      content: message.content,
+      messageType: message.messageType,
+      isRead: message.isRead,
+      createdAt: message.createdAt,
+      replyTo: message.replyTo,
+    });
+  } else {
+    logger.error("❌ Socket service is not available!");
+  }
 
   return res.status(201).json({
     success: true,

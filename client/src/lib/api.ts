@@ -4,6 +4,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 // API base URL
 const API_BASE_URL =
@@ -36,7 +37,9 @@ api.interceptors.request.use(
       }
     }
 
-    const token = localStorage.getItem("token");
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -142,8 +145,15 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Try to refresh token
-        const refreshToken = localStorage.getItem("refreshToken");
+        // Try to refresh token - check both storages
+        let refreshToken = localStorage.getItem("refreshToken");
+        let storageType = "localStorage";
+
+        if (!refreshToken) {
+          refreshToken = sessionStorage.getItem("refreshToken");
+          storageType = "sessionStorage";
+        }
+
         if (refreshToken) {
           const response = await axios.post(
             `${API_BASE_URL}/auth/refresh-token`,
@@ -153,8 +163,15 @@ api.interceptors.response.use(
           );
 
           const { token, refreshToken: newRefreshToken } = response.data.data;
-          localStorage.setItem("token", token);
-          localStorage.setItem("refreshToken", newRefreshToken);
+
+          // Store in the same storage type as the original token
+          if (storageType === "localStorage") {
+            localStorage.setItem("token", token);
+            localStorage.setItem("refreshToken", newRefreshToken);
+          } else {
+            sessionStorage.setItem("token", token);
+            sessionStorage.setItem("refreshToken", newRefreshToken);
+          }
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -165,6 +182,9 @@ api.interceptors.response.use(
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
         localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("user");
         window.location.href = "/login";
         return Promise.reject(refreshError);
       }
@@ -612,7 +632,8 @@ export const userAPI = {
           success: true,
           message: "User request approved and account created",
           data: {
-            user: createUserResponse.data?.user || createUserResponse.data,
+            user:
+              (createUserResponse.data as any)?.user || createUserResponse.data,
           },
         };
       } else {
@@ -1933,6 +1954,7 @@ export const galleryAPI = {
     page?: number;
     limit?: number;
     category?: string;
+    tenantId?: string;
   }) => {
     try {
       // Try backend API first
@@ -1940,6 +1962,7 @@ export const galleryAPI = {
       if (params?.page) queryParams.append("page", params.page.toString());
       if (params?.limit) queryParams.append("limit", params.limit.toString());
       if (params?.category) queryParams.append("category", params.category);
+      if (params?.tenantId) queryParams.append("tenantId", params.tenantId);
 
       const response = await apiRequest({
         method: "GET",
@@ -2685,6 +2708,183 @@ export const communityAPI = {
     return apiRequest({
       method: "GET",
       url: "/community/stats",
+    });
+  },
+
+  // Get trending posts for a community
+  getTrendingPosts: async (communityId: string, limit: number = 5) => {
+    return apiRequest({
+      method: "GET",
+      url: `/community-posts/community/${communityId}/trending?limit=${limit}`,
+    });
+  },
+
+  // Get popular tags for a community
+  getPopularTags: async (communityId: string, limit: number = 8) => {
+    return apiRequest({
+      method: "GET",
+      url: `/community-posts/community/${communityId}/popular-tags?limit=${limit}`,
+    });
+  },
+
+  // Get top communities (most active)
+  getTopCommunities: async (limit: number = 5) => {
+    return apiRequest({
+      method: "GET",
+      url: `/communities/top?limit=${limit}`,
+    });
+  },
+};
+
+// Notification API functions
+export const notificationAPI = {
+  // Get all notifications for a user
+  getNotifications: async (params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    type?: string;
+    isRead?: boolean;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.type) queryParams.append("type", params.type);
+    if (typeof params?.isRead === "boolean") {
+      queryParams.append("isRead", params.isRead.toString());
+    }
+
+    return apiRequest({
+      method: "GET",
+      url: `/notifications?${queryParams.toString()}`,
+    });
+  },
+
+  // Get unread notification count
+  getUnreadCount: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/notifications/unread-count",
+    });
+  },
+
+  // Mark a notification as read
+  markAsRead: async (notificationId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/notifications/${notificationId}/read`,
+    });
+  },
+
+  // Mark all notifications as read
+  markAllAsRead: async () => {
+    return apiRequest({
+      method: "PATCH",
+      url: "/notifications/mark-all-read",
+    });
+  },
+
+  // Delete a notification
+  deleteNotification: async (notificationId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/notifications/${notificationId}`,
+    });
+  },
+
+  // Get notification statistics
+  getNotificationStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/notifications/stats",
+    });
+  },
+
+  // Create a notification (admin/system use)
+  createNotification: async (data: {
+    userId: string;
+    title: string;
+    message: string;
+    type?: "info" | "success" | "warning" | "error";
+    category?: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+    actionUrl?: string;
+    metadata?: Record<string, any>;
+    relatedEntity?: { type: string; id: string };
+    expiresAt?: Date;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/notifications",
+      data,
+    });
+  },
+};
+
+// Report API functions
+export const reportAPI = {
+  // Create a report
+  createReport: async (data: {
+    entityId: string;
+    entityType: "post" | "comment";
+    reason: string;
+    description?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/reports",
+      data,
+    });
+  },
+
+  // Get reports for a specific entity
+  getEntityReports: async (
+    entityId: string,
+    entityType: "post" | "comment"
+  ) => {
+    return apiRequest({
+      method: "GET",
+      url: `/reports/entity/${entityId}/${entityType}`,
+    });
+  },
+
+  // Get user's own reports
+  getUserReports: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/reports/user",
+    });
+  },
+
+  // Get pending reports (admin only)
+  getPendingReports: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/reports/pending",
+    });
+  },
+
+  // Get community reports (moderators can use this)
+  getCommunityReports: async (communityId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/reports/community/${communityId}`,
+    });
+  },
+
+  // Update report status (admin only)
+  updateReportStatus: async (
+    reportId: string,
+    data: {
+      status: "pending" | "reviewed" | "resolved" | "dismissed";
+      resolution?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/reports/${reportId}`,
+      data,
     });
   },
 };

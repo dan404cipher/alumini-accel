@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 const certificationSchema = z.object({
   name: z.string().min(1, "Certification name is required"),
@@ -51,6 +52,13 @@ export const CertificationForm = ({
     try {
       setIsLoading(true);
 
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const apiUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       const baseEndpoint =
@@ -76,7 +84,7 @@ export const CertificationForm = ({
       const response = await fetch(url, {
         method,
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });

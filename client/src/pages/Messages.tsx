@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import {
   MessageCircle,
   Send,
   Search,
-  MoreVertical,
+  MoreHorizontal,
   Trash2,
   Check,
   CheckCheck,
@@ -20,6 +20,8 @@ import {
 import { messageAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotificationContext } from "@/contexts/NotificationContext";
+import { useMessagesContext } from "@/contexts/MessagesContext";
 
 interface Message {
   id: string;
@@ -92,6 +94,15 @@ const Messages = () => {
   );
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const { refreshUnreadCount } = useNotificationContext();
+  const {
+    messages: socketMessages,
+    setMessages: setSocketMessages,
+    joinConversation,
+    leaveConversation,
+    markMessagesAsRead,
+    isTyping,
+  } = useMessagesContext();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
@@ -142,7 +153,19 @@ const Messages = () => {
     }
   }, [location.pathname]);
 
-  const fetchConversations = async () => {
+  // Cleanup socket connections on unmount
+  useEffect(() => {
+    return () => {
+      if (selectedConversation && currentUser) {
+        // Create consistent conversation ID (sorted to ensure both users use same ID)
+        const userIds = [currentUser._id, selectedConversation.user.id].sort();
+        const conversationId = `${userIds[0]}_${userIds[1]}`;
+        leaveConversation(conversationId);
+      }
+    };
+  }, [selectedConversation, currentUser, leaveConversation]);
+
+  const fetchConversations = useCallback(async () => {
     try {
       // setLoading(true);
       // Add a small delay to prevent rapid successive calls
@@ -168,24 +191,33 @@ const Messages = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchMessages = async (recipientId: string) => {
-    try {
-      const response = await messageAPI.getMessages(recipientId, { limit: 50 });
-      if (response.success) {
-        const messagesData = (response.data as any).messages || [];
-        setMessages(messagesData);
+  const fetchMessages = useCallback(
+    async (recipientId: string) => {
+      try {
+        const response = await messageAPI.getMessages(recipientId, {
+          limit: 50,
+        });
+        if (response.success) {
+          const messagesData =
+            (response.data as { messages: Message[] }).messages || [];
+          setMessages(messagesData);
+
+          // Refresh unread count after loading messages
+          await refreshUnreadCount();
+        }
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load messages",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load messages",
-        variant: "destructive",
-      });
-    }
-  };
+    },
+    [toast, refreshUnreadCount]
+  );
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || sending) return;
@@ -201,10 +233,14 @@ const Messages = () => {
       if (response.success) {
         setNewMessage("");
         setReplyingToMessage(null); // Clear reply after sending
+
         // Refresh messages
         await fetchMessages(selectedConversation.user.id);
         // Refresh conversations to update last message
         await fetchConversations();
+
+        // Refresh unread count after sending message
+        await refreshUnreadCount();
 
         // Refocus the input after sending
         setTimeout(() => {
@@ -344,8 +380,23 @@ const Messages = () => {
   };
 
   const selectConversation = (conversation: Conversation) => {
+    // Leave previous conversation room if exists
+    if (selectedConversation) {
+      const prevConversationId = `${currentUser?._id}_${selectedConversation.user.id}`;
+      leaveConversation(prevConversationId);
+    }
+
     setSelectedConversation(conversation);
     fetchMessages(conversation.user.id);
+
+    // Join new conversation room for real-time updates
+    // Create consistent conversation ID (sorted to ensure both users use same ID)
+    const userIds = [currentUser?._id, conversation.user.id].sort();
+    const conversationId = `${userIds[0]}_${userIds[1]}`;
+    joinConversation(conversationId);
+
+    // Mark messages as read
+    markMessagesAsRead(conversationId, conversation.user.id);
 
     // Focus the input after selecting a conversation
     setTimeout(() => {
@@ -419,9 +470,7 @@ const Messages = () => {
                   navigate(`/messages/${value}`);
                 }}
                 className="mb-4"
-              >
-                
-              </Tabs>
+              ></Tabs>
 
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -541,9 +590,6 @@ const Messages = () => {
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
 

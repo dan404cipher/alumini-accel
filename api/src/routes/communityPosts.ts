@@ -19,12 +19,24 @@ import {
   unpinPost,
   approvePost,
   rejectPost,
+  getTrendingPosts,
+  getPopularTags,
 } from "../controllers/communityPostController";
 
 const router = express.Router();
 
 // Public routes
 router.get("/community/:communityId", validateCommunityId, getCommunityPosts);
+router.get(
+  "/community/:communityId/trending",
+  validateCommunityId,
+  getTrendingPosts
+);
+router.get(
+  "/community/:communityId/popular-tags",
+  validateCommunityId,
+  getPopularTags
+);
 router.get("/:id", validateId, getPostById);
 
 // Protected routes

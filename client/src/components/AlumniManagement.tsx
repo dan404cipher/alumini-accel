@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import BulkUploadAlumni from "./BulkUploadAlumni";
 import ExportAlumniData from "./ExportAlumniData";
 import { useAuth } from "@/contexts/AuthContext";
@@ -122,13 +123,20 @@ const AlumniManagement = () => {
       }
 
       try {
+        // Get token from localStorage or sessionStorage (same logic as AuthContext)
+        const token = getAuthTokenOrNull();
+
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
+
         const response = await fetch(
           `${
             import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
           }/tenants`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${token}`,
             },
           }
         );

@@ -2,6 +2,8 @@
 // Author: AI Assistant
 // Purpose: API service layer for mentorship management
 
+import { getAuthTokenOrNull } from "@/utils/auth";
+
 const API_BASE_URL = "http://localhost:3000/api/v1";
 
 // Types for API responses
@@ -51,12 +53,17 @@ class MentorshipApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = localStorage.getItem("token");
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
+
+    if (!token) {
+      throw new Error("Access token is required");
+    }
 
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
+        Authorization: `Bearer ${token}`,
         ...options.headers,
       },
       ...options,
@@ -132,6 +139,29 @@ class MentorshipApiService {
   async completeMentorship(id: string): Promise<ApiResponse<any>> {
     return this.makeRequest<ApiResponse<any>>(`/mentorship/${id}/complete`, {
       method: "PUT",
+    });
+  }
+
+  async updateMentorship(
+    id: string,
+    data: {
+      domain?: string;
+      goals?: string[];
+      duration?: number;
+      startDate?: string;
+      endDate?: string;
+      notes?: string;
+    }
+  ): Promise<ApiResponse<any>> {
+    return this.makeRequest<ApiResponse<any>>(`/mentorship/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMentorship(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<ApiResponse<any>>(`/mentorship/${id}`, {
+      method: "DELETE",
     });
   }
 

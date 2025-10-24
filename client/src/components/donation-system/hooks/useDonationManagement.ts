@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import {
   Campaign,
   DonationHistoryItem,
@@ -228,7 +229,12 @@ export const useDonationManagement = () => {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem("token");
+        // Get token from localStorage or sessionStorage (same logic as AuthContext)
+        const token = getAuthTokenOrNull();
+
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
 
         // Load campaigns
         const campaignsResponse = await donationApi.getAllCampaigns();

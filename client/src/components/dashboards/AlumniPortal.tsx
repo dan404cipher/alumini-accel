@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import {
   Card,
   CardContent,
@@ -35,10 +36,15 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantAPI } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import MentorshipActionMenu from "@/components/mentorship/MentorshipActionMenu";
+import EditMentorshipDialog from "@/components/dialogs/EditMentorshipDialog";
+import DeleteMentorshipDialog from "@/components/dialogs/DeleteMentorshipDialog";
 
 const AlumniPortal = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Debug logging
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [recentNews, setRecentNews] = useState<any[]>([]);
@@ -51,6 +57,9 @@ const AlumniPortal = () => {
     any[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedMentorship, setSelectedMentorship] = useState<any>(null);
 
   // Load college banner
   useEffect(() => {
@@ -62,7 +71,7 @@ const AlumniPortal = () => {
             setCollegeBanner(bannerResponse);
           }
         } catch (error) {
-          console.log("No banner found or error loading banner:", error);
+          // No banner found or error loading banner
 
           // Check localStorage as fallback
           try {
@@ -73,10 +82,7 @@ const AlumniPortal = () => {
               setCollegeBanner(storedBanner);
             }
           } catch (localStorageError) {
-            console.log(
-              "Error loading banner from localStorage:",
-              localStorageError
-            );
+            // Error loading banner from localStorage
           }
         }
       }
@@ -97,7 +103,7 @@ const AlumniPortal = () => {
               setCollegeBanner(bannerUrl);
             }
           } catch (error) {
-            console.log("No banner found or error loading banner:", error);
+            // No banner found or error loading banner
 
             // Check localStorage as fallback
             try {
@@ -108,10 +114,7 @@ const AlumniPortal = () => {
                 setCollegeBanner(storedBanner);
               }
             } catch (localStorageError) {
-              console.log(
-                "Error loading banner from localStorage:",
-                localStorageError
-              );
+              // Error loading banner from localStorage
             }
           }
         };
@@ -130,7 +133,12 @@ const AlumniPortal = () => {
     const fetchRecentData = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
+        // Get token from localStorage or sessionStorage (same logic as AuthContext)
+        const token = getAuthTokenOrNull();
+        if (!token) {
+          throw new Error("Access token is required");
+        }
+
         const headers = {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -158,32 +166,36 @@ const AlumniPortal = () => {
         }
 
         // Fetch recent galleries
-        const galleriesResponse = await fetch(`${baseUrl}/gallery?limit=8`, {
-          headers,
-        });
+        const galleriesResponse = await fetch(
+          `${baseUrl}/gallery?limit=8&tenantId=${user?.tenantId || ""}`,
+          {
+            headers,
+          }
+        );
         if (galleriesResponse.ok) {
           const galleriesData = await galleriesResponse.json();
           setRecentGalleries(galleriesData.data?.galleries || []);
         }
 
-        // Fetch recent communities
+        // Fetch top communities
         const communitiesResponse = await fetch(
-          `${baseUrl}/communities?limit=8`,
+          `${baseUrl}/communities/top?limit=8`,
           { headers }
         );
         if (communitiesResponse.ok) {
           const communitiesData = await communitiesResponse.json();
-          setRecentCommunities(communitiesData.data?.communities || []);
+          setRecentCommunities(communitiesData.data || []);
         }
 
         // Fetch recent mentorships
         const mentorshipsResponse = await fetch(
-          `${baseUrl}/mentorship?limit=8`,
+          `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
           { headers }
         );
         if (mentorshipsResponse.ok) {
           const mentorshipsData = await mentorshipsResponse.json();
-          setRecentMentorships(mentorshipsData.data?.mentorships || []);
+          const mentorships = mentorshipsData.data?.mentorships || [];
+          setRecentMentorships(mentorships);
         }
 
         // Fetch recent jobs
@@ -208,7 +220,7 @@ const AlumniPortal = () => {
 
         // Fetch recent mentorship programs
         const mentorshipProgramsResponse = await fetch(
-          `${baseUrl}/mentorship?limit=8`,
+          `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
           {
             headers,
           }
@@ -251,6 +263,30 @@ const AlumniPortal = () => {
 
   const handleMentorshipClick = (mentorshipId: string) => {
     navigate(`/mentorship/${mentorshipId}`);
+  };
+
+  const handleEditMentorship = (mentorship: any) => {
+    setSelectedMentorship(mentorship);
+    setShowEditDialog(true);
+  };
+
+  const handleDeleteMentorship = (mentorship: any) => {
+    setSelectedMentorship(mentorship);
+    setShowDeleteDialog(true);
+  };
+
+  const handleEditSuccess = () => {
+    // Refresh mentorships data
+    fetchRecentData();
+    setShowEditDialog(false);
+    setSelectedMentorship(null);
+  };
+
+  const handleDeleteSuccess = () => {
+    // Refresh mentorships data
+    fetchRecentData();
+    setShowDeleteDialog(false);
+    setSelectedMentorship(null);
   };
 
   const handleJobClick = (jobId: string) => {
@@ -596,8 +632,8 @@ const AlumniPortal = () => {
                               className="w-full h-32 object-cover rounded-t-lg"
                             />
                           ) : (
-                            <div className="w-full h-32 bg-gradient-to-br from-orange-100 to-orange-200 rounded-t-lg flex items-center justify-center">
-                              <Users className="h-8 w-8 text-orange-400" />
+                            <div className="w-full h-32 bg-gray-100 rounded-t-lg flex items-center justify-center">
+                              <Users className="h-8 w-8 text-gray-500" />
                             </div>
                           )}
                           <div className="absolute top-2 right-2">
@@ -641,7 +677,7 @@ const AlumniPortal = () => {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="h-5 w-5 text-indigo-600" />
-                  <CardTitle className="text-lg">Recent Mentorships</CardTitle>
+                  <CardTitle className="text-lg">Active Mentorships </CardTitle>
                 </div>
                 <Button
                   variant="ghost"
@@ -658,8 +694,7 @@ const AlumniPortal = () => {
                     {recentMentorships.map((mentorship) => (
                       <div
                         key={mentorship._id}
-                        onClick={() => handleMentorshipClick(mentorship._id)}
-                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all cursor-pointer group"
+                        className="flex-shrink-0 w-64 bg-white rounded-lg border hover:shadow-md transition-all group relative"
                       >
                         <div className="relative">
                           {mentorship.mentor?.profilePicture ? (
@@ -685,8 +720,22 @@ const AlumniPortal = () => {
                               {mentorship.status || "pending"}
                             </Badge>
                           </div>
+                          {/* Action Menu */}
+                          <div className="absolute top-2 left-2">
+                            <MentorshipActionMenu
+                              mentorship={mentorship}
+                              currentUser={user}
+                              onEdit={() => handleEditMentorship(mentorship)}
+                              onDelete={() =>
+                                handleDeleteMentorship(mentorship)
+                              }
+                            />
+                          </div>
                         </div>
-                        <div className="p-3">
+                        <div
+                          className="p-3 cursor-pointer"
+                          onClick={() => handleMentorshipClick(mentorship._id)}
+                        >
                           <h4 className="font-medium text-sm truncate group-hover:text-indigo-600 transition-colors">
                             {mentorship.title || "Mentorship Request"}
                           </h4>
@@ -954,6 +1003,22 @@ const AlumniPortal = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Mentorship Dialog */}
+      <EditMentorshipDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        mentorship={selectedMentorship}
+        onSuccess={handleEditSuccess}
+      />
+
+      {/* Delete Mentorship Dialog */}
+      <DeleteMentorshipDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        mentorship={selectedMentorship}
+        onSuccess={handleDeleteSuccess}
+      />
     </div>
   );
 };

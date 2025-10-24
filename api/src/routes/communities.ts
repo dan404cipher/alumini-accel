@@ -16,6 +16,8 @@ import {
   getCommunityMembers,
   getUserCommunities,
   searchCommunities,
+  getUserMembershipStatus,
+  getTopCommunities,
 } from "../controllers/communityController";
 
 const router = express.Router();
@@ -24,6 +26,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // All routes are now protected
+router.get("/top", getTopCommunities);
 router.get("/", getAllCommunities);
 router.get("/search", validateCommunitySearch, searchCommunities);
 router.get("/:id", validateId, getCommunityById);
@@ -37,6 +40,7 @@ router.delete("/:id", validateId, deleteCommunity);
 router.post("/:id/join", validateId, joinCommunity);
 router.delete("/:id/leave", validateId, leaveCommunity);
 router.get("/:id/members", validateId, getCommunityMembers);
+router.get("/:id/membership-status", validateId, getUserMembershipStatus);
 router.get("/user/communities", getUserCommunities);
 
 export default router;

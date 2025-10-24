@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { Linkedin, Github, Twitter, Globe, Plus, X } from "lucide-react";
 
 const socialNetworkingSchema = z.object({
@@ -163,6 +164,13 @@ export const SocialNetworkingForm = ({
     try {
       setIsLoading(true);
 
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       // Update user profile for basic social links
       const apiUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
@@ -170,7 +178,7 @@ export const SocialNetworkingForm = ({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           linkedinProfile: data.linkedinProfile || undefined,
@@ -197,7 +205,7 @@ export const SocialNetworkingForm = ({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(profileData),
       });

@@ -126,4 +126,24 @@ router.post(
   asyncHandler(mentorshipController.submitFeedback)
 );
 
+// @route   PUT /api/v1/mentorship/:id
+// @desc    Update mentorship details
+// @access  Private
+router.put(
+  "/:id",
+  authenticateToken,
+  ...validateRequest(validateId),
+  asyncHandler(mentorshipController.updateMentorship)
+);
+
+// @route   DELETE /api/v1/mentorship/:id
+// @desc    Delete/Cancel mentorship
+// @access  Private
+router.delete(
+  "/:id",
+  authenticateToken,
+  ...validateRequest(validateId),
+  asyncHandler(mentorshipController.deleteMentorship)
+);
+
 export default router;

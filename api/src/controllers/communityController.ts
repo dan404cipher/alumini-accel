@@ -1,9 +1,13 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import CommunityPost from "../models/CommunityPost";
 import User from "../models/User";
+import { Notification } from "../models/Notification";
 import { IUser } from "../types";
+import { socketService } from "../index";
+import { asyncHandler } from "../middleware/errorHandler";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -236,7 +240,11 @@ export const getCommunityById = async (
     }
 
     // Check if user can view this community
-    if (community.type === "hidden" && userId) {
+    let canViewFullContent = true;
+    if (
+      (community.type === "hidden" || community.type === "closed") &&
+      userId
+    ) {
       const membership = await CommunityMembership.findOne({
         communityId: id,
         userId: userId,
@@ -244,14 +252,36 @@ export const getCommunityById = async (
       });
 
       if (!membership) {
-        return res.status(403).json({
-          success: false,
-          message: "Access denied to hidden community",
-        });
+        canViewFullContent = false;
       }
     }
 
-    // Get recent posts
+    // If user can't view full content, return basic info only
+    if (!canViewFullContent) {
+      return res.json({
+        success: true,
+        data: {
+          community: {
+            _id: community._id,
+            name: community.name,
+            description: community.description,
+            type: community.type,
+            category: community.category,
+            coverImage: community.coverImage,
+            logo: community.logo,
+            createdBy: community.createdBy,
+            memberCount: community.memberCount,
+            postCount: community.postCount,
+            createdAt: community.createdAt,
+            // Don't include members, moderators, posts, or other sensitive data
+          },
+          recentPosts: [], // Empty for non-members
+          requiresMembership: true,
+        },
+      });
+    }
+
+    // Get recent posts for members
     const recentPosts = await (CommunityPost as any).findByCommunity(id, {
       limit: 10,
     });
@@ -261,6 +291,7 @@ export const getCommunityById = async (
       data: {
         community,
         recentPosts,
+        requiresMembership: false,
       },
     });
   } catch (error: any) {
@@ -434,6 +465,22 @@ export const joinCommunity = async (
           success: false,
           message: "Membership request already pending",
         });
+      } else if (existingMembership.status === "left") {
+        // User previously left, allow them to rejoin
+        console.log("User previously left community, allowing rejoin:", userId);
+        // We'll update the existing membership record instead of creating a new one
+      } else if (existingMembership.status === "rejected") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Your previous membership request was rejected. Please contact community administrators.",
+        });
+      } else if (existingMembership.status === "suspended") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Your membership is currently suspended. Please contact community administrators.",
+        });
       }
     }
 
@@ -441,18 +488,27 @@ export const joinCommunity = async (
 
     if (community.type === "open") {
       // Direct join for open communities
-      membership = new CommunityMembership({
-        communityId: id,
-        userId: userId,
-        role: "member",
-        status: "approved",
-        joinedAt: new Date(),
-      });
-
-      await membership.save();
+      if (existingMembership && existingMembership.status === "left") {
+        // User is rejoining - update existing membership
+        existingMembership.status = "approved";
+        existingMembership.joinedAt = new Date();
+        existingMembership.leftAt = undefined; // Clear left date
+        await existingMembership.save();
+        membership = existingMembership;
+      } else {
+        // New membership
+        membership = new CommunityMembership({
+          communityId: id,
+          userId: userId,
+          role: "member",
+          status: "approved",
+          joinedAt: new Date(),
+        });
+        await membership.save();
+      }
 
       // Add to community members
-      (community as any).addMember(userId);
+      (community as any).addMember(userId.toString());
       await community.save();
 
       return res.json({
@@ -462,14 +518,76 @@ export const joinCommunity = async (
       });
     } else {
       // Request to join for closed/hidden communities
-      membership = new CommunityMembership({
-        communityId: id,
-        userId: userId,
-        role: "member",
-        status: "pending",
-      });
+      if (existingMembership && existingMembership.status === "left") {
+        // User is rejoining - update existing membership
+        existingMembership.status = "pending";
+        existingMembership.leftAt = undefined; // Clear left date
+        await existingMembership.save();
+        membership = existingMembership;
+      } else {
+        // New membership request
+        membership = new CommunityMembership({
+          communityId: id,
+          userId: userId,
+          role: "member",
+          status: "pending",
+        });
+        await membership.save();
+      }
 
-      await membership.save();
+      // Send notification to community admins/moderators about new join request
+      try {
+        // Get all admins and moderators of the community
+        const adminMemberships = await CommunityMembership.find({
+          communityId: id,
+          status: "approved",
+          role: { $in: ["admin", "moderator"] },
+        }).populate("userId", "firstName lastName email");
+
+        // Also include the community creator
+        const creator = await User.findById(community.createdBy);
+
+        const adminsToNotify = [
+          ...adminMemberships.map((m) => m.userId),
+          ...(creator ? [creator] : []),
+        ].filter(
+          (admin, index, self) =>
+            admin &&
+            self.findIndex((a) => a._id.toString() === admin._id.toString()) ===
+              index
+        );
+
+        // Send notification to each admin
+        for (const admin of adminsToNotify) {
+          if (admin._id.toString() !== userId.toString()) {
+            // Don't notify the requester
+            const notification = await Notification.createNotification({
+              userId: admin._id.toString(),
+              title: "New Community Join Request",
+              message: `${req.user?.firstName} ${req.user?.lastName} wants to join "${community.name}"`,
+              type: "info",
+              category: "community",
+              actionUrl: `/communities/${id}`,
+              metadata: {
+                communityId: id,
+                communityName: community.name,
+                requesterId: userId.toString(),
+                requesterName: `${req.user?.firstName} ${req.user?.lastName}`,
+              },
+            });
+
+            // Emit real-time notification
+            if (socketService) {
+              socketService.emitNewNotification(notification);
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error(
+          "Error creating join request notifications:",
+          notificationError
+        );
+      }
 
       return res.json({
         success: true,
@@ -502,27 +620,49 @@ export const leaveCommunity = async (
       });
     }
 
-    const membership = await CommunityMembership.findOne({
+    let membership = await CommunityMembership.findOne({
       communityId: id,
       userId: userId,
       status: "approved",
     });
 
-    if (!membership) {
+    // If no approved membership found, check if user is in community members array
+    // This handles cases where membership sync might be inconsistent
+    const community = await Community.findById(id);
+    const isInMembersArray = community?.members?.some(
+      (memberId: any) => memberId.toString() === userId.toString()
+    );
+
+    if (!membership && !isInMembersArray) {
       return res.status(404).json({
         success: false,
         message: "Not a member of this community",
       });
     }
 
+    // If user is in members array but no membership record, create one
+    if (!membership && isInMembersArray) {
+      console.log("Creating missing membership record for user:", userId);
+      const newMembership = new CommunityMembership({
+        communityId: id,
+        userId: userId,
+        role: "member",
+        status: "approved",
+        joinedAt: new Date(),
+      });
+      await newMembership.save();
+      membership = newMembership;
+    }
+
     // Leave community
-    (membership as any).leaveCommunity();
-    await membership.save();
+    if (membership) {
+      (membership as any).leaveCommunity();
+      await membership.save();
+    }
 
     // Remove from community members
-    const community = await Community.findById(id);
     if (community) {
-      (community as any).removeMember(userId);
+      (community as any).removeMember(userId.toString());
       await community.save();
     }
 
@@ -547,6 +687,35 @@ export const getCommunityMembers = async (
   try {
     const { id } = req.params;
     const { page = 1, limit = 50, role, status = "approved" } = req.query;
+    const userId = req.user?._id;
+
+    // Check if community exists and user has access
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Check if user can view members
+    if (
+      (community.type === "hidden" || community.type === "closed") &&
+      userId
+    ) {
+      const membership = await CommunityMembership.findOne({
+        communityId: id,
+        userId: userId,
+        status: "approved",
+      });
+
+      if (!membership) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied to ${community.type} community members. You must be a member to view this content.`,
+        });
+      }
+    }
 
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -578,6 +747,64 @@ export const getCommunityMembers = async (
     return res.status(500).json({
       success: false,
       message: "Error fetching community members",
+      error: error.message,
+    });
+  }
+};
+
+// Get user's membership status for a specific community
+export const getUserMembershipStatus = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Check if community exists
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Find user's membership status
+    const membership = await CommunityMembership.findOne({
+      communityId: id,
+      userId: userId,
+    });
+
+    console.log(
+      "🔍 Backend - Checking membership for user:",
+      userId,
+      "community:",
+      id
+    );
+    console.log("🔍 Backend - Found membership:", membership);
+
+    return res.json({
+      success: true,
+      data: {
+        isMember: membership?.status === "approved",
+        hasPendingRequest: membership?.status === "pending",
+        membershipStatus: membership?.status || null,
+        role: membership?.role || null,
+        joinedAt: membership?.joinedAt || null,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching membership status",
       error: error.message,
     });
   }
@@ -722,3 +949,114 @@ export const searchCommunities = async (
     });
   }
 };
+
+// Get top communities (most active)
+export const getTopCommunities = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { limit = 5 } = req.query;
+
+    console.log("🔍 Fetching top communities with limit:", limit);
+
+    // 🔒 MULTI-TENANT FILTERING: Only show communities from same college (unless super admin)
+    let tenantUserIds: string[] = [];
+    if (
+      (req as any).user?.role !== "super_admin" &&
+      (req as any).user?.tenantId
+    ) {
+      const tenantUsers = await User.find({
+        tenantId: (req as any).user.tenantId,
+      }).select("_id");
+      tenantUserIds = tenantUsers.map((user) => user._id.toString());
+      console.log(
+        "🔒 Tenant filtering applied, user IDs:",
+        tenantUserIds.length
+      );
+    } else if ((req as any).user?.role === "super_admin") {
+      console.log("👑 Super admin access - showing all communities");
+    }
+
+    // First, let's check if there are any communities at all
+    const totalCommunities = await Community.countDocuments();
+    console.log("📊 Total communities in database:", totalCommunities);
+
+    // Build aggregation pipeline
+    const pipeline: any[] = [
+      {
+        $lookup: {
+          from: "communityposts",
+          localField: "_id",
+          foreignField: "communityId",
+          as: "posts",
+        },
+      },
+      {
+        $addFields: {
+          postCount: { $size: "$posts" },
+          activityScore: {
+            $add: [
+              { $multiply: ["$memberCount", 2] }, // Member count weighted more
+              { $size: "$posts" }, // Post count
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          type: { $in: ["open", "closed"] }, // Only show public/closed communities
+          status: "active", // Only active communities
+        },
+      },
+    ];
+
+    // Add tenant filtering if not super admin
+    if (tenantUserIds.length > 0) {
+      pipeline.push({
+        $match: {
+          createdBy: {
+            $in: tenantUserIds.map((id) => new mongoose.Types.ObjectId(id)),
+          },
+        },
+      });
+    }
+
+    // Add sorting and limiting
+    pipeline.push(
+      {
+        $sort: { activityScore: -1 },
+      },
+      {
+        $limit: parseInt(limit as string),
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          category: 1,
+          type: 1,
+          memberCount: 1,
+          postCount: 1,
+          logo: 1,
+          coverImage: 1,
+          createdAt: 1,
+        },
+      }
+    );
+
+    // Get communities sorted by member count and activity
+    const topCommunities = await Community.aggregate(pipeline);
+
+    console.log("🎯 Top communities found:", topCommunities.length);
+    console.log("📋 Communities data:", topCommunities);
+
+    // If no communities found, return empty array
+    if (topCommunities.length === 0) {
+      console.log("⚠️ No communities found, returning empty array");
+    }
+
+    res.json({
+      success: true,
+      data: topCommunities,
+    });
+  }
+);

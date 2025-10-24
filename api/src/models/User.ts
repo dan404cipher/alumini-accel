@@ -229,6 +229,11 @@ userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
   try {
+    // Check if password is already hashed (starts with $2a$ or $2b$)
+    if (this.password.startsWith("$2a$") || this.password.startsWith("$2b$")) {
+      return next();
+    }
+
     const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || "12");
     this.password = await bcrypt.hash(this.password, saltRounds);
     next();

@@ -36,6 +36,11 @@ router.get(
   asyncHandler(getAllTenants)
 );
 
+// @route   GET /api/v1/college/public-info
+// @desc    Get public college information
+// @access  Public
+router.get("/public-info", asyncHandler(getPublicCollegeInfo));
+
 // @route   GET /api/v1/tenants/:id
 // @desc    Get tenant by ID
 // @access  Private
@@ -105,10 +110,5 @@ router.post(
 // @desc    Get tenant banner
 // @access  Private
 router.get("/:id/banner", authenticateToken, asyncHandler(getTenantBanner));
-
-// @route   GET /api/v1/college/public-info
-// @desc    Get public college information
-// @access  Public
-router.get("/public-info", asyncHandler(getPublicCollegeInfo));
 
 export default router;

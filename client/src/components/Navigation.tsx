@@ -36,6 +36,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { tenantAPI } from "@/lib/api";
 import { useState, useEffect } from "react";
+import { useNotificationContext } from "@/contexts/NotificationContext";
+import NotificationDropdown from "@/components/NotificationDropdown";
 import {
   canAccessAdmin,
   canManageUsers,
@@ -55,6 +57,10 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collegeLogo, setCollegeLogo] = useState<string | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  // Get dynamic unread count and notification count
+  const { unreadCount, notificationCount, isLoading } =
+    useNotificationContext();
 
   // Check if user has admin permissions
   const isAdmin = user ? canAccessAdmin(user.role) : false;
@@ -493,27 +499,22 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               }}
             >
               <MessageCircle className="w-5 h-5 group-hover:animate-pulse" />
-              {/* Message badge */}
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
-                2
-              </span>
+              {/* Message badge - only show if there are unread messages */}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+              {/* Loading indicator */}
+              {isLoading && unreadCount === 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-gray-400 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg">
+                  ...
+                </span>
+              )}
             </Button>
 
             {/* Notifications */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative p-2.5 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105 group"
-              onClick={() => {
-                // TODO: Implement notifications functionality
-              }}
-            >
-              <Bell className="w-5 h-5 group-hover:animate-pulse" />
-              {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
-                3
-              </span>
-            </Button>
+            <NotificationDropdown />
 
             {/* User Menu */}
             {user ? (

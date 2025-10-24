@@ -16,8 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { Community } from "./types";
+import { useToast } from "@/hooks/use-toast";
 
 interface EditCommunityModalProps {
   isOpen: boolean;
@@ -158,6 +159,13 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({
         externalLinks: formData.externalLinks,
       };
 
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const response = await fetch(
         `${
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
@@ -166,7 +174,7 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(submitData),
         }

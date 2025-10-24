@@ -6,6 +6,8 @@ import React from "react";
 import { Star, Clock, MessageCircle, Users } from "lucide-react";
 import type { Mentor } from "../types";
 import { truncateText, formatAvailability } from "../utils";
+import MentorActionMenu from "./MentorActionMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MentorCardProps {
   mentor: Mentor;
@@ -13,6 +15,8 @@ interface MentorCardProps {
   onShowTestimonial?: (testimonial: string) => void;
   onRequestMentorship?: (mentor: Mentor) => void;
   onViewDetails?: (mentor: Mentor) => void;
+  onEdit?: (mentor: Mentor) => void;
+  onDelete?: (mentor: Mentor) => void;
 }
 
 export const MentorCard: React.FC<MentorCardProps> = ({
@@ -21,7 +25,11 @@ export const MentorCard: React.FC<MentorCardProps> = ({
   onShowTestimonial,
   onRequestMentorship,
   onViewDetails,
+  onEdit,
+  onDelete,
 }) => {
+  const { user } = useAuth();
+
   return (
     <div
       className="bg-white border rounded-lg p-4 sm:p-6 shadow-lg hover:shadow-xl transition duration-300 h-full flex flex-col cursor-pointer hover:border-blue-300"
@@ -73,6 +81,12 @@ export const MentorCard: React.FC<MentorCardProps> = ({
           >
             Testimonial
           </button>
+          <MentorActionMenu
+            mentor={mentor}
+            currentUser={user}
+            onEdit={onEdit || (() => {})}
+            onDelete={onDelete || (() => {})}
+          />
         </div>
       </div>
 

@@ -9,6 +9,8 @@ interface CommunityPostsTabProps {
   postsLoading: boolean;
   filteredPosts: CommunityPost[];
   onRefreshPosts: () => void;
+  isModerator?: boolean;
+  isAdmin?: boolean;
 }
 
 const CommunityPostsTab: React.FC<CommunityPostsTabProps> = ({
@@ -16,6 +18,8 @@ const CommunityPostsTab: React.FC<CommunityPostsTabProps> = ({
   postsLoading,
   filteredPosts,
   onRefreshPosts,
+  isModerator = false,
+  isAdmin = false,
 }) => {
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -64,7 +68,12 @@ const CommunityPostsTab: React.FC<CommunityPostsTabProps> = ({
         <div className="space-y-4 sm:space-y-6">
           {filteredPosts.length > 0 ? (
             filteredPosts.map((post) => (
-              <CommunityPostCard key={post._id} post={post} />
+              <CommunityPostCard
+                key={post._id}
+                post={post}
+                isModerator={isModerator}
+                isAdmin={isAdmin}
+              />
             ))
           ) : (
             <div className="text-center py-8 sm:py-12">

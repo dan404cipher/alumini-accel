@@ -4,7 +4,10 @@ import Navigation from "@/components/Navigation";
 import { galleryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import Pagination from "@/components/ui/pagination";
+import Pagination from "@/components/ui/Pagination";
+import EditGalleryDialog from "@/components/dialogs/EditGalleryDialog";
+import DeleteGalleryDialog from "@/components/dialogs/DeleteGalleryDialog";
+import GalleryActionMenu from "@/components/gallery/GalleryActionMenu";
 
 interface ApiError {
   response?: {
@@ -69,6 +72,7 @@ interface GalleryItem {
   description?: string;
   images: string[];
   createdBy: {
+    _id: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -95,6 +99,8 @@ const Gallery: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(12);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Filter galleries based on search and filter criteria
   const filterGalleries = (galleryItems: GalleryItem[]) => {
@@ -238,6 +244,7 @@ const Gallery: React.FC = () => {
         category: selectedCategory === "all" ? undefined : selectedCategory,
         page: currentPage,
         limit: itemsPerPage,
+        tenantId: user?.tenantId, // Pass user's tenantId to filter by college
       });
 
       if (response.success) {
@@ -260,7 +267,7 @@ const Gallery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, currentPage, itemsPerPage, toast]);
+  }, [selectedCategory, currentPage, itemsPerPage, user?.tenantId, toast]);
 
   useEffect(() => {
     fetchGalleries();
@@ -353,6 +360,28 @@ const Gallery: React.FC = () => {
   const handleViewGallery = (gallery: GalleryItem) => {
     setSelectedGallery(gallery);
     setShowGalleryDetail(true);
+  };
+
+  const handleEditGallery = (gallery: GalleryItem) => {
+    setSelectedGallery(gallery);
+    setShowEditDialog(true);
+  };
+
+  const handleDeleteGallery = (gallery: GalleryItem) => {
+    setSelectedGallery(gallery);
+    setShowDeleteDialog(true);
+  };
+
+  const handleEditSuccess = () => {
+    fetchGalleries();
+    setShowEditDialog(false);
+    setSelectedGallery(null);
+  };
+
+  const handleDeleteSuccess = () => {
+    fetchGalleries();
+    setShowDeleteDialog(false);
+    setSelectedGallery(null);
   };
 
   const handleCreateGallery = async () => {
@@ -758,12 +787,20 @@ const Gallery: React.FC = () => {
                       <h3 className="text-base lg:text-xl font-semibold text-gray-900 line-clamp-2">
                         {gallery.title}
                       </h3>
-                      <Badge
-                        variant="secondary"
-                        className="flex-shrink-0 text-xs"
-                      >
-                        {gallery.category}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className="flex-shrink-0 text-xs"
+                        >
+                          {gallery.category}
+                        </Badge>
+                        <GalleryActionMenu
+                          gallery={gallery}
+                          currentUser={user}
+                          onEdit={() => handleEditGallery(gallery)}
+                          onDelete={() => handleDeleteGallery(gallery)}
+                        />
+                      </div>
                     </div>
 
                     {gallery.description && (
@@ -1123,6 +1160,22 @@ const Gallery: React.FC = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Edit Gallery Dialog */}
+        <EditGalleryDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          gallery={selectedGallery}
+          onSuccess={handleEditSuccess}
+        />
+
+        {/* Delete Gallery Dialog */}
+        <DeleteGalleryDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          gallery={selectedGallery}
+          onSuccess={handleDeleteSuccess}
+        />
       </div>
 
       <Footer />

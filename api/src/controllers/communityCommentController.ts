@@ -137,7 +137,10 @@ export const getPostComments = async (
 
     // Check if user can view comments
     const community = await Community.findById(post.communityId);
-    if (community?.type === "hidden" && userId) {
+    if (
+      (community?.type === "hidden" || community?.type === "closed") &&
+      userId
+    ) {
       const membership = await CommunityMembership.findOne({
         communityId: post.communityId,
         userId: userId,
@@ -147,7 +150,7 @@ export const getPostComments = async (
       if (!membership) {
         return res.status(403).json({
           success: false,
-          message: "Access denied to hidden community post",
+          message: `Access denied to ${community?.type} community post comments. You must be a member to view this content.`,
         });
       }
     }

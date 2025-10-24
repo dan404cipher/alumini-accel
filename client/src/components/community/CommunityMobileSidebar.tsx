@@ -280,7 +280,7 @@ const CommunityMobileSidebar: React.FC<CommunityMobileSidebarProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 sm:space-y-3">
-            {isMember ? (
+            {isMember && !isAdmin ? (
               <>
                 <Button
                   variant="outline"
@@ -303,7 +303,7 @@ const CommunityMobileSidebar: React.FC<CommunityMobileSidebarProps> = ({
                   <span className="sm:hidden">Leave</span>
                 </Button>
               </>
-            ) : (
+            ) : !isMember && !isAdmin ? (
               <Button
                 variant="default"
                 size="sm"
@@ -314,7 +314,18 @@ const CommunityMobileSidebar: React.FC<CommunityMobileSidebarProps> = ({
                 <span className="hidden sm:inline">Join Community</span>
                 <span className="sm:hidden">Join</span>
               </Button>
-            )}
+            ) : isAdmin ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs sm:text-sm"
+                onClick={onCreatePost}
+              >
+                <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Create Post</span>
+                <span className="sm:hidden">Create</span>
+              </Button>
+            ) : null}
             {isAdmin && (
               <Button
                 variant="outline"

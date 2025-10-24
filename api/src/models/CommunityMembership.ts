@@ -294,12 +294,18 @@ CommunityMembershipSchema.methods.demoteToMember = function () {
 
 // Instance method to check if user can moderate
 CommunityMembershipSchema.methods.canModerate = function () {
-  return this.permissions.canModerate && this.status === "approved";
+  return (
+    (this.role === "admin" || this.role === "moderator") &&
+    this.status === "approved"
+  );
 };
 
 // Instance method to check if user can invite
 CommunityMembershipSchema.methods.canInvite = function () {
-  return this.permissions.canInvite && this.status === "approved";
+  return (
+    (this.role === "admin" || this.permissions.canInvite) &&
+    this.status === "approved"
+  );
 };
 
 export default mongoose.model<ICommunityMembership>(

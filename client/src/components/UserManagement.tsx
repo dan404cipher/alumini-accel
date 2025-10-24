@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import UserDetailsModal from "./UserDetailsModal";
 import EditUserModal from "./EditUserModal";
 

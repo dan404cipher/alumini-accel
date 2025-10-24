@@ -1,3 +1,5 @@
+import { getAuthTokenOrNull } from "@/utils/auth";
+
 // API base URL
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
@@ -102,6 +104,16 @@ export interface CreateDonationData {
   donationType?: string;
   message?: string;
   anonymous?: boolean;
+  // Donor information
+  donorName?: string;
+  donorEmail?: string;
+  donorPhone?: string;
+  donorAddress?: string;
+  taxDeductible?: boolean;
+  // Razorpay payment fields
+  paymentId?: string;
+  orderId?: string;
+  signature?: string;
 }
 
 class DonationApiService {
@@ -111,13 +123,18 @@ class DonationApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = localStorage.getItem("token");
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
+
+    if (!token) {
+      throw new Error("Access token is required");
+    }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
-        Authorization: token ? `Bearer ${token}` : "",
+        Authorization: `Bearer ${token}`,
         ...options.headers,
       },
     });
@@ -211,7 +228,10 @@ class DonationApiService {
     const formData = new FormData();
     formData.append("image", file);
 
-    const token = localStorage.getItem("token");
+    const token = getAuthTokenOrNull();
+    if (!token) {
+      throw new Error("Access token is required");
+    }
 
     const response = await fetch(`${this.baseUrl}/campaigns/${id}/image`, {
       method: "POST",

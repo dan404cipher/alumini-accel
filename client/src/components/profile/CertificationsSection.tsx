@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import {
   Plus,
   Award,
@@ -65,6 +66,13 @@ export const CertificationsSection = ({
 
   const handleDeleteCertification = async (certificationId: string) => {
     try {
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const apiUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       const response = await fetch(
@@ -72,7 +80,7 @@ export const CertificationsSection = ({
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );

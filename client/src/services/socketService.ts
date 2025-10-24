@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 interface SocketEvents {
   new_message: (message: unknown) => void;
@@ -34,11 +35,8 @@ class SocketService {
   }
 
   private connect() {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
 
     if (!token) {
       console.warn("No authentication token found, skipping socket connection");

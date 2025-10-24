@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import CreateDiscussionModal from "@/components/CreateDiscussionModal";
@@ -32,11 +33,7 @@ const CommunityDetailNew: React.FC = () => {
 
   // Helper function to get auth token
   const getAuthToken = (): string => {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    const token = getAuthTokenOrNull();
     if (!token) {
       // Redirect to login if no token found
       console.log("No token found, redirecting to login");

@@ -27,6 +27,7 @@ import EditPostModal from "./EditPostModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { reportAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 interface CommunityPostCardProps {
   post: CommunityPost;
@@ -48,11 +49,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
 
   // Helper function to get auth token
   const getAuthToken = (): string => {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    const token = getAuthTokenOrNull();
     if (!token) {
       throw new Error("Access token is required");
     }

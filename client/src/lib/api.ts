@@ -4,6 +4,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 // API base URL
 const API_BASE_URL =
@@ -36,11 +37,8 @@ api.interceptors.request.use(
       }
     }
 
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
 
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;

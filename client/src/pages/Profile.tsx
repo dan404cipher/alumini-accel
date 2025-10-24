@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import ReactCrop, {
   centerCrop,
   makeAspectCrop,
@@ -59,6 +60,88 @@ import { EventsSection } from "@/components/profile/EventsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
+// Define specific types for profile data
+interface Project {
+  _id?: string;
+  title: string;
+  description: string;
+  technologies: string[];
+  startDate: string;
+  endDate?: string;
+  url?: string;
+  githubUrl?: string;
+}
+
+interface Internship {
+  _id?: string;
+  company: string;
+  position: string;
+  description: string;
+  startDate: string;
+  endDate?: string;
+  location?: string;
+}
+
+interface Research {
+  _id?: string;
+  title: string;
+  description: string;
+  supervisor: string;
+  startDate: string;
+  endDate?: string;
+  publication?: string;
+}
+
+interface Certification {
+  _id?: string;
+  name: string;
+  issuer: string;
+  issueDate: string;
+  expiryDate?: string;
+  credentialId?: string;
+  url?: string;
+}
+
+interface ConnectionRequest {
+  _id: string;
+  from: string;
+  to: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+}
+
+interface EventRegistration {
+  eventId: string;
+  registeredAt: string;
+  status: "registered" | "attended" | "cancelled";
+}
+
+interface EventAttendance {
+  eventId: string;
+  attendedAt: string;
+  feedback?: {
+    rating: number;
+    comment?: string;
+  };
+}
+
+interface CareerTimelineItem {
+  _id?: string;
+  position: string;
+  company: string;
+  description?: string;
+  startDate: string;
+  endDate?: string;
+  isCurrent: boolean;
+}
+
+interface Testimonial {
+  _id?: string;
+  content: string;
+  author: string;
+  date: string;
+}
+
 interface UserProfile {
   user: {
     _id: string;
@@ -81,8 +164,77 @@ interface UserProfile {
     role: string;
     profileCompletionPercentage: number;
   };
-  alumniProfile?: Record<string, unknown>;
-  studentProfile?: Record<string, unknown>;
+  alumniProfile?: {
+    currentCompany?: string;
+    currentPosition?: string;
+    experience?: number;
+    currentLocation?: string;
+    salary?: number;
+    currency?: string;
+    specialization?: string;
+    isHiring?: boolean;
+    achievements?: string[];
+    availableForMentorship?: boolean;
+    mentorshipDomains?: string[];
+    projects?: Project[];
+    internshipExperience?: Internship[];
+    researchWork?: Research[];
+    certifications?: Certification[];
+    connections?: string[];
+    connectionRequests?: ConnectionRequest[];
+    eventsRegistered?: EventRegistration[];
+    eventsAttended?: EventAttendance[];
+    careerTimeline?: CareerTimelineItem[];
+    testimonials?: Testimonial[];
+    skills?: string[];
+    careerInterests?: string[];
+    university?: string;
+    department?: string;
+    program?: string;
+    rollNumber?: string;
+    studentId?: string;
+    batchYear?: string;
+    graduationYear?: string;
+    currentYear?: string;
+    currentCGPA?: number;
+    currentGPA?: number;
+  };
+  studentProfile?: {
+    university?: string;
+    department?: string;
+    program?: string;
+    rollNumber?: string;
+    studentId?: string;
+    batchYear?: string;
+    graduationYear?: string;
+    currentYear?: string;
+    currentCGPA?: number;
+    currentGPA?: number;
+    projects?: Project[];
+    internshipExperience?: Internship[];
+    researchWork?: Research[];
+    certifications?: Certification[];
+    connections?: string[];
+    connectionRequests?: ConnectionRequest[];
+    eventsRegistered?: EventRegistration[];
+    eventsAttended?: EventAttendance[];
+    skills?: string[];
+    careerInterests?: string[];
+    // Alumni-specific properties (for students who might have some alumni data)
+    currentCompany?: string;
+    currentPosition?: string;
+    experience?: number;
+    currentLocation?: string;
+    salary?: number;
+    currency?: string;
+    specialization?: string;
+    isHiring?: boolean;
+    achievements?: string[];
+    availableForMentorship?: boolean;
+    mentorshipDomains?: string[];
+    careerTimeline?: CareerTimelineItem[];
+    testimonials?: Testimonial[];
+  };
 }
 
 const Profile = () => {
@@ -278,12 +430,20 @@ const Profile = () => {
   const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
+
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const apiUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       // Add cache-busting parameter to prevent browser caching
       const response = await fetch(`${apiUrl}/auth/me?t=${Date.now()}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       // Check if response is ok before parsing JSON
@@ -307,7 +467,7 @@ const Profile = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [toast]);
 
   useEffect(() => {
     fetchProfile();
@@ -325,9 +485,16 @@ const Profile = () => {
   const handleImageUpload = async (file: File) => {
     try {
       setUploadingImage(true);
+
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const formData = new FormData();
       formData.append("profileImage", file);
-      const token = localStorage.getItem("token");
       const apiUrl = `${
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
       }/users/profile-image`;
@@ -561,6 +728,7 @@ const Profile = () => {
                         setCrop(undefined);
                         setCompletedCrop(undefined);
                       } else {
+                        // No file selected
                       }
                     }}
                     className="hidden"
@@ -1005,7 +1173,8 @@ const Profile = () => {
                                 Current Company
                               </label>
                               <p className="text-sm">
-                                {profileData.currentCompany || "Not specified"}
+                                {(profileData.currentCompany as string) ||
+                                  "Not specified"}
                               </p>
                             </div>
                             <div>
@@ -1013,7 +1182,8 @@ const Profile = () => {
                                 Position
                               </label>
                               <p className="text-sm">
-                                {profileData.currentPosition || "Not specified"}
+                                {(profileData.currentPosition as string) ||
+                                  "Not specified"}
                               </p>
                             </div>
                             <div>
@@ -1021,7 +1191,7 @@ const Profile = () => {
                                 Experience
                               </label>
                               <p className="text-sm">
-                                {profileData.experience
+                                {(profileData.experience as number)
                                   ? `${profileData.experience} years`
                                   : "Not specified"}
                               </p>
@@ -1031,7 +1201,8 @@ const Profile = () => {
                                 Location
                               </label>
                               <p className="text-sm">
-                                {profileData.currentLocation || "Not specified"}
+                                {(profileData.currentLocation as string) ||
+                                  "Not specified"}
                               </p>
                             </div>
                           </div>
@@ -1040,15 +1211,22 @@ const Profile = () => {
                     )}
 
                     <ConnectionsSection
-                      connections={profileData?.connections || []}
-                      connectionRequests={profileData?.connectionRequests || []}
+                      connections={(profileData?.connections as string[]) || []}
+                      connectionRequests={
+                        (profileData?.connectionRequests as any[]) || []
+                      }
                       isEditing={isEditing}
                       onUpdate={handleProfileUpdate}
                     />
 
                     <EventsSection
-                      eventsRegistered={profileData?.eventsRegistered || []}
-                      eventsAttended={profileData?.eventsAttended || []}
+                      eventsRegistered={
+                        (profileData?.eventsRegistered as EventRegistration[]) ||
+                        []
+                      }
+                      eventsAttended={
+                        (profileData?.eventsAttended as EventAttendance[]) || []
+                      }
                       isEditing={isEditing}
                       onUpdate={handleProfileUpdate}
                     />
@@ -1086,7 +1264,8 @@ const Profile = () => {
                                     University
                                   </label>
                                   <p className="text-sm font-medium">
-                                    {profileData.university || "Not specified"}
+                                    {(profileData.university as string) ||
+                                      "Not specified"}
                                   </p>
                                 </div>
                                 <div>
@@ -1094,7 +1273,8 @@ const Profile = () => {
                                     Department
                                   </label>
                                   <p className="text-sm font-medium">
-                                    {profileData.department || "Not specified"}
+                                    {(profileData.department as string) ||
+                                      "Not specified"}
                                   </p>
                                 </div>
                                 <div>
@@ -1102,7 +1282,8 @@ const Profile = () => {
                                     Program
                                   </label>
                                   <p className="text-sm font-medium">
-                                    {profileData.program || "Not specified"}
+                                    {(profileData.program as string) ||
+                                      "Not specified"}
                                   </p>
                                 </div>
                                 <div>
@@ -1110,7 +1291,8 @@ const Profile = () => {
                                     Roll Number
                                   </label>
                                   <p className="text-sm font-medium">
-                                    {profileData.rollNumber || "Not specified"}
+                                    {(profileData.rollNumber as string) ||
+                                      "Not specified"}
                                   </p>
                                 </div>
                                 {profileData.studentId && (
@@ -1119,7 +1301,7 @@ const Profile = () => {
                                       Student ID
                                     </label>
                                     <p className="text-sm font-medium">
-                                      {profileData.studentId}
+                                      {profileData.studentId as string}
                                     </p>
                                   </div>
                                 )}
@@ -1137,7 +1319,8 @@ const Profile = () => {
                                     Batch Year
                                   </label>
                                   <p className="text-sm font-medium">
-                                    {profileData.batchYear || "Not specified"}
+                                    {(profileData.batchYear as string) ||
+                                      "Not specified"}
                                   </p>
                                 </div>
                                 <div>
@@ -1145,7 +1328,7 @@ const Profile = () => {
                                     Graduation Year
                                   </label>
                                   <p className="text-sm font-medium">
-                                    {profileData.graduationYear ||
+                                    {(profileData.graduationYear as string) ||
                                       "Not specified"}
                                   </p>
                                 </div>
@@ -1155,7 +1338,7 @@ const Profile = () => {
                                       Current Year
                                     </label>
                                     <p className="text-sm font-medium">
-                                      {profileData.currentYear}
+                                      {profileData.currentYear as string}
                                     </p>
                                   </div>
                                 )}
@@ -1176,7 +1359,7 @@ const Profile = () => {
                                         Current CGPA
                                       </label>
                                       <p className="text-sm font-medium">
-                                        {profileData.currentCGPA}/10
+                                        {profileData.currentCGPA as number}/10
                                       </p>
                                     </div>
                                   )}
@@ -1186,7 +1369,7 @@ const Profile = () => {
                                         Current GPA
                                       </label>
                                       <p className="text-sm font-medium">
-                                        {profileData.currentGPA}/4
+                                        {profileData.currentGPA as number}/4
                                       </p>
                                     </div>
                                   )}
@@ -1229,14 +1412,16 @@ const Profile = () => {
                             <h4 className="text-lg font-semibold text-gray-900 mb-4">
                               Skills
                             </h4>
-                            {profileData?.skills &&
-                            profileData.skills.length > 0 ? (
+                            {(profileData?.skills as string[]) &&
+                            (profileData.skills as string[]).length > 0 ? (
                               <div className="flex flex-wrap gap-2">
-                                {profileData.skills.map((skill, index) => (
-                                  <Badge key={index} variant="secondary">
-                                    {skill}
-                                  </Badge>
-                                ))}
+                                {(profileData.skills as string[]).map(
+                                  (skill, index) => (
+                                    <Badge key={index} variant="secondary">
+                                      {skill}
+                                    </Badge>
+                                  )
+                                )}
                               </div>
                             ) : (
                               <p className="text-sm text-gray-400">
@@ -1248,10 +1433,11 @@ const Profile = () => {
                             <h4 className="text-lg font-semibold text-gray-900 mb-4">
                               Career Interests
                             </h4>
-                            {profileData?.careerInterests &&
-                            profileData.careerInterests.length > 0 ? (
+                            {(profileData?.careerInterests as string[]) &&
+                            (profileData.careerInterests as string[]).length >
+                              0 ? (
                               <div className="flex flex-wrap gap-2">
-                                {profileData.careerInterests.map(
+                                {(profileData.careerInterests as string[]).map(
                                   (interest, index) => (
                                     <Badge key={index} variant="outline">
                                       {interest}
@@ -1278,7 +1464,7 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <ProjectsSection
-                  projects={profileData?.projects || []}
+                  projects={(profileData?.projects as any[]) || []}
                   isEditing={isEditing}
                   onUpdate={handleProfileUpdate}
                   userRole={profile.user.role}
@@ -1291,7 +1477,9 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <InternshipsSection
-                  internships={profileData?.internshipExperience || []}
+                  internships={
+                    (profileData?.internshipExperience as any[]) || []
+                  }
                   isEditing={isEditing}
                   userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
@@ -1304,7 +1492,7 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <ResearchSection
-                  research={profileData?.researchWork || []}
+                  research={(profileData?.researchWork as any[]) || []}
                   isEditing={isEditing}
                   userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
@@ -1317,7 +1505,7 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <CertificationsSection
-                  certifications={profileData?.certifications || []}
+                  certifications={(profileData?.certifications as any[]) || []}
                   isEditing={isEditing}
                   userRole={profile.user.role}
                   onUpdate={handleProfileUpdate}
@@ -1330,8 +1518,10 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <ConnectionsSection
-                  connections={profileData?.connections || []}
-                  connectionRequests={profileData?.connectionRequests || []}
+                  connections={(profileData?.connections as string[]) || []}
+                  connectionRequests={
+                    (profileData?.connectionRequests as any[]) || []
+                  }
                   isEditing={isEditing}
                   onUpdate={handleProfileUpdate}
                 />
@@ -1343,8 +1533,12 @@ const Profile = () => {
                 className="mt-6 space-y-6 animate-in fade-in-50 duration-300"
               >
                 <EventsSection
-                  eventsRegistered={profileData?.eventsRegistered || []}
-                  eventsAttended={profileData?.eventsAttended || []}
+                  eventsRegistered={
+                    (profileData?.eventsRegistered as EventRegistration[]) || []
+                  }
+                  eventsAttended={
+                    (profileData?.eventsAttended as EventAttendance[]) || []
+                  }
                   isEditing={isEditing}
                   onUpdate={handleProfileUpdate}
                 />
@@ -1375,7 +1569,7 @@ const Profile = () => {
                                     Current Company
                                   </label>
                                   <p className="text-sm">
-                                    {profileData.currentCompany ||
+                                    {(profileData.currentCompany as string) ||
                                       "Not specified"}
                                   </p>
                                 </div>
@@ -1384,7 +1578,7 @@ const Profile = () => {
                                     Position
                                   </label>
                                   <p className="text-sm">
-                                    {profileData.currentPosition ||
+                                    {(profileData.currentPosition as string) ||
                                       "Not specified"}
                                   </p>
                                 </div>
@@ -1393,7 +1587,7 @@ const Profile = () => {
                                     Experience
                                   </label>
                                   <p className="text-sm">
-                                    {profileData.experience
+                                    {(profileData.experience as number)
                                       ? `${profileData.experience} years`
                                       : "Not specified"}
                                   </p>
@@ -1403,7 +1597,7 @@ const Profile = () => {
                                     Location
                                   </label>
                                   <p className="text-sm">
-                                    {profileData.currentLocation ||
+                                    {(profileData.currentLocation as string) ||
                                       "Not specified"}
                                   </p>
                                 </div>
@@ -1412,7 +1606,8 @@ const Profile = () => {
                                     Salary
                                   </label>
                                   <p className="text-sm">
-                                    {profileData.salary && profileData.currency
+                                    {(profileData.salary as number) &&
+                                    (profileData.currency as string)
                                       ? `${profileData.salary} ${profileData.currency}`
                                       : "Not specified"}
                                   </p>
@@ -1422,7 +1617,7 @@ const Profile = () => {
                                     Specialization
                                   </label>
                                   <p className="text-sm">
-                                    {profileData.specialization ||
+                                    {(profileData.specialization as string) ||
                                       "Not specified"}
                                   </p>
                                 </div>
@@ -1431,34 +1626,35 @@ const Profile = () => {
                                     Hiring Status
                                   </label>
                                   <p className="text-sm">
-                                    {profileData.isHiring
+                                    {(profileData.isHiring as boolean)
                                       ? "Currently Hiring"
                                       : "Not Hiring"}
                                   </p>
                                 </div>
                               </div>
-                              {profileData.achievements &&
-                                profileData.achievements.length > 0 && (
+                              {(profileData.achievements as string[]) &&
+                                (profileData.achievements as string[]).length >
+                                  0 && (
                                   <div>
                                     <label className="text-sm font-medium text-gray-500">
                                       Achievements
                                     </label>
                                     <div className="flex flex-wrap gap-2 mt-1">
-                                      {profileData.achievements.map(
-                                        (achievement, index) => (
-                                          <Badge
-                                            key={index}
-                                            variant="outline"
-                                            className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                                          >
-                                            {achievement}
-                                          </Badge>
-                                        )
-                                      )}
+                                      {(
+                                        profileData.achievements as string[]
+                                      ).map((achievement, index) => (
+                                        <Badge
+                                          key={index}
+                                          variant="outline"
+                                          className="bg-yellow-50 text-yellow-700 border-yellow-200"
+                                        >
+                                          {achievement}
+                                        </Badge>
+                                      ))}
                                     </div>
                                   </div>
                                 )}
-                              {profileData.availableForMentorship && (
+                              {(profileData.availableForMentorship as boolean) && (
                                 <div>
                                   <label className="text-sm font-medium text-gray-500">
                                     Mentorship
@@ -1470,25 +1666,26 @@ const Profile = () => {
                                     >
                                       Available for Mentorship
                                     </Badge>
-                                    {profileData.mentorshipDomains &&
-                                      profileData.mentorshipDomains.length >
-                                        0 && (
+                                    {(profileData.mentorshipDomains as string[]) &&
+                                      (
+                                        profileData.mentorshipDomains as string[]
+                                      ).length > 0 && (
                                         <div className="mt-2">
                                           <p className="text-xs text-gray-500 mb-1">
                                             Domains:
                                           </p>
                                           <div className="flex flex-wrap gap-1">
-                                            {profileData.mentorshipDomains.map(
-                                              (domain, index) => (
-                                                <Badge
-                                                  key={index}
-                                                  variant="secondary"
-                                                  className="text-xs"
-                                                >
-                                                  {domain}
-                                                </Badge>
-                                              )
-                                            )}
+                                            {(
+                                              profileData.mentorshipDomains as string[]
+                                            ).map((domain, index) => (
+                                              <Badge
+                                                key={index}
+                                                variant="secondary"
+                                                className="text-xs"
+                                              >
+                                                {domain}
+                                              </Badge>
+                                            ))}
                                           </div>
                                         </div>
                                       )}
@@ -1516,7 +1713,10 @@ const Profile = () => {
                 >
                   {isEditing ? (
                     <CareerTimelineForm
-                      careerTimeline={profileData?.careerTimeline || []}
+                      careerTimeline={
+                        (profileData?.careerTimeline as CareerTimelineItem[]) ||
+                        []
+                      }
                       onUpdate={handleProfileUpdate}
                     />
                   ) : (
@@ -1529,10 +1729,13 @@ const Profile = () => {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          {profileData?.careerTimeline &&
-                          profileData.careerTimeline.length > 0 ? (
+                          {(profileData?.careerTimeline as CareerTimelineItem[]) &&
+                          (profileData.careerTimeline as CareerTimelineItem[])
+                            .length > 0 ? (
                             <div className="space-y-4">
-                              {profileData.careerTimeline.map((job, index) => (
+                              {(
+                                profileData.careerTimeline as CareerTimelineItem[]
+                              ).map((job, index) => (
                                 <div
                                   key={index}
                                   className="border-l-4 border-blue-200 pl-4 py-2"
@@ -1666,8 +1869,9 @@ const Profile = () => {
 
                     {/* Testimonials Section - Alumni Only */}
                     {!isStudent &&
-                      profileData?.testimonials &&
-                      profileData.testimonials.length > 0 && (
+                      (profileData?.testimonials as Testimonial[]) &&
+                      (profileData.testimonials as Testimonial[]).length >
+                        0 && (
                         <Card>
                           <CardHeader>
                             <CardTitle>Testimonials</CardTitle>
@@ -1677,7 +1881,7 @@ const Profile = () => {
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-4">
-                              {profileData.testimonials.map(
+                              {(profileData.testimonials as Testimonial[]).map(
                                 (testimonial, index) => (
                                   <div
                                     key={index}

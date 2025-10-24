@@ -1,7 +1,7 @@
-// Razorpay Service for Frontend
+import { getAuthTokenOrNull } from "@/utils/auth";
 import Razorpay from "razorpay";
 
-// Razorpay configuration
+// Razorpay Service
 const RAZORPAY_KEY_ID =
   import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_RUU9Bp4fN23nvp";
 
@@ -70,11 +70,8 @@ class RazorpayService {
   }
 
   private getAuthToken(): string {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
     if (!token) {
       throw new Error("User not authenticated. Please log in first.");
     }

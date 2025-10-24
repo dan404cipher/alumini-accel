@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 // API base URL
 const API_BASE_URL =
@@ -16,7 +17,7 @@ export const apiClient: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = getAuthTokenOrNull();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

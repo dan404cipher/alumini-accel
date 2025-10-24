@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { AlertTriangle } from "lucide-react";
 
 interface DeleteCommunityModalProps {
@@ -44,6 +44,13 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({
 
     setLoading(true);
     try {
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const response = await fetch(
         `${
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
@@ -51,7 +58,7 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );

@@ -77,16 +77,13 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { communityAPI } from "@/lib/api";
 
 // Helper function to get auth token
 const getAuthToken = (): string => {
-  // Check localStorage first (remember me), then sessionStorage
-  let token = localStorage.getItem("token");
-  if (!token) {
-    token = sessionStorage.getItem("token");
-  }
+  const token = getAuthTokenOrNull();
   if (!token) {
     throw new Error("Access token is required");
   }

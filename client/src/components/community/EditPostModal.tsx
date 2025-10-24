@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { MessageCircle, Image, X, Plus, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 import { CommunityPost } from "./types";
 
@@ -50,11 +51,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
 
   // Helper function to get auth token
   const getAuthToken = (): string => {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    const token = getAuthTokenOrNull();
     if (!token) {
       throw new Error("Access token is required");
     }

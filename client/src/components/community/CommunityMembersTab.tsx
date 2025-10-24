@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { Users, UserX, Ban, EyeOff, Trash2, Crown, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -37,11 +38,7 @@ const CommunityMembersTab: React.FC<CommunityMembersTabProps> = ({
 
   // Helper function to get auth token
   const getAuthToken = (): string => {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    const token = getAuthTokenOrNull();
     if (!token) {
       throw new Error("Access token is required");
     }

@@ -100,6 +100,7 @@ export const createJob = async (req: Request, res: Response) => {
   try {
     const {
       company,
+      title,
       position,
       location,
       type,
@@ -120,7 +121,8 @@ export const createJob = async (req: Request, res: Response) => {
       postedBy: req.user.id,
       tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
       company,
-      position,
+      title: title || position, // Use title if provided, fallback to position
+      position: position || title, // Use position if provided, fallback to title
       location,
       type,
       remote: remote || false,

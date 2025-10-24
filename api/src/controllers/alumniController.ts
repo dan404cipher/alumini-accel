@@ -937,13 +937,43 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
   try {
     const { skills, careerInterests } = req.body;
 
-    const alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
+    let alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
 
+    // If no alumni profile exists, create a basic one
     if (!alumniProfile) {
-      return res.status(404).json({
-        success: false,
-        message: "Alumni profile not found",
+      // Get user details to create basic profile
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Create basic alumni profile
+      alumniProfile = new AlumniProfile({
+        userId: req.user.id,
+        university: "Default University", // Will be updated when user fills profile
+        program: "Default Program",
+        batchYear: new Date().getFullYear() - 4, // Default batch year
+        graduationYear: new Date().getFullYear(),
+        department: "Default Department",
+        specialization: "",
+        experience: 0,
+        skills: [],
+        achievements: [],
+        certifications: [],
+        education: [],
+        careerTimeline: [],
+        isHiring: false,
+        availableForMentorship: false,
+        mentorshipDomains: [],
+        availableSlots: [],
+        testimonials: [],
+        photos: [],
       });
+
+      await alumniProfile.save();
     }
 
     // Update skills and careerInterests if provided

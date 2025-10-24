@@ -1,3 +1,5 @@
+import { getAuthTokenOrNull } from "@/utils/auth";
+
 // API base URL
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
@@ -121,11 +123,8 @@ class DonationApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
 
     if (!token) {
       throw new Error("Access token is required");
@@ -229,7 +228,10 @@ class DonationApiService {
     const formData = new FormData();
     formData.append("image", file);
 
-    const token = localStorage.getItem("token");
+    const token = getAuthTokenOrNull();
+    if (!token) {
+      throw new Error("Access token is required");
+    }
 
     const response = await fetch(`${this.baseUrl}/campaigns/${id}/image`, {
       method: "POST",

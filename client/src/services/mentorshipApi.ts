@@ -2,6 +2,8 @@
 // Author: AI Assistant
 // Purpose: API service layer for mentorship management
 
+import { getAuthTokenOrNull } from "@/utils/auth";
+
 const API_BASE_URL = "http://localhost:3000/api/v1";
 
 // Types for API responses
@@ -51,11 +53,8 @@ class MentorshipApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    // Check localStorage first (remember me), then sessionStorage
-    let token = localStorage.getItem("token");
-    if (!token) {
-      token = sessionStorage.getItem("token");
-    }
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
 
     if (!token) {
       throw new Error("Access token is required");

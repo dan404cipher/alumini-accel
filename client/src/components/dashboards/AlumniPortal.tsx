@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import {
   Card,
   CardContent,
@@ -132,11 +133,8 @@ const AlumniPortal = () => {
     const fetchRecentData = async () => {
       setLoading(true);
       try {
-        // Check localStorage first (remember me), then sessionStorage
-        let token = localStorage.getItem("token");
-        if (!token) {
-          token = sessionStorage.getItem("token");
-        }
+        // Get token from localStorage or sessionStorage (same logic as AuthContext)
+        const token = getAuthTokenOrNull();
         if (!token) {
           throw new Error("Access token is required");
         }

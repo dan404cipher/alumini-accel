@@ -9,6 +9,17 @@ export const getAllGalleries = asyncHandler(
     const skip = (Number(page) - 1) * Number(limit);
 
     const filter: any = { isActive: true };
+
+    // 🔒 MULTI-TENANT FILTERING: Only show galleries from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (
+      (req as any).user?.role !== "super_admin" &&
+      (req as any).user?.tenantId
+    ) {
+      filter.tenantId = (req as any).user.tenantId;
+    }
+
     if (category && category !== "all") {
       filter.category = category;
     }
@@ -86,6 +97,7 @@ export const createGallery = asyncHandler(
       description,
       images,
       createdBy: userId,
+      tenantId: (req as any).user?.tenantId, // Add tenantId for multi-tenant support
       tags: tags || [],
       category: category || "Other",
     });

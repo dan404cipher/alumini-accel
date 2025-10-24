@@ -1954,6 +1954,7 @@ export const galleryAPI = {
     page?: number;
     limit?: number;
     category?: string;
+    tenantId?: string;
   }) => {
     try {
       // Try backend API first
@@ -1961,6 +1962,7 @@ export const galleryAPI = {
       if (params?.page) queryParams.append("page", params.page.toString());
       if (params?.limit) queryParams.append("limit", params.limit.toString());
       if (params?.category) queryParams.append("category", params.category);
+      if (params?.tenantId) queryParams.append("tenantId", params.tenantId);
 
       const response = await apiRequest({
         method: "GET",

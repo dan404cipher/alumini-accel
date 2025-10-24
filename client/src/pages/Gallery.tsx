@@ -244,6 +244,7 @@ const Gallery: React.FC = () => {
         category: selectedCategory === "all" ? undefined : selectedCategory,
         page: currentPage,
         limit: itemsPerPage,
+        tenantId: user?.tenantId, // Pass user's tenantId to filter by college
       });
 
       if (response.success) {
@@ -266,7 +267,7 @@ const Gallery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, currentPage, itemsPerPage, toast]);
+  }, [selectedCategory, currentPage, itemsPerPage, user?.tenantId, toast]);
 
   useEffect(() => {
     fetchGalleries();

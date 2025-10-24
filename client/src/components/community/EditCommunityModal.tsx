@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { Community } from "./types";
+import { useToast } from "@/hooks/use-toast";
 
 interface EditCommunityModalProps {
   isOpen: boolean;

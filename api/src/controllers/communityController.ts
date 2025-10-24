@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import CommunityPost from "../models/CommunityPost";
@@ -956,12 +957,30 @@ export const getTopCommunities = asyncHandler(
 
     console.log("🔍 Fetching top communities with limit:", limit);
 
+    // 🔒 MULTI-TENANT FILTERING: Only show communities from same college (unless super admin)
+    let tenantUserIds: string[] = [];
+    if (
+      (req as any).user?.role !== "super_admin" &&
+      (req as any).user?.tenantId
+    ) {
+      const tenantUsers = await User.find({
+        tenantId: (req as any).user.tenantId,
+      }).select("_id");
+      tenantUserIds = tenantUsers.map((user) => user._id.toString());
+      console.log(
+        "🔒 Tenant filtering applied, user IDs:",
+        tenantUserIds.length
+      );
+    } else if ((req as any).user?.role === "super_admin") {
+      console.log("👑 Super admin access - showing all communities");
+    }
+
     // First, let's check if there are any communities at all
     const totalCommunities = await Community.countDocuments();
     console.log("📊 Total communities in database:", totalCommunities);
 
-    // Get communities sorted by member count and activity
-    const topCommunities = await Community.aggregate([
+    // Build aggregation pipeline
+    const pipeline: any[] = [
       {
         $lookup: {
           from: "communityposts",
@@ -984,8 +1003,24 @@ export const getTopCommunities = asyncHandler(
       {
         $match: {
           type: { $in: ["open", "closed"] }, // Only show public/closed communities
+          status: "active", // Only active communities
         },
       },
+    ];
+
+    // Add tenant filtering if not super admin
+    if (tenantUserIds.length > 0) {
+      pipeline.push({
+        $match: {
+          createdBy: {
+            $in: tenantUserIds.map((id) => new mongoose.Types.ObjectId(id)),
+          },
+        },
+      });
+    }
+
+    // Add sorting and limiting
+    pipeline.push(
       {
         $sort: { activityScore: -1 },
       },
@@ -1005,8 +1040,11 @@ export const getTopCommunities = asyncHandler(
           coverImage: 1,
           createdAt: 1,
         },
-      },
-    ]);
+      }
+    );
+
+    // Get communities sorted by member count and activity
+    const topCommunities = await Community.aggregate(pipeline);
 
     console.log("🎯 Top communities found:", topCommunities.length);
     console.log("📋 Communities data:", topCommunities);

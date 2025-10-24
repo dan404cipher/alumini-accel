@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { AlertTriangle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface DeleteCommunityModalProps {
   isOpen: boolean;

@@ -22,13 +22,11 @@ import {
 
 const router = express.Router();
 
-// Public routes (no authentication required)
-router.get("/top", getTopCommunities);
-
-// Apply authentication to all other routes
+// Apply authentication to all routes
 router.use(authenticate);
 
-// All other routes are now protected
+// All routes are now protected
+router.get("/top", getTopCommunities);
 router.get("/", getAllCommunities);
 router.get("/search", validateCommunitySearch, searchCommunities);
 router.get("/:id", validateId, getCommunityById);

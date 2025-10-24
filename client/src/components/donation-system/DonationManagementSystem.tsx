@@ -18,10 +18,12 @@ import EnhancedDonationModal from "./modals/EnhancedDonationModal";
 import ShareModal from "./modals/ShareModal";
 import CampaignDetailsModal from "./modals/CampaignDetailsModal";
 import { formatINR } from "./utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const DonationManagementSystem: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
 
   const {
     campaigns,
@@ -163,14 +165,19 @@ const DonationManagementSystem: React.FC = () => {
                 </select>
               </div>
 
-              {/* Create Campaign Button */}
-              <Button
-                onClick={() => setCreateModalOpen(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Campaign
-              </Button>
+              {/* Create Campaign Button - Only for Admin Roles */}
+              {user?.role &&
+                ["college_admin", "hod", "staff", "super_admin"].includes(
+                  user.role
+                ) && (
+                  <Button
+                    onClick={() => setCreateModalOpen(true)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Campaign
+                  </Button>
+                )}
             </CardContent>
           </Card>
         </div>
@@ -241,7 +248,6 @@ const DonationManagementSystem: React.FC = () => {
                       ₹{formatINR(totalDonated)}
                     </p>
                     <div className="flex gap-2">
-                     
                       {totalDonated > 1000000 && (
                         <button
                           onClick={resetDonationData}
@@ -397,8 +403,28 @@ const DonationManagementSystem: React.FC = () => {
                       })}`}
                       onDonate={() => handleOpenDonationModal(campaign, index)}
                       onShare={() => handleShareCampaign(campaign)}
-                      onEdit={() => handleEditCampaign(campaign, index)}
-                      onDelete={() => handleDeleteCampaign(index)}
+                      onEdit={
+                        user?.role &&
+                        [
+                          "college_admin",
+                          "hod",
+                          "staff",
+                          "super_admin",
+                        ].includes(user.role)
+                          ? () => handleEditCampaign(campaign, index)
+                          : undefined
+                      }
+                      onDelete={
+                        user?.role &&
+                        [
+                          "college_admin",
+                          "hod",
+                          "staff",
+                          "super_admin",
+                        ].includes(user.role)
+                          ? () => handleDeleteCampaign(index)
+                          : undefined
+                      }
                       onViewDetails={() => handleViewCampaignDetails(campaign)}
                     />
                   ))}
@@ -430,17 +456,29 @@ const DonationManagementSystem: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <CampaignModal
-        open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-      />
+      {/* Campaign Creation Modal - Only for Admin Roles */}
+      {user?.role &&
+        ["college_admin", "hod", "staff", "super_admin"].includes(
+          user.role
+        ) && (
+          <CampaignModal
+            open={createModalOpen}
+            onClose={() => setCreateModalOpen(false)}
+          />
+        )}
 
-      <CampaignModal
-        open={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        editData={selectedCampaignForEdit}
-        editIndex={selectedCampaignForEdit?.editIndex ?? null}
-      />
+      {/* Campaign Edit Modal - Only for Admin Roles */}
+      {user?.role &&
+        ["college_admin", "hod", "staff", "super_admin"].includes(
+          user.role
+        ) && (
+          <CampaignModal
+            open={editModalOpen}
+            onClose={() => setEditModalOpen(false)}
+            editData={selectedCampaignForEdit}
+            editIndex={selectedCampaignForEdit?.editIndex ?? null}
+          />
+        )}
 
       <EnhancedDonationModal
         open={donationModalOpen}

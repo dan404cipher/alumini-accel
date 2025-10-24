@@ -47,6 +47,19 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
   onPostUpdated,
 }) => {
   const { toast } = useToast();
+
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+    return token;
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -164,6 +177,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
       const formData = new FormData();
       formData.append("image", file);
 
+      const token = getAuthToken();
       const response = await fetch(
         `${
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
@@ -171,7 +185,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
           body: formData,
         }
@@ -192,11 +206,24 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
       }
     } catch (error) {
       console.error("Error uploading image:", error);
-      toast({
-        title: "Error",
-        description: "Failed to upload image. Please try again.",
-        variant: "destructive",
-      });
+      if (
+        error instanceof Error &&
+        error.message === "Access token is required"
+      ) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to upload images.",
+          variant: "destructive",
+        });
+        // Redirect to login
+        window.location.href = "/login";
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to upload image. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setUploadingImage(false);
     }
@@ -214,6 +241,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const token = getAuthToken();
       const response = await fetch(
         `${
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
@@ -222,7 +250,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             title: postForm.title,
@@ -249,11 +277,24 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
       }
     } catch (error) {
       console.error("Error updating post:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update post. Please try again.",
-        variant: "destructive",
-      });
+      if (
+        error instanceof Error &&
+        error.message === "Access token is required"
+      ) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to update posts.",
+          variant: "destructive",
+        });
+        // Redirect to login
+        window.location.href = "/login";
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update post. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

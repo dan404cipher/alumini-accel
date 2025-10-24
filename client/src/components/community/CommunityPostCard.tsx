@@ -30,9 +30,15 @@ import { useToast } from "@/hooks/use-toast";
 
 interface CommunityPostCardProps {
   post: CommunityPost;
+  isModerator?: boolean;
+  isAdmin?: boolean;
 }
 
-const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
+const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
+  post,
+  isModerator = false,
+  isAdmin = false,
+}) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showEditModal, setShowEditModal] = useState(false);
@@ -197,16 +203,18 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
 
   // Check user permissions
   const isAuthor = user?._id === post.authorId?._id;
-  const isAdmin =
+  const isGlobalAdmin =
     user?.role === "admin" ||
     user?.role === "super_admin" ||
     user?.role === "college_admin";
-  const isModerator = user?.role === "moderator";
   const isHOD = user?.role === "hod";
   const isStaff = user?.role === "staff";
 
-  const canEdit = isAuthor || isAdmin || isModerator || isHOD || isStaff;
-  const canDelete = isAuthor || isAdmin || isModerator || isHOD || isStaff;
+  // Use community-specific moderator/admin status from props
+  const canEdit =
+    isAuthor || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
+  const canDelete =
+    isAuthor || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
   const canReport = !isAuthor;
   const canShare = true;
 
@@ -601,6 +609,8 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
             console.log("Comment count updated:", count);
           }}
           className="mt-2"
+          isModerator={isModerator}
+          isAdmin={isAdmin}
         />
       )}
 

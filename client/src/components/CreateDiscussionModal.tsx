@@ -45,6 +45,19 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
   onPostCreated,
 }) => {
   const { toast } = useToast();
+
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+    return token;
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -132,6 +145,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
       formData.append("image", file);
       formData.append("type", "community-post");
 
+      const token = getAuthToken();
       const response = await fetch(
         `${
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
@@ -139,7 +153,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
           body: formData,
         }
@@ -176,11 +190,24 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
       }
     } catch (error) {
       console.error("Error uploading image:", error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload image. Please try again.",
-        variant: "destructive",
-      });
+      if (
+        error instanceof Error &&
+        error.message === "Access token is required"
+      ) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to upload images.",
+          variant: "destructive",
+        });
+        // Redirect to login
+        window.location.href = "/login";
+      } else {
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload image. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setUploadingImage(false);
     }
@@ -242,6 +269,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
       }
 
       // Submit post
+      const token = getAuthToken();
       const response = await fetch(
         `${
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
@@ -250,7 +278,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(postData),
         }
@@ -286,11 +314,24 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
       }
     } catch (error) {
       console.error("Error creating discussion:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create discussion. Please try again.",
-        variant: "destructive",
-      });
+      if (
+        error instanceof Error &&
+        error.message === "Access token is required"
+      ) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to create discussions.",
+          variant: "destructive",
+        });
+        // Redirect to login
+        window.location.href = "/login";
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create discussion. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

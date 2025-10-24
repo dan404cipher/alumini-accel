@@ -26,6 +26,8 @@ interface CommentSectionProps {
   initialCommentCount: number;
   onCommentCountChange?: (count: number) => void;
   className?: string;
+  isModerator?: boolean;
+  isAdmin?: boolean;
 }
 
 interface CommentItemProps {
@@ -104,16 +106,18 @@ const CommentItem: React.FC<CommentItemProps> = ({
   };
 
   // Check user permissions
-  const isAdmin =
+  const isGlobalAdmin =
     user?.role === "admin" ||
     user?.role === "super_admin" ||
     user?.role === "college_admin";
-  const isModerator = user?.role === "moderator";
   const isHOD = user?.role === "hod";
   const isStaff = user?.role === "staff";
 
-  const canEdit = isOwner || isAdmin || isModerator || isHOD || isStaff;
-  const canDelete = isOwner || isAdmin || isModerator || isHOD || isStaff;
+  // Use community-specific moderator/admin status from props
+  const canEdit =
+    isOwner || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
+  const canDelete =
+    isOwner || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
   const canReport = !isOwner;
 
   const formatTimeAgo = (dateString: string) => {
@@ -273,6 +277,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   initialCommentCount,
   onCommentCountChange,
   className,
+  isModerator = false,
+  isAdmin = false,
 }) => {
   const { user } = useAuth();
   const [newComment, setNewComment] = useState("");

@@ -651,6 +651,8 @@ const CommunityDetailNew: React.FC = () => {
                     postsLoading={postsLoading}
                     filteredPosts={filteredPosts}
                     onRefreshPosts={fetchCommunityPosts}
+                    isModerator={isModerator}
+                    isAdmin={isAdmin}
                   />
                 ) : activeTab === "about" ? (
                   <>

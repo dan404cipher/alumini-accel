@@ -19,6 +19,36 @@ export const getAllMentorships = async (req: Request, res: Response) => {
     if (req.query.domain)
       filter.domain = { $regex: req.query.domain, $options: "i" };
 
+    // 🔒 MULTI-TENANT FILTERING: Only show mentorships from same college (unless super admin)
+    if (req.query.tenantId) {
+      // Get users from the specified tenant
+      const tenantUsers = await User.find({
+        tenantId: req.query.tenantId,
+      }).select("_id");
+      const tenantUserIds = tenantUsers.map((user) => user._id);
+
+      // Filter mentorships by users from the same tenant
+      filter.$or = [
+        { mentorId: { $in: tenantUserIds } },
+        { menteeId: { $in: tenantUserIds } },
+      ];
+    } else if (
+      (req as any).user?.role !== "super_admin" &&
+      (req as any).user?.tenantId
+    ) {
+      // Get users from the current user's tenant
+      const tenantUsers = await User.find({
+        tenantId: (req as any).user.tenantId,
+      }).select("_id");
+      const tenantUserIds = tenantUsers.map((user) => user._id);
+
+      // Filter mentorships by users from the same tenant
+      filter.$or = [
+        { mentorId: { $in: tenantUserIds } },
+        { menteeId: { $in: tenantUserIds } },
+      ];
+    }
+
     const mentorships = await Mentorship.find(filter)
       .populate("mentor", "firstName lastName email profilePicture")
       .populate("mentee", "firstName lastName email profilePicture")

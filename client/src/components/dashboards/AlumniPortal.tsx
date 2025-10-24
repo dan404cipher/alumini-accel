@@ -166,9 +166,12 @@ const AlumniPortal = () => {
         }
 
         // Fetch recent galleries
-        const galleriesResponse = await fetch(`${baseUrl}/gallery?limit=8`, {
-          headers,
-        });
+        const galleriesResponse = await fetch(
+          `${baseUrl}/gallery?limit=8&tenantId=${user?.tenantId || ""}`,
+          {
+            headers,
+          }
+        );
         if (galleriesResponse.ok) {
           const galleriesData = await galleriesResponse.json();
           setRecentGalleries(galleriesData.data?.galleries || []);
@@ -186,7 +189,7 @@ const AlumniPortal = () => {
 
         // Fetch recent mentorships
         const mentorshipsResponse = await fetch(
-          `${baseUrl}/mentorship?limit=8`,
+          `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
           { headers }
         );
         if (mentorshipsResponse.ok) {
@@ -217,7 +220,7 @@ const AlumniPortal = () => {
 
         // Fetch recent mentorship programs
         const mentorshipProgramsResponse = await fetch(
-          `${baseUrl}/mentorship?limit=8`,
+          `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
           {
             headers,
           }

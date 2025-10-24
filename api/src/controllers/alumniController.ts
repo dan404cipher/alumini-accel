@@ -3,6 +3,7 @@ import AlumniProfile from "../models/AlumniProfile";
 import User from "../models/User";
 import { logger } from "../utils/logger";
 import { UserRole } from "../types";
+import { updateProfileCompletion } from "../utils/profileCompletion";
 
 // Get all alumni directory
 export const getAllUsersDirectory = async (req: Request, res: Response) => {
@@ -655,6 +656,9 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (photos !== undefined) alumniProfile.photos = photos;
 
     await alumniProfile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,

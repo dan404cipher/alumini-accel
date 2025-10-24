@@ -10,7 +10,7 @@ import {
   MessageCircle,
   Send,
   Search,
-  MoreVertical,
+  MoreHorizontal,
   Trash2,
   Check,
   CheckCheck,
@@ -594,9 +594,6 @@ const Messages = () => {
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
 

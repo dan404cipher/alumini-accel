@@ -13,6 +13,10 @@ import { UserRole, UserStatus } from "../types";
 import { sendEmail } from "../utils/email";
 import { sendSMS } from "../utils/sms";
 import { AppError } from "../middleware/errorHandler";
+import {
+  checkAndCreateProfileCompletionNotification,
+  updateProfileCompletion,
+} from "../utils/profileCompletion";
 
 // Register new user
 export const register = async (req: Request, res: Response) => {
@@ -161,6 +165,12 @@ export const login = async (req: Request, res: Response) => {
     // Update last login
     user.lastLoginAt = new Date();
     await user.save();
+
+    // Update profile completion and check for notifications (for alumni only)
+    if (user.role === UserRole.ALUMNI) {
+      await updateProfileCompletion(user._id);
+      await checkAndCreateProfileCompletionNotification(user._id);
+    }
 
     // Generate tokens
     const token = generateToken(user._id, user.role, user.tenantId);

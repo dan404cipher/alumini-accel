@@ -5,6 +5,7 @@ import { UserRole, UserStatus } from "../types";
 import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
+import { updateProfileCompletion } from "../utils/profileCompletion";
 
 // Get all users (admin only)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -236,6 +237,11 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (preferences) user.preferences = { ...user.preferences, ...preferences };
 
     await user.save();
+
+    // Update profile completion for alumni
+    if (user.role === UserRole.ALUMNI) {
+      await updateProfileCompletion(user._id);
+    }
 
     return res.json({
       success: true,
@@ -612,6 +618,11 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
     // Update user's profile picture
     user.profilePicture = `/uploads/profile-images/${file.filename}`;
     await user.save();
+
+    // Update profile completion for alumni
+    if (user.role === UserRole.ALUMNI) {
+      await updateProfileCompletion(user._id);
+    }
 
     return res.json({
       success: true,

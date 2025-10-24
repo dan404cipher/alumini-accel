@@ -97,11 +97,8 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({
     // Wait for socket to be connected before setting up listeners
     const setupSocketListeners = () => {
       if (socketService.isSocketConnected()) {
-        console.log("📨 Setting up message socket listeners");
-
         // Listen for new messages
         socketService.on("new_message", (message: Message) => {
-          console.log("📨 Received new message via Socket.IO:", message);
           addMessage(message);
         });
 
@@ -154,7 +151,6 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({
           }
         );
       } else {
-        console.log("📨 Socket not connected yet, retrying in 1 second...");
         setTimeout(setupSocketListeners, 1000);
       }
     };

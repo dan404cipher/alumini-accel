@@ -32,7 +32,6 @@ class SocketService {
 
   constructor() {
     // Don't connect immediately - wait for user to be authenticated
-    console.log("🔌 SocketService initialized - waiting for authentication");
   }
 
   private connect() {
@@ -44,9 +43,7 @@ class SocketService {
       return;
     }
 
-    console.log("🔌 Attempting Socket.IO connection...");
     const serverUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    console.log("🌐 Server URL:", serverUrl);
 
     // Ultra-minimal configuration for maximum compatibility
     this.socket = io(serverUrl, {
@@ -69,13 +66,10 @@ class SocketService {
     this.socket.on("connect", () => {
       this.isConnected = true;
       this.reconnectAttempts = 0;
-      console.log("✅ Socket.IO connected successfully!");
-      console.log("🆔 Socket ID:", this.socket.id);
     });
 
     this.socket.on("disconnect", (reason) => {
       this.isConnected = false;
-      console.log("❌ Socket.IO disconnected:", reason);
     });
 
     this.socket.on("connect_error", (error) => {
@@ -95,7 +89,6 @@ class SocketService {
     this.socket.on("reconnect", (attemptNumber) => {
       this.isConnected = true;
       this.reconnectAttempts = 0;
-      console.log("🔄 Socket.IO reconnected after", attemptNumber, "attempts");
       // Trigger a custom event to notify contexts that socket is reconnected
       window.dispatchEvent(new CustomEvent("socketReconnected"));
     });
@@ -104,7 +97,6 @@ class SocketService {
   // Connection management
   public connectSocket() {
     if (!this.socket || !this.isConnected) {
-      console.log("🔌 Manually triggering socket connection...");
       this.connect();
     }
   }
@@ -118,22 +110,13 @@ class SocketService {
   }
 
   public isSocketConnected(): boolean {
-    const connected = this.isConnected && this.socket?.connected === true;
-    console.log(
-      `🔍 Socket connection check: isConnected=${this.isConnected}, socket.connected=${this.socket?.connected}, result=${connected}`
-    );
-    return connected;
+    return this.isConnected && this.socket?.connected === true;
   }
 
   // Event listeners
   public on<K extends keyof SocketEvents>(event: K, callback: SocketEvents[K]) {
     if (this.socket) {
-      console.log(`🔌 Setting up listener for event: ${event}`);
       this.socket.on(event as string, callback as (...args: unknown[]) => void);
-    } else {
-      console.warn(
-        `❌ Cannot set up listener for ${event} - socket not connected`
-      );
     }
   }
 

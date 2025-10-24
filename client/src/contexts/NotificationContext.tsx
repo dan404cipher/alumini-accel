@@ -46,8 +46,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     // Wait for socket to be connected before setting up listeners
     const setupSocketListeners = () => {
       if (socketService.isSocketConnected()) {
-        console.log("🔔 Setting up notification socket listeners");
-
         // Listen for unread count updates
         socketService.on("unread_count_update", (data: { count: number }) => {
           // Trigger a refetch to get the latest count
@@ -78,7 +76,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           }
         );
       } else {
-        console.log("🔔 Socket not connected yet, retrying in 1 second...");
         setTimeout(setupSocketListeners, 1000);
       }
     };
@@ -96,8 +93,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   }, []);
 
   const value: NotificationContextType = {
-    unreadCount,
-    notificationCount,
+    unreadCount: unreadCount || 0,
+    notificationCount: notificationCount || 0,
     isLoading: unreadLoading || notificationLoading,
     refreshUnreadCount,
     refreshNotificationCount,

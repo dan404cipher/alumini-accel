@@ -28,6 +28,20 @@ const CommunityJoinRequestsTab: React.FC<CommunityJoinRequestsTabProps> = ({
   communityId,
 }) => {
   const { toast } = useToast();
+
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+    return token;
+  };
+
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +53,7 @@ const CommunityJoinRequestsTab: React.FC<CommunityJoinRequestsTabProps> = ({
         `http://localhost:3000/api/v1/community-memberships/community/${communityId}/requests`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -75,7 +89,7 @@ const CommunityJoinRequestsTab: React.FC<CommunityJoinRequestsTabProps> = ({
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );

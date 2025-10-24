@@ -464,6 +464,22 @@ export const joinCommunity = async (
           success: false,
           message: "Membership request already pending",
         });
+      } else if (existingMembership.status === "left") {
+        // User previously left, allow them to rejoin
+        console.log("User previously left community, allowing rejoin:", userId);
+        // We'll update the existing membership record instead of creating a new one
+      } else if (existingMembership.status === "rejected") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Your previous membership request was rejected. Please contact community administrators.",
+        });
+      } else if (existingMembership.status === "suspended") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Your membership is currently suspended. Please contact community administrators.",
+        });
       }
     }
 
@@ -471,15 +487,24 @@ export const joinCommunity = async (
 
     if (community.type === "open") {
       // Direct join for open communities
-      membership = new CommunityMembership({
-        communityId: id,
-        userId: userId,
-        role: "member",
-        status: "approved",
-        joinedAt: new Date(),
-      });
-
-      await membership.save();
+      if (existingMembership && existingMembership.status === "left") {
+        // User is rejoining - update existing membership
+        existingMembership.status = "approved";
+        existingMembership.joinedAt = new Date();
+        existingMembership.leftAt = undefined; // Clear left date
+        await existingMembership.save();
+        membership = existingMembership;
+      } else {
+        // New membership
+        membership = new CommunityMembership({
+          communityId: id,
+          userId: userId,
+          role: "member",
+          status: "approved",
+          joinedAt: new Date(),
+        });
+        await membership.save();
+      }
 
       // Add to community members
       (community as any).addMember(userId.toString());
@@ -492,14 +517,22 @@ export const joinCommunity = async (
       });
     } else {
       // Request to join for closed/hidden communities
-      membership = new CommunityMembership({
-        communityId: id,
-        userId: userId,
-        role: "member",
-        status: "pending",
-      });
-
-      await membership.save();
+      if (existingMembership && existingMembership.status === "left") {
+        // User is rejoining - update existing membership
+        existingMembership.status = "pending";
+        existingMembership.leftAt = undefined; // Clear left date
+        await existingMembership.save();
+        membership = existingMembership;
+      } else {
+        // New membership request
+        membership = new CommunityMembership({
+          communityId: id,
+          userId: userId,
+          role: "member",
+          status: "pending",
+        });
+        await membership.save();
+      }
 
       // Send notification to community admins/moderators about new join request
       try {

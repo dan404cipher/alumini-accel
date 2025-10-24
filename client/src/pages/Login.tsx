@@ -98,10 +98,6 @@ const Login = () => {
     setLoading(true);
     clearError();
 
-    console.log("Login form data:", formData);
-    console.log("Email:", formData.email);
-    console.log("Password:", formData.password);
-
     const success = await login(formData.email, formData.password, rememberMe);
 
     if (success) {
@@ -123,7 +119,6 @@ const Login = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Forgot password email:", forgotPasswordEmail);
 
     if (!forgotPasswordEmail) {
       toast({
@@ -137,7 +132,6 @@ const Login = () => {
     setForgotPasswordLoading(true);
     try {
       const requestData = { email: forgotPasswordEmail };
-      console.log("Sending forgot password request:", requestData);
 
       const response = await fetch(
         `${
@@ -153,7 +147,6 @@ const Login = () => {
       );
 
       const data = await response.json();
-      console.log("Forgot password response:", data);
 
       if (data.success) {
         toast({

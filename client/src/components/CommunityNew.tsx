@@ -213,9 +213,7 @@ const CommunityNew = () => {
   const [activeTab, setActiveTab] = useState("my-communities");
 
   // Debug active tab changes
-  useEffect(() => {
-    console.log("🔍 Active tab changed to:", activeTab);
-  }, [activeTab]);
+  useEffect(() => {}, [activeTab]);
   const [communityActiveTab, setCommunityActiveTab] = useState("posts"); // Post when inside a community
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -750,18 +748,12 @@ const CommunityNew = () => {
       setLoadingSidebar(true);
       try {
         // Fetch real top communities
-        console.log("🔍 Fetching top communities...");
         const topCommunitiesResponse = await communityAPI.getTopCommunities(5);
-        console.log("📊 Top communities response:", topCommunitiesResponse);
 
         if (
           topCommunitiesResponse.success &&
           Array.isArray(topCommunitiesResponse.data)
         ) {
-          console.log(
-            "✅ Successfully got communities data:",
-            topCommunitiesResponse.data
-          );
           const transformedCommunities = topCommunitiesResponse.data.map(
             (community: any) => ({
               id: community._id,
@@ -774,10 +766,8 @@ const CommunityNew = () => {
               logo: community.logo,
             })
           );
-          console.log("🔄 Transformed communities:", transformedCommunities);
           setTopCommunities(transformedCommunities);
         } else {
-          console.log("❌ No communities data or invalid response");
           setTopCommunities([]);
         }
 
@@ -1696,12 +1686,6 @@ const CommunityNew = () => {
         community.members &&
         community.members.some((member) => member._id === user._id);
 
-      console.log(`🔍 Checking membership for ${community.name}:`, {
-        userId: user._id,
-        members: community.members?.map((m) => m._id),
-        isMember,
-      });
-
       return isMember;
     },
     [user]
@@ -1714,17 +1698,11 @@ const CommunityNew = () => {
       return;
     }
 
-    console.log("🔍 Filtering joined communities...");
-    console.log("User:", user._id);
-    console.log("Communities:", communities.length);
-
     const joined = communities.filter((community) => {
       const isMember = isUserMember(community);
-      console.log(`Community ${community.name}: isMember = ${isMember}`);
       return isMember;
     });
 
-    console.log("Joined communities:", joined.length);
     setJoinedCommunities(joined);
   }, [communities, user, isUserMember]);
 
@@ -3282,7 +3260,7 @@ const CommunityNew = () => {
                       variant="secondary"
                       className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}
                       onClick={() => {
-                        console.log("Filter by tag:", tag.name);
+                        // TODO: Implement tag filtering
                       }}
                     >
                       #{tag.name}

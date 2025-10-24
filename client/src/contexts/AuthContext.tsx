@@ -137,11 +137,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      console.log("AuthContext login called with:", {
-        email,
-        password,
-        rememberMe,
-      });
       const response = await authAPI.login({ email, password });
 
       if (

@@ -37,6 +37,19 @@ const CommunityModeratorsTab: React.FC<CommunityModeratorsTabProps> = ({
   onRoleChange,
 }) => {
   const { toast } = useToast();
+
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+    return token;
+  };
   const [moderators, setModerators] = useState<Moderator[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +61,7 @@ const CommunityModeratorsTab: React.FC<CommunityModeratorsTabProps> = ({
         `http://localhost:3000/api/v1/communities/${communityId}/members?role=moderator,admin`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -101,11 +114,23 @@ const CommunityModeratorsTab: React.FC<CommunityModeratorsTabProps> = ({
       const response = await fetch(`http://localhost:3000/api/v1/${endpoint}`, {
         method,
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
       const data = await response.json();
+
+      // Handle 401 Unauthorized - redirect to login
+      if (response.status === 401) {
+        console.log("401 Unauthorized - redirecting to login");
+        toast({
+          title: "Session Expired",
+          description: "Please log in again to continue",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
 
       if (data.success) {
         toast({

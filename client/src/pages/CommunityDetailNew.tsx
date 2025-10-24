@@ -31,6 +31,31 @@ const CommunityDetailNew: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      // Redirect to login if no token found
+      console.log("No token found, redirecting to login");
+      navigate("/login");
+      throw new Error("Access token is required");
+    }
+
+    // Debug: Log token info (remove in production)
+    console.log(
+      "Token found:",
+      token ? "Yes" : "No",
+      "Length:",
+      token?.length || 0
+    );
+
+    return token;
+  };
+
   // State
   const [community, setCommunity] = useState<Community | null>(null);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -67,7 +92,7 @@ const CommunityDetailNew: React.FC = () => {
         }/communities/${id}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -99,9 +124,6 @@ const CommunityDetailNew: React.FC = () => {
   const checkPendingRequest = useCallback(async () => {
     if (!id || !user?._id) return;
 
-    console.log("🔍 Checking pending request for community:", id);
-    console.log("🔍 User ID:", user._id);
-
     try {
       const response = await fetch(
         `${
@@ -110,23 +132,15 @@ const CommunityDetailNew: React.FC = () => {
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
 
-      console.log("🔍 Membership status response:", response.status);
       const responseData = await response.json();
-      console.log("🔍 Membership status data:", responseData);
 
       if (responseData.success && responseData.data) {
         const { isMember, hasPendingRequest } = responseData.data;
-        console.log(
-          "🔍 Setting state - isMember:",
-          isMember,
-          "hasPendingRequest:",
-          hasPendingRequest
-        );
         setIsMember(isMember);
         setHasPendingRequest(hasPendingRequest);
       }
@@ -142,17 +156,15 @@ const CommunityDetailNew: React.FC = () => {
       return;
     }
 
-    console.log("Fetching community with ID:", id);
     const url = `${
       import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
     }/communities/${id}`;
-    console.log("Fetching from URL:", url);
 
     try {
       setLoading(true);
       const response = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -164,6 +176,19 @@ const CommunityDetailNew: React.FC = () => {
           url: response.url,
           errorData,
         });
+
+        // Handle 401 Unauthorized - redirect to login
+        if (response.status === 401) {
+          console.log("401 Unauthorized - redirecting to login");
+          toast({
+            title: "Session Expired",
+            description: "Please log in again to continue",
+            variant: "destructive",
+          });
+          navigate("/login");
+          return;
+        }
+
         throw new Error(
           `Failed to fetch community: ${response.status} ${response.statusText}`
         );
@@ -224,7 +249,7 @@ const CommunityDetailNew: React.FC = () => {
 
       const response = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -350,7 +375,7 @@ const CommunityDetailNew: React.FC = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -424,7 +449,7 @@ const CommunityDetailNew: React.FC = () => {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );

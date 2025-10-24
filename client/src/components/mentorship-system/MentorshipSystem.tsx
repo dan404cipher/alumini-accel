@@ -188,15 +188,12 @@ const MentorshipSystem: React.FC = () => {
     setLoadingMentorships(true);
     try {
       const response = await mentorshipApi.getMyMentorships();
-      console.log("Mentorship API response:", response);
 
       if (response.success && response.data) {
         // Ensure data is an array
         const mentorships = Array.isArray(response.data) ? response.data : [];
-        console.log("Setting mentorships:", mentorships);
         setMyMentorships(mentorships);
       } else {
-        console.log("No mentorships data found");
         setMyMentorships([]);
       }
     } catch (error) {

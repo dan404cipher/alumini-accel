@@ -92,6 +92,20 @@ const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
   isAdmin,
 }) => {
   const { toast } = useToast();
+
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+    return token;
+  };
+
   const [reportedPosts, setReportedPosts] = useState<ReportedPost[]>([]);
   const [reportedComments, setReportedComments] = useState<ReportedComment[]>(
     []
@@ -174,7 +188,7 @@ const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
         }/communities/${communityId}/members`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -203,7 +217,7 @@ const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -253,7 +267,7 @@ const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
         {
           method,
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -285,7 +299,7 @@ const ModeratorDashboard: React.FC<ModeratorDashboardProps> = ({
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

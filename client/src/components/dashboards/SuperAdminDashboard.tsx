@@ -310,9 +310,7 @@ const SuperAdminDashboard = () => {
         status: "pending", // Set to pending for approval
       };
 
-      console.log("Creating admin request with data:", userData);
       const response = await userAPI.createPendingUserRequest(userData);
-      console.log("Admin request creation response:", response);
 
       if (response.success) {
         toast({
@@ -376,9 +374,7 @@ const SuperAdminDashboard = () => {
         status: "pending", // Set to pending for approval
       };
 
-      console.log("Creating HOD request with data:", userData);
       const response = await userAPI.createPendingUserRequest(userData);
-      console.log("HOD request creation response:", response);
 
       if (response.success) {
         toast({
@@ -443,9 +439,7 @@ const SuperAdminDashboard = () => {
         status: "pending", // Set to pending for approval
       };
 
-      console.log("Creating staff request with data:", userData);
       const response = await userAPI.createPendingUserRequest(userData);
-      console.log("Staff request creation response:", response);
 
       if (response.success) {
         toast({
@@ -482,13 +476,11 @@ const SuperAdminDashboard = () => {
 
   // Handler functions for college management
   const handleViewCollege = (collegeId: string) => {
-    console.log("View college:", collegeId);
     // TODO: Implement view college details
     // Could open a modal or navigate to college details page
   };
 
   const handleManageCollege = (collegeId: string) => {
-    console.log("Manage college:", collegeId);
     // TODO: Implement college management
     // Could open a management modal or navigate to college admin panel
   };
@@ -505,20 +497,9 @@ const SuperAdminDashboard = () => {
       setRequestInProgress((prev) => ({ ...prev, userRequests: true }));
       setLoadingUserRequests(true);
       setLastFetchTime((prev) => ({ ...prev, userRequests: now }));
-      console.log("Fetching pending user requests...");
       const response = await userAPI.getPendingUserRequests();
-      console.log("Pending user requests response:", response);
-      console.log("Response data:", response.data);
-      console.log("Response success:", response.success);
-      console.log("Response data type:", typeof response.data);
-      console.log("Response data length:", response.data?.length);
-      console.log(
-        "Response data keys:",
-        response.data ? Object.keys(response.data) : "no keys"
-      );
 
       if (response.success && response.data) {
-        console.log("Setting pending user requests:", response.data);
         setPendingUserRequests(response.data);
 
         // Calculate stats by role

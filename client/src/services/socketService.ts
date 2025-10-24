@@ -30,7 +30,6 @@ class SocketService {
   private reconnectDelay = 1000;
 
   constructor() {
-    console.log("🔌 SocketService constructor called");
     this.connect();
   }
 
@@ -46,7 +45,6 @@ class SocketService {
       return;
     }
 
-    console.log("🔌 Attempting Socket.IO connection...");
     const serverUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
     // Ultra-minimal configuration for maximum compatibility
@@ -68,13 +66,11 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on("connect", () => {
-      console.log("✅ Socket.IO connected successfully:", this.socket?.id);
       this.isConnected = true;
       this.reconnectAttempts = 0;
     });
 
     this.socket.on("disconnect", (reason) => {
-      console.log("❌ Socket.IO disconnected:", reason);
       this.isConnected = false;
     });
 
@@ -93,7 +89,6 @@ class SocketService {
     });
 
     this.socket.on("reconnect", (attemptNumber) => {
-      console.log("✅ Socket.IO reconnected after", attemptNumber, "attempts");
       this.isConnected = true;
       this.reconnectAttempts = 0;
     });
@@ -140,24 +135,18 @@ class SocketService {
   // Message events
   public joinConversation(conversationId: string) {
     if (this.socket && this.isConnected) {
-      console.log("🏠 Joining conversation:", conversationId);
       this.socket.emit("join_conversation", conversationId);
     }
   }
 
   public leaveConversation(conversationId: string) {
     if (this.socket && this.isConnected) {
-      console.log("🚪 Leaving conversation:", conversationId);
       this.socket.emit("leave_conversation", conversationId);
     }
   }
 
   public markMessagesAsRead(conversationId: string, userId: string) {
     if (this.socket && this.isConnected) {
-      console.log(
-        "📖 Marking messages as read for conversation:",
-        conversationId
-      );
       this.socket.emit("mark_messages_read", { conversationId, userId });
     }
   }

@@ -44,7 +44,6 @@ const AlumniPortal = () => {
   const navigate = useNavigate();
 
   // Debug logging
-  console.log("🔍 AlumniPortal User:", user);
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [recentNews, setRecentNews] = useState<any[]>([]);
@@ -71,7 +70,7 @@ const AlumniPortal = () => {
             setCollegeBanner(bannerResponse);
           }
         } catch (error) {
-          console.log("No banner found or error loading banner:", error);
+          // No banner found or error loading banner
 
           // Check localStorage as fallback
           try {
@@ -82,10 +81,7 @@ const AlumniPortal = () => {
               setCollegeBanner(storedBanner);
             }
           } catch (localStorageError) {
-            console.log(
-              "Error loading banner from localStorage:",
-              localStorageError
-            );
+            // Error loading banner from localStorage
           }
         }
       }
@@ -106,7 +102,7 @@ const AlumniPortal = () => {
               setCollegeBanner(bannerUrl);
             }
           } catch (error) {
-            console.log("No banner found or error loading banner:", error);
+            // No banner found or error loading banner
 
             // Check localStorage as fallback
             try {
@@ -117,10 +113,7 @@ const AlumniPortal = () => {
                 setCollegeBanner(storedBanner);
               }
             } catch (localStorageError) {
-              console.log(
-                "Error loading banner from localStorage:",
-                localStorageError
-              );
+              // Error loading banner from localStorage
             }
           }
         };
@@ -139,7 +132,15 @@ const AlumniPortal = () => {
     const fetchRecentData = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
+        // Check localStorage first (remember me), then sessionStorage
+        let token = localStorage.getItem("token");
+        if (!token) {
+          token = sessionStorage.getItem("token");
+        }
+        if (!token) {
+          throw new Error("Access token is required");
+        }
+
         const headers = {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -192,9 +193,7 @@ const AlumniPortal = () => {
         );
         if (mentorshipsResponse.ok) {
           const mentorshipsData = await mentorshipsResponse.json();
-          console.log("🔍 Mentorships API Response:", mentorshipsData);
           const mentorships = mentorshipsData.data?.mentorships || [];
-          console.log("🔍 Setting mentorships:", mentorships);
           setRecentMentorships(mentorships);
         }
 
@@ -722,10 +721,6 @@ const AlumniPortal = () => {
                           </div>
                           {/* Action Menu */}
                           <div className="absolute top-2 left-2">
-                            {console.log(
-                              "🔍 Rendering MentorshipActionMenu for:",
-                              mentorship._id
-                            )}
                             <MentorshipActionMenu
                               mentorship={mentorship}
                               currentUser={user}

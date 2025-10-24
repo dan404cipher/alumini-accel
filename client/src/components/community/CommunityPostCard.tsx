@@ -39,6 +39,19 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null
   );
+
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    // Check localStorage first (remember me), then sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+    return token;
+  };
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showComments, setShowComments] = useState(false);
 
@@ -122,7 +135,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );

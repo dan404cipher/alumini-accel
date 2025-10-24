@@ -222,7 +222,6 @@ export const apiRequest = async <T>(
   config: AxiosRequestConfig
 ): Promise<ApiResponse<T>> => {
   try {
-    console.log("apiRequest called with config:", config);
     const response = await api(config);
     return response.data;
   } catch (error: unknown) {
@@ -259,7 +258,6 @@ export const authAPI = {
 
   // Login user
   login: async (credentials: { email: string; password: string }) => {
-    console.log("authAPI.login called with:", credentials);
     return apiRequest({
       method: "POST",
       url: "/auth/login",

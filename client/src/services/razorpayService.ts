@@ -90,10 +90,7 @@ class RazorpayService {
 
   private loadRazorpayScript(): Promise<void> {
     return new Promise((resolve, reject) => {
-      console.log("Loading Razorpay script...");
-
       if (window.Razorpay) {
-        console.log("Razorpay script already loaded");
         resolve();
         return;
       }
@@ -101,7 +98,6 @@ class RazorpayService {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onload = () => {
-        console.log("Razorpay script loaded successfully");
         // Add a small delay to ensure the script is fully initialized
         setTimeout(() => {
           resolve();
@@ -129,9 +125,6 @@ class RazorpayService {
     try {
       const token = this.getAuthToken();
 
-      console.log("Creating order with data:", orderData);
-      console.log("API URL:", `${API_BASE_URL}/payments/donation/order`);
-
       const response = await fetch(`${API_BASE_URL}/payments/donation/order`, {
         method: "POST",
         headers: {
@@ -140,8 +133,6 @@ class RazorpayService {
         },
         body: JSON.stringify(orderData),
       });
-
-      console.log("Order creation response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -152,7 +143,6 @@ class RazorpayService {
       }
 
       const result = await response.json();
-      console.log("Order creation result:", result);
       return result;
     } catch (error) {
       console.error("Error creating Razorpay order:", error);
@@ -165,7 +155,6 @@ class RazorpayService {
   ): Promise<{ success: boolean; message?: string; data?: unknown }> {
     try {
       const token = this.getAuthToken();
-      console.log("Verifying payment with data:", paymentData);
 
       const response = await fetch(`${API_BASE_URL}/payments/verify`, {
         method: "POST",
@@ -176,8 +165,6 @@ class RazorpayService {
         body: JSON.stringify(paymentData),
       });
 
-      console.log("Verification response status:", response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Verification error:", errorText);
@@ -187,7 +174,6 @@ class RazorpayService {
       }
 
       const result = await response.json();
-      console.log("Verification result:", result);
       return result;
     } catch (error) {
       console.error("Error verifying Razorpay payment:", error);
@@ -252,17 +238,12 @@ class RazorpayService {
       await this.loadRazorpayScript();
 
       // Check if Razorpay script is loaded
-      console.log("Checking Razorpay SDK availability...");
-      console.log("window.Razorpay:", window.Razorpay);
-
       if (typeof window === "undefined" || !window.Razorpay) {
         console.error("Razorpay SDK not available");
         throw new Error(
           "Razorpay SDK not loaded. Please refresh the page and try again."
         );
       }
-
-      console.log("Razorpay SDK is available, proceeding with payment...");
 
       // Create order
       const orderData: RazorpayOrderData = {
@@ -277,8 +258,6 @@ class RazorpayService {
       };
 
       const orderResult = await this.createOrder(orderData);
-
-      console.log("Order creation result:", orderResult);
 
       if (!orderResult.success) {
         throw new Error(orderResult.message || "Failed to create order");
@@ -324,8 +303,6 @@ class RazorpayService {
         },
         handler: async (response: RazorpayPaymentResponse) => {
           try {
-            console.log("Razorpay payment response:", response);
-
             // Validate response
             if (
               !response.razorpay_order_id ||
@@ -342,13 +319,10 @@ class RazorpayService {
               signature: response.razorpay_signature,
             };
 
-            console.log("Verifying payment with data:", paymentData);
-
             // Verify payment
             const verificationResult = await this.verifyPayment(paymentData);
 
             if (verificationResult.success) {
-              console.log("Payment verified successfully");
               onSuccess(paymentData);
             } else {
               console.error("Payment verification failed:", verificationResult);
@@ -369,11 +343,6 @@ class RazorpayService {
           },
         },
       };
-
-      console.log(
-        "Opening Razorpay payment modal with options:",
-        paymentOptions
-      );
 
       const rzp = new window.Razorpay(paymentOptions);
 

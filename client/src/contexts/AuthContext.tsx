@@ -6,6 +6,7 @@ import React, {
   ReactNode,
 } from "react";
 import { authAPI } from "@/lib/api";
+import socketService from "@/services/socketService";
 
 // User interface
 export interface User {
@@ -102,6 +103,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           ) {
             const userData = (response.data as { user: User }).user;
             setUser(userData);
+            // Trigger socket connection after successful authentication
+            socketService.connectSocket();
           } else {
             // Token is invalid, clear it from both storages
             localStorage.removeItem("token");
@@ -169,6 +172,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         setUser(userData);
+        // Trigger socket connection after successful login
+        socketService.connectSocket();
         return true;
       } else {
         setError(response.message || "Login failed");

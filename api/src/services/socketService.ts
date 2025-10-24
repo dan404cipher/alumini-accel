@@ -90,6 +90,9 @@ class SocketService {
       socket.on("join_conversation", (conversationId: string) => {
         socket.join(`conversation:${conversationId}`);
         logger.info(`User ${userId} joined conversation ${conversationId}`);
+        logger.info(
+          `🏠 Room: conversation:${conversationId}, Total users: ${this.io.sockets.adapter.rooms.get(`conversation:${conversationId}`)?.size || 0}`
+        );
       });
 
       // Handle leaving conversation rooms
@@ -174,8 +177,19 @@ class SocketService {
 
   // Emit to a conversation
   public emitToConversation(conversationId: string, event: string, data: any) {
-    this.io.to(`conversation:${conversationId}`).emit(event, data);
-    logger.info(`📤 Emitted ${event} to conversation ${conversationId}`);
+    const roomName = `conversation:${conversationId}`;
+    const room = this.io.sockets.adapter.rooms.get(roomName);
+    const roomSize = room ? room.size : 0;
+
+    logger.info(`📤 Emitting ${event} to conversation ${conversationId}`);
+    logger.info(`📤 Room: ${roomName}, Connected users: ${roomSize}`);
+    logger.info(`📤 Event data:`, data);
+
+    this.io.to(roomName).emit(event, data);
+
+    if (roomSize === 0) {
+      logger.warn(`⚠️ No users connected to room ${roomName}`);
+    }
   }
 
   // Emit new message

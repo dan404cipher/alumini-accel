@@ -157,7 +157,9 @@ const Messages = () => {
   useEffect(() => {
     return () => {
       if (selectedConversation && currentUser) {
-        const conversationId = `${currentUser.id}_${selectedConversation.user.id}`;
+        // Create consistent conversation ID (sorted to ensure both users use same ID)
+        const userIds = [currentUser.id, selectedConversation.user.id].sort();
+        const conversationId = `${userIds[0]}_${userIds[1]}`;
         leaveConversation(conversationId);
       }
     };
@@ -392,7 +394,9 @@ const Messages = () => {
     fetchMessages(conversation.user.id);
 
     // Join new conversation room for real-time updates
-    const conversationId = `${currentUser?.id}_${conversation.user.id}`;
+    // Create consistent conversation ID (sorted to ensure both users use same ID)
+    const userIds = [currentUser?.id, conversation.user.id].sort();
+    const conversationId = `${userIds[0]}_${userIds[1]}`;
     joinConversation(conversationId);
 
     // Mark messages as read

@@ -33,6 +33,7 @@ import Connections from "./pages/Connections";
 import Messages from "./pages/Messages";
 import CommunityDetailNew from "./pages/CommunityDetailNew";
 import SocketTest from "./pages/SocketTest";
+import SocketDebug from "./pages/SocketDebug";
 
 const queryClient = new QueryClient();
 
@@ -305,6 +306,15 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <SocketTest />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/socket-debug"
+                    element={
+                      <ProtectedRoute>
+                        <SocketDebug />
                       </ProtectedRoute>
                     }
                   />

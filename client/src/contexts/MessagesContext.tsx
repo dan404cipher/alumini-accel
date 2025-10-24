@@ -94,51 +94,73 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({
   useEffect(() => {
     if (!user) return;
 
-    // Listen for new messages
-    socketService.on("new_message", (message: Message) => {
-      addMessage(message);
-    });
+    // Wait for socket to be connected before setting up listeners
+    const setupSocketListeners = () => {
+      if (socketService.isSocketConnected()) {
+        console.log("📨 Setting up message socket listeners");
 
-    // Listen for message read status updates
-    socketService.on(
-      "messages_read",
-      (data: { conversationId: string; readBy: string; timestamp: Date }) => {
-        // Update read status for messages in this conversation
-        setMessages((prev) =>
-          prev.map((msg) => {
-            if (msg.sender._id === data.readBy) {
-              return {
-                ...msg,
-                isRead: true,
-                readAt: data.timestamp.toISOString(),
-              };
-            }
-            return msg;
-          })
+        // Listen for new messages
+        socketService.on("new_message", (message: Message) => {
+          console.log("📨 Received new message via Socket.IO:", message);
+          addMessage(message);
+        });
+
+        // Listen for message read status updates
+        socketService.on(
+          "messages_read",
+          (data: {
+            conversationId: string;
+            readBy: string;
+            timestamp: Date;
+          }) => {
+            // Update read status for messages in this conversation
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.sender._id === data.readBy) {
+                  return {
+                    ...msg,
+                    isRead: true,
+                    readAt: data.timestamp.toISOString(),
+                  };
+                }
+                return msg;
+              })
+            );
+          }
         );
-      }
-    );
 
-    // Listen for typing indicators
-    socketService.on(
-      "user_typing",
-      (data: { userId: string; isTyping: boolean; conversationId: string }) => {
-        setIsTyping((prev) => ({
-          ...prev,
-          [data.userId]: data.isTyping,
-        }));
-
-        // Clear typing indicator after 3 seconds
-        if (data.isTyping) {
-          setTimeout(() => {
+        // Listen for typing indicators
+        socketService.on(
+          "user_typing",
+          (data: {
+            userId: string;
+            isTyping: boolean;
+            conversationId: string;
+          }) => {
             setIsTyping((prev) => ({
               ...prev,
-              [data.userId]: false,
+              [data.userId]: data.isTyping,
             }));
-          }, 3000);
-        }
+
+            // Clear typing indicator after 3 seconds
+            if (data.isTyping) {
+              setTimeout(() => {
+                setIsTyping((prev) => ({
+                  ...prev,
+                  [data.userId]: false,
+                }));
+              }, 3000);
+            }
+          }
+        );
+      } else {
+        console.log("📨 Socket not connected yet, retrying in 1 second...");
+        setTimeout(setupSocketListeners, 1000);
       }
-    );
+    };
+
+    // Start setting up listeners
+    setupSocketListeners();
 
     // Cleanup listeners on unmount
     return () => {

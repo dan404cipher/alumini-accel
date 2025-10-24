@@ -15,7 +15,6 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined
 );
 
-
 interface NotificationProviderProps {
   children: ReactNode;
 }
@@ -44,32 +43,48 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
   // Set up socket event listeners for real-time updates
   useEffect(() => {
-    // Listen for unread count updates
-    socketService.on("unread_count_update", (data: { count: number }) => {
-      // Trigger a refetch to get the latest count
-      refreshUnreadCount();
-    });
+    // Wait for socket to be connected before setting up listeners
+    const setupSocketListeners = () => {
+      if (socketService.isSocketConnected()) {
+        console.log("🔔 Setting up notification socket listeners");
 
-    // Listen for notification count updates
-    socketService.on("notification_count_update", (data: { count: number }) => {
-      // Trigger a refetch to get the latest count
-      refreshNotificationCount();
-    });
+        // Listen for unread count updates
+        socketService.on("unread_count_update", (data: { count: number }) => {
+          // Trigger a refetch to get the latest count
+          refreshUnreadCount();
+        });
 
-    // Listen for new notifications
-    socketService.on("new_notification", (notification: any) => {
-      // Trigger a refetch to get the latest notifications
-      refreshNotificationCount();
-    });
+        // Listen for notification count updates
+        socketService.on(
+          "notification_count_update",
+          (data: { count: number }) => {
+            // Trigger a refetch to get the latest notifications
+            refreshNotificationCount();
+          }
+        );
 
-    // Listen for notification updates (read/delete)
-    socketService.on(
-      "notification_update",
-      (data: { notificationId: string; action: string }) => {
-        // Trigger a refetch to get the latest notifications
-        refreshNotificationCount();
+        // Listen for new notifications
+        socketService.on("new_notification", (notification: any) => {
+          // Trigger a refetch to get the latest notifications
+          refreshNotificationCount();
+        });
+
+        // Listen for notification updates (read/delete)
+        socketService.on(
+          "notification_update",
+          (data: { notificationId: string; action: string }) => {
+            // Trigger a refetch to get the latest notifications
+            refreshNotificationCount();
+          }
+        );
+      } else {
+        console.log("🔔 Socket not connected yet, retrying in 1 second...");
+        setTimeout(setupSocketListeners, 1000);
       }
-    );
+    };
+
+    // Start setting up listeners
+    setupSocketListeners();
 
     // Cleanup listeners on unmount
     return () => {

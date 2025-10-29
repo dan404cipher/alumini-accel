@@ -225,16 +225,17 @@ app.get("/preview-welcome-email", (req, res) => {
     firstName: req.query.firstName || "Benjamin",
     lastName: req.query.lastName || "Johnson",
     email: req.query.email || "benjamin.johnson@example.com",
-    collegeName: req.query.collegeName || "Singapore Institute of Technology",
+    collegeName: req.query.collegeName || "Alumni Accel",
     activationLink: `${frontendUrl}/verify-email?token=sample_token`,
     portalUrl: frontendUrl,
     password: req.query.password || "TempPassword123!",
-    senderName: req.query.senderName || "John Smith",
-    senderTitle:
-      req.query.senderTitle || "Assistant Manager of Alumni Relation Unit",
+    senderName: req.query.senderName || "Alumni Relations Team",
+    senderTitle: req.query.senderTitle || "Alumni Relations Manager",
     senderEmail:
-      req.query.senderEmail || process.env.SMTP_USER || "john.s@college.edu",
-    senderPhone: req.query.senderPhone || "6592 2114",
+      req.query.senderEmail ||
+      process.env.SMTP_USER ||
+      "alumni@alumniaccel.com",
+    senderPhone: req.query.senderPhone || "1234567890",
   };
 
   const html = emailService.generateWelcomeEmailHTML(sampleData);

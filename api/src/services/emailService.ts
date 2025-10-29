@@ -225,6 +225,191 @@ class EmailService {
     });
   }
 
+  // Helper method to generate the welcome email HTML template (table-based for email compatibility)
+  private generateWelcomeEmailTemplate(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    collegeName: string;
+    activationLink: string;
+    portalUrl: string;
+    password?: string;
+    senderName?: string;
+    senderTitle?: string;
+    senderEmail?: string;
+    senderPhone?: string;
+  }): string {
+    const collegeName = data.collegeName || "Alumni Accel";
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to Alumni Portal</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; line-height: 1.6; color: #333333; background-color: #f5f5f5;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+          <tr>
+            <td align="center" style="padding: 20px 0;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="650" style="max-width: 650px; background-color: #ffffff; margin: 0 auto;">
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #ffffff; padding: 30px 40px; border-bottom: 2px solid #e5e5e5;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td width="60" style="width: 60px; vertical-align: middle;">
+                          <div style="width: 60px; height: 60px; background: #2563eb; border-radius: 8px; text-align: center; line-height: 60px; font-size: 28px; font-weight: bold; color: #ffffff;">A</div>
+                        </td>
+                        <td width="15" style="width: 15px;"></td>
+                        <td style="vertical-align: middle;">
+                          <div style="font-size: 16px; font-weight: 600; color: #1a1a1a; line-height: 1.3;">${collegeName.toUpperCase()}</div>
+                          <div style="font-size: 16px; font-weight: 600; color: #2563eb; line-height: 1.3;">ALUMNI PORTAL</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <!-- Banner Section -->
+                <tr>
+                  <td style="background: #2563eb; padding: 60px 40px; text-align: center;">
+                    <div style="color: white; text-align: center;">
+                      <div style="font-size: 28px; font-weight: 700; margin-bottom: 10px; color: #ffffff;">Welcome to Your Alumni Network</div>
+                      <div style="font-size: 16px; color: rgba(255, 255, 255, 0.9);">Connect, Engage, Grow Together</div>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Content Section -->
+                <tr>
+                  <td style="padding: 40px; background-color: #ffffff;">
+                    <div style="font-size: 16px; color: #1a1a1a; margin-bottom: 20px;">
+                      <strong>Dear ${data.firstName},</strong>
+                    </div>
+
+                    <div style="font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 25px;">
+                      Congratulations!!
+                    </div>
+
+                    <div style="font-size: 16px; color: #4b5563; margin-bottom: 20px; line-height: 1.8;">
+                      Graduating from ${collegeName} doesn't mean losing your ties to the University.
+                    </div>
+
+                    <div style="font-size: 15px; color: #4b5563; margin-bottom: 15px; line-height: 1.8;">
+                      Your alumni user account has been created for ${collegeName} Alumni portal. Follow the link below to activate your account${data.password ? " and set the password" : ""}.
+                    </div>
+
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-left: 4px solid #2563eb; margin: 25px 0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <div style="font-size: 15px; color: #4b5563; margin-bottom: 10px; line-height: 1.8;">
+                            <strong>After activating your account, you can access to ${collegeName} Alumni portal through:</strong>
+                          </div>
+                          <div style="margin: 10px 0;">
+                            <a href="${data.portalUrl}" style="color: #2563eb; text-decoration: underline; font-weight: 500;">${data.portalUrl}</a>
+                          </div>
+                          <div style="font-size: 14px; color: #4b5563; margin-top: 15px; line-height: 1.8;">
+                            You can download the ${collegeName} alumni mobile app in App store and Google play store.
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+
+                    ${
+                      data.password
+                        ? `
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fef3c7; border: 1px solid #fcd34d; margin: 20px 0;">
+                      <tr>
+                        <td style="padding: 15px;">
+                          <p style="margin: 5px 0; font-size: 14px; color: #92400e;"><strong>Your Login Credentials:</strong></p>
+                          <p style="margin: 5px 0; font-size: 14px; color: #92400e;">Email: ${data.email}</p>
+                          <p style="margin: 5px 0; font-size: 14px; color: #92400e;">Temporary Password: ${data.password}</p>
+                          <p style="margin-top: 10px; font-size: 13px; color: #92400e;">Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.</p>
+                          <p style="margin-top: 8px; font-size: 13px; color: #92400e;"><strong>Important:</strong> Please change your password after first login for security purposes.</p>
+                        </td>
+                      </tr>
+                    </table>
+                    `
+                        : `
+                    <div style="font-size: 15px; color: #4b5563; margin-bottom: 15px; line-height: 1.8;">
+                      Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.
+                    </div>
+                    `
+                    }
+
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td align="center" style="padding: 30px 0;">
+                          <a href="${data.activationLink}" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">Please click here to activate your account</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Signature Section -->
+                <tr>
+                  <td style="padding: 0 40px 40px 40px; background-color: #ffffff;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f3f4f6;">
+                      <tr>
+                        <td style="padding: 30px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tr>
+                              <td width="60" style="width: 60px; vertical-align: top;">
+                                <div style="width: 60px; height: 60px; border-radius: 50%; background: #2563eb; text-align: center; line-height: 60px; color: #ffffff; font-weight: 600; font-size: 20px;">
+                                  ${(data.senderName || "A").charAt(0).toUpperCase()}
+                                </div>
+                              </td>
+                              <td width="20" style="width: 20px;"></td>
+                              <td style="vertical-align: top;">
+                                <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 5px;">${data.senderName || "Alumni Relations Team"}</div>
+                                <div style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">${data.senderTitle || "Alumni Relations Manager"}</div>
+                                ${
+                                  data.senderPhone
+                                    ? `<div style="font-size: 14px; color: #4b5563; margin-bottom: 8px;">📞 ${data.senderPhone}</div>`
+                                    : ""
+                                }
+                                ${
+                                  data.senderEmail
+                                    ? `<div style="font-size: 14px; color: #4b5563;">✉️ ${data.senderEmail}</div>`
+                                    : ""
+                                }
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="height: 30px; background: #374151;"></td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #1f2937; padding: 25px 40px; text-align: center; color: #9ca3af;">
+                    <div style="font-size: 12px; line-height: 1.8;">
+                      <div style="margin-bottom: 15px;">
+                        Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
+                      </div>
+                      <div>
+                        ${data.senderPhone || "Contact"} <span style="margin: 0 10px; color: #4b5563;">|</span> ${data.senderEmail || "alumni@alumniaccel.com"} <span style="margin: 0 10px; color: #4b5563;">|</span> Alumni Relations
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+  }
+
   async sendAlumniWelcomeEmail(data: {
     firstName: string;
     lastName: string;
@@ -238,400 +423,25 @@ class EmailService {
     senderEmail?: string;
     senderPhone?: string;
   }): Promise<boolean> {
-    const subject = `Welcome to ${data.collegeName} Alumni Portal - Your Account is Ready!`;
+    const collegeName = data.collegeName || "Alumni Accel";
+    const subject = `Welcome to ${collegeName} Alumni Portal - Your Account is Ready!`;
     const fullName = `${data.firstName} ${data.lastName}`;
 
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome to Alumni Portal</title>
-        <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333333;
-            background-color: #f5f5f5;
-          }
-          .email-container {
-            max-width: 650px;
-            margin: 0 auto;
-            background-color: #ffffff;
-          }
-          .header {
-            background-color: #ffffff;
-            padding: 30px 40px;
-            border-bottom: 2px solid #e5e5e5;
-          }
-          .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-          }
-          .logo-circle {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            font-weight: bold;
-            color: #ffffff;
-          }
-          .institution-name {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1a1a1a;
-            line-height: 1.3;
-          }
-          .institution-name .line1 {
-            color: #1a1a1a;
-          }
-          .institution-name .line2 {
-            color: #dc2626;
-          }
-          .banner-section {
-            position: relative;
-            width: 100%;
-            height: 200px;
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            overflow: hidden;
-          }
-          .banner-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .content-section {
-            padding: 40px;
-            background-color: #ffffff;
-          }
-          .greeting {
-            font-size: 16px;
-            color: #1a1a1a;
-            margin-bottom: 20px;
-          }
-          .welcome-text {
-            font-size: 16px;
-            color: #4b5563;
-            margin-bottom: 20px;
-            line-height: 1.8;
-          }
-          .congratulations {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 25px;
-          }
-          .info-text {
-            font-size: 15px;
-            color: #4b5563;
-            margin-bottom: 15px;
-            line-height: 1.8;
-          }
-          .portal-access {
-            background-color: #f9fafb;
-            padding: 20px;
-            border-left: 4px solid #2563eb;
-            margin: 25px 0;
-            border-radius: 4px;
-          }
-          .portal-link {
-            color: #2563eb;
-            text-decoration: underline;
-            font-weight: 500;
-          }
-          .button-container {
-            text-align: center;
-            margin: 30px 0;
-          }
-          .activate-button {
-            display: inline-block;
-            background-color: #2563eb;
-            color: #ffffff;
-            padding: 14px 32px;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 15px;
-          }
-          .credentials-info {
-            background-color: #fef3c7;
-            border: 1px solid #fcd34d;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
-          }
-          .credentials-info p {
-            margin: 5px 0;
-            font-size: 14px;
-            color: #92400e;
-          }
-          .signature-section {
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-            padding: 30px;
-            margin-top: 40px;
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-          }
-          .signature-angle {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 30px;
-            background: linear-gradient(to bottom right, transparent 50%, #374151 50%);
-          }
-          .signature-content {
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            position: relative;
-            z-index: 1;
-          }
-          .signature-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            font-weight: 600;
-            font-size: 20px;
-            flex-shrink: 0;
-          }
-          .signature-info {
-            flex: 1;
-          }
-          .signature-name {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 5px;
-          }
-          .signature-title {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 15px;
-          }
-          .signature-contact {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-          }
-          .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: #4b5563;
-          }
-          .footer {
-            background-color: #1f2937;
-            padding: 25px 40px;
-            text-align: center;
-            color: #9ca3af;
-            position: relative;
-          }
-          .footer-content {
-            font-size: 12px;
-            line-height: 1.8;
-          }
-          .footer-divider {
-            margin: 0 10px;
-            color: #4b5563;
-          }
-          .footer-decoration {
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, #374151 0%, #dc2626 100%);
-            clip-path: polygon(50% 0%, 100% 100%, 100% 0%);
-            opacity: 0.3;
-          }
-          @media only screen and (max-width: 600px) {
-            .email-container {
-              width: 100% !important;
-            }
-            .header,
-            .content-section,
-            .footer {
-              padding: 20px !important;
-            }
-            .banner-section {
-              height: 150px !important;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="email-container">
-          <!-- Header -->
-          <div class="header">
-            <div class="header-content">
-              <div class="logo-section">
-                <div class="logo-circle">A</div>
-                <div class="institution-name">
-                  <div class="line1">${data.collegeName.toUpperCase()}</div>
-                  <div class="line2">ALUMNI PORTAL</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Banner Section -->
-          <div class="banner-section">
-            <div class="banner-overlay">
-              <div style="color: white; text-align: center; z-index: 2;">
-                <div style="font-size: 28px; font-weight: 700; margin-bottom: 10px;">Welcome to Your Alumni Network</div>
-                <div style="font-size: 16px; opacity: 0.9;">Connect, Engage, Grow Together</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Content Section -->
-          <div class="content-section">
-            <div class="greeting">
-              <strong>Dear ${data.firstName},</strong>
-            </div>
-
-            <div class="congratulations">
-              Congratulations!!
-            </div>
-
-            <div class="welcome-text">
-              Graduating from ${data.collegeName} doesn't mean losing your ties to the University.
-            </div>
-
-            <div class="info-text">
-              Your alumni user account has been created for ${data.collegeName} Alumni portal. Follow the link below to activate your account${data.password ? " and set the password" : ""}.
-            </div>
-
-            <div class="portal-access">
-              <div class="info-text" style="margin-bottom: 10px;">
-                <strong>After activating your account, you can access to ${data.collegeName} Alumni portal through:</strong>
-              </div>
-              <div style="margin: 10px 0;">
-                <a href="${data.portalUrl}" class="portal-link">${data.portalUrl}</a>
-              </div>
-              <div class="info-text" style="margin-top: 15px; font-size: 14px;">
-                You can download the ${data.collegeName} alumni mobile app in App store and Google play store.
-              </div>
-            </div>
-
-            ${
-              data.password
-                ? `
-            <div class="credentials-info">
-              <p><strong>Your Login Credentials:</strong></p>
-              <p>Email: ${data.email}</p>
-              <p>Temporary Password: ${data.password}</p>
-              <p style="margin-top: 10px; font-size: 13px;">Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.</p>
-              <p style="margin-top: 8px; font-size: 13px;"><strong>Important:</strong> Please change your password after first login for security purposes.</p>
-            </div>
-            `
-                : `
-            <div class="info-text">
-              Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.
-            </div>
-            `
-            }
-
-            <div class="button-container">
-              <a href="${data.activationLink}" class="activate-button">Please click here to activate your account</a>
-            </div>
-          </div>
-
-          <!-- Signature Section -->
-          <div class="content-section" style="padding-top: 0;">
-            <div class="signature-section">
-              <div class="signature-angle"></div>
-              <div class="signature-content">
-                <div class="signature-avatar">
-                  ${(data.senderName || "A").charAt(0).toUpperCase()}
-                </div>
-                <div class="signature-info">
-                  <div class="signature-name">${data.senderName || "Alumni Relations Team"}</div>
-                  <div class="signature-title">${data.senderTitle || "Alumni Relations Manager"}</div>
-                  <div class="signature-contact">
-                    ${
-                      data.senderPhone
-                        ? `
-                    <div class="contact-item">
-                      <span>📞</span>
-                      <span>${data.senderPhone}</span>
-                    </div>
-                    `
-                        : ""
-                    }
-                    ${
-                      data.senderEmail
-                        ? `
-                    <div class="contact-item">
-                      <span>✉️</span>
-                      <span>${data.senderEmail}</span>
-                    </div>
-                    `
-                        : ""
-                    }
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="footer">
-            <div class="footer-decoration"></div>
-            <div class="footer-content">
-              <div style="margin-bottom: 15px;">
-                Copyright © ${new Date().getFullYear()} ${data.collegeName}. All rights reserved.
-              </div>
-              <div>
-                ${data.senderPhone || "Contact"} <span class="footer-divider">|</span> ${data.senderEmail || "alumni@college.edu"} <span class="footer-divider">|</span> Alumni Relations
-              </div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const html = this.generateWelcomeEmailTemplate(data);
 
     const text = `
 Dear ${data.firstName},
 
 Congratulations!!
 
-Graduating from ${data.collegeName} doesn't mean losing your ties to the University.
+Graduating from ${collegeName} doesn't mean losing your ties to the University.
 
-Your alumni user account has been created for ${data.collegeName} Alumni portal. Follow the link below to activate your account${data.password ? " and set the password" : ""}.
+Your alumni user account has been created for ${collegeName} Alumni portal. Follow the link below to activate your account${data.password ? " and set the password" : ""}.
 
-After activating your account, you can access to ${data.collegeName} Alumni portal through:
+After activating your account, you can access to ${collegeName} Alumni portal through:
 ${data.portalUrl}
 
-You can download the ${data.collegeName} alumni mobile app in App store and Google play store.
+You can download the ${collegeName} alumni mobile app in App store and Google play store.
 
 ${
   data.password
@@ -658,7 +468,7 @@ ${data.senderPhone ? `Phone: ${data.senderPhone}` : ""}
 ${data.senderEmail ? `Email: ${data.senderEmail}` : ""}
 
 ---
-Copyright © ${new Date().getFullYear()} ${data.collegeName}. All rights reserved.
+Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     `;
 
     return this.sendEmail({
@@ -683,384 +493,7 @@ Copyright © ${new Date().getFullYear()} ${data.collegeName}. All rights reserve
     senderEmail?: string;
     senderPhone?: string;
   }): string {
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome to Alumni Portal</title>
-        <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333333;
-            background-color: #f5f5f5;
-          }
-          .email-container {
-            max-width: 650px;
-            margin: 0 auto;
-            background-color: #ffffff;
-          }
-          .header {
-            background-color: #ffffff;
-            padding: 30px 40px;
-            border-bottom: 2px solid #e5e5e5;
-          }
-          .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-          }
-          .logo-circle {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            font-weight: bold;
-            color: #ffffff;
-          }
-          .institution-name {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1a1a1a;
-            line-height: 1.3;
-          }
-          .institution-name .line1 {
-            color: #1a1a1a;
-          }
-          .institution-name .line2 {
-            color: #dc2626;
-          }
-          .banner-section {
-            position: relative;
-            width: 100%;
-            height: 200px;
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            overflow: hidden;
-          }
-          .banner-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .content-section {
-            padding: 40px;
-            background-color: #ffffff;
-          }
-          .greeting {
-            font-size: 16px;
-            color: #1a1a1a;
-            margin-bottom: 20px;
-          }
-          .welcome-text {
-            font-size: 16px;
-            color: #4b5563;
-            margin-bottom: 20px;
-            line-height: 1.8;
-          }
-          .congratulations {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 25px;
-          }
-          .info-text {
-            font-size: 15px;
-            color: #4b5563;
-            margin-bottom: 15px;
-            line-height: 1.8;
-          }
-          .portal-access {
-            background-color: #f9fafb;
-            padding: 20px;
-            border-left: 4px solid #2563eb;
-            margin: 25px 0;
-            border-radius: 4px;
-          }
-          .portal-link {
-            color: #2563eb;
-            text-decoration: underline;
-            font-weight: 500;
-          }
-          .button-container {
-            text-align: center;
-            margin: 30px 0;
-          }
-          .activate-button {
-            display: inline-block;
-            background-color: #2563eb;
-            color: #ffffff;
-            padding: 14px 32px;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 15px;
-          }
-          .credentials-info {
-            background-color: #fef3c7;
-            border: 1px solid #fcd34d;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
-          }
-          .credentials-info p {
-            margin: 5px 0;
-            font-size: 14px;
-            color: #92400e;
-          }
-          .signature-section {
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-            padding: 30px;
-            margin-top: 40px;
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-          }
-          .signature-angle {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 30px;
-            background: linear-gradient(to bottom right, transparent 50%, #374151 50%);
-          }
-          .signature-content {
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            position: relative;
-            z-index: 1;
-          }
-          .signature-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            font-weight: 600;
-            font-size: 20px;
-            flex-shrink: 0;
-          }
-          .signature-info {
-            flex: 1;
-          }
-          .signature-name {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 5px;
-          }
-          .signature-title {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 15px;
-          }
-          .signature-contact {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-          }
-          .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: #4b5563;
-          }
-          .footer {
-            background-color: #1f2937;
-            padding: 25px 40px;
-            text-align: center;
-            color: #9ca3af;
-            position: relative;
-          }
-          .footer-content {
-            font-size: 12px;
-            line-height: 1.8;
-          }
-          .footer-divider {
-            margin: 0 10px;
-            color: #4b5563;
-          }
-          .footer-decoration {
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, #374151 0%, #dc2626 100%);
-            clip-path: polygon(50% 0%, 100% 100%, 100% 0%);
-            opacity: 0.3;
-          }
-          @media only screen and (max-width: 600px) {
-            .email-container {
-              width: 100% !important;
-            }
-            .header,
-            .content-section,
-            .footer {
-              padding: 20px !important;
-            }
-            .banner-section {
-              height: 150px !important;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="email-container">
-          <!-- Header -->
-          <div class="header">
-            <div class="header-content">
-              <div class="logo-section">
-                <div class="logo-circle">A</div>
-                <div class="institution-name">
-                  <div class="line1">${data.collegeName.toUpperCase()}</div>
-                  <div class="line2">ALUMNI PORTAL</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Banner Section -->
-          <div class="banner-section">
-            <div class="banner-overlay">
-              <div style="color: white; text-align: center; z-index: 2;">
-                <div style="font-size: 28px; font-weight: 700; margin-bottom: 10px;">Welcome to Your Alumni Network</div>
-                <div style="font-size: 16px; opacity: 0.9;">Connect, Engage, Grow Together</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Content Section -->
-          <div class="content-section">
-            <div class="greeting">
-              <strong>Dear ${data.firstName},</strong>
-            </div>
-
-            <div class="congratulations">
-              Congratulations!!
-            </div>
-
-            <div class="welcome-text">
-              Graduating from ${data.collegeName} doesn't mean losing your ties to the University.
-            </div>
-
-            <div class="info-text">
-              Your alumni user account has been created for ${data.collegeName} Alumni portal. Follow the link below to activate your account${data.password ? " and set the password" : ""}.
-            </div>
-
-            <div class="portal-access">
-              <div class="info-text" style="margin-bottom: 10px;">
-                <strong>After activating your account, you can access to ${data.collegeName} Alumni portal through:</strong>
-              </div>
-              <div style="margin: 10px 0;">
-                <a href="${data.portalUrl}" class="portal-link">${data.portalUrl}</a>
-              </div>
-              <div class="info-text" style="margin-top: 15px; font-size: 14px;">
-                You can download the ${data.collegeName} alumni mobile app in App store and Google play store.
-              </div>
-            </div>
-
-            ${
-              data.password
-                ? `
-            <div class="credentials-info">
-              <p><strong>Your Login Credentials:</strong></p>
-              <p>Email: ${data.email}</p>
-              <p>Temporary Password: ${data.password}</p>
-              <p style="margin-top: 10px; font-size: 13px;">Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.</p>
-              <p style="margin-top: 8px; font-size: 13px;"><strong>Important:</strong> Please change your password after first login for security purposes.</p>
-            </div>
-            `
-                : `
-            <div class="info-text">
-              Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.
-            </div>
-            `
-            }
-
-            <div class="button-container">
-              <a href="${data.activationLink}" class="activate-button">Please click here to activate your account</a>
-            </div>
-          </div>
-
-          <!-- Signature Section -->
-          <div class="content-section" style="padding-top: 0;">
-            <div class="signature-section">
-              <div class="signature-angle"></div>
-              <div class="signature-content">
-                <div class="signature-avatar">
-                  ${(data.senderName || "A").charAt(0).toUpperCase()}
-                </div>
-                <div class="signature-info">
-                  <div class="signature-name">${data.senderName || "Alumni Relations Team"}</div>
-                  <div class="signature-title">${data.senderTitle || "Alumni Relations Manager"}</div>
-                  <div class="signature-contact">
-                    ${
-                      data.senderPhone
-                        ? `
-                    <div class="contact-item">
-                      <span>📞</span>
-                      <span>${data.senderPhone}</span>
-                    </div>
-                    `
-                        : ""
-                    }
-                    ${
-                      data.senderEmail
-                        ? `
-                    <div class="contact-item">
-                      <span>✉️</span>
-                      <span>${data.senderEmail}</span>
-                    </div>
-                    `
-                        : ""
-                    }
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="footer">
-            <div class="footer-decoration"></div>
-            <div class="footer-content">
-              <div style="margin-bottom: 15px;">
-                Copyright © ${new Date().getFullYear()} ${data.collegeName}. All rights reserved.
-              </div>
-              <div>
-                ${data.senderPhone || "Contact"} <span class="footer-divider">|</span> ${data.senderEmail || "alumni@college.edu"} <span class="footer-divider">|</span> Alumni Relations
-              </div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-    return html;
+    return this.generateWelcomeEmailTemplate(data);
   }
 }
 

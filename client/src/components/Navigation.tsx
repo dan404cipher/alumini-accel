@@ -31,6 +31,7 @@ import {
   GraduationCap,
   Heart,
   ChevronDown,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -186,27 +187,45 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             onClick={() => navigate("/")}
           >
             <div className="flex items-center space-x-3">
-              {collegeLogo ? (
-                <div className="relative">
-                  <img
-                    src={collegeLogo}
-                    alt="College Logo"
-                    className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:shadow-lg transition-shadow duration-200"
-                  />
-                </div>
+              {user?.role === "super_admin" && activeTab === "dashboard" ? (
+                <>
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h1 className="text-base md:text-lg xl:text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-all duration-200">
+                      Super Admin
+                    </h1>
+                    <p className="text-xs text-gray-500 font-medium hidden lg:block">
+                      System Management
+                    </p>
+                  </div>
+                </>
               ) : (
-                <div className="w-12 h-12 bg-gray-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:bg-gray-700">
-                  <span className="text-white font-bold text-lg">A</span>
-                </div>
+                <>
+                  {collegeLogo ? (
+                    <div className="relative">
+                      <img
+                        src={collegeLogo}
+                        alt="College Logo"
+                        className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:shadow-lg transition-shadow duration-200"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:bg-gray-700">
+                      <span className="text-white font-bold text-lg">A</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <h1 className="text-base md:text-lg xl:text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-all duration-200">
+                      AlumniAccel
+                    </h1>
+                    <p className="text-xs text-gray-500 font-medium hidden lg:block">
+                      Alumni Network
+                    </p>
+                  </div>
+                </>
               )}
-              <div className="flex flex-col">
-                <h1 className="text-base md:text-lg xl:text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-all duration-200">
-                  AlumniAccel
-                </h1>
-                <p className="text-xs text-gray-500 font-medium hidden lg:block">
-                  Alumni Network
-                </p>
-              </div>
             </div>
           </div>
 

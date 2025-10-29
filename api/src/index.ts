@@ -1,6 +1,9 @@
+// Load environment variables FIRST - before any other imports
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import { createServer } from "http";
-import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
@@ -49,9 +52,6 @@ import commentsRoutes from "./routes/comments";
 import sharesRoutes from "./routes/shares";
 import paymentRoutes from "./routes/payment";
 import reportRoutes from "./routes/reports";
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const server = createServer(app);
@@ -214,6 +214,222 @@ app.get("/test-uploads", (req, res) => {
     uploadsPath: "/uploads",
     timestamp: new Date().toISOString(),
   });
+});
+
+// Preview welcome email template
+app.get("/preview-welcome-email", (req, res) => {
+  const { emailService } = require("./services/emailService");
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+
+  const sampleData = {
+    firstName: req.query.firstName || "Benjamin",
+    lastName: req.query.lastName || "Johnson",
+    email: req.query.email || "benjamin.johnson@example.com",
+    collegeName: req.query.collegeName || "Singapore Institute of Technology",
+    activationLink: `${frontendUrl}/verify-email?token=sample_token`,
+    portalUrl: frontendUrl,
+    password: req.query.password || "TempPassword123!",
+    senderName: req.query.senderName || "John Smith",
+    senderTitle:
+      req.query.senderTitle || "Assistant Manager of Alumni Relation Unit",
+    senderEmail:
+      req.query.senderEmail || process.env.SMTP_USER || "john.s@college.edu",
+    senderPhone: req.query.senderPhone || "6592 2114",
+  };
+
+  const html = emailService.generateWelcomeEmailHTML(sampleData);
+  res.send(html);
+});
+
+// Check SMTP configuration
+app.get("/check-smtp-config", (req, res) => {
+  const hasUser = !!process.env.SMTP_USER;
+  const hasPass = !!process.env.SMTP_PASS;
+  const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+  const smtpPort = process.env.SMTP_PORT || "587";
+
+  return res.json({
+    success: true,
+    configured: hasUser && hasPass,
+    details: {
+      hasUser,
+      hasPass,
+      smtpHost,
+      smtpPort,
+      user: hasUser
+        ? process.env.SMTP_USER?.replace(/(.{2}).*(@.*)/, "$1****$2")
+        : "Not set",
+    },
+    message:
+      hasUser && hasPass
+        ? "SMTP is configured"
+        : "SMTP is not configured. Please set SMTP_USER and SMTP_PASS in your .env file.",
+  });
+});
+
+// Test SMTP connection
+app.post("/test-smtp-connection", async (req, res) => {
+  try {
+    const nodemailer = require("nodemailer");
+    const { logger } = require("./utils/logger");
+
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      return res.status(400).json({
+        success: false,
+        message: "SMTP credentials not configured",
+      });
+    }
+
+    const isGmail = (process.env.SMTP_HOST || "smtp.gmail.com").includes(
+      "gmail"
+    );
+    const smtpPort = parseInt(process.env.SMTP_PORT || "587");
+
+    const testTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: smtpPort,
+      secure: smtpPort === 465,
+      requireTLS: isGmail && smtpPort === 587,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+
+    // Test the connection
+    await testTransporter.verify();
+
+    return res.json({
+      success: true,
+      message: "SMTP connection successful! Your credentials are working.",
+    });
+  } catch (error: any) {
+    const { logger } = require("./utils/logger");
+    logger.error("SMTP connection test failed:", error);
+
+    let errorMessage = error.message || "Unknown error";
+
+    if (
+      errorMessage.includes("Invalid login") ||
+      errorMessage.includes("authentication") ||
+      errorMessage.includes("credentials")
+    ) {
+      errorMessage =
+        "Authentication failed. Please verify:\n1. You're using an App Password (not regular password)\n2. 2-Step Verification is enabled\n3. The App Password is correct (16 characters, no spaces)\n4. Try generating a NEW App Password at https://myaccount.google.com/apppasswords";
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+      error: error.toString(),
+    });
+  }
+});
+
+// Test endpoint to send welcome email
+app.post("/test-send-welcome-email", async (req, res) => {
+  try {
+    const { emailService } = require("./services/emailService");
+    const { logger } = require("./utils/logger");
+
+    // Check SMTP configuration first
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "SMTP credentials not configured. Please set SMTP_USER and SMTP_PASS in your .env file.",
+        help: "Add these to your .env file:\nSMTP_USER=your-email@gmail.com\nSMTP_PASS=your-app-password\nSMTP_HOST=smtp.gmail.com\nSMTP_PORT=587",
+      });
+    }
+
+    const {
+      email,
+      firstName = "Test",
+      lastName = "User",
+      collegeName = "AlumniAccel College",
+      password = "TestPassword123!",
+    } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+    const activationToken = "test_token_" + Date.now();
+    const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+
+    const emailData = {
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      collegeName: collegeName,
+      activationLink: activationLink,
+      portalUrl: frontendUrl,
+      password: password,
+      senderName: "Alumni Relations Team",
+      senderTitle: "Alumni Relations Manager",
+      senderEmail: process.env.SMTP_USER || "alumni@college.edu",
+      senderPhone: "1234567890",
+    };
+
+    logger.info(`Sending test welcome email to ${email}`);
+    const result = await emailService.sendAlumniWelcomeEmail(emailData);
+
+    if (result) {
+      return res.json({
+        success: true,
+        message: `Welcome email sent successfully to ${email}`,
+        data: {
+          email: email,
+          activationLink: activationLink,
+        },
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send email. Check SMTP configuration.",
+      });
+    }
+  } catch (error: any) {
+    const { logger } = require("./utils/logger");
+    logger.error("Error sending test welcome email:", error);
+
+    let errorMessage = error.message || "Error sending email";
+
+    // Provide helpful error messages
+    if (
+      errorMessage.includes("credentials") ||
+      errorMessage.includes("authentication") ||
+      errorMessage.includes("PLAIN")
+    ) {
+      errorMessage =
+        "SMTP authentication failed. For Gmail, you MUST use an App Password (not your regular password). Steps: 1) Enable 2-Step Verification, 2) Go to https://myaccount.google.com/apppasswords, 3) Generate an App Password for 'Mail', 4) Use that 16-character password in SMTP_PASS";
+    } else if (
+      errorMessage.includes("connect") ||
+      errorMessage.includes("ECONNREFUSED")
+    ) {
+      errorMessage =
+        "Cannot connect to SMTP server. Please check SMTP_HOST and SMTP_PORT.";
+    } else if (
+      errorMessage.includes("ETIMEDOUT") ||
+      errorMessage.includes("timeout")
+    ) {
+      errorMessage =
+        "SMTP connection timeout. Check your network or firewall settings.";
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+      error: error.message,
+    });
+  }
 });
 
 // API routes

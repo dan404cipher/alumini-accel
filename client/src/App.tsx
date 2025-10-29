@@ -34,6 +34,7 @@ import Messages from "./pages/Messages";
 import CommunityDetailNew from "./pages/CommunityDetailNew";
 import SocketTest from "./pages/SocketTest";
 import SocketDebug from "./pages/SocketDebug";
+import TestWelcomeEmail from "./pages/TestWelcomeEmail";
 
 const queryClient = new QueryClient();
 
@@ -315,6 +316,15 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <SocketDebug />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/test-welcome-email"
+                    element={
+                      <ProtectedRoute>
+                        <TestWelcomeEmail />
                       </ProtectedRoute>
                     }
                   />

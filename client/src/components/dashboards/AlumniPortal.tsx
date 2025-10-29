@@ -306,8 +306,8 @@ const AlumniPortal = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white p-6 lg:p-8 pt-20">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-white p-4 lg:p-6 pt-16">
+      <div className="w-full space-y-6">
         {/* College Banner */}
         {collegeBanner && (
           <div className="relative overflow-hidden rounded-lg shadow-sm border">

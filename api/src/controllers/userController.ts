@@ -1,11 +1,14 @@
 import { Request, Response } from "express";
 import User from "../models/User";
+import Tenant from "../models/Tenant";
 import { logger } from "../utils/logger";
 import { UserRole, UserStatus } from "../types";
 import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
 import { updateProfileCompletion } from "../utils/profileCompletion";
+import { emailService } from "../services/emailService";
+import crypto from "crypto";
 
 // Get all users (admin only)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -156,6 +159,42 @@ export const createUser = async (req: Request, res: Response) => {
     delete (userResponse as any).password;
 
     logger.info(`User created: ${email} with role: ${role}`);
+
+    // Send welcome email for alumni users
+    if (role === UserRole.ALUMNI && tenantId) {
+      try {
+        const tenant = await Tenant.findById(tenantId);
+        const collegeName = tenant?.name || "College";
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+        const activationToken = crypto.randomBytes(32).toString("hex");
+
+        // Update user with activation token
+        await User.findByIdAndUpdate(user._id, {
+          emailVerificationToken: activationToken,
+        });
+
+        const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+        const portalUrl = frontendUrl;
+
+        await emailService.sendAlumniWelcomeEmail({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          collegeName: collegeName,
+          activationLink: activationLink,
+          portalUrl: portalUrl,
+          password: password, // Send password for new accounts
+          senderName: "Alumni Relations Team",
+          senderTitle: "Alumni Relations Manager",
+          senderEmail: process.env.SMTP_USER || "alumni@college.edu",
+        });
+
+        logger.info(`Welcome email sent to ${email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send welcome email to ${email}:`, emailError);
+        // Don't fail the user creation if email fails
+      }
+    }
 
     return res.status(201).json({
       success: true,
@@ -769,6 +808,44 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
         // Create the user
         const newUser = new User(userData);
         await newUser.save();
+
+        // Send welcome email for bulk created alumni
+        try {
+          const tenant = await Tenant.findById(tenantId);
+          const collegeName = tenant?.name || "College";
+          const frontendUrl =
+            process.env.FRONTEND_URL || "http://localhost:8080";
+          const activationToken = crypto.randomBytes(32).toString("hex");
+
+          // Update user with activation token
+          await User.findByIdAndUpdate(newUser._id, {
+            emailVerificationToken: activationToken,
+          });
+
+          const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+          const portalUrl = frontendUrl;
+
+          await emailService.sendAlumniWelcomeEmail({
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            email: newUser.email,
+            collegeName: collegeName,
+            activationLink: activationLink,
+            portalUrl: portalUrl,
+            password: password, // Send generated password
+            senderName: "Alumni Relations Team",
+            senderTitle: "Alumni Relations Manager",
+            senderEmail: process.env.SMTP_USER || "alumni@college.edu",
+          });
+
+          logger.info(`Welcome email sent to ${newUser.email}`);
+        } catch (emailError) {
+          logger.error(
+            `Failed to send welcome email to ${newUser.email}:`,
+            emailError
+          );
+          // Don't fail the user creation if email fails
+        }
 
         results.successful.push({
           row: rowNumber,

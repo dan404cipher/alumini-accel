@@ -375,7 +375,7 @@ app.post("/test-send-welcome-email", async (req, res) => {
       password: password,
       senderName: "Alumni Relations Team",
       senderTitle: "Alumni Relations Manager",
-      senderEmail: process.env.SMTP_USER || "alumni@college.edu",
+      senderEmail: "alumni@alumniaccel.com",
       senderPhone: "1234567890",
     };
 

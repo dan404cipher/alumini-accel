@@ -6,6 +6,7 @@ interface EmailOptions {
   subject: string;
   html: string;
   text?: string;
+  fromName?: string;
 }
 
 class EmailService {
@@ -72,8 +73,9 @@ class EmailService {
         );
       }
 
+      const fromName = options.fromName || "Alumni Accel";
       const mailOptions = {
-        from: `"AlumniAccel" <${process.env.SMTP_USER}>`,
+        from: `"${fromName}" <${process.env.SMTP_USER}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -325,9 +327,8 @@ class EmailService {
                         <td style="padding: 15px;">
                           <p style="margin: 5px 0; font-size: 14px; color: #92400e;"><strong>Your Login Credentials:</strong></p>
                           <p style="margin: 5px 0; font-size: 14px; color: #92400e;">Email: ${data.email}</p>
-                          <p style="margin: 5px 0; font-size: 14px; color: #92400e;">Temporary Password: ${data.password}</p>
-                          <p style="margin-top: 10px; font-size: 13px; color: #92400e;">Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.</p>
-                          <p style="margin-top: 8px; font-size: 13px; color: #92400e;"><strong>Important:</strong> Please change your password after first login for security purposes.</p>
+                          <p style="margin-top: 10px; font-size: 13px; color: #92400e;">Please use your email address to login to the Alumni portal. After your first login, you will be prompted to reset your password.</p>
+                          <p style="margin-top: 8px; font-size: 13px; color: #92400e;"><strong>Important:</strong> Please reset your password after first login for security purposes.</p>
                         </td>
                       </tr>
                     </table>
@@ -448,10 +449,9 @@ ${
     ? `
 Your Login Credentials:
 Email: ${data.email}
-Temporary Password: ${data.password}
 
-Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.
-Important: Please change your password after first login for security purposes.
+Please use your email address to login to the Alumni portal. After your first login, you will be prompted to reset your password.
+Important: Please reset your password after first login for security purposes.
 `
     : `
 Please use your email address and the newly created password as credentials to access the Alumni portal and the Alumni mobile app.
@@ -476,6 +476,7 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
       subject,
       html,
       text,
+      fromName: collegeName,
     });
   }
 

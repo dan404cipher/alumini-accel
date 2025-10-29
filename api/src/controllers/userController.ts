@@ -186,7 +186,8 @@ export const createUser = async (req: Request, res: Response) => {
           password: password, // Send password for new accounts
           senderName: "Alumni Relations Team",
           senderTitle: "Alumni Relations Manager",
-          senderEmail: process.env.SMTP_USER || "alumni@college.edu",
+          senderEmail: tenant?.contactInfo?.email || "alumni@college.edu",
+          senderPhone: tenant?.contactInfo?.phone,
         });
 
         logger.info(`Welcome email sent to ${email}`);
@@ -835,7 +836,8 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
             password: password, // Send generated password
             senderName: "Alumni Relations Team",
             senderTitle: "Alumni Relations Manager",
-            senderEmail: process.env.SMTP_USER || "alumni@college.edu",
+            senderEmail: tenant?.contactInfo?.email || "alumni@college.edu",
+            senderPhone: tenant?.contactInfo?.phone,
           });
 
           logger.info(`Welcome email sent to ${newUser.email}`);

@@ -74,6 +74,9 @@ export const CreateEventDialog = ({
     { value: "career_fair", label: "Career Fair" },
     { value: "reunion", label: "Reunion" },
   ]);
+  const [locationOptions, setLocationOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -193,6 +196,28 @@ export const CreateEventDialog = ({
       fetchEventTypes();
       resetForm();
     }
+  }, [open]);
+
+  // Fetch event location categories
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_location",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const opts = response.data.map((c: any) => ({
+            value: c.name,
+            label: c.name,
+          }));
+          setLocationOptions(opts);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    if (open) fetchLocations();
   }, [open]);
 
   const validateForm = () => {
@@ -806,14 +831,46 @@ export const CreateEventDialog = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => handleFieldChange("location", e.target.value)}
-                placeholder="University Campus or Virtual"
-                required
-                className={fieldErrors.location ? "border-red-500" : ""}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) =>
+                      handleFieldChange("location", e.target.value)
+                    }
+                    placeholder="University Campus or Virtual"
+                    required
+                    className={fieldErrors.location ? "border-red-500" : ""}
+                  />
+                </div>
+                <div className="w-60">
+                  <Select
+                    onValueChange={(value) =>
+                      handleFieldChange("location", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick from categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locationOptions.length === 0 ? (
+                        <div className="px-2 py-1 text-sm text-muted-foreground">
+                          No saved locations
+                        </div>
+                      ) : (
+                        locationOptions
+                          .filter((opt) => opt.value && opt.label)
+                          .map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-gray-500">
                   {formData.location.length}/200 characters (minimum 2)
@@ -846,15 +903,20 @@ export const CreateEventDialog = ({
                 </SelectTrigger>
                 <SelectContent>
                   {eventTypes.length === 0 ? (
-                    <SelectItem value="" disabled>
+                    <div className="px-2 py-1 text-sm text-muted-foreground">
                       Loading event types...
-                    </SelectItem>
+                    </div>
                   ) : (
-                    eventTypes.map((eventType) => (
-                      <SelectItem key={eventType.value} value={eventType.value}>
-                        {eventType.label}
-                      </SelectItem>
-                    ))
+                    eventTypes
+                      .filter((et) => et.value && et.label)
+                      .map((eventType) => (
+                        <SelectItem
+                          key={eventType.value}
+                          value={eventType.value}
+                        >
+                          {eventType.label}
+                        </SelectItem>
+                      ))
                   )}
                 </SelectContent>
               </Select>

@@ -5,6 +5,9 @@ export type EntityType =
   | "event_type" // For event types
   | "event_location" // For event locations
   | "event_price_range" // For event price ranges
+  | "mentorship_category" // For mentorship topics/categories
+  | "donation_category" // For donation/campaign categories
+  | "gallery_category" // For gallery/media categories
   | "job_type" // For job types (full-time, part-time, etc.)
   | "job_experience" // For job experience levels
   | "job_industry"; // For job industries
@@ -48,6 +51,9 @@ const CategorySchema = new Schema<ICategory>(
         "event_type",
         "event_location",
         "event_price_range",
+        "mentorship_category",
+        "donation_category",
+        "gallery_category",
         "job_type",
         "job_experience",
         "job_industry",

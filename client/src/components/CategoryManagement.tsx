@@ -59,18 +59,40 @@ interface Category {
 }
 
 const ENTITY_TYPES = [
-  { value: "community", label: "Community Categories" },
-  { value: "event_type", label: "Event Types" },
-  { value: "event_location", label: "Event Locations" },
-  { value: "event_price_range", label: "Event Price Ranges" },
-  { value: "job_type", label: "Job Types" },
-  { value: "job_experience", label: "Job Experience Levels" },
-  { value: "job_industry", label: "Job Industries" },
+  { value: "community", label: "Community Categories", section: "community" },
+  { value: "event_type", label: "Event Types", section: "events" },
+  { value: "event_location", label: "Event Locations", section: "events" },
+  {
+    value: "event_price_range",
+    label: "Event Price Ranges",
+    section: "events",
+  },
+  { value: "job_type", label: "Job Types", section: "jobs" },
+  { value: "job_experience", label: "Job Experience Levels", section: "jobs" },
+  { value: "job_industry", label: "Job Industries", section: "jobs" },
+  {
+    value: "mentorship_category",
+    label: "Mentorship Categories",
+    section: "mentorship",
+  },
+  {
+    value: "donation_category",
+    label: "Donation Categories",
+    section: "donations",
+  },
+  {
+    value: "gallery_category",
+    label: "Gallery Categories",
+    section: "gallery",
+  },
 ] as const;
 
 export const CategoryManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [primarySection, setPrimarySection] = useState<
+    "events" | "jobs" | "community" | "mentorship" | "donations" | "gallery"
+  >("events");
   const [activeTab, setActiveTab] = useState<string>("community");
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,9 +117,17 @@ export const CategoryManagement = () => {
 
   useEffect(() => {
     if (canManage) {
+      // Ensure activeTab is valid for current primary section
+      const available = ENTITY_TYPES.filter(
+        (t) => t.section === primarySection
+      );
+      if (!available.find((t) => t.value === activeTab)) {
+        setActiveTab(available[0]?.value || "community");
+        return;
+      }
       fetchCategories();
     }
-  }, [canManage, activeTab]);
+  }, [canManage, activeTab, primarySection]);
 
   const fetchCategories = async () => {
     try {
@@ -138,8 +168,35 @@ export const CategoryManagement = () => {
     e.preventDefault();
     try {
       setSubmitting(true);
+      // Type-specific validation/enhancements
+      const trimmedName = formData.name.trim();
+      if (!trimmedName) {
+        toast({ title: "Name is required", variant: "destructive" });
+        return;
+      }
+      // Enforce price range formats when creating price ranges
+      const typeForValidation = editingCategory
+        ? editingCategory.entityType
+        : activeTab;
+      if (typeForValidation === "event_price_range") {
+        const val = trimmedName.toLowerCase();
+        const valid =
+          val === "free" || /^(\d+)-(\d+)$/.test(val) || /^(\d+)\+$/.test(val);
+        if (!valid) {
+          toast({
+            title: "Invalid price range",
+            description:
+              'Use "Free", "min-max" (e.g., 0-25) or "min+" (e.g., 100+).',
+            variant: "destructive",
+          });
+          return;
+        }
+      }
       if (editingCategory) {
-        await categoryAPI.update(editingCategory._id, formData);
+        await categoryAPI.update(editingCategory._id, {
+          ...formData,
+          name: trimmedName,
+        });
         toast({
           title: "Success",
           description: "Category updated successfully",
@@ -147,6 +204,7 @@ export const CategoryManagement = () => {
       } else {
         await categoryAPI.create({
           ...formData,
+          name: trimmedName,
           entityType: activeTab,
         });
         toast({
@@ -238,17 +296,40 @@ export const CategoryManagement = () => {
 
   const currentEntityLabel =
     ENTITY_TYPES.find((e) => e.value === activeTab)?.label || "Categories";
+  const sectionDescription =
+    primarySection === "events"
+      ? "Manage event-related categories such as event types, locations, and price ranges."
+      : primarySection === "jobs"
+      ? "Manage job-related categories such as job types, experience levels, and industries."
+      : primarySection === "mentorship"
+      ? "Manage mentorship categories/topics available across mentorship features."
+      : primarySection === "donations"
+      ? "Manage donation/campaign categories to organize fundraising."
+      : primarySection === "gallery"
+      ? "Manage gallery categories to organize media and albums."
+      : "Manage community-related categories available to users when creating communities.";
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Category Management</h2>
-          <p className="text-muted-foreground mt-1">
-            Manage custom categories for different entity types. These
-            categories will be available when creating events, jobs, and
-            communities.
-          </p>
+          <div className="mt-3">
+            <Tabs
+              value={primarySection}
+              onValueChange={(v) => setPrimarySection(v as any)}
+            >
+              <TabsList className="grid w-full grid-cols-6 max-w-[1100px]">
+                <TabsTrigger value="events">Events</TabsTrigger>
+                <TabsTrigger value="jobs">Jobs</TabsTrigger>
+                <TabsTrigger value="community">Community</TabsTrigger>
+                <TabsTrigger value="mentorship">Mentorship</TabsTrigger>
+                <TabsTrigger value="donations">Donations</TabsTrigger>
+                <TabsTrigger value="gallery">Gallery</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <p className="text-muted-foreground mt-3">{sectionDescription}</p>
+          </div>
         </div>
         <Button onClick={handleAdd}>
           <Plus className="w-4 h-4 mr-2" />
@@ -261,98 +342,101 @@ export const CategoryManagement = () => {
         onValueChange={setActiveTab}
         className="space-y-4"
       >
-        <TabsList className="grid w-full grid-cols-5">
-          {ENTITY_TYPES.map((entity) => (
-            <TabsTrigger key={entity.value} value={entity.value}>
-              <span className="hidden sm:inline">{entity.label}</span>
-              <span className="sm:hidden">{entity.label.split(" ")[0]}</span>
-            </TabsTrigger>
-          ))}
+        <TabsList className="flex flex-wrap gap-2">
+          {ENTITY_TYPES.filter((e) => e.section === primarySection).map(
+            (entity) => (
+              <TabsTrigger key={entity.value} value={entity.value}>
+                {entity.label}
+              </TabsTrigger>
+            )
+          )}
         </TabsList>
 
-        {ENTITY_TYPES.map((entity) => (
-          <TabsContent
-            key={entity.value}
-            value={entity.value}
-            className="space-y-4"
-          >
-            {loading ? (
-              <div className="flex justify-center p-8">
-                <Loader2 className="w-6 h-6 animate-spin" />
-              </div>
-            ) : categories.length === 0 ? (
-              <div className="text-center p-8 bg-muted rounded-lg">
-                <p className="text-muted-foreground">
-                  No {entity.label.toLowerCase()} found. Create your first one
-                  to get started.
-                </p>
-              </div>
-            ) : (
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-20">Order</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="w-24">Status</TableHead>
-                      <TableHead className="w-32">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {categories
-                      .filter((cat) => cat.entityType === entity.value)
-                      .map((category) => (
-                        <TableRow key={category._id}>
-                          <TableCell>{category.order}</TableCell>
-                          <TableCell className="font-medium">
-                            {category.name}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {category.description || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`px-2 py-1 rounded text-xs font-medium ${
-                                category.isActive
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {category.isActive ? "Active" : "Inactive"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(category)}
+        {ENTITY_TYPES.filter((e) => e.section === primarySection).map(
+          (entity) => (
+            <TabsContent
+              key={entity.value}
+              value={entity.value}
+              className="space-y-4"
+            >
+              {loading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              ) : categories.length === 0 ? (
+                <div className="text-center p-8 bg-muted rounded-lg">
+                  <p className="text-muted-foreground">
+                    No {entity.label.toLowerCase()} found. Create your first one
+                    to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-20">Order</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="w-24">Status</TableHead>
+                        <TableHead className="w-32">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categories
+                        .filter((cat) => cat.entityType === entity.value)
+                        .map((category) => (
+                          <TableRow key={category._id}>
+                            <TableCell>{category.order}</TableCell>
+                            <TableCell className="font-medium">
+                              {category.name}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {category.description || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-medium ${
+                                  category.isActive
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
                               >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              {canDelete && (
+                                {category.isActive ? "Active" : "Inactive"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() =>
-                                    handleDeleteClick(category._id)
-                                  }
-                                  className="text-red-500 hover:text-red-700"
+                                  onClick={() => handleEdit(category)}
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Edit className="w-4 h-4" />
                                 </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
-        ))}
+                                {canDelete && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleDeleteClick(category._id)
+                                    }
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </TabsContent>
+          )
+        )}
       </Tabs>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -401,9 +485,29 @@ export const CategoryManagement = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  placeholder="e.g., Workshop, Full-time, Entry Level"
+                  placeholder={
+                    formData.entityType === "event_type"
+                      ? "e.g., Hackathon, Alumni Meet"
+                      : formData.entityType === "event_location"
+                      ? "e.g., Main Auditorium, Online, Chennai"
+                      : formData.entityType === "event_price_range"
+                      ? "e.g., Free, 0-25, 100+"
+                      : formData.entityType === "job_type"
+                      ? "e.g., Freelance, Contract"
+                      : formData.entityType === "job_experience"
+                      ? "e.g., Junior, Senior"
+                      : formData.entityType === "job_industry"
+                      ? "e.g., AI/ML, FinTech"
+                      : "e.g., Workshop, Full-time, Entry Level"
+                  }
                   required
                 />
+                {formData.entityType === "event_price_range" && (
+                  <p className="text-xs text-muted-foreground">
+                    Allowed formats: Free, min-max (e.g., 0-25), min+ (e.g.,
+                    100+)
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>

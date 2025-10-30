@@ -822,14 +822,44 @@ export const EditEventDialog = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => handleFieldChange("location", e.target.value)}
-                placeholder="University Campus or Virtual"
-                required
-                className={fieldErrors.location ? "border-red-500" : ""}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) =>
+                      handleFieldChange("location", e.target.value)
+                    }
+                    placeholder="University Campus or Virtual"
+                    required
+                    className={fieldErrors.location ? "border-red-500" : ""}
+                  />
+                </div>
+                <div className="w-60">
+                  <Select
+                    onValueChange={(value) =>
+                      handleFieldChange("location", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick from categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locationOptions && locationOptions.length > 0 ? (
+                        locationOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          No saved locations
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-gray-500">
                   {formData.location.length}/200 characters (minimum 2)

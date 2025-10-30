@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -142,14 +142,6 @@ const EventsMeetups = () => {
   ]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
-  const [locationOptions, setLocationOptions] = useState<
-    Array<{ value: string; label: string }>
-  >([
-    { value: "all", label: "All Locations" },
-    { value: "online", label: "Online/Virtual" },
-    { value: "hybrid", label: "Hybrid" },
-    { value: "campus", label: "Campus" },
-  ]);
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [priceOptions, setPriceOptions] = useState<
     Array<{ value: string; label: string }>
@@ -314,26 +306,8 @@ const EventsMeetups = () => {
     loadPriceOptions();
   }, []);
 
-  // Build location options from available events
-  useEffect(() => {
-    const uniqueLocations = new Set<string>();
-    apiEvents.forEach((e: any) => {
-      if (e?.location) uniqueLocations.add(e.location);
-    });
-    const dynamic = Array.from(uniqueLocations)
-      .filter(
-        (loc) => !["online", "hybrid", "campus"].includes(loc.toLowerCase())
-      )
-      .sort((a, b) => a.localeCompare(b))
-      .map((loc) => ({ value: loc, label: loc }));
-    setLocationOptions([
-      { value: "all", label: "All Locations" },
-      { value: "online", label: "Online/Virtual" },
-      { value: "hybrid", label: "Hybrid" },
-      { value: "campus", label: "Campus" },
-      ...dynamic,
-    ]);
-  }, [apiEvents]);
+  // Build location options from available events (computed after apiEvents is defined later)
+  // NOTE: we compute this below with useMemo to avoid referencing before initialization
 
   // Fetch events from API
   const {
@@ -425,6 +399,27 @@ const EventsMeetups = () => {
       registrationDeadline: event.registrationDeadline,
     };
   });
+
+  // Build location options from available events (computed after apiEvents)
+  const locationOptions = useMemo(() => {
+    const uniqueLocations = new Set<string>();
+    apiEvents.forEach((e: any) => {
+      if (e?.location) uniqueLocations.add(e.location);
+    });
+    const dynamic = Array.from(uniqueLocations)
+      .filter(
+        (loc) => !["online", "hybrid", "campus"].includes(loc.toLowerCase())
+      )
+      .sort((a, b) => a.localeCompare(b))
+      .map((loc) => ({ value: loc, label: loc }));
+    return [
+      { value: "all", label: "All Locations" },
+      { value: "online", label: "Online/Virtual" },
+      { value: "hybrid", label: "Hybrid" },
+      { value: "campus", label: "Campus" },
+      ...dynamic,
+    ];
+  }, [apiEvents]);
 
   // Filter events by time periods and event type
   const now = new Date();

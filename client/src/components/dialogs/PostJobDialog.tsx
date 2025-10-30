@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { categoryAPI } from "@/lib/api";
 import { jobAPI } from "@/lib/api";
 import {
   Briefcase,
@@ -50,12 +51,43 @@ export const PostJobDialog = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [jobTypeOptions, setJobTypeOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([
+    { value: "full-time", label: "Full-time" },
+    { value: "part-time", label: "Part-time" },
+    { value: "contract", label: "Contract" },
+    { value: "internship", label: "Internship" },
+  ]);
+  const [experienceOptions, setExperienceOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([
+    { value: "entry", label: "Entry" },
+    { value: "mid", label: "Mid" },
+    { value: "senior", label: "Senior" },
+    { value: "lead", label: "Lead" },
+  ]);
+  const [industryOptions, setIndustryOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([
+    { value: "technology", label: "Technology" },
+    { value: "finance", label: "Finance" },
+    { value: "healthcare", label: "Healthcare" },
+    { value: "education", label: "Education" },
+    { value: "consulting", label: "Consulting" },
+    { value: "marketing", label: "Marketing" },
+    { value: "sales", label: "Sales" },
+    { value: "operations", label: "Operations" },
+    { value: "other", label: "Other" },
+  ]);
   const [formData, setFormData] = useState({
     title: "",
     company: "",
     companyWebsite: "",
     location: "",
     type: "",
+    experience: "",
+    industry: "",
     salaryMin: "",
     salaryMax: "",
     currency: "USD",
@@ -186,6 +218,46 @@ export const PostJobDialog = ({
     return newErrors.length === 0;
   };
 
+  // Load category-based options
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [typesRes, expRes, indRes] = await Promise.all([
+          categoryAPI.getAll({ entityType: "job_type", isActive: "true" }),
+          categoryAPI.getAll({
+            entityType: "job_experience",
+            isActive: "true",
+          }),
+          categoryAPI.getAll({ entityType: "job_industry", isActive: "true" }),
+        ]);
+        if (typesRes.success && Array.isArray(typesRes.data)) {
+          const custom = typesRes.data.map((c: { name: string }) => ({
+            value: c.name,
+            label: c.name,
+          }));
+          setJobTypeOptions((prev) => [...prev, ...custom]);
+        }
+        if (expRes.success && Array.isArray(expRes.data)) {
+          const custom = expRes.data.map((c: { name: string }) => ({
+            value: c.name,
+            label: c.name,
+          }));
+          setExperienceOptions((prev) => [...prev, ...custom]);
+        }
+        if (indRes.success && Array.isArray(indRes.data)) {
+          const custom = indRes.data.map((c: { name: string }) => ({
+            value: c.name,
+            label: c.name,
+          }));
+          setIndustryOptions((prev) => [...prev, ...custom]);
+        }
+      } catch (e) {
+        console.warn("Failed to load job category options", e);
+      }
+    };
+    if (open) load();
+  }, [open]);
+
   const handlePreview = () => {
     if (validateForm()) {
       setShowPreview(true);
@@ -271,6 +343,8 @@ export const PostJobDialog = ({
           companyWebsite: "",
           location: "",
           type: "",
+          experience: "",
+          industry: "",
           salaryMin: "",
           salaryMax: "",
           currency: "USD",
@@ -565,10 +639,11 @@ export const PostJobDialog = ({
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="full-time">Full-time</SelectItem>
-                    <SelectItem value="part-time">Part-time</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                    <SelectItem value="internship">Internship</SelectItem>
+                    {jobTypeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -619,6 +694,46 @@ export const PostJobDialog = ({
                     }}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="experience">Experience *</Label>
+                <Select
+                  value={formData.experience}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, experience: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select experience" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {experienceOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="industry">Industry *</Label>
+                <Select
+                  value={formData.industry}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, industry: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select industry" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {industryOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">

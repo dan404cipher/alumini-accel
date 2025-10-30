@@ -53,33 +53,13 @@ export const PostJobDialog = ({
   const [showPreview, setShowPreview] = useState(false);
   const [jobTypeOptions, setJobTypeOptions] = useState<
     Array<{ value: string; label: string }>
-  >([
-    { value: "full-time", label: "Full-time" },
-    { value: "part-time", label: "Part-time" },
-    { value: "contract", label: "Contract" },
-    { value: "internship", label: "Internship" },
-  ]);
+  >([]);
   const [experienceOptions, setExperienceOptions] = useState<
     Array<{ value: string; label: string }>
-  >([
-    { value: "entry", label: "Entry" },
-    { value: "mid", label: "Mid" },
-    { value: "senior", label: "Senior" },
-    { value: "lead", label: "Lead" },
-  ]);
+  >([]);
   const [industryOptions, setIndustryOptions] = useState<
     Array<{ value: string; label: string }>
-  >([
-    { value: "technology", label: "Technology" },
-    { value: "finance", label: "Finance" },
-    { value: "healthcare", label: "Healthcare" },
-    { value: "education", label: "Education" },
-    { value: "consulting", label: "Consulting" },
-    { value: "marketing", label: "Marketing" },
-    { value: "sales", label: "Sales" },
-    { value: "operations", label: "Operations" },
-    { value: "other", label: "Other" },
-  ]);
+  >([]);
   const [formData, setFormData] = useState({
     title: "",
     company: "",
@@ -235,21 +215,21 @@ export const PostJobDialog = ({
             value: c.name,
             label: c.name,
           }));
-          setJobTypeOptions((prev) => [...prev, ...custom]);
+          setJobTypeOptions(custom);
         }
         if (expRes.success && Array.isArray(expRes.data)) {
           const custom = expRes.data.map((c: { name: string }) => ({
             value: c.name,
             label: c.name,
           }));
-          setExperienceOptions((prev) => [...prev, ...custom]);
+          setExperienceOptions(custom);
         }
         if (indRes.success && Array.isArray(indRes.data)) {
           const custom = indRes.data.map((c: { name: string }) => ({
             value: c.name,
             label: c.name,
           }));
-          setIndustryOptions((prev) => [...prev, ...custom]);
+          setIndustryOptions(custom);
         }
       } catch (e) {
         console.warn("Failed to load job category options", e);

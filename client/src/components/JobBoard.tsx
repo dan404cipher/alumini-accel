@@ -55,6 +55,7 @@ import ApplicationManagementDashboard from "./ApplicationManagementDashboard";
 import ApplicationStatusTracking from "./ApplicationStatusTracking";
 import { jobAPI, jobApplicationAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { categoryAPI } from "@/lib/api";
 import { hasPermission } from "@/utils/rolePermissions";
 
 interface Job {
@@ -111,6 +112,42 @@ const JobBoard = () => {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedExperience, setSelectedExperience] = useState("all");
   const [selectedIndustry, setSelectedIndustry] = useState("all");
+  const [typeOptions, setTypeOptions] = useState<string[]>([]);
+  const [experienceOptions, setExperienceOptions] = useState<string[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [typesRes, expRes, indRes] = await Promise.all([
+          categoryAPI.getAll({ entityType: "job_type", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "job_experience", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "job_industry", isActive: "true" }),
+        ]);
+        const namesFrom = (res: any) =>
+          Array.isArray(res.data)
+            ? (res.data as any[])
+                .filter((c) => c && typeof c.name === "string")
+                .map((c) => c.name as string)
+            : [];
+        if (mounted) {
+          setTypeOptions(namesFrom(typesRes));
+          setExperienceOptions(namesFrom(expRes));
+          setIndustryOptions(namesFrom(indRes));
+        }
+      } catch (_) {
+        if (mounted) {
+          setTypeOptions([]);
+          setExperienceOptions([]);
+          setIndustryOptions([]);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
   const [selectedRemoteWork, setSelectedRemoteWork] = useState("all");
   const [selectedVacancies, setSelectedVacancies] = useState("all");
@@ -720,15 +757,20 @@ const JobBoard = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select job type" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="full-time">Full-time</SelectItem>
-                      <SelectItem value="part-time">Part-time</SelectItem>
-                      <SelectItem value="contract">Contract</SelectItem>
-                      <SelectItem value="internship">Internship</SelectItem>
-                      <SelectItem value="freelance">Freelance</SelectItem>
-                      <SelectItem value="temporary">Temporary</SelectItem>
-                    </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {typeOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved types
+                      </SelectItem>
+                    ) : (
+                      typeOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
                   </Select>
                 </div>
 
@@ -744,19 +786,20 @@ const JobBoard = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select experience" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Levels</SelectItem>
-                      <SelectItem value="entry">
-                        Entry Level (0-2 years)
+                  <SelectContent>
+                    <SelectItem value="all">All Levels</SelectItem>
+                    {experienceOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved levels
                       </SelectItem>
-                      <SelectItem value="mid">Mid Level (3-5 years)</SelectItem>
-                      <SelectItem value="senior">
-                        Senior Level (6-10 years)
-                      </SelectItem>
-                      <SelectItem value="lead">
-                        Lead/Principal (10+ years)
-                      </SelectItem>
-                    </SelectContent>
+                    ) : (
+                      experienceOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
                   </Select>
                 </div>
 
@@ -770,18 +813,20 @@ const JobBoard = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Industries</SelectItem>
-                      <SelectItem value="technology">Technology</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="healthcare">Healthcare</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="consulting">Consulting</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="sales">Sales</SelectItem>
-                      <SelectItem value="operations">Operations</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">All Industries</SelectItem>
+                    {industryOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved industries
+                      </SelectItem>
+                    ) : (
+                      industryOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
                   </Select>
                 </div>
 

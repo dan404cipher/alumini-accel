@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export type EntityType =
   | "community" // For communities
+  | "community_post_category" // For community post categories
   | "event_type" // For event types
   | "event_location" // For event locations
   | "event_price_range" // For event price ranges
@@ -48,6 +49,7 @@ const CategorySchema = new Schema<ICategory>(
       type: String,
       enum: [
         "community",
+        "community_post_category",
         "event_type",
         "event_location",
         "event_price_range",

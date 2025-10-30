@@ -12,6 +12,7 @@ import {
 import { Filter, X, MessageCircle, Hash, Globe, Users, Settings } from "lucide-react";
 import { PostFilters, Community } from "./types";
 import { Badge } from "@/components/ui/badge";
+import { categoryAPI } from "@/lib/api";
 
 interface CommunityLeftSidebarProps {
   filters: PostFilters;
@@ -39,6 +40,28 @@ const CommunityLeftSidebar: React.FC<CommunityLeftSidebarProps> = ({
   onLeaveCommunity,
   onTagClick,
 }) => {
+  const [postCategoryOptions, setPostCategoryOptions] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "community_post_category", isActive: "true" });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setPostCategoryOptions(names);
+      } catch (_) {
+        if (mounted) setPostCategoryOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <div className="hidden lg:block w-96 flex-shrink-0 bg-gray-50 border-r border-gray-200 h-full">
       <div className="h-full px-4 py-6 overflow-y-auto">
@@ -91,13 +114,17 @@ const CommunityLeftSidebar: React.FC<CommunityLeftSidebarProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All categories</SelectItem>
-                    <SelectItem value="general">General</SelectItem>
-                    <SelectItem value="announcement">Announcement</SelectItem>
-                    <SelectItem value="discussion">Discussion</SelectItem>
-                    <SelectItem value="question">Question</SelectItem>
-                    <SelectItem value="job">Job Opportunity</SelectItem>
-                    <SelectItem value="event">Event</SelectItem>
-                    <SelectItem value="poll">Poll</SelectItem>
+                    {postCategoryOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved categories
+                      </SelectItem>
+                    ) : (
+                      postCategoryOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

@@ -60,6 +60,11 @@ interface Category {
 
 const ENTITY_TYPES = [
   { value: "community", label: "Community Categories", section: "community" },
+  {
+    value: "community_post_category",
+    label: "Community Post Categories",
+    section: "community",
+  },
   { value: "event_type", label: "Event Types", section: "events" },
   { value: "event_location", label: "Event Locations", section: "events" },
   {

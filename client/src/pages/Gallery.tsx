@@ -586,7 +586,7 @@ const Gallery: React.FC = () => {
                       <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
                         {galleryCategories.length === 0 ? (
-                          <SelectItem value="" disabled>
+                          <SelectItem value="__noopts__" disabled>
                             No saved categories
                           </SelectItem>
                         ) : (
@@ -945,7 +945,7 @@ const Gallery: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {galleryCategories.length === 0 ? (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="__noopts__" disabled>
                         No saved categories
                       </SelectItem>
                     ) : (

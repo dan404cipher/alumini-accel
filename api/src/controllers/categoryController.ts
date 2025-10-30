@@ -56,6 +56,7 @@ export const createCategory = async (req: Request, res: Response) => {
     const validEntityTypes = [
       "community",
       "community_post_category",
+      "department",
       "event_type",
       "event_location",
       "event_price_range",

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { categoryAPI } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -10,13 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// duplicate Select import removed
 import {
   Dialog,
   DialogContent,
@@ -100,6 +96,27 @@ const AlumniManagement = () => {
   });
 
   const [colleges, setColleges] = useState<College[]>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "department", isActive: "true" });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDepartmentOptions(names);
+      } catch (_) {
+        if (mounted) setDepartmentOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Fetch colleges on component mount (only for Super Admin)
   useEffect(() => {
@@ -453,22 +470,31 @@ const AlumniManagement = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="department">Department *</Label>
-                    <Input
-                      id="department"
+                    <Select
                       value={newAlumni.department}
-                      onChange={(e) =>
-                        setNewAlumni({
-                          ...newAlumni,
-                          department: e.target.value,
-                        })
+                      onValueChange={(v) =>
+                        setNewAlumni({ ...newAlumni, department: v })
                       }
-                      placeholder="Enter department"
-                      className={formErrors.department ? "border-red-500" : ""}
-                    />
+                    >
+                      <SelectTrigger className={formErrors.department ? "border-red-500" : ""}>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departmentOptions.length === 0 ? (
+                          <SelectItem value="__noopts__" disabled>
+                            No saved departments
+                          </SelectItem>
+                        ) : (
+                          departmentOptions.map((name) => (
+                            <SelectItem key={name} value={name}>
+                              {name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     {formErrors.department && (
-                      <p className="text-sm text-red-500">
-                        {formErrors.department}
-                      </p>
+                      <p className="text-sm text-red-500">{formErrors.department}</p>
                     )}
                   </div>
                 </div>

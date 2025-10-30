@@ -65,6 +65,7 @@ const ENTITY_TYPES = [
     label: "Community Post Categories",
     section: "community",
   },
+  { value: "department", label: "Departments", section: "departments" },
   { value: "event_type", label: "Event Types", section: "events" },
   { value: "event_location", label: "Event Locations", section: "events" },
   {
@@ -96,7 +97,7 @@ export const CategoryManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [primarySection, setPrimarySection] = useState<
-    "events" | "jobs" | "community" | "mentorship" | "donations" | "gallery"
+    "events" | "jobs" | "community" | "mentorship" | "donations" | "gallery" | "departments"
   >("events");
   const [activeTab, setActiveTab] = useState<string>("community");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -312,6 +313,8 @@ export const CategoryManagement = () => {
       ? "Manage donation/campaign categories to organize fundraising."
       : primarySection === "gallery"
       ? "Manage gallery categories to organize media and albums."
+      : primarySection === "departments"
+      ? "Manage departments used across the alumni directory and related forms."
       : "Manage community-related categories available to users when creating communities.";
 
   return (
@@ -324,13 +327,14 @@ export const CategoryManagement = () => {
               value={primarySection}
               onValueChange={(v) => setPrimarySection(v as any)}
             >
-              <TabsList className="grid w-full grid-cols-6 max-w-[1100px]">
+              <TabsList className="grid w-full grid-cols-7 max-w-[1200px]">
                 <TabsTrigger value="events">Events</TabsTrigger>
                 <TabsTrigger value="jobs">Jobs</TabsTrigger>
                 <TabsTrigger value="community">Community</TabsTrigger>
                 <TabsTrigger value="mentorship">Mentorship</TabsTrigger>
                 <TabsTrigger value="donations">Donations</TabsTrigger>
                 <TabsTrigger value="gallery">Gallery</TabsTrigger>
+                <TabsTrigger value="departments">Departments</TabsTrigger>
               </TabsList>
             </Tabs>
             <p className="text-muted-foreground mt-3">{sectionDescription}</p>

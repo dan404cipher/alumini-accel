@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, UserPlus } from "lucide-react";
-import { invitationAPI } from "@/lib/api";
+import { invitationAPI, categoryAPI } from "@/lib/api";
 
 interface AddAlumniDialogProps {
   open: boolean;
@@ -37,12 +37,35 @@ export const AddAlumniDialog = ({
     name: "",
     email: "",
     graduationYear: "2024", // Default to current year
+    department: "",
     degree: "",
     currentRole: "",
     company: "",
     location: "",
     linkedinProfile: "",
   });
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+
+  // Load departments from categories
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "department", isActive: "true" });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDepartmentOptions(names);
+      } catch (_) {
+        if (mounted) setDepartmentOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +103,7 @@ export const AddAlumniDialog = ({
         name: formData.name.trim(),
         email: formData.email.trim(),
         graduationYear: graduationYear,
+        department: formData.department || undefined,
         degree: formData.degree.trim() || undefined,
         currentRole: formData.currentRole.trim() || undefined,
         company: formData.company.trim() || undefined,
@@ -176,6 +200,46 @@ export const AddAlumniDialog = ({
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="john@example.com"
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Select
+                value={formData.department}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, department: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departmentOptions.length === 0 ? (
+                    <SelectItem value="__noopts__" disabled>
+                      No saved departments
+                    </SelectItem>
+                  ) : (
+                    departmentOptions.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="graduationYear">Graduation Year *</Label>
+              <Input
+                id="graduationYear"
+                value={formData.graduationYear}
+                onChange={(e) =>
+                  setFormData({ ...formData, graduationYear: e.target.value })
+                }
+                placeholder="2024"
                 required
               />
             </div>

@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import ConnectionButton from "./ConnectionButton";
-import { alumniAPI } from "@/lib/api";
+import { alumniAPI, categoryAPI } from "@/lib/api";
 
 // User interface (for both students and alumni)
 interface User {
@@ -103,6 +103,27 @@ const AlumniDirectory = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "department", isActive: "true" });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDepartmentOptions(names);
+      } catch (_) {
+        if (mounted) setDepartmentOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const [selectedGraduationYear, setSelectedGraduationYear] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedExperience, setSelectedExperience] = useState("all");
@@ -291,25 +312,12 @@ const AlumniDirectory = () => {
         if (!matchesSearch) return false;
       }
 
-      // Department filter
+      // Department filter (uses category-driven department names)
       if (selectedDepartment !== "all") {
-        const departmentMap: { [key: string]: string } = {
-          cs: "Computer Science",
-          ee: "Electrical Engineering",
-          me: "Mechanical Engineering",
-          ba: "Business Administration",
-          ce: "Civil Engineering",
-          it: "Information Technology",
-          mba: "MBA",
-        };
-        const targetDepartment = departmentMap[selectedDepartment];
-        if (
-          !directoryUser.department ||
-          !directoryUser.department
-            .toLowerCase()
-            .includes(targetDepartment.toLowerCase())
-        )
+        const userDept = directoryUser.department || "";
+        if (!userDept || !userDept.toLowerCase().includes(selectedDepartment.toLowerCase())) {
           return false;
+        }
       }
 
       // Graduation year filter
@@ -466,15 +474,17 @@ const AlumniDirectory = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      <SelectItem value="cs">Computer Science</SelectItem>
-                      <SelectItem value="ee">Electrical Engineering</SelectItem>
-                      <SelectItem value="me">Mechanical Engineering</SelectItem>
-                      <SelectItem value="ba">
-                        Business Administration
-                      </SelectItem>
-                      <SelectItem value="ce">Civil Engineering</SelectItem>
-                      <SelectItem value="it">Information Technology</SelectItem>
-                      <SelectItem value="mba">MBA</SelectItem>
+                      {departmentOptions.length === 0 ? (
+                        <SelectItem value="__noopts__" disabled>
+                          No saved departments
+                        </SelectItem>
+                      ) : (
+                        departmentOptions.map((name) => (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

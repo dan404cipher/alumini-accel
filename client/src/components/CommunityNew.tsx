@@ -79,7 +79,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
-import { communityAPI } from "@/lib/api";
+import { communityAPI, categoryAPI } from "@/lib/api";
 
 // Helper function to get auth token
 const getAuthToken = (): string => {
@@ -560,6 +560,7 @@ const CommunityNew = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(12);
+  const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string }[]>([]);
 
   const categories = [
     { id: "all", name: "All Categories", icon: Globe },
@@ -599,6 +600,29 @@ const CommunityNew = () => {
     },
     { id: "other", name: "Other", icon: Star },
   ];
+
+  // Load custom community categories (no defaults)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "community", isActive: "true" });
+        const customs: { id: string; name: string }[] = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => ({ id: c._id as string, name: c.name as string }))
+          : [];
+        const merged = [{ id: "all", name: "All Categories" }, ...customs];
+        if (mounted) setCategoryOptions(merged);
+      } catch (_e) {
+        // fallback to only All if API fails
+        setCategoryOptions([{ id: "all", name: "All Categories" }]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // API Functions
   const fetchCommunities = useCallback(async () => {
@@ -1774,7 +1798,7 @@ const CommunityNew = () => {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
+                        {categoryOptions.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
@@ -1870,51 +1894,13 @@ const CommunityNew = () => {
                                           <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          <SelectItem value="department">
-                                            Department
-                                          </SelectItem>
-                                          <SelectItem value="batch">
-                                            Batch
-                                          </SelectItem>
-                                          <SelectItem value="interest">
-                                            Interest
-                                          </SelectItem>
-                                          <SelectItem value="professional">
-                                            Professional
-                                          </SelectItem>
-                                          <SelectItem value="location">
-                                            Location
-                                          </SelectItem>
-                                          <SelectItem value="academic_research">
-                                            Academic & Research
-                                          </SelectItem>
-                                          <SelectItem value="professional_career">
-                                            Professional & Career
-                                          </SelectItem>
-                                          <SelectItem value="entrepreneurship_startups">
-                                            Entrepreneurship & Startups
-                                          </SelectItem>
-                                          <SelectItem value="social_hobby">
-                                            Social & Hobby
-                                          </SelectItem>
-                                          <SelectItem value="mentorship_guidance">
-                                            Mentorship & Guidance
-                                          </SelectItem>
-                                          <SelectItem value="events_meetups">
-                                            Events & Meetups
-                                          </SelectItem>
-                                          <SelectItem value="community_support_volunteering">
-                                            Community Support & Volunteering
-                                          </SelectItem>
-                                          <SelectItem value="technology_deeptech">
-                                            Technology & DeepTech
-                                          </SelectItem>
-                                          <SelectItem value="regional_chapter_based">
-                                            Regional / Chapter-based
-                                          </SelectItem>
-                                          <SelectItem value="other">
-                                            Other
-                                          </SelectItem>
+                                          {categoryOptions
+                                            .filter((c) => c.id !== "all")
+                                            .map((c) => (
+                                              <SelectItem key={c.id} value={c.id}>
+                                                {c.name}
+                                              </SelectItem>
+                                            ))}
                                         </SelectContent>
                                       </Select>
                                     </div>
@@ -2510,7 +2496,7 @@ const CommunityNew = () => {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>
@@ -3493,43 +3479,13 @@ const CommunityNew = () => {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="department">Department</SelectItem>
-                      <SelectItem value="batch">Batch</SelectItem>
-                      <SelectItem value="interest">Interest</SelectItem>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="location">Location</SelectItem>
-                      <SelectItem value="academic_research">
-                        Academic & Research
-                      </SelectItem>
-                      <SelectItem value="professional_career">
-                        Professional & Career
-                      </SelectItem>
-                      <SelectItem value="entrepreneurship_startups">
-                        Entrepreneurship & Startups
-                      </SelectItem>
-                      <SelectItem value="social_hobby">
-                        Social & Hobby
-                      </SelectItem>
-                      <SelectItem value="mentorship_guidance">
-                        Mentorship & Guidance
-                      </SelectItem>
-                      <SelectItem value="events_meetups">
-                        Events & Meetups
-                      </SelectItem>
-                      <SelectItem value="community_support_volunteering">
-                        Community Support & Volunteering
-                      </SelectItem>
-                      <SelectItem value="technology_deeptech">
-                        Technology & DeepTech
-                      </SelectItem>
-                      <SelectItem value="regional_chapter_based">
-                        Regional / Chapter-based
-                      </SelectItem>
-                      <SelectItem value="sports">
-                        Sports & Recreation
-                      </SelectItem>
-                      <SelectItem value="cultural">Cultural</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {categoryOptions
+                        .filter((c) => c.id !== "all")
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   {formErrors.category && (

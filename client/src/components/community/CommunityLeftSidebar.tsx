@@ -9,8 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Filter, X, MessageCircle } from "lucide-react";
-import { PostFilters } from "./types";
+import { Filter, X, MessageCircle, Hash, Globe, Users, Settings } from "lucide-react";
+import { PostFilters, Community } from "./types";
+import { Badge } from "@/components/ui/badge";
 
 interface CommunityLeftSidebarProps {
   filters: PostFilters;
@@ -18,6 +19,12 @@ interface CommunityLeftSidebarProps {
   onClearFilters: () => void;
   onCreatePost: () => void;
   isMember: boolean;
+  // Optional: When on a specific community page, we can show extra info
+  community?: Community | null;
+  isAdmin?: boolean;
+  onJoinCommunity?: () => void;
+  onLeaveCommunity?: () => void;
+  onTagClick?: (tag: string) => void;
 }
 
 const CommunityLeftSidebar: React.FC<CommunityLeftSidebarProps> = ({
@@ -26,13 +33,18 @@ const CommunityLeftSidebar: React.FC<CommunityLeftSidebarProps> = ({
   onClearFilters,
   onCreatePost,
   isMember,
+  community,
+  isAdmin,
+  onJoinCommunity,
+  onLeaveCommunity,
+  onTagClick,
 }) => {
   return (
     <div className="hidden lg:block w-96 flex-shrink-0 bg-gray-50 border-r border-gray-200 h-full">
       <div className="h-full px-4 py-6 overflow-y-auto">
         <div className="space-y-4">
-          {/* Create Post Button */}
-          {isMember && (
+          {/* Create Post Button (only on listing view; hide on detail where Quick Actions shows it) */}
+          {isMember && !community && (
             <Button
               onClick={onCreatePost}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
@@ -148,6 +160,115 @@ const CommunityLeftSidebar: React.FC<CommunityLeftSidebarProps> = ({
             </CardContent>
           </Card>
         </div>
+
+        {/* If specific community is provided, show its info and tags on the left */}
+        {community && (
+          <div className="mt-4 space-y-4">
+            {/* Community Info */}
+            <Card className="bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Globe className="w-4 h-4" />
+                  Community Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Created</span>
+                  <span className="font-medium">
+                    {community.createdAt
+                      ? new Date(community.createdAt).toLocaleDateString()
+                      : "Unknown"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Category</span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {community.category?.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Type</span>
+                  <Badge variant={community.type === "open" ? "default" : "secondary"} className="text-[10px]">
+                    {community.type}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Members</span>
+                  <span className="font-medium">{community.memberCount || 0}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tags */}
+            <Card className="bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Hash className="w-4 h-4" />
+                  Tags
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-1.5">
+                  {community.tags && community.tags.length > 0 ? (
+                    community.tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="text-[10px] cursor-pointer"
+                        onClick={() => onTagClick && onTagClick(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-500">No tags available</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card className="bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Settings className="w-4 h-4" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {isMember && !isAdmin ? (
+                  <>
+                    <Button variant="outline" size="sm" className="w-full justify-start text-xs" onClick={onCreatePost}>
+                      <MessageCircle className="w-3 h-3 mr-2" /> Create Post
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start text-xs"
+                      onClick={onLeaveCommunity}
+                    >
+                      <Users className="w-3 h-3 mr-2" /> Leave Community
+                    </Button>
+                  </>
+                ) : !isMember && !isAdmin ? (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full justify-start text-xs"
+                    onClick={onJoinCommunity}
+                  >
+                    <Users className="w-3 h-3 mr-2" /> Join Community
+                  </Button>
+                ) : isAdmin ? (
+                  <Button variant="outline" size="sm" className="w-full justify-start text-xs" onClick={onCreatePost}>
+                    <MessageCircle className="w-3 h-3 mr-2" /> Create Post
+                  </Button>
+                ) : null}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

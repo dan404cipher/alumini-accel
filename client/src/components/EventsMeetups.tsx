@@ -131,28 +131,14 @@ const EventsMeetups = () => {
   const [selectedEventType, setSelectedEventType] = useState<string>("all");
   const [eventTypeOptions, setEventTypeOptions] = useState<
     Array<{ value: string; label: string }>
-  >([
-    { value: "all", label: "All Events" },
-    { value: "meetup", label: "Meetup" },
-    { value: "workshop", label: "Workshop" },
-    { value: "webinar", label: "Webinar" },
-    { value: "conference", label: "Conference" },
-    { value: "career_fair", label: "Career Fair" },
-    { value: "reunion", label: "Reunion" },
-  ]);
+  >([{ value: "all", label: "All Events" }]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [priceOptions, setPriceOptions] = useState<
     Array<{ value: string; label: string }>
-  >([
-    { value: "all", label: "All Prices" },
-    { value: "free", label: "Free" },
-    { value: "0-25", label: "$0 - $25" },
-    { value: "25-50", label: "$25 - $50" },
-    { value: "50-100", label: "$50 - $100" },
-    { value: "100+", label: "$100+" },
-  ]);
+  >([{ value: "all", label: "All Prices" }]);
+  const [locationCategoryOptions, setLocationCategoryOptions] = useState<string[]>([]);
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
@@ -400,26 +386,50 @@ const EventsMeetups = () => {
     };
   });
 
-  // Build location options from available events (computed after apiEvents)
+  // Build location options from categories only (plus All)
   const locationOptions = useMemo(() => {
-    const uniqueLocations = new Set<string>();
-    apiEvents.forEach((e: any) => {
-      if (e?.location) uniqueLocations.add(e.location);
-    });
-    const dynamic = Array.from(uniqueLocations)
-      .filter(
-        (loc) => !["online", "hybrid", "campus"].includes(loc.toLowerCase())
-      )
+    const cat = locationCategoryOptions
+      .slice()
       .sort((a, b) => a.localeCompare(b))
       .map((loc) => ({ value: loc, label: loc }));
-    return [
-      { value: "all", label: "All Locations" },
-      { value: "online", label: "Online/Virtual" },
-      { value: "hybrid", label: "Hybrid" },
-      { value: "campus", label: "Campus" },
-      ...dynamic,
-    ];
-  }, [apiEvents]);
+    return [{ value: "all", label: "All Locations" }, ...cat];
+  }, [locationCategoryOptions]);
+
+  // Load category-driven options for event type, location, and price
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [typesRes, locRes, priceRes] = await Promise.all([
+          categoryAPI.getAll({ entityType: "event_type", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "event_location", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "event_price_range", isActive: "true" }),
+        ]);
+        if (mounted) {
+          const mapNames = (res: any) =>
+            Array.isArray(res.data)
+              ? (res.data as any[])
+                  .filter((c) => c && typeof c.name === "string")
+                  .map((c) => String(c.name))
+              : [];
+          const types = mapNames(typesRes).map((n) => ({ value: n, label: n }));
+          setEventTypeOptions([{ value: "all", label: "All Events" }, ...types]);
+          setLocationCategoryOptions(mapNames(locRes));
+          const price = mapNames(priceRes).map((n) => ({ value: n, label: n }));
+          setPriceOptions([{ value: "all", label: "All Prices" }, ...price]);
+        }
+      } catch (_) {
+        if (mounted) {
+          setEventTypeOptions([{ value: "all", label: "All Events" }]);
+          setLocationCategoryOptions([]);
+          setPriceOptions([{ value: "all", label: "All Prices" }]);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Filter events by time periods and event type
   const now = new Date();

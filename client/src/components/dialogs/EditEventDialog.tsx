@@ -125,55 +125,16 @@ export const EditEventDialog = ({
 
         if (response.success && response.data && Array.isArray(response.data)) {
           const customTypes = response.data.map((cat: any) => ({
-            value: cat._id,
+            value: cat.name,
             label: cat.name,
           }));
-          console.log("Custom event types found (EditDialog):", customTypes);
-
-          // Merge default types with custom categories
-          const allTypes = [
-            { value: "meetup", label: "Meetup" },
-            { value: "workshop", label: "Workshop" },
-            { value: "webinar", label: "Webinar" },
-            { value: "conference", label: "Conference" },
-            { value: "career_fair", label: "Career Fair" },
-            { value: "reunion", label: "Reunion" },
-            ...customTypes,
-          ];
-          console.log(
-            "All event types (default + custom) (EditDialog):",
-            allTypes
-          );
-          setEventTypes(allTypes);
+          setEventTypes(customTypes);
         } else {
-          console.warn(
-            "Event types response format unexpected (EditDialog):",
-            response
-          );
-          // Still use default types
-          setEventTypes([
-            { value: "meetup", label: "Meetup" },
-            { value: "workshop", label: "Workshop" },
-            { value: "webinar", label: "Webinar" },
-            { value: "conference", label: "Conference" },
-            { value: "career_fair", label: "Career Fair" },
-            { value: "reunion", label: "Reunion" },
-          ]);
+          setEventTypes([]);
         }
       } catch (error) {
-        // If error, just use default types
-        console.error(
-          "Failed to fetch custom event types (EditDialog):",
-          error
-        );
-        setEventTypes([
-          { value: "meetup", label: "Meetup" },
-          { value: "workshop", label: "Workshop" },
-          { value: "webinar", label: "Webinar" },
-          { value: "conference", label: "Conference" },
-          { value: "career_fair", label: "Career Fair" },
-          { value: "reunion", label: "Reunion" },
-        ]);
+        console.error("Failed to fetch event types (EditDialog):", error);
+        setEventTypes([]);
       }
     };
 

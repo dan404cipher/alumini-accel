@@ -134,7 +134,7 @@ export const CreateEventDialog = ({
     setFieldErrors({});
   };
 
-  // Fetch custom event type categories
+  // Fetch event type categories (dynamic only)
   useEffect(() => {
     const fetchEventTypes = async () => {
       try {
@@ -148,47 +148,16 @@ export const CreateEventDialog = ({
 
         if (response.success && response.data && Array.isArray(response.data)) {
           const customTypes = response.data.map((cat: any) => ({
-            value: cat._id,
+            value: cat.name,
             label: cat.name,
           }));
-          console.log("Custom event types found:", customTypes);
-          console.log("Number of custom types:", customTypes.length);
-
-          // Merge default types with custom categories
-          const allTypes = [
-            { value: "meetup", label: "Meetup" },
-            { value: "workshop", label: "Workshop" },
-            { value: "webinar", label: "Webinar" },
-            { value: "conference", label: "Conference" },
-            { value: "career_fair", label: "Career Fair" },
-            { value: "reunion", label: "Reunion" },
-            ...customTypes,
-          ];
-          console.log("All event types (default + custom):", allTypes);
-          setEventTypes(allTypes);
+          setEventTypes(customTypes);
         } else {
-          console.warn("Event types response format unexpected:", response);
-          // Still use default types
-          setEventTypes([
-            { value: "meetup", label: "Meetup" },
-            { value: "workshop", label: "Workshop" },
-            { value: "webinar", label: "Webinar" },
-            { value: "conference", label: "Conference" },
-            { value: "career_fair", label: "Career Fair" },
-            { value: "reunion", label: "Reunion" },
-          ]);
+          setEventTypes([]);
         }
       } catch (error) {
-        // If error, just use default types
-        console.error("Failed to fetch custom event types:", error);
-        setEventTypes([
-          { value: "meetup", label: "Meetup" },
-          { value: "workshop", label: "Workshop" },
-          { value: "webinar", label: "Webinar" },
-          { value: "conference", label: "Conference" },
-          { value: "career_fair", label: "Career Fair" },
-          { value: "reunion", label: "Reunion" },
-        ]);
+        console.error("Failed to fetch event types:", error);
+        setEventTypes([]);
       }
     };
 
@@ -903,9 +872,9 @@ export const CreateEventDialog = ({
                 </SelectTrigger>
                 <SelectContent>
                   {eventTypes.length === 0 ? (
-                    <div className="px-2 py-1 text-sm text-muted-foreground">
-                      Loading event types...
-                    </div>
+                    <SelectItem value="__noopts__" disabled>
+                      No saved types
+                    </SelectItem>
                   ) : (
                     eventTypes
                       .filter((et) => et.value && et.label)

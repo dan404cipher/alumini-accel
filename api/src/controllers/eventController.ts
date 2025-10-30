@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Event from "../models/Event";
 import User from "../models/User";
 import { logger } from "../utils/logger";
@@ -32,6 +33,7 @@ export const getAllEvents = async (req: Request, res: Response) => {
 
     const events = await Event.find(filter)
       .populate("organizer", "firstName lastName email profilePicture")
+      .populate("customEventType", "name")
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
@@ -45,6 +47,21 @@ export const getAllEvents = async (req: Request, res: Response) => {
       // Don't persist here; just override for response
       const obj = evt.toObject ? evt.toObject() : evt;
       obj.currentAttendees = confirmed;
+      // If custom event type exists, use its name, otherwise use the enum type
+      if (obj.customEventType && obj.customEventType.name) {
+        obj.typeDisplayName = obj.customEventType.name;
+      } else {
+        // Map enum values to display names
+        const typeMap: Record<string, string> = {
+          meetup: "Meetup",
+          workshop: "Workshop",
+          webinar: "Webinar",
+          conference: "Conference",
+          career_fair: "Career Fair",
+          reunion: "Reunion",
+        };
+        obj.typeDisplayName = typeMap[obj.type] || obj.type;
+      }
       return obj;
     });
 
@@ -76,7 +93,8 @@ export const getEventById = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id)
       .populate("organizer", "firstName lastName email profilePicture")
-      .populate("attendees.userId", "firstName lastName email profilePicture");
+      .populate("attendees.userId", "firstName lastName email profilePicture")
+      .populate("customEventType", "name");
 
     if (!event) {
       return res.status(404).json({
@@ -140,10 +158,15 @@ export const createEventWithImage = async (req: Request, res: Response) => {
       imageUrl = `/uploads/events/${imageFile.filename}`;
     }
 
+    // Check if type is a custom category (ObjectId) or default enum
+    const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+    const eventType = isCustomType ? type : type;
+
     const event = new Event({
       title,
       description,
-      type,
+      type: eventType,
+      customEventType: isCustomType ? type : undefined,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       location,
@@ -211,10 +234,15 @@ export const createEvent = async (req: Request, res: Response) => {
       organizerNotes,
     } = req.body;
 
+    // Check if type is a custom category (ObjectId) or default enum
+    const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+    const eventType = isCustomType ? type : type;
+
     const event = new Event({
       title,
       description,
-      type,
+      type: eventType,
+      customEventType: isCustomType ? type : undefined,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       location,
@@ -312,7 +340,11 @@ export const updateEvent = async (req: Request, res: Response) => {
     // Update fields if provided
     if (title !== undefined) event.title = title;
     if (description !== undefined) event.description = description;
-    if (type !== undefined) event.type = type;
+    if (type !== undefined) {
+      const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+      event.type = type;
+      event.customEventType = isCustomType ? type : undefined;
+    }
     if (startDate !== undefined) event.startDate = new Date(startDate);
     if (endDate !== undefined) event.endDate = new Date(endDate);
     if (location !== undefined) event.location = location;
@@ -404,7 +436,11 @@ export const updateEventWithImage = async (req: Request, res: Response) => {
     // Update event fields
     if (title !== undefined) event.title = title;
     if (description !== undefined) event.description = description;
-    if (type !== undefined) event.type = type;
+    if (type !== undefined) {
+      const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+      event.type = type;
+      event.customEventType = isCustomType ? type : undefined;
+    }
     if (startDate !== undefined) event.startDate = new Date(startDate);
     if (endDate !== undefined) event.endDate = new Date(endDate);
     if (location !== undefined) event.location = location;

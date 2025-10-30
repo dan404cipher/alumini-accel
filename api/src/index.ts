@@ -52,6 +52,7 @@ import commentsRoutes from "./routes/comments";
 import sharesRoutes from "./routes/shares";
 import paymentRoutes from "./routes/payment";
 import reportRoutes from "./routes/reports";
+import categoryRoutes from "./routes/category";
 
 const app = express();
 const server = createServer(app);
@@ -464,6 +465,7 @@ app.use("/api/v1", commentsRoutes);
 app.use("/api/v1", sharesRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/reports", reportRoutes);
+app.use("/api/v1/categories", categoryRoutes);
 
 // Serve static files with CORS headers
 app.use(

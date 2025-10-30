@@ -328,8 +328,10 @@ export interface IJobPost extends Document {
   title: string;
   position: string;
   location: string;
-  type: "full-time" | "part-time" | "internship" | "contract";
-  experience: "entry" | "mid" | "senior" | "lead";
+  type: "full-time" | "part-time" | "internship" | "contract" | string; // Support custom categories
+  customJobType?: string; // Reference to Category model
+  experience: "entry" | "mid" | "senior" | "lead" | string; // Support custom categories
+  customExperience?: string; // Reference to Category model
   industry:
     | "technology"
     | "finance"
@@ -339,7 +341,9 @@ export interface IJobPost extends Document {
     | "marketing"
     | "sales"
     | "operations"
-    | "other";
+    | "other"
+    | string; // Support custom categories
+  customIndustry?: string; // Reference to Category model
   remote: boolean;
   salary?: {
     min: number;
@@ -373,7 +377,8 @@ export interface IEvent extends Document {
   _id: string;
   title: string;
   description: string;
-  type: EventType;
+  type: EventType | string; // Support custom categories (ObjectId as string)
+  customEventType?: string; // Reference to Category model
   startDate: Date;
   endDate: Date;
   location: string;

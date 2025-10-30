@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, MapPin, Clock } from "lucide-react";
-import { eventAPI } from "@/lib/api";
+import { eventAPI, categoryAPI } from "@/lib/api";
 
 interface Event {
   _id: string;
@@ -73,6 +73,16 @@ export const EditEventDialog = ({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const [eventTypes, setEventTypes] = useState<
+    Array<{ value: string; label: string }>
+  >([
+    { value: "meetup", label: "Meetup" },
+    { value: "workshop", label: "Workshop" },
+    { value: "webinar", label: "Webinar" },
+    { value: "conference", label: "Conference" },
+    { value: "career_fair", label: "Career Fair" },
+    { value: "reunion", label: "Reunion" },
+  ]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -102,6 +112,75 @@ export const EditEventDialog = ({
       description: string;
     }>,
   });
+
+  // Fetch custom event type categories
+  useEffect(() => {
+    const fetchEventTypes = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_type",
+          isActive: "true",
+        });
+        console.log("Event types API response (EditDialog):", response);
+
+        if (response.success && response.data && Array.isArray(response.data)) {
+          const customTypes = response.data.map((cat: any) => ({
+            value: cat._id,
+            label: cat.name,
+          }));
+          console.log("Custom event types found (EditDialog):", customTypes);
+
+          // Merge default types with custom categories
+          const allTypes = [
+            { value: "meetup", label: "Meetup" },
+            { value: "workshop", label: "Workshop" },
+            { value: "webinar", label: "Webinar" },
+            { value: "conference", label: "Conference" },
+            { value: "career_fair", label: "Career Fair" },
+            { value: "reunion", label: "Reunion" },
+            ...customTypes,
+          ];
+          console.log(
+            "All event types (default + custom) (EditDialog):",
+            allTypes
+          );
+          setEventTypes(allTypes);
+        } else {
+          console.warn(
+            "Event types response format unexpected (EditDialog):",
+            response
+          );
+          // Still use default types
+          setEventTypes([
+            { value: "meetup", label: "Meetup" },
+            { value: "workshop", label: "Workshop" },
+            { value: "webinar", label: "Webinar" },
+            { value: "conference", label: "Conference" },
+            { value: "career_fair", label: "Career Fair" },
+            { value: "reunion", label: "Reunion" },
+          ]);
+        }
+      } catch (error) {
+        // If error, just use default types
+        console.error(
+          "Failed to fetch custom event types (EditDialog):",
+          error
+        );
+        setEventTypes([
+          { value: "meetup", label: "Meetup" },
+          { value: "workshop", label: "Workshop" },
+          { value: "webinar", label: "Webinar" },
+          { value: "conference", label: "Conference" },
+          { value: "career_fair", label: "Career Fair" },
+          { value: "reunion", label: "Reunion" },
+        ]);
+      }
+    };
+
+    if (open) {
+      fetchEventTypes();
+    }
+  }, [open]);
 
   // Populate form data when event changes
   useEffect(() => {
@@ -781,12 +860,11 @@ export const EditEventDialog = ({
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="meetup">Meetup</SelectItem>
-                  <SelectItem value="workshop">Workshop</SelectItem>
-                  <SelectItem value="webinar">Webinar</SelectItem>
-                  <SelectItem value="conference">Conference</SelectItem>
-                  <SelectItem value="career_fair">Career Fair</SelectItem>
-                  <SelectItem value="reunion">Reunion</SelectItem>
+                  {eventTypes.map((eventType) => (
+                    <SelectItem key={eventType.value} value={eventType.value}>
+                      {eventType.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {fieldErrors.type && (

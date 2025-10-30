@@ -42,6 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import { userAPI, alumniAPI, eventAPI, jobAPI, tenantAPI } from "@/lib/api";
 import AlumniManagement from "../AlumniManagement";
 import CampaignManagement from "../CampaignManagement";
+import { CategoryManagement } from "../CategoryManagement";
 // Note: College Admin only manages their own college, not all colleges
 
 const CollegeAdminDashboard = () => {
@@ -913,7 +914,7 @@ const CollegeAdminDashboard = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -932,6 +933,10 @@ const CollegeAdminDashboard = () => {
             <TabsTrigger value="alumni" className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
               <span className="hidden sm:inline">Alumni</span>
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Categories</span>
             </TabsTrigger>
             <TabsTrigger
               value="fundraisers"
@@ -1915,6 +1920,11 @@ const CollegeAdminDashboard = () => {
           {/* Alumni Management */}
           <TabsContent value="alumni" className="space-y-6">
             <AlumniManagement />
+          </TabsContent>
+
+          {/* Category Management */}
+          <TabsContent value="categories" className="space-y-6">
+            <CategoryManagement />
           </TabsContent>
 
           {/* Fundraisers Management */}

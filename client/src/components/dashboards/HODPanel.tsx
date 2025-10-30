@@ -50,11 +50,13 @@ import {
   Eye,
   EyeOff,
   Mail,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { userAPI, campaignAPI, tenantAPI, alumniAPI } from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
+import { CategoryManagement } from "../CategoryManagement";
 
 const HODPanel = () => {
   const { user } = useAuth();
@@ -784,7 +786,7 @@ const HODPanel = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="approvals" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Approvals</span>
@@ -803,6 +805,10 @@ const HODPanel = () => {
             <TabsTrigger value="alumni" className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
               <span className="hidden sm:inline">Alumni</span>
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Categories</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1857,6 +1863,11 @@ const HODPanel = () => {
                 ))
               )}
             </div>
+          </TabsContent>
+
+          {/* Category Management */}
+          <TabsContent value="categories" className="space-y-6">
+            <CategoryManagement />
           </TabsContent>
 
           {/* Contributions */}

@@ -16,9 +16,24 @@ const eventSchema = new Schema<IEvent>(
       maxlength: [2000, "Description cannot exceed 2000 characters"],
     },
     type: {
-      type: String,
-      enum: Object.values(EventType),
+      type: Schema.Types.Mixed, // Can be String (enum) or ObjectId (custom)
       required: true,
+      validate: {
+        validator: function (value: any) {
+          // If it's a string, check if it's in the enum
+          if (typeof value === "string") {
+            return Object.values(EventType).includes(value as EventType);
+          }
+          // If it's an ObjectId, it's valid
+          return mongoose.Types.ObjectId.isValid(value);
+        },
+        message: "Event type must be a valid enum value or ObjectId",
+      },
+    },
+    customEventType: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
     },
     startDate: {
       type: Date,

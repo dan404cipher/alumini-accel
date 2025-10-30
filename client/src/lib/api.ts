@@ -2736,6 +2736,67 @@ export const communityAPI = {
   },
 };
 
+// Category API functions
+export const categoryAPI = {
+  // Get all categories
+  getAll: async (params?: { isActive?: string; entityType?: string }) => {
+    const queryParams = params
+      ? `?${new URLSearchParams(params as Record<string, string>).toString()}`
+      : "";
+    return apiRequest({
+      method: "GET",
+      url: `/categories${queryParams}`,
+    });
+  },
+
+  // Get category by ID
+  getById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/categories/${id}`,
+    });
+  },
+
+  // Create category
+  create: async (data: {
+    name: string;
+    description?: string;
+    order?: number;
+    entityType: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/categories",
+      data,
+    });
+  },
+
+  // Update category
+  update: async (
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      isActive?: boolean;
+      order?: number;
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/categories/${id}`,
+      data,
+    });
+  },
+
+  // Delete category
+  delete: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/categories/${id}`,
+    });
+  },
+};
+
 // Notification API functions
 export const notificationAPI = {
   // Get all notifications for a user

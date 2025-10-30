@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Pagination from "@/components/ui/pagination";
+import { categoryAPI } from "@/lib/api";
 import {
   Calendar,
   MapPin,
@@ -74,6 +75,11 @@ interface Event {
   endDate: string;
   location: string;
   type: string;
+  typeDisplayName?: string; // Display name from backend (for custom categories)
+  customEventType?: {
+    _id: string;
+    name: string;
+  };
   organizer?: {
     firstName: string;
     lastName: string;
@@ -95,6 +101,7 @@ interface MappedEvent {
   time: string;
   location: string;
   type: string;
+  rawType: string;
   organizer: string;
   attendees: number;
   maxAttendees: number;
@@ -122,9 +129,38 @@ const EventsMeetups = () => {
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedEventType, setSelectedEventType] = useState<string>("all");
+  const [eventTypeOptions, setEventTypeOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([
+    { value: "all", label: "All Events" },
+    { value: "meetup", label: "Meetup" },
+    { value: "workshop", label: "Workshop" },
+    { value: "webinar", label: "Webinar" },
+    { value: "conference", label: "Conference" },
+    { value: "career_fair", label: "Career Fair" },
+    { value: "reunion", label: "Reunion" },
+  ]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
+  const [locationOptions, setLocationOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([
+    { value: "all", label: "All Locations" },
+    { value: "online", label: "Online/Virtual" },
+    { value: "hybrid", label: "Hybrid" },
+    { value: "campus", label: "Campus" },
+  ]);
   const [selectedPrice, setSelectedPrice] = useState("all");
+  const [priceOptions, setPriceOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([
+    { value: "all", label: "All Prices" },
+    { value: "free", label: "Free" },
+    { value: "0-25", label: "$0 - $25" },
+    { value: "25-50", label: "$25 - $50" },
+    { value: "50-100", label: "$50 - $100" },
+    { value: "100+", label: "$100+" },
+  ]);
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
@@ -212,16 +248,92 @@ const EventsMeetups = () => {
     user?.role === "hod" ||
     user?.role === "staff";
 
-  // Event types for filtering
-  const eventTypes = [
-    { value: "all", label: "All Events" },
-    { value: "meetup", label: "Meetup" },
-    { value: "workshop", label: "Workshop" },
-    { value: "webinar", label: "Webinar" },
-    { value: "conference", label: "Conference" },
-    { value: "career_fair", label: "Career Fair" },
-    { value: "reunion", label: "Reunion" },
-  ];
+  // Load custom event types from categories and merge with defaults
+  useEffect(() => {
+    const loadEventTypeOptions = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_type",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const customTypes = (
+            response.data as Array<{ _id: string; name: string }>
+          ).map((c) => ({ value: c._id, label: c.name }));
+          setEventTypeOptions((prev) => {
+            const defaults = [
+              { value: "all", label: "All Events" },
+              { value: "meetup", label: "Meetup" },
+              { value: "workshop", label: "Workshop" },
+              { value: "webinar", label: "Webinar" },
+              { value: "conference", label: "Conference" },
+              { value: "career_fair", label: "Career Fair" },
+              { value: "reunion", label: "Reunion" },
+            ];
+            return [...defaults, ...customTypes];
+          });
+        }
+      } catch (e) {
+        // keep defaults
+      }
+    };
+    loadEventTypeOptions();
+  }, []);
+
+  // Load custom price ranges from categories and merge with defaults
+  useEffect(() => {
+    const loadPriceOptions = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_price_range",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const custom = (response.data as Array<{ name: string }>).map(
+            (c) => ({
+              value: c.name.toLowerCase(),
+              label: c.name,
+            })
+          );
+          setPriceOptions((prev) => {
+            const defaults = [
+              { value: "all", label: "All Prices" },
+              { value: "free", label: "Free" },
+              { value: "0-25", label: "$0 - $25" },
+              { value: "25-50", label: "$25 - $50" },
+              { value: "50-100", label: "$50 - $100" },
+              { value: "100+", label: "$100+" },
+            ];
+            return [...defaults, ...custom];
+          });
+        }
+      } catch (e) {
+        // keep defaults
+      }
+    };
+    loadPriceOptions();
+  }, []);
+
+  // Build location options from available events
+  useEffect(() => {
+    const uniqueLocations = new Set<string>();
+    apiEvents.forEach((e: any) => {
+      if (e?.location) uniqueLocations.add(e.location);
+    });
+    const dynamic = Array.from(uniqueLocations)
+      .filter(
+        (loc) => !["online", "hybrid", "campus"].includes(loc.toLowerCase())
+      )
+      .sort((a, b) => a.localeCompare(b))
+      .map((loc) => ({ value: loc, label: loc }));
+    setLocationOptions([
+      { value: "all", label: "All Locations" },
+      { value: "online", label: "Online/Virtual" },
+      { value: "hybrid", label: "Hybrid" },
+      { value: "campus", label: "Campus" },
+      ...dynamic,
+    ]);
+  }, [apiEvents]);
 
   // Fetch events from API
   const {
@@ -285,6 +397,8 @@ const EventsMeetups = () => {
   }, [myRegsResponse]);
 
   const mappedEvents = apiEvents.map((event: Event): MappedEvent => {
+    // Use typeDisplayName if available (for custom categories), otherwise use type
+    const displayType = event.typeDisplayName || event.type;
     return {
       id: event._id,
       title: event.title,
@@ -296,7 +410,9 @@ const EventsMeetups = () => {
         minute: "2-digit",
       }),
       location: event.location,
-      type: event.type,
+      type: displayType, // Use display name for UI
+      // Preserve raw type value for filtering (enum string or ObjectId string)
+      rawType: event.type as unknown as string,
       organizer: event.organizer?.firstName
         ? `${event.organizer.firstName} ${event.organizer.lastName}`
         : "Unknown",
@@ -338,8 +454,8 @@ const EventsMeetups = () => {
         if (!matchesSearch) return false;
       }
 
-      // Event type filter
-      if (selectedEventType !== "all" && event.type !== selectedEventType)
+      // Event type filter (compare against rawType to support custom categories)
+      if (selectedEventType !== "all" && event.rawType !== selectedEventType)
         return false;
 
       // Location filter
@@ -366,27 +482,37 @@ const EventsMeetups = () => {
           return false;
       }
 
-      // Price filter
+      // Price filter (supports presets and custom ranges from categories)
       if (selectedPrice !== "all") {
         const eventPrice = parseFloat(
           event.price.replace("$", "").replace("Free", "0")
         );
-        switch (selectedPrice) {
-          case "free":
-            if (eventPrice > 0) return false;
-            break;
-          case "0-25":
-            if (eventPrice < 0 || eventPrice > 25) return false;
-            break;
-          case "25-50":
-            if (eventPrice < 25 || eventPrice > 50) return false;
-            break;
-          case "50-100":
-            if (eventPrice < 50 || eventPrice > 100) return false;
-            break;
-          case "100+":
-            if (eventPrice < 100) return false;
-            break;
+        const val = selectedPrice.toLowerCase();
+        if (val === "free") {
+          if (eventPrice > 0) return false;
+        } else if (val.includes("-")) {
+          const [minStr, maxStr] = val.split("-");
+          const min = parseFloat(minStr) || 0;
+          const max = parseFloat(maxStr) || Number.MAX_SAFE_INTEGER;
+          if (eventPrice < min || eventPrice > max) return false;
+        } else if (val.endsWith("+")) {
+          const min = parseFloat(val.replace("+", "")) || 0;
+          if (eventPrice < min) return false;
+        } else {
+          switch (val) {
+            case "0-25":
+              if (eventPrice < 0 || eventPrice > 25) return false;
+              break;
+            case "25-50":
+              if (eventPrice < 25 || eventPrice > 50) return false;
+              break;
+            case "50-100":
+              if (eventPrice < 50 || eventPrice > 100) return false;
+              break;
+            case "100+":
+              if (eventPrice < 100) return false;
+              break;
+          }
         }
       }
 
@@ -605,8 +731,8 @@ const EventsMeetups = () => {
     if (eventsList.length === 0) {
       const isFiltered = selectedEventType !== "all";
       const selectedTypeLabel =
-        eventTypes.find((type) => type.value === selectedEventType)?.label ||
-        selectedEventType;
+        eventTypeOptions.find((type) => type.value === selectedEventType)
+          ?.label || selectedEventType;
 
       return (
         <div className="text-center py-12">
@@ -1154,22 +1280,44 @@ const EventsMeetups = () => {
   };
 
   const getEventTypeIcon = (type: string) => {
-    switch (type) {
-      case "Virtual":
+    // Normalize type for comparison (handle custom categories and enum values)
+    const normalizedType = type.toLowerCase();
+    switch (normalizedType) {
+      case "webinar":
+      case "virtual":
         return <Video className="w-4 h-4" />;
-      case "Hybrid":
+      case "conference":
+      case "hybrid":
+        return <Users className="w-4 h-4" />;
+      case "workshop":
+        return <GraduationCap className="w-4 h-4" />;
+      case "career_fair":
+      case "career fair":
+        return <Building className="w-4 h-4" />;
+      case "reunion":
+      case "meetup":
         return <Users className="w-4 h-4" />;
       default:
-        return <MapPin className="w-4 h-4" />;
+        return <Calendar className="w-4 h-4" />;
     }
   };
 
   const getEventTypeBadge = (type: string) => {
-    switch (type) {
-      case "Virtual":
+    // Normalize type for comparison
+    const normalizedType = type.toLowerCase();
+    switch (normalizedType) {
+      case "webinar":
+      case "virtual":
         return "secondary";
-      case "Hybrid":
+      case "conference":
+      case "workshop":
+        return "default";
+      case "career_fair":
+      case "career fair":
         return "warning";
+      case "reunion":
+      case "meetup":
+        return "default";
       default:
         return "default";
     }
@@ -1251,15 +1399,11 @@ const EventsMeetups = () => {
                       <SelectValue placeholder="Select event type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Events</SelectItem>
-                      <SelectItem value="meetup">Meetup</SelectItem>
-                      <SelectItem value="workshop">Workshop</SelectItem>
-                      <SelectItem value="webinar">Webinar</SelectItem>
-                      <SelectItem value="conference">Conference</SelectItem>
-                      <SelectItem value="career_fair">Career Fair</SelectItem>
-                      <SelectItem value="reunion">Reunion</SelectItem>
-                      <SelectItem value="networking">Networking</SelectItem>
-                      <SelectItem value="seminar">Seminar</SelectItem>
+                      {eventTypeOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1275,21 +1419,11 @@ const EventsMeetups = () => {
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Locations</SelectItem>
-                      <SelectItem value="online">Online/Virtual</SelectItem>
-                      <SelectItem value="hybrid">Hybrid</SelectItem>
-                      <SelectItem value="campus">Campus</SelectItem>
-                      <SelectItem value="San Francisco">
-                        San Francisco
-                      </SelectItem>
-                      <SelectItem value="New York">New York</SelectItem>
-                      <SelectItem value="Seattle">Seattle</SelectItem>
-                      <SelectItem value="Los Angeles">Los Angeles</SelectItem>
-                      <SelectItem value="Chicago">Chicago</SelectItem>
-                      <SelectItem value="Boston">Boston</SelectItem>
-                      <SelectItem value="Austin">Austin</SelectItem>
-                      <SelectItem value="London">London</SelectItem>
-                      <SelectItem value="Toronto">Toronto</SelectItem>
+                      {locationOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1305,12 +1439,11 @@ const EventsMeetups = () => {
                       <SelectValue placeholder="Select price range" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Prices</SelectItem>
-                      <SelectItem value="free">Free</SelectItem>
-                      <SelectItem value="0-25">$0 - $25</SelectItem>
-                      <SelectItem value="25-50">$25 - $50</SelectItem>
-                      <SelectItem value="50-100">$50 - $100</SelectItem>
-                      <SelectItem value="100+">$100+</SelectItem>
+                      {priceOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

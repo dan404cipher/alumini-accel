@@ -1718,12 +1718,12 @@ const CommunityNew = () => {
   };
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
+    <div className="flex gap-4 h-screen w-full overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden">
-          <div className="fixed inset-y-0 left-0 z-50 w-80 bg-background shadow-xl">
-            <div className="sticky top-0 h-screen overflow-y-auto p-6">
+        <div className="fixed inset-y-0 left-0 z-50 w-96 bg-background shadow-xl">
+            <div className="sticky top-0 h-screen overflow-y-auto p-4">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold">Filters</h2>
                 <Button
@@ -1736,9 +1736,9 @@ const CommunityNew = () => {
               </div>
 
               <Card className="h-fit">
-                <CardContent className="p-6">
+                <CardContent className="p-4">
                   {/* Search */}
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 mb-4">
                     <h3 className="text-sm font-semibold">
                       Search Communities
                     </h3>
@@ -1764,27 +1764,23 @@ const CommunityNew = () => {
                   </div>
 
                   {/* Categories */}
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 mb-4">
                     <h3 className="text-sm font-semibold">Categories</h3>
-                    <div className="space-y-2">
-                      {categories.map((category) => {
-                        const Icon = category.icon;
-                        const isActive = selectedCategory === category.id;
-
-                        return (
-                          <Button
-                            key={category.id}
-                            variant={isActive ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => setSelectedCategory(category.id)}
-                            className="w-full justify-start"
-                          >
-                            <Icon className="w-4 h-4 mr-2" />
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={(v) => setSelectedCategory(v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
                             {category.name}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Quick Actions - Only show if user can create communities */}
@@ -2332,6 +2328,141 @@ const CommunityNew = () => {
                         </div>
                       </div>
                     )}
+                  {/* Top Communities (Mobile Sidebar) */}
+                  <Card className="mt-6">
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <TrendingUp className="w-5 h-5 mr-2" />
+                        Top Communities
+                      </CardTitle>
+                      <CardDescription>Most active communities this week</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {loadingSidebar ? (
+                        <div className="space-y-4">
+                          {[...Array(5)].map((_, i) => (
+                            <div key={i} className="flex items-center space-x-3 p-3 rounded-lg">
+                              <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+                              <div className="flex-1 space-y-2">
+                                <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                                <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : topCommunities.length > 0 ? (
+                        <div className="space-y-3">
+                          {topCommunities.map((community, index) => (
+                            <div
+                              key={community.id}
+                              className="group flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-white shadow-sm hover:shadow transition-all cursor-pointer"
+                              onClick={() => navigate(`/community/${community.id}`)}
+                            >
+                              <div className="relative">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+                                  {index + 1}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                    {community.name}
+                                  </h4>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${community.isPublic ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                                    {community.isPublic ? "Public" : "Private"}
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-600">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Users className="w-3 h-3" />
+                                    {community.memberCount.toLocaleString()}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <MessageCircle className="w-3 h-3" />
+                                    {community.postCount}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                className="text-xs px-2.5 py-1 rounded-md border bg-white hover:bg-gray-50 text-gray-700"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No Communities Yet</h3>
+                          <p className="text-sm text-gray-600">Communities will appear here once they're created.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Popular Tags (Mobile Sidebar) */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Star className="w-5 h-5 mr-2" />
+                        Popular Tags
+                      </CardTitle>
+                      <CardDescription>Trending topics in the community</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {loadingSidebar ? (
+                        <div className="flex flex-wrap gap-2">
+                          {[...Array(8)].map((_, i) => (
+                            <div key={i} className="h-6 bg-gray-200 rounded animate-pulse" style={{ width: `${Math.random() * 60 + 40}px` }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {popularTags.map((tag) => (
+                            <Badge
+                              key={tag.name}
+                              variant="secondary"
+                              className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}
+                            >
+                              #{tag.name}
+                              <span className="ml-1 text-xs opacity-70">({tag.count})</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Community Stats (Mobile Sidebar) */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <BarChart3 className="w-5 h-5 mr-2" />
+                        Community Stats
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Total Communities</span>
+                          <span className="text-sm font-semibold">47</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Active Members</span>
+                          <span className="text-sm font-semibold">2,847</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Posts This Week</span>
+                          <span className="text-sm font-semibold">156</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">New Communities</span>
+                          <span className="text-sm font-semibold">3</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </CardContent>
               </Card>
             </div>
@@ -2340,12 +2471,12 @@ const CommunityNew = () => {
       )}
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block w-80 flex-shrink-0 bg-background">
+      <div className="hidden lg:block w-96 flex-shrink-0 bg-background">
         <div className="sticky top-0 h-screen overflow-y-auto p-6">
           <Card className="h-fit">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               {/* Search */}
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 mb-4">
                 <h3 className="text-sm font-semibold">Search Communities</h3>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -2369,27 +2500,23 @@ const CommunityNew = () => {
               </div>
 
               {/* Categories */}
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 mb-4">
                 <h3 className="text-sm font-semibold">Categories</h3>
-                <div className="space-y-2">
-                  {categories.map((category) => {
-                    const Icon = category.icon;
-                    const isActive = selectedCategory === category.id;
-
-                    return (
-                      <Button
-                        key={category.id}
-                        variant={isActive ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setSelectedCategory(category.id)}
-                        className="w-full justify-start"
-                      >
-                        <Icon className="w-4 h-4 mr-2" />
+                <Select
+                  value={selectedCategory}
+                  onValueChange={(v) => setSelectedCategory(v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
                         {category.name}
-                      </Button>
-                    );
-                  })}
-                </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Quick Actions - Only show if user can create communities */}
@@ -2412,6 +2539,128 @@ const CommunityNew = () => {
                     </div>
                   </div>
                 )}
+
+              {/* Top Communities (Desktop Left Sidebar) */}
+              <div className="pt-4 space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <TrendingUp className="w-5 h-5 mr-2" />
+                      Top Communities
+                    </CardTitle>
+                    <CardDescription>Most active communities this week</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingSidebar ? (
+                      <div className="space-y-4">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="flex items-center space-x-3 p-3 rounded-lg">
+                            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                              <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : topCommunities.length > 0 ? (
+                      <div className="space-y-3">
+                        {topCommunities.map((community, index) => (
+                          <div
+                            key={community.id}
+                            className="group flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-white shadow-sm hover:shadow transition-all cursor-pointer"
+                            onClick={() => navigate(`/community/${community.id}`)}
+                          >
+                            <div className="relative">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+                                {index + 1}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                  {community.name}
+                                </h4>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${community.isPublic ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                                  {community.isPublic ? "Public" : "Private"}
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-600">
+                                <span className="inline-flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  {community.memberCount.toLocaleString()}
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                  <MessageCircle className="w-3 h-3" />
+                                  {community.postCount}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              className="text-xs px-2.5 py-1 rounded-md border bg-white hover:bg-gray-50 text-gray-700"
+                            >
+                              View
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Communities Yet</h3>
+                        <p className="text-sm text-gray-600">Communities will appear here once they're created.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Popular Tags */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Star className="w-5 h-5 mr-2" />
+                      Popular Tags
+                    </CardTitle>
+                    <CardDescription>Trending topics in the community</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingSidebar ? (
+                      <div className="flex flex-wrap gap-2">
+                        {[...Array(8)].map((_, i) => (
+                          <div key={i} className="h-6 bg-gray-200 rounded animate-pulse" style={{ width: `${Math.random() * 60 + 40}px` }} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {popularTags.map((tag) => (
+                          <Badge key={tag.name} variant="secondary" className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}>
+                            #{tag.name}
+                            <span className="ml-1 text-xs opacity-70">({tag.count})</span>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Community Stats */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Community Stats
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Total Communities</span><span className="text-sm font-semibold">47</span></div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Active Members</span><span className="text-sm font-semibold">2,847</span></div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Posts This Week</span><span className="text-sm font-semibold">156</span></div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">New Communities</span><span className="text-sm font-semibold">3</span></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -2905,7 +3154,7 @@ const CommunityNew = () => {
                 {/* Community Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <Card>
-                    <CardContent className="p-6">
+            <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-600">
@@ -2921,7 +3170,7 @@ const CommunityNew = () => {
                   </Card>
 
                   <Card>
-                    <CardContent className="p-6">
+            <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-600">
@@ -2937,7 +3186,7 @@ const CommunityNew = () => {
                   </Card>
 
                   <Card>
-                    <CardContent className="p-6">
+            <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-600">
@@ -3155,155 +3404,6 @@ const CommunityNew = () => {
         </Tabs>
       </div>
 
-      {/* Right Sidebar - Top Communities & Popular Tags */}
-      <div className="block w-80 flex-shrink-0 bg-gray-50">
-        <div className="sticky top-0 h-screen overflow-y-auto p-4 space-y-6">
-          {/* Top Communities */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="w-5 h-5 mr-2" />
-                Top Communities
-              </CardTitle>
-              <CardDescription>
-                Most active communities this week
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingSidebar ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center space-x-3 p-3 rounded-lg"
-                    >
-                      <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-gray-200 rounded animate-pulse" />
-                        <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : topCommunities.length > 0 ? (
-                <div className="space-y-4">
-                  {topCommunities.map((community, index) => (
-                    <div
-                      key={community.id}
-                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/community/${community.id}`)}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-gray-900 truncate">
-                          {community.name}
-                        </h4>
-                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                          <Users className="w-3 h-3" />
-                          <span>{community.memberCount.toLocaleString()}</span>
-                          <MessageCircle className="w-3 h-3" />
-                          <span>{community.postCount}</span>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {community.isPublic ? "Public" : "Private"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No Communities Yet
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Communities will appear here once they're created.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Popular Tags */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Star className="w-5 h-5 mr-2" />
-                Popular Tags
-              </CardTitle>
-              <CardDescription>
-                Trending topics in the community
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingSidebar ? (
-                <div className="flex flex-wrap gap-2">
-                  {[...Array(8)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-6 bg-gray-200 rounded animate-pulse"
-                      style={{ width: `${Math.random() * 60 + 40}px` }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {popularTags.map((tag, index) => (
-                    <Badge
-                      key={tag.name}
-                      variant="secondary"
-                      className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}
-                      onClick={() => {
-                        // TODO: Implement tag filtering
-                      }}
-                    >
-                      #{tag.name}
-                      <span className="ml-1 text-xs opacity-70">
-                        ({tag.count})
-                      </span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <BarChart3 className="w-5 h-5 mr-2" />
-                Community Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
-                    Total Communities
-                  </span>
-                  <span className="text-sm font-semibold">47</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Active Members</span>
-                  <span className="text-sm font-semibold">2,847</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Posts This Week</span>
-                  <span className="text-sm font-semibold">156</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">New Communities</span>
-                  <span className="text-sm font-semibold">3</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
       {/* Shared Create Community Dialog - Triggered by all buttons */}
       <Dialog open={communityDialogOpen} onOpenChange={setCommunityDialogOpen}>

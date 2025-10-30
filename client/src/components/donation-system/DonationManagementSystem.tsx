@@ -19,11 +19,20 @@ import ShareModal from "./modals/ShareModal";
 import CampaignDetailsModal from "./modals/CampaignDetailsModal";
 import { formatINR } from "./utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { categoryAPI } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const DonationManagementSystem: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const [donationCategories, setDonationCategories] = useState<string[]>([]);
 
   const {
     campaigns,
@@ -79,6 +88,29 @@ const DonationManagementSystem: React.FC = () => {
       }
     }
   }, [searchParams, campaigns, handleViewCampaignDetails, setSearchParams]);
+
+  // Load donation categories dynamically per tenant
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "donation_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDonationCategories(names);
+      } catch (e) {
+        // fallback to no categories silently
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="flex gap-6 h-screen w-full overflow-hidden">
@@ -147,22 +179,31 @@ const DonationManagementSystem: React.FC = () => {
               {/* Category Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Filter Categories</label>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                <Select
+                  value={categoryFilter || "__all__"}
+                  onValueChange={(v) =>
+                    setCategoryFilter(v === "__all__" ? "" : v)
+                  }
                 >
-                  <option value="">All Categories</option>
-                  <option value="Infrastructure">Infrastructure</option>
-                  <option value="Scholarships & Student Support">
-                    Scholarships
-                  </option>
-                  <option value="Research & Academics">Research</option>
-                  <option value="Sports, Arts & Culture">
-                    Sports & Culture
-                  </option>
-                  <option value="Community & Social Impact">Community</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Categories</SelectItem>
+                    {donationCategories.length === 0 ? null : (
+                      donationCategories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))
+                    )}
+                    {donationCategories.length === 0 && (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved categories
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Create Campaign Button - Only for Admin Roles */}
@@ -189,27 +230,7 @@ const DonationManagementSystem: React.FC = () => {
           {/* Header */}
           <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 lg:mb-6 gap-4">
-              <div className="flex-1">
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
-                  <svg
-                    className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    />
-                  </svg>
-                  <span className="break-words">Donation Management</span>
-                </h1>
-                <p className="text-sm sm:text-base text-gray-600 mt-2 max-w-2xl">
-                  Manage donations and fundraising campaigns
-                </p>
-              </div>
+              
               <div className="flex-shrink-0 lg:hidden">
                 <Button
                   variant="outline"

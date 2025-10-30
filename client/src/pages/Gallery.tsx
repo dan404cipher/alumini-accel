@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
-import { galleryAPI } from "@/lib/api";
+import { galleryAPI, categoryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/ui/Pagination";
@@ -101,6 +101,7 @@ const Gallery: React.FC = () => {
   const [itemsPerPage] = useState(12);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [galleryCategories, setGalleryCategories] = useState<string[]>([]);
 
   // Filter galleries based on search and filter criteria
   const filterGalleries = (galleryItems: GalleryItem[]) => {
@@ -220,14 +221,28 @@ const Gallery: React.FC = () => {
   );
   const [showGalleryDetail, setShowGalleryDetail] = useState(false);
 
-  const categories = [
-    "Events",
-    "Campus",
-    "Sports",
-    "Academic",
-    "Cultural",
-    "Other",
-  ];
+  // Load gallery categories dynamically per tenant
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "gallery_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setGalleryCategories(names);
+      } catch (_e) {
+        // keep empty list
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Check if user can create galleries (HOD, Staff, College Admin only)
   const canCreateGallery =
@@ -570,11 +585,17 @@ const Gallery: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
+                        {galleryCategories.length === 0 ? (
+                          <SelectItem value="" disabled>
+                            No saved categories
                           </SelectItem>
-                        ))}
+                        ) : (
+                          galleryCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -923,11 +944,17 @@ const Gallery: React.FC = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                    {galleryCategories.length === 0 ? (
+                      <SelectItem value="" disabled>
+                        No saved categories
                       </SelectItem>
-                    ))}
+                    ) : (
+                      galleryCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

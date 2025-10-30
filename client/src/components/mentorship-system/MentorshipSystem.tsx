@@ -24,6 +24,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMentorshipManagement } from "./hooks/useMentorshipManagement";
+import { categoryAPI } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MentorCard } from "./components/MentorCard";
 import { RequestCard } from "./components/RequestCard";
 import { MentorModal } from "./modals/MentorModal";
@@ -143,6 +151,7 @@ const MentorshipSystem: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
 
   // Mentorship management state
   const [myMentorships, setMyMentorships] = useState<IMentorship[]>([]);
@@ -273,6 +282,29 @@ const MentorshipSystem: React.FC = () => {
     loadMyMentorships();
   }, [loadMyMentorships]);
 
+  // Load mentorship industries from categories
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "mentorship_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setIndustryOptions(names);
+      } catch (_e) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const {
     // State: mentors, requests, activeTab, openForm, openRequestForm, selectedMentor, contentModal, filters
     mentors,
@@ -363,37 +395,55 @@ const MentorshipSystem: React.FC = () => {
               {/* Industry Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Industry</label>
-                <select
-                  value={filters.selectedIndustry}
-                  onChange={(e) =>
-                    updateFilters({ selectedIndustry: e.target.value })
+                <Select
+                  value={filters.selectedIndustry || "__all__"}
+                  onValueChange={(v) =>
+                    updateFilters({ selectedIndustry: v === "__all__" ? "" : v })
                   }
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">All Industries</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Education">Education</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Healthcare">Healthcare</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Industries" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Industries</SelectItem>
+                    {industryOptions.length === 0 ? null : (
+                      industryOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))
+                    )}
+                    {industryOptions.length === 0 && (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved categories
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Experience Level */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Experience Level</label>
-                <select
-                  value={filters.selectedExperienceLevel}
-                  onChange={(e) =>
-                    updateFilters({ selectedExperienceLevel: e.target.value })
+                <Select
+                  value={filters.selectedExperienceLevel || "__all__"}
+                  onValueChange={(v) =>
+                    updateFilters({
+                      selectedExperienceLevel: v === "__all__" ? "" : v,
+                    })
                   }
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">All Levels</option>
-                  <option value="Entry Level">Entry Level</option>
-                  <option value="Mid Level">Mid Level</option>
-                  <option value="Senior Level">Senior Level</option>
-                  <option value="Expert Level">Expert Level</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Levels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Levels</SelectItem>
+                    <SelectItem value="Entry Level">Entry Level</SelectItem>
+                    <SelectItem value="Mid Level">Mid Level</SelectItem>
+                    <SelectItem value="Senior Level">Senior Level</SelectItem>
+                    <SelectItem value="Expert Level">Expert Level</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Register as Mentor Button */}
@@ -416,7 +466,7 @@ const MentorshipSystem: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm mb-4 sm:mb-6">
             <div className="p-4 sm:p-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 lg:mb-6 gap-4">
-                <div className="flex-1">
+                {/* <div className="flex-1">
                   <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
                     <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
                     <span className="break-words">Mentorship Program</span>
@@ -425,7 +475,7 @@ const MentorshipSystem: React.FC = () => {
                     Connect with experienced professionals and accelerate your
                     career growth
                   </p>
-                </div>
+                </div> */}
 
                 <div className="flex-shrink-0 lg:hidden">
                   <Button

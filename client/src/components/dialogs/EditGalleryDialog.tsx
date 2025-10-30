@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Upload, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { galleryAPI } from "@/lib/api";
+import { galleryAPI, categoryAPI } from "@/lib/api";
 
 interface GalleryItem {
   _id: string;
@@ -57,16 +57,29 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
 
-  const categories = [
-    "Events",
-    "Campus Life",
-    "Sports",
-    "Academic",
-    "Social",
-    "Cultural",
-    "Alumni Meet",
-    "Other",
-  ];
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "gallery_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setCategories(names);
+      } catch (_e) {
+        // keep empty
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Initialize form data when gallery changes
   useEffect(() => {
@@ -256,11 +269,17 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                {categories.length === 0 ? (
+                  <SelectItem value="" disabled>
+                    No saved categories
                   </SelectItem>
-                ))}
+                ) : (
+                  categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

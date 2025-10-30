@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -873,25 +873,54 @@ const CollegeAdminDashboard = () => {
     };
   }, [user?.tenantId]);
 
+  const [activeTab, setActiveTab] = useState("dashboard");
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pt-20">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">College Admin Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage your college's alumni network and operations
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex h-[calc(100vh-5rem)] overflow-hidden">
+        {/* Sidebar */}
+        <aside className="hidden lg:block w-64 flex-shrink-0 bg-white border-r">
+          <div className="p-4 space-y-2">
+            {[
+              { key: "dashboard", label: "Dashboard" },
+              { key: "college", label: "College Settings" },
+              { key: "admin-staff", label: "Admin & Staff" },
+              { key: "alumni", label: "Alumni" },
+              { key: "categories", label: "Categories" },
+              { key: "fundraisers", label: "Campaign" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setActiveTab(item.key)}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                  activeTab === item.key
+                    ? "bg-blue-50 text-blue-700"
+                    : "hover:bg-gray-50 text-gray-700"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
-          <Badge variant="outline" className="text-sm">
-            <Building2 className="w-4 h-4 mr-2" />
-            College Admin
-          </Badge>
-        </div>
+        </aside>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* Header - only on Dashboard tab */}
+        {activeTab === "dashboard" && (
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">College Admin Dashboard</h1>
+              <p className="text-muted-foreground">
+                Manage your college's alumni network and operations
+              </p>
+            </div>
+            <Badge variant="outline" className="text-sm">
+              <Building2 className="w-4 h-4 mr-2" />
+              College Admin
+            </Badge>
+          </div>
+        )}
 
-        {/* College Banner Display */}
-        {bannerPreview && (
+        {/* College Banner Display - only on Dashboard tab */}
+        {activeTab === "dashboard" && bannerPreview && (
           <div className="relative overflow-hidden rounded-lg shadow-lg">
             <img
               src={bannerPreview}
@@ -912,40 +941,8 @@ const CollegeAdminDashboard = () => {
           </div>
         )}
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </TabsTrigger>
-            <TabsTrigger value="college" className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">College Settings</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="admin-staff"
-              className="flex items-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Admin & Staff</span>
-            </TabsTrigger>
-            <TabsTrigger value="alumni" className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4" />
-              <span className="hidden sm:inline">Alumni</span>
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Categories</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="fundraisers"
-              className="flex items-center gap-2"
-            >
-              <DollarSign className="w-4 h-4" />
-              <span className="hidden sm:inline">Fundraisers</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Main Content controlled by sidebar */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
 
           {/* Dashboard Overview */}
           <TabsContent value="dashboard" className="space-y-6">
@@ -1933,6 +1930,7 @@ const CollegeAdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
     </div>
   );
 };

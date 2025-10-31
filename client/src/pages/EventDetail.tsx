@@ -30,7 +30,7 @@ import {
   Share2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { eventAPI } from "@/lib/api";
+import { eventAPI, categoryAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { EditEventDialog } from "@/components/dialogs/EditEventDialog";
 import { DeleteEventDialog } from "@/components/dialogs/DeleteEventDialog";
@@ -88,6 +88,8 @@ const EventDetail = () => {
   const [isShareEventOpen, setIsShareEventOpen] = useState(false);
   const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
   const [isRegistered, setIsRegistered] = useState(false);
+  const [isPendingPayment, setIsPendingPayment] = useState(false);
+  const [typeLabel, setTypeLabel] = useState<string>("");
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
 
   // Fetch event data
@@ -108,13 +110,43 @@ const EventDetail = () => {
   // Check if user is registered for this event
   useEffect(() => {
     if (event && user) {
-      const userRegistered = event.attendees?.some(
+      const myAttendee = event.attendees?.find(
         (attendee: any) =>
           attendee.userId?._id === user._id || attendee.userId === user._id
       );
-      setIsRegistered(!!userRegistered);
+      setIsRegistered(!!myAttendee && myAttendee.status === "registered");
+      setIsPendingPayment(!!myAttendee && myAttendee.status === "pending_payment");
+    } else {
+      setIsRegistered(false);
+      setIsPendingPayment(false);
     }
   }, [event, user]);
+
+  // Resolve type label when type is an ObjectId
+  useEffect(() => {
+    const resolveType = async () => {
+      if (!event?.type) {
+        setTypeLabel("");
+        return;
+      }
+      const rawType = event.type as unknown as string;
+      // If looks like ObjectId, fetch category name
+      if (/^[0-9a-fA-F]{24}$/.test(rawType)) {
+        try {
+          const res = await categoryAPI.getById(rawType);
+          const name = (res as any)?.data?.name || (res as any)?.data?.category?.name;
+          setTypeLabel(name || "");
+        } catch {
+          setTypeLabel("");
+        }
+      } else {
+        // Enum string – prettify
+        const pretty = rawType.charAt(0).toUpperCase() + rawType.slice(1).replace("_", " ");
+        setTypeLabel(pretty);
+      }
+    };
+    resolveType();
+  }, [event?.type]);
 
   // Load saved events from localStorage
   useEffect(() => {
@@ -205,7 +237,7 @@ const EventDetail = () => {
   // Helper function to format price
   const formatPrice = (price: number | undefined) => {
     if (price === undefined || price === null || price === 0) return "Free";
-    return `$${price.toFixed(2)}`;
+    return `₹${price.toFixed(2)}`;
   };
 
   // Helper function to format registration deadline
@@ -277,7 +309,8 @@ const EventDetail = () => {
 
   // Helper function to get event type icon
   const getEventTypeIcon = (type: string) => {
-    switch (type.toLowerCase()) {
+    const norm = (typeLabel || type || "").toString().toLowerCase();
+    switch (norm) {
       case "webinar":
         return <Video className="w-4 h-4" />;
       case "workshop":
@@ -373,8 +406,7 @@ const EventDetail = () => {
                   {event.title}
                 </CardTitle>
                 <CardDescription className="text-xl text-gray-600 mb-4">
-                  {event.type.charAt(0).toUpperCase() +
-                    event.type.slice(1).replace("_", " ")}
+                  {typeLabel || "Type"}
                 </CardDescription>
 
                 {/* Event Meta Info */}
@@ -443,6 +475,14 @@ const EventDetail = () => {
                     <Button variant="secondary" className="flex-1 sm:flex-none">
                       <Users className="w-4 h-4 mr-2" />
                       Registered
+                    </Button>
+                  ) : isPendingPayment ? (
+                    <Button
+                      onClick={handleRegister}
+                      className="flex-1 sm:flex-none bg-yellow-600 hover:bg-yellow-700"
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      Complete Payment
                     </Button>
                   ) : (
                     <Button
@@ -533,8 +573,7 @@ const EventDetail = () => {
                   <div className="flex items-center">
                     {getEventTypeIcon(event.type)}
                     <span className="ml-2">
-                      {event.type.charAt(0).toUpperCase() +
-                        event.type.slice(1).replace("_", " ")}
+                      {typeLabel || "Type"}
                     </span>
                   </div>
                 </div>
@@ -754,8 +793,7 @@ const EventDetail = () => {
                   <div className="flex items-center">
                     {getEventTypeIcon(event.type)}
                     <span className="ml-1">
-                      {event.type.charAt(0).toUpperCase() +
-                        event.type.slice(1).replace("_", " ")}
+                      {typeLabel || "Type"}
                     </span>
                   </div>
                 </div>
@@ -905,17 +943,13 @@ const EventDetail = () => {
                 minute: "2-digit",
               }),
               location: event.location,
-              price: event.price ? `$${event.price}` : "Free",
+              price: event.price ? `₹${event.price}` : "Free",
               maxAttendees: event.maxAttendees || 0,
               attendees: event.currentAttendees || 0,
             }}
             onRegistrationSuccess={() => {
-              setIsRegistered(true);
-              toast({
-                title: "Registration Successful!",
-                description: "You have successfully registered for this event.",
-                variant: "default",
-              });
+              // Refresh event data to get latest attendee status
+              window.location.reload();
             }}
           />
         )}

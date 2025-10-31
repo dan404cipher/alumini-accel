@@ -16,12 +16,13 @@ const eventSchema = new Schema<IEvent>(
       maxlength: [2000, "Description cannot exceed 2000 characters"],
     },
     type: {
-      type: Schema.Types.Mixed, // Can be String (enum) or ObjectId (custom)
+      type: Schema.Types.Mixed, // Can be String (enum or stringified ObjectId) or ObjectId (custom)
       required: true,
       validate: {
         validator: function (value: any) {
-          // If it's a string, check if it's in the enum
           if (typeof value === "string") {
+            // Accept stringified ObjectId or enum string
+            if (mongoose.Types.ObjectId.isValid(value)) return true;
             return Object.values(EventType).includes(value as EventType);
           }
           // If it's an ObjectId, it's valid

@@ -34,6 +34,7 @@ export const getAllEvents = async (req: Request, res: Response) => {
     const events = await Event.find(filter)
       .populate("organizer", "firstName lastName email profilePicture")
       .populate("customEventType", "name")
+      .select("+attendees") // Ensure attendees are included in response
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
@@ -551,18 +552,41 @@ export const registerForEvent = async (req: Request, res: Response) => {
       (attendee) => attendee.userId.toString() === req.user.id
     );
 
-    if (existingRegistration) {
+    // Extract additional registration details from request body
+    const { phone, dietaryRequirements, emergencyContact, additionalNotes } =
+      req.body;
+
+    // If already registered (not pending), block duplicate
+    if (existingRegistration && existingRegistration.status === "registered") {
       return res.status(400).json({
         success: false,
         message: "You are already registered for this event",
       });
     }
 
-    // Extract additional registration details from request body
-    const { phone, dietaryRequirements, emergencyContact, additionalNotes } =
-      req.body;
+    // If pending payment, allow resuming payment
+    if (existingRegistration && existingRegistration.status === "pending_payment") {
+      // Update registration details if provided
+      if (phone) existingRegistration.phone = phone;
+      if (dietaryRequirements) existingRegistration.dietaryRequirements = dietaryRequirements;
+      if (emergencyContact) existingRegistration.emergencyContact = emergencyContact;
+      if (additionalNotes) existingRegistration.additionalNotes = additionalNotes;
+      await event.save();
 
-    // Free vs Paid flow
+      return res.json({
+        success: true,
+        message: "Payment required to complete registration",
+        data: {
+          status: "pending_payment",
+          paymentRequired: true,
+          amount: event.price,
+          currency: "INR",
+          attendee: existingRegistration,
+        },
+      });
+    }
+
+    // Free vs Paid flow (new registration)
     if (!event.price || event.price === 0) {
       // Free event: register immediately
       const attendee = {

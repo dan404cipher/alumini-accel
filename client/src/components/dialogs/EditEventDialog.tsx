@@ -75,14 +75,10 @@ export const EditEventDialog = ({
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [eventTypes, setEventTypes] = useState<
     Array<{ value: string; label: string }>
-  >([
-    { value: "meetup", label: "Meetup" },
-    { value: "workshop", label: "Workshop" },
-    { value: "webinar", label: "Webinar" },
-    { value: "conference", label: "Conference" },
-    { value: "career_fair", label: "Career Fair" },
-    { value: "reunion", label: "Reunion" },
-  ]);
+  >([]);
+  const [locationOptions, setLocationOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -121,11 +117,10 @@ export const EditEventDialog = ({
           entityType: "event_type",
           isActive: "true",
         });
-        console.log("Event types API response (EditDialog):", response);
 
         if (response.success && response.data && Array.isArray(response.data)) {
           const customTypes = response.data.map((cat: any) => ({
-            value: cat.name,
+            value: cat._id, // Use ObjectId as value
             label: cat.name,
           }));
           setEventTypes(customTypes);
@@ -133,7 +128,6 @@ export const EditEventDialog = ({
           setEventTypes([]);
         }
       } catch (error) {
-        console.error("Failed to fetch event types (EditDialog):", error);
         setEventTypes([]);
       }
     };
@@ -141,6 +135,30 @@ export const EditEventDialog = ({
     if (open) {
       fetchEventTypes();
     }
+  }, [open]);
+
+  // Fetch event location categories (dynamic only)
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_location",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const opts = response.data.map((c: any) => ({
+            value: c.name,
+            label: c.name,
+          }));
+          setLocationOptions(opts);
+        } else {
+          setLocationOptions([]);
+        }
+      } catch (_e) {
+        setLocationOptions([]);
+      }
+    };
+    if (open) fetchLocations();
   }, [open]);
 
   // Populate form data when event changes
@@ -160,6 +178,9 @@ export const EditEventDialog = ({
       const isValidRegistrationDeadline =
         registrationDeadline && !isNaN(registrationDeadline.getTime());
 
+      // Keep ObjectId if provided; if legacy string, leave as-is (may not match any current category)
+      const eventTypeValue = event.type || "";
+
       setFormData({
         title: event.title || "",
         description: event.description || "",
@@ -170,7 +191,7 @@ export const EditEventDialog = ({
         endDate: isValidEndDate ? endDate.toISOString().split("T")[0] : "",
         endTime: isValidEndDate ? endDate.toTimeString().slice(0, 5) : "",
         location: event.location || "",
-        type: event.type || "",
+        type: eventTypeValue,
         maxAttendees: event.maxAttendees?.toString() || "",
         price: event.price?.toString() || "",
         priceType: event.price > 0 ? "paid" : "free",
@@ -504,7 +525,7 @@ export const EditEventDialog = ({
       const eventData: any = {
         title: trimmedTitle,
         description: trimmedDescription,
-        type: formData.type,
+        type: formData.type, // formData.type holds ObjectId from Select
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         location: trimmedLocation,
@@ -611,7 +632,6 @@ export const EditEventDialog = ({
         return;
       }
     } catch (error: any) {
-      console.error("Unexpected error updating event:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -950,10 +970,10 @@ export const EditEventDialog = ({
                 )}
                 {formData.priceType === "paid" && (
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (USD) *</Label>
+                    <Label htmlFor="price">Price (INR) *</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                        $
+                        ₹
                       </span>
                       <Input
                         id="price"

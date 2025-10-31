@@ -90,6 +90,11 @@ interface Event {
   tags?: string[];
   price?: number;
   registrationDeadline?: string;
+  attendees?: Array<{
+    userId: string | { _id: string };
+    status: "registered" | "pending_payment" | "attended" | "cancelled";
+    paymentStatus?: string;
+  }>;
 }
 
 interface MappedEvent {
@@ -356,6 +361,21 @@ const EventsMeetups = () => {
     setRegisteredEventIds(new Set(events.map((e) => e._id)));
   }, [myRegsResponse]);
 
+  // Helper function to get user's registration status for an event
+  const getUserRegistrationStatus = (eventId: string): "registered" | "pending_payment" | null => {
+    if (!user) return null;
+    const originalEvent = apiEvents.find((e: Event) => e._id === eventId);
+    if (!originalEvent || !originalEvent.attendees) return null;
+    const myAttendee = originalEvent.attendees.find((attendee: any) => {
+      const userId = typeof attendee.userId === "string" ? attendee.userId : attendee.userId?._id;
+      return userId === user._id;
+    });
+    if (!myAttendee) return null;
+    if (myAttendee.status === "registered") return "registered";
+    if (myAttendee.status === "pending_payment") return "pending_payment";
+    return null;
+  };
+
   const mappedEvents = apiEvents.map((event: Event): MappedEvent => {
     // Use typeDisplayName if available (for custom categories), otherwise use type
     const displayType = event.typeDisplayName || event.type;
@@ -381,7 +401,7 @@ const EventsMeetups = () => {
       image: event.image,
       tags: event.tags || [],
       featured: false,
-      price: event.price ? `$${event.price}` : "Free",
+      price: event.price ? `₹${event.price}` : "Free",
       registrationDeadline: event.registrationDeadline,
     };
   });
@@ -1008,27 +1028,47 @@ const EventsMeetups = () => {
                           ? "Event Full"
                           : "Registration Closed"}
                       </Button>
-                    ) : registeredEventIds.has(event.id) ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="flex-1 text-xs lg:text-sm"
-                        onClick={() => navigate(`/events/${event.id}`)}
-                      >
-                        Registered
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="flex-1 text-xs lg:text-sm"
-                        onClick={() => {
-                          setSelectedEventForRegistration(event);
-                          setIsRegistrationOpen(true);
-                        }}
-                      >
-                        Register
-                      </Button>
-                    )}
+                    ) : (() => {
+                      const registrationStatus = getUserRegistrationStatus(event.id);
+                      if (registrationStatus === "registered") {
+                        return (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="flex-1 text-xs lg:text-sm"
+                            onClick={() => navigate(`/events/${event.id}`)}
+                          >
+                            Registered
+                          </Button>
+                        );
+                      }
+                      if (registrationStatus === "pending_payment") {
+                        return (
+                          <Button
+                            size="sm"
+                            className="flex-1 text-xs lg:text-sm bg-yellow-600 hover:bg-yellow-700"
+                            onClick={() => {
+                              setSelectedEventForRegistration(event);
+                              setIsRegistrationOpen(true);
+                            }}
+                          >
+                            Complete Payment
+                          </Button>
+                        );
+                      }
+                      return (
+                        <Button
+                          size="sm"
+                          className="flex-1 text-xs lg:text-sm"
+                          onClick={() => {
+                            setSelectedEventForRegistration(event);
+                            setIsRegistrationOpen(true);
+                          }}
+                        >
+                          Register
+                        </Button>
+                      );
+                    })()}
                     {canManageEvents && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

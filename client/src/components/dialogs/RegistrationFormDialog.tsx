@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Clock, Users, DollarSign } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, IndianRupee } from "lucide-react";
 import { eventAPI } from "@/lib/api";
+import RazorpayService from "@/services/razorpayService";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 interface Event {
@@ -55,6 +57,7 @@ export const RegistrationFormDialog = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { user } = useAuth();
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -93,27 +96,107 @@ export const RegistrationFormDialog = ({
         };
 
         if (data.paymentRequired) {
-          // For paid events, show payment info and process
-          const paymentAmount = data.amount || 0;
+          // For paid events, create Razorpay order and open checkout
+          const paymentAmount = data.amount || 0; // rupees
           const currency = data.currency || "INR";
 
-          // TODO: Integrate with actual payment gateway (Razorpay/Stripe)
-          // For now, simulate payment success
-          const confirmRes = await eventAPI.confirmRegistration(event.id);
-
-          if (confirmRes.success) {
-            onRegistrationSuccess();
-            onClose();
+          if (!user?._id) {
             toast({
-              title: "Registration Confirmed!",
-              description: `Payment of ${currency} ${paymentAmount} processed successfully.`,
-              variant: "default",
+              title: "Authentication required",
+              description: "Please login again to complete payment.",
+              variant: "destructive",
             });
-          } else {
+            return;
+          }
+
+          try {
+            const rp = RazorpayService.getInstance();
+            const orderResult = await rp.createEventOrder({
+              amount: paymentAmount,
+              eventId: event.id,
+              userId: user._id,
+            });
+
+            if (!orderResult.success || !orderResult.data) {
+              toast({
+                title: "Payment Error",
+                description:
+                  orderResult.message || "Could not create payment order.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            const { orderId, amount: orderAmount, keyId } = orderResult.data;
+
+            // Close the dialog before opening Razorpay to avoid overlay/focus trap blocking clicks
+            onClose();
+
+            await rp.openPaymentModal({
+              key: keyId,
+              amount: orderAmount, // paise
+              currency,
+              name: event.title || "Event Registration",
+              description: `Registration for ${event.title || "event"}`,
+              order_id: orderId,
+              prefill: {
+                name: `${(user as any)?.firstName || ""} ${(user as any)?.lastName || ""}`.trim(),
+                email: (user as any)?.email,
+                contact: formData.phone,
+              },
+              notes: { eventId: event.id, userId: user._id },
+              handler: async (response) => {
+                try {
+                  const verifyRes = await rp.verifyPayment({
+                    orderId: response.razorpay_order_id,
+                    paymentId: response.razorpay_payment_id,
+                    signature: response.razorpay_signature,
+                    type: "event",
+                    eventId: event.id,
+                    userId: user._id,
+                  });
+
+                  if (!(verifyRes as any)?.success) {
+                    toast({
+                      title: "Payment Verification Failed",
+                      description:
+                        (verifyRes as any).message || "Could not verify payment.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
+                  const confirmRes = await eventAPI.confirmRegistration(event.id);
+                  if (confirmRes.success) {
+                    onRegistrationSuccess();
+                    onClose();
+                    toast({
+                      title: "Registration Confirmed!",
+                      description: `Payment of ${currency} ${paymentAmount} processed successfully.`,
+                      variant: "default",
+                    });
+                  } else {
+                    toast({
+                      title: "Registration Issue",
+                      description:
+                        "Payment processed but registration confirmation failed. Please contact support.",
+                      variant: "destructive",
+                    });
+                  }
+                } catch (err) {
+                  toast({
+                    title: "Payment Error",
+                    description:
+                      "Something went wrong while processing payment.",
+                    variant: "destructive",
+                  });
+                }
+              },
+            });
+          } catch (err) {
             toast({
-              title: "Registration Issue",
-              description:
-                "Payment processed but registration confirmation failed. Please contact support.",
+              title: "Payment Error",
+              description: "Could not initialize payment.",
               variant: "destructive",
             });
           }
@@ -135,7 +218,6 @@ export const RegistrationFormDialog = ({
         });
       }
     } catch (error) {
-      console.error("Registration error:", error);
       toast({
         title: "Registration Failed",
         description: "Please try again.",
@@ -194,7 +276,7 @@ export const RegistrationFormDialog = ({
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center">
-                    <DollarSign className="w-4 h-4 mr-2" />
+                    <IndianRupee className="w-4 h-4 mr-1" />
                     <span className="text-lg font-bold">{event.price}</span>
                   </div>
                   {isPaidEvent && <Badge variant="secondary">Paid Event</Badge>}
@@ -264,7 +346,7 @@ export const RegistrationFormDialog = ({
                 <Card className="bg-blue-50 border-blue-200">
                   <CardContent className="p-4">
                     <div className="flex items-center">
-                      <DollarSign className="w-5 h-5 text-blue-600 mr-2" />
+                      <IndianRupee className="w-5 h-5 text-blue-600 mr-2" />
                       <div>
                         <p className="font-medium text-blue-900">
                           Payment Required

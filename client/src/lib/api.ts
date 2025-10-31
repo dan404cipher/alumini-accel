@@ -1451,7 +1451,7 @@ export const eventAPI = {
       url: "/events/with-image",
       data: formData,
       headers: {
-        "Content-Type": undefined, // Remove Content-Type to let browser set multipart/form-data
+        "Content-Type": "multipart/form-data",
       },
     });
   },

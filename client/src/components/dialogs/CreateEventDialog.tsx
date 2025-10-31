@@ -66,14 +66,7 @@ export const CreateEventDialog = ({
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [eventTypes, setEventTypes] = useState<
     Array<{ value: string; label: string }>
-  >([
-    { value: "meetup", label: "Meetup" },
-    { value: "workshop", label: "Workshop" },
-    { value: "webinar", label: "Webinar" },
-    { value: "conference", label: "Conference" },
-    { value: "career_fair", label: "Career Fair" },
-    { value: "reunion", label: "Reunion" },
-  ]);
+  >([]);
   const [locationOptions, setLocationOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
@@ -142,13 +135,10 @@ export const CreateEventDialog = ({
           entityType: "event_type",
           isActive: "true",
         });
-        console.log("Event types API response:", response);
-        console.log("Response data:", response.data);
-        console.log("Is array?", Array.isArray(response.data));
 
         if (response.success && response.data && Array.isArray(response.data)) {
           const customTypes = response.data.map((cat: any) => ({
-            value: cat.name,
+            value: cat._id, // Use ObjectId as value
             label: cat.name,
           }));
           setEventTypes(customTypes);
@@ -156,7 +146,6 @@ export const CreateEventDialog = ({
           setEventTypes([]);
         }
       } catch (error) {
-        console.error("Failed to fetch event types:", error);
         setEventTypes([]);
       }
     };
@@ -524,7 +513,7 @@ export const CreateEventDialog = ({
       const eventData: EventData = {
         title: trimmedTitle,
         description: trimmedDescription,
-        type: formData.type,
+        type: formData.type, // Now formData.type already holds ObjectId from Select
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         location: trimmedLocation,
@@ -618,6 +607,7 @@ export const CreateEventDialog = ({
           }
         }
 
+
         toast({
           title: "Error",
           description: errorMessage,
@@ -626,7 +616,6 @@ export const CreateEventDialog = ({
         return; // Don't throw error, just show toast
       }
     } catch (error: unknown) {
-      console.error("Unexpected error creating event:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -1021,10 +1010,10 @@ export const CreateEventDialog = ({
                 )}
                 {formData.priceType === "paid" && (
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (USD) *</Label>
+                    <Label htmlFor="price">Price (INR) *</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                        $
+                        ₹
                       </span>
                       <Input
                         id="price"

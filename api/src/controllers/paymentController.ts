@@ -68,10 +68,16 @@ export const createEventOrder = asyncHandler(
       });
     }
 
+    // Build a short, unique receipt (<= 40 chars) per Razorpay limits
+    const shortEvent = String(eventId).slice(-6);
+    const shortUser = String(userId).slice(-6);
+    const ts = Date.now().toString();
+    const receipt = `evt_${ts}_${shortEvent}${shortUser}`.slice(0, 40);
+
     const orderData = {
       amount: PaymentService.convertToPaise(amount),
       currency: "INR",
-      receipt: `event_${eventId}_${userId}_${Date.now()}`,
+      receipt,
       notes: {
         eventId,
         userId,

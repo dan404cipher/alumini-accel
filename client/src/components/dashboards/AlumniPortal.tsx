@@ -1407,52 +1407,61 @@ const AlumniPortal = () => {
                   <CardContent>
                     {alumniList.length > 0 ? (
                       <div className="space-y-3">
-                        {alumniList.map((alumnus) => (
-                          <div
-                            key={alumnus.id || alumnus._id}
-                            onClick={() =>
-                              navigate(`/alumni/${alumnus.id || alumnus._id}`)
-                            }
-                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                          >
-                            <div className="flex-shrink-0">
-                              {alumnus.profilePicture ? (
-                                <img
-                                  src={alumnus.profilePicture}
-                                  alt={`${alumnus.firstName} ${alumnus.lastName}`}
-                                  className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <User className="w-5 h-5 text-blue-600" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {alumnus.firstName} {alumnus.lastName}
-                              </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                                {alumnus.graduationYear || alumnus.batchYear ? (
-                                  <span>
-                                    Class of{" "}
-                                    {alumnus.graduationYear ||
-                                      alumnus.batchYear}
-                                  </span>
-                                ) : null}
-                                {alumnus.department && (
-                                  <>
-                                    {alumnus.graduationYear ||
-                                      (alumnus.batchYear && <span>•</span>)}
-                                    <span className="truncate">
-                                      {alumnus.department}
-                                    </span>
-                                  </>
+                        {alumniList.map((alumnus: any) => {
+                          const displayName =
+                            alumnus.name ||
+                            `${alumnus.firstName || ""} ${
+                              alumnus.lastName || ""
+                            }`.trim() ||
+                            "Alumni";
+                          const profileImage =
+                            alumnus.profileImage || alumnus.profilePicture;
+                          const graduationYear =
+                            alumnus.graduationYear || alumnus.batchYear;
+                          const department = alumnus.department;
+
+                          return (
+                            <div
+                              key={alumnus.id || alumnus._id}
+                              onClick={() =>
+                                navigate(`/alumni/${alumnus.id || alumnus._id}`)
+                              }
+                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                {profileImage ? (
+                                  <img
+                                    src={profileImage}
+                                    alt={displayName}
+                                    className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <User className="w-5 h-5 text-blue-600" />
+                                  </div>
                                 )}
                               </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {displayName}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                                  {graduationYear && (
+                                    <span>Class of {graduationYear}</span>
+                                  )}
+                                  {graduationYear && department && (
+                                    <span>•</span>
+                                  )}
+                                  {department && (
+                                    <span className="truncate">
+                                      {department}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-8 text-gray-500">

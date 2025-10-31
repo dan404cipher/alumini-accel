@@ -62,6 +62,10 @@ import {
   Eye,
   Heart,
   Share2,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  IndianRupee,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -145,6 +149,8 @@ const CampaignManagement: React.FC = () => {
     null
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignLimit] = useState(6);
   const { toast } = useToast();
 
   const form = useForm<CampaignFormData>({
@@ -329,499 +335,644 @@ const CampaignManagement: React.FC = () => {
     const matchesSearch =
       campaign.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       campaign.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "all" || campaign.category === categoryFilter;
+    const matchesStatus =
+      statusFilter === "all" || campaign.status === statusFilter;
 
-    return matchesSearch;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading campaigns...</p>
-        </div>
-      </div>
-    );
-  }
+  // Pagination for filtered campaigns
+  const totalCampaigns = filteredCampaigns.length;
+  const totalPages = Math.max(1, Math.ceil(totalCampaigns / campaignLimit));
+  const paginatedCampaigns = filteredCampaigns.slice(
+    (campaignPage - 1) * campaignLimit,
+    campaignPage * campaignLimit
+  );
+
+  // Statistics
+  const totalAmount = campaigns.reduce(
+    (sum, c) => sum + (c.currentAmount || 0),
+    0
+  );
+  const totalTarget = campaigns.reduce(
+    (sum, c) => sum + (c.targetAmount || 0),
+    0
+  );
+  const activeCount = campaigns.filter((c) => c.status === "active").length;
+  const completedCount = campaigns.filter(
+    (c) => c.status === "completed"
+  ).length;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCampaignPage(1);
+  }, [searchTerm, categoryFilter, statusFilter]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Enhanced Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Campaign Management
-          </h2>
-          <p className="text-gray-600">Manage fundraising campaigns</p>
+          <h2 className="text-2xl font-semibold">Campaign Management</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage and track fundraising campaigns for your college
+          </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Campaign
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Campaign</DialogTitle>
-              <DialogDescription>
-                Create a new fundraising campaign
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(handleCreateCampaign)}
-                className="space-y-6"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Basic Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Basic Information</h3>
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campaign Title</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter campaign title"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
+        <div className="flex items-center gap-3">
+          {!loading && campaigns.length > 0 && (
+            <>
+              <Badge variant="outline" className="text-sm">
+                Total: {campaigns.length}
+              </Badge>
+              {activeCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-sm bg-green-50 text-green-700"
+                >
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Active: {activeCount}
+                </Badge>
+              )}
+              {completedCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-sm bg-blue-50 text-blue-700"
+                >
+                  <Target className="w-3 h-3 mr-1" />
+                  Completed: {completedCount}
+                </Badge>
+              )}
+              {totalAmount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-sm bg-purple-50 text-purple-700"
+                >
+                  <IndianRupee className="w-3 h-3 mr-1" />
+                  Raised: ₹{totalAmount.toLocaleString()}
+                </Badge>
+              )}
+            </>
+          )}
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Campaign
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Campaign</DialogTitle>
+                <DialogDescription>
+                  Create a new fundraising campaign
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(handleCreateCampaign)}
+                  className="space-y-6"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Basic Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">
+                        Basic Information
+                      </h3>
+                      <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Campaign Title</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
+                              <Input
+                                placeholder="Enter campaign title"
+                                {...field}
+                              />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="scholarship">
-                                Scholarship
-                              </SelectItem>
-                              <SelectItem value="infrastructure">
-                                Infrastructure
-                              </SelectItem>
-                              <SelectItem value="research">Research</SelectItem>
-                              <SelectItem value="event">Event</SelectItem>
-                              <SelectItem value="emergency">
-                                Emergency
-                              </SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Enter campaign description"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Category</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="scholarship">
+                                  Scholarship
+                                </SelectItem>
+                                <SelectItem value="infrastructure">
+                                  Infrastructure
+                                </SelectItem>
+                                <SelectItem value="research">
+                                  Research
+                                </SelectItem>
+                                <SelectItem value="event">Event</SelectItem>
+                                <SelectItem value="emergency">
+                                  Emergency
+                                </SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter campaign description"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Financial Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">
+                        Financial Information
+                      </h3>
+                      <FormField
+                        control={form.control}
+                        name="targetAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Target Amount</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="Enter target amount"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="currency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Currency</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="INR">INR (₹)</SelectItem>
+                                <SelectItem value="USD">USD ($)</SelectItem>
+                                <SelectItem value="EUR">EUR (€)</SelectItem>
+                                <SelectItem value="GBP">GBP (£)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Start Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="endDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>End Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
-                  {/* Financial Information */}
+                  {/* Contact Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">
-                      Financial Information
+                      Contact Information
                     </h3>
-                    <FormField
-                      control={form.control}
-                      name="targetAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Target Amount</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="Enter target amount"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseFloat(e.target.value) || 0)
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Currency</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="contactInfo.email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Email</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select currency" />
-                              </SelectTrigger>
+                              <Input
+                                type="email"
+                                placeholder="contact@example.com"
+                                {...field}
+                              />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="INR">INR (₹)</SelectItem>
-                              <SelectItem value="USD">USD ($)</SelectItem>
-                              <SelectItem value="EUR">EUR (€)</SelectItem>
-                              <SelectItem value="GBP">GBP (£)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Start Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>End Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="contactInfo.phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="+1 (555) 123-4567"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="contactInfo.person"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Person</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Contact person name"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="location"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Location</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Campaign location"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* Contact Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Contact Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="contactInfo.email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="contact@example.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="contactInfo.phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone</FormLabel>
-                          <FormControl>
-                            <Input placeholder="+1 (555) 123-4567" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="contactInfo.person"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Person</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Contact person name"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Campaign location" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="allowAnonymous"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Anonymous Donations
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Allow donors to donate anonymously
+                  {/* Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Settings</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="allowAnonymous"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base">
+                                Allow Anonymous Donations
+                              </FormLabel>
+                              <div className="text-sm text-muted-foreground">
+                                Allow donors to donate anonymously
+                              </div>
                             </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="featured"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Featured Campaign
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Highlight this campaign as featured
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="featured"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base">
+                                Featured Campaign
+                              </FormLabel>
+                              <div className="text-sm text-muted-foreground">
+                                Highlight this campaign as featured
+                              </div>
                             </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">Create Campaign</Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filters */}
-      <div className="flex space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Search campaigns..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit">Create Campaign</Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="scholarship">Scholarship</SelectItem>
-            <SelectItem value="infrastructure">Infrastructure</SelectItem>
-            <SelectItem value="research">Research</SelectItem>
-            <SelectItem value="event">Event</SelectItem>
-            <SelectItem value="emergency">Emergency</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="paused">Paused</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
+
+      {/* Enhanced Filters */}
+      {!loading && (
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search campaigns..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="scholarship">Scholarship</SelectItem>
+              <SelectItem value="infrastructure">Infrastructure</SelectItem>
+              <SelectItem value="research">Research</SelectItem>
+              <SelectItem value="event">Event</SelectItem>
+              <SelectItem value="emergency">Emergency</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+          {(searchTerm ||
+            categoryFilter !== "all" ||
+            statusFilter !== "all") && (
+            <Badge variant="secondary" className="text-sm">
+              {filteredCampaigns.length} result
+              {filteredCampaigns.length !== 1 ? "s" : ""}
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Campaigns Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCampaigns.map((campaign) => (
-          <Card key={campaign._id} className="relative">
-            {campaign.featured && (
-              <div className="absolute top-2 right-2 z-10">
-                <Badge className="bg-yellow-100 text-yellow-800">
-                  Featured
-                </Badge>
-              </div>
-            )}
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg line-clamp-2">
-                    {campaign.title}
-                  </CardTitle>
-                  <CardDescription className="line-clamp-2 mt-1">
-                    {campaign.description}
-                  </CardDescription>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDeleteCampaign(campaign._id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                {getCategoryBadge(campaign.category)}
-                {getStatusBadge(campaign.status)}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Progress</span>
-                  <span className="font-medium">
-                    {campaign.progressPercentage}%
-                  </span>
-                </div>
-                <Progress value={campaign.progressPercentage} className="h-2" />
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>₹{campaign.currentAmount.toLocaleString()}</span>
-                  <span>₹{campaign.targetAmount.toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <span>{campaign.statistics.totalDonors} donors</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span>{campaign.daysRemaining} days left</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t">
-                <div className="text-sm text-gray-600">
-                  Created by {campaign.createdBy.firstName}{" "}
-                  {campaign.createdBy.lastName}
-                </div>
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline">
-                    <Heart className="w-4 h-4 mr-1" />
-                    {campaign.statistics.totalDonations}
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    <Share2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredCampaigns.length === 0 && (
+      {loading ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No campaigns found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || categoryFilter !== "all" || statusFilter !== "all"
-                ? "Try adjusting your search or filters"
-                : "Create your first fundraising campaign to get started"}
-            </p>
-            {!searchTerm &&
-              categoryFilter === "all" &&
-              statusFilter === "all" && (
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Campaign
-                </Button>
-              )}
+          <CardContent className="p-12">
+            <div className="flex flex-col items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
+              <div className="text-muted-foreground">Loading campaigns...</div>
+            </div>
           </CardContent>
         </Card>
+      ) : filteredCampaigns.length === 0 ? (
+        <Card>
+          <CardContent className="p-12">
+            <div className="text-center">
+              <Target className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {searchTerm ||
+                categoryFilter !== "all" ||
+                statusFilter !== "all"
+                  ? "No campaigns found matching your filters"
+                  : "No campaigns found"}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {searchTerm ||
+                categoryFilter !== "all" ||
+                statusFilter !== "all"
+                  ? "Try adjusting your search or filters"
+                  : "Create your first fundraising campaign to get started"}
+              </p>
+              {!searchTerm &&
+                categoryFilter === "all" &&
+                statusFilter === "all" && (
+                  <Button onClick={() => setIsCreateDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Campaign
+                  </Button>
+                )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedCampaigns.map((campaign) => (
+              <Card key={campaign._id} className="relative">
+                {campaign.featured && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <Badge className="bg-yellow-100 text-yellow-800">
+                      Featured
+                    </Badge>
+                  </div>
+                )}
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg line-clamp-2">
+                        {campaign.title}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-2 mt-1">
+                        {campaign.description}
+                      </CardDescription>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedCampaign(campaign);
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteCampaign(campaign._id)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    {getCategoryBadge(campaign.category)}
+                    {getStatusBadge(campaign.status)}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Progress</span>
+                      <span className="font-medium">
+                        {campaign.progressPercentage}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={campaign.progressPercentage || 0}
+                      className="h-2"
+                    />
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <IndianRupee className="w-3 h-3" />
+                        {campaign.currentAmount.toLocaleString()}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <IndianRupee className="w-3 h-3" />
+                        {campaign.targetAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-4 h-4 text-gray-400" />
+                      <span>{campaign.statistics.totalDonors} donors</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span>{campaign.daysRemaining} days left</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="text-xs text-muted-foreground truncate pr-2">
+                      Created by {campaign.createdBy.firstName}{" "}
+                      {campaign.createdBy.lastName}
+                    </div>
+                    <div className="flex space-x-2 flex-shrink-0">
+                      <Button size="sm" variant="outline" className="text-xs">
+                        <Heart className="w-3 h-3 mr-1" />
+                        {campaign.statistics?.totalDonations || 0}
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-xs">
+                        <Share2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {filteredCampaigns.length > 0 && (
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {(campaignPage - 1) * campaignLimit + 1} to{" "}
+                {Math.min(campaignPage * campaignLimit, totalCampaigns)} of{" "}
+                {totalCampaigns} campaigns
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={campaignPage <= 1 || loading}
+                  onClick={() => setCampaignPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground px-2">
+                    Page {campaignPage} of {totalPages}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={campaignPage >= totalPages || loading}
+                  onClick={() => setCampaignPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

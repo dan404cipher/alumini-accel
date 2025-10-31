@@ -29,7 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Search, Tag, CheckCircle2, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
@@ -107,6 +109,9 @@ export const CategoryManagement = () => {
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [categoryLimit] = useState(10);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -316,33 +321,84 @@ export const CategoryManagement = () => {
       ? "Manage departments used across the alumni directory and related forms."
       : "Manage community-related categories available to users when creating communities.";
 
+  // Filter categories for current entity type and search term
+  const entityCategories = categories.filter(
+    (cat) => cat.entityType === activeTab
+  );
+  const filteredCategories = entityCategories.filter(
+    (cat) =>
+      cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cat.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Pagination for filtered categories
+  const totalCategories = filteredCategories.length;
+  const totalPages = Math.max(1, Math.ceil(totalCategories / categoryLimit));
+  const paginatedCategories = filteredCategories.slice(
+    (categoryPage - 1) * categoryLimit,
+    categoryPage * categoryLimit
+  );
+
+  const activeCount = entityCategories.filter((c) => c.isActive).length;
+  const inactiveCount = entityCategories.filter((c) => !c.isActive).length;
+
+  // Reset page when search term or active tab changes
+  useEffect(() => {
+    setCategoryPage(1);
+  }, [searchTerm, activeTab]);
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
+      {/* Enhanced Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Category Management</h2>
-          <div className="mt-3">
-            <Tabs
-              value={primarySection}
-              onValueChange={(v) => setPrimarySection(v as any)}
-            >
-              <TabsList className="grid w-full grid-cols-7 max-w-[1200px]">
-                <TabsTrigger value="events">Events</TabsTrigger>
-                <TabsTrigger value="jobs">Jobs</TabsTrigger>
-                <TabsTrigger value="community">Community</TabsTrigger>
-                <TabsTrigger value="mentorship">Mentorship</TabsTrigger>
-                <TabsTrigger value="donations">Donations</TabsTrigger>
-                <TabsTrigger value="gallery">Gallery</TabsTrigger>
-                <TabsTrigger value="departments">Departments</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <p className="text-muted-foreground mt-3">{sectionDescription}</p>
-          </div>
+          <h2 className="text-2xl font-semibold">Category Management</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Organize and manage categories across your platform
+          </p>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add {currentEntityLabel.split(" ")[0]}
-        </Button>
+        <div className="flex items-center gap-3">
+          {entityCategories.length > 0 && (
+            <>
+              <Badge variant="outline" className="text-sm">
+                Total: {entityCategories.length}
+              </Badge>
+              <Badge variant="secondary" className="text-sm bg-green-50 text-green-700">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Active: {activeCount}
+              </Badge>
+              {inactiveCount > 0 && (
+                <Badge variant="secondary" className="text-sm bg-gray-50 text-gray-700">
+                  <XCircle className="w-3 h-3 mr-1" />
+                  Inactive: {inactiveCount}
+                </Badge>
+              )}
+            </>
+          )}
+          <Button onClick={handleAdd}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add {currentEntityLabel.split(" ")[0]}
+          </Button>
+        </div>
+      </div>
+
+      {/* Primary Section Tabs */}
+      <div>
+        <Tabs
+          value={primarySection}
+          onValueChange={(v) => setPrimarySection(v as any)}
+        >
+          <TabsList className="grid w-full grid-cols-7 max-w-[1200px]">
+            <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="jobs">Jobs</TabsTrigger>
+            <TabsTrigger value="community">Community</TabsTrigger>
+            <TabsTrigger value="mentorship">Mentorship</TabsTrigger>
+            <TabsTrigger value="donations">Donations</TabsTrigger>
+            <TabsTrigger value="gallery">Gallery</TabsTrigger>
+            <TabsTrigger value="departments">Departments</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <p className="text-sm text-muted-foreground mt-2">{sectionDescription}</p>
       </div>
 
       <Tabs
@@ -367,78 +423,181 @@ export const CategoryManagement = () => {
               value={entity.value}
               className="space-y-4"
             >
+              {/* Search and Filter */}
+              {!loading && entityCategories.length > 0 && (
+                <div className="flex items-center space-x-4">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search categories..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {searchTerm && (
+                    <Badge variant="secondary" className="text-sm">
+                      {filteredCategories.length} result{filteredCategories.length !== 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* Categories List */}
               {loading ? (
-                <div className="flex justify-center p-8">
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                </div>
-              ) : categories.length === 0 ? (
-                <div className="text-center p-8 bg-muted rounded-lg">
-                  <p className="text-muted-foreground">
-                    No {entity.label.toLowerCase()} found. Create your first one
-                    to get started.
-                  </p>
-                </div>
+                <Card>
+                  <CardContent className="p-12">
+                    <div className="flex flex-col items-center justify-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
+                      <div className="text-muted-foreground">Loading categories...</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : entityCategories.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12">
+                    <div className="text-center">
+                      <Tag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">
+                        No {entity.label.toLowerCase()} found
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Create your first {entity.label.toLowerCase().replace(" categories", " category")} to get started.
+                      </p>
+                      <Button onClick={handleAdd}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create {entity.label.split(" ")[0]}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : filteredCategories.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12">
+                    <div className="text-center">
+                      <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">
+                        No categories found matching your search
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Try adjusting your search terms
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
-                <div className="border rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="w-24">Status</TableHead>
-                        <TableHead className="w-32">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categories
-                        .filter((cat) => cat.entityType === entity.value)
-                        .map((category) => (
-                          <TableRow key={category._id}>
-                            <TableCell className="font-medium">
-                              {category.name}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {category.description || "-"}
-                            </TableCell>
-                            <TableCell>
-                              <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${
-                                  category.isActive
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-gray-100 text-gray-800"
-                                }`}
-                              >
-                                {category.isActive ? "Active" : "Inactive"}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(category)}
+                <>
+                  <div className="grid gap-4">
+                    {paginatedCategories.map((category) => (
+                      <Card
+                        key={category._id}
+                        className="hover:shadow-lg transition-all duration-200 border-l-4"
+                        style={{
+                          borderLeftColor: category.isActive
+                            ? "rgb(34, 197, 94)"
+                            : "rgb(156, 163, 175)",
+                        }}
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-lg font-semibold">
+                                  {category.name}
+                                </h3>
+                                <Badge
+                                  variant={category.isActive ? "default" : "secondary"}
+                                  className={
+                                    category.isActive
+                                      ? "bg-green-500 hover:bg-green-600"
+                                      : "bg-gray-500 hover:bg-gray-600"
+                                  }
                                 >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                {canDelete && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleDeleteClick(category._id)
-                                    }
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                )}
+                                  {category.isActive ? (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                                      Active
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      Inactive
+                                    </>
+                                  )}
+                                </Badge>
                               </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                              {category.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {category.description}
+                                </p>
+                              )}
+                              {category.createdBy && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Created by {category.createdBy.firstName}{" "}
+                                  {category.createdBy.lastName}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 flex-shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(category)}
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </Button>
+                              {canDelete && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(category._id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {((categoryPage - 1) * categoryLimit) + 1} to{" "}
+                        {Math.min(categoryPage * categoryLimit, totalCategories)} of{" "}
+                        {totalCategories} categories
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={categoryPage <= 1 || loading}
+                          onClick={() => setCategoryPage((p) => Math.max(1, p - 1))}
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm text-muted-foreground px-2">
+                            Page {categoryPage} of {totalPages}
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={categoryPage >= totalPages || loading}
+                          onClick={() => setCategoryPage((p) => p + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </TabsContent>
           )

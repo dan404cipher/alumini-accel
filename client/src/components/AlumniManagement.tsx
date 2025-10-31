@@ -76,6 +76,8 @@ const AlumniManagement = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -135,6 +137,8 @@ const AlumniManagement = () => {
               location: "",
             },
           ]);
+          // Preselect college for non-super admins
+          setNewAlumni((prev) => ({ ...prev, collegeId: (user as any).tenantId }));
         }
         return;
       }
@@ -170,15 +174,21 @@ const AlumniManagement = () => {
   }, [user]);
 
   // Validation function
-  const validateForm = () => {
+  const computeErrors = () => {
     const errors: Record<string, string> = {};
 
-    if (!newAlumni.firstName.trim()) {
+    const first = newAlumni.firstName.trim();
+    if (!first) {
       errors.firstName = "First name is required";
+    } else if (first.length < 2 || first.length > 50) {
+      errors.firstName = "First name must be between 2 and 50 characters";
     }
 
-    if (!newAlumni.lastName.trim()) {
+    const last = newAlumni.lastName.trim();
+    if (!last) {
       errors.lastName = "Last name is required";
+    } else if (last.length < 2 || last.length > 50) {
+      errors.lastName = "Last name must be between 2 and 50 characters";
     }
 
     if (!newAlumni.email.trim()) {
@@ -209,9 +219,33 @@ const AlumniManagement = () => {
       errors.graduationYear = "Please enter a valid graduation year";
     }
 
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    return errors;
   };
+
+  // Inline auto-validation (debounced) as the user types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const errors = computeErrors();
+      setIsFormValid(Object.keys(errors).length === 0);
+      // Only show inline errors after interaction; otherwise keep the UI clean
+      if (hasInteracted) {
+        setFormErrors(errors);
+      } else {
+        setFormErrors({});
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+    // Revalidate whenever any field changes
+  }, [
+    newAlumni.firstName,
+    newAlumni.lastName,
+    newAlumni.email,
+    newAlumni.password,
+    newAlumni.collegeId,
+    newAlumni.department,
+    newAlumni.graduationYear,
+    hasInteracted,
+  ]);
 
   const fetchAlumni = useCallback(async () => {
     try {
@@ -441,41 +475,45 @@ const AlumniManagement = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="college">College *</Label>
-                    <Select
-                      value={newAlumni.collegeId}
-                      onValueChange={(value) =>
-                        setNewAlumni({ ...newAlumni, collegeId: value })
-                      }
-                    >
-                      <SelectTrigger
-                        className={formErrors.collegeId ? "border-red-500" : ""}
+                  {user?.role === "super_admin" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="college">College *</Label>
+                      <Select
+                        value={newAlumni.collegeId}
+                        onValueChange={(value) => {
+                          setHasInteracted(true);
+                          setNewAlumni({ ...newAlumni, collegeId: value });
+                        }}
                       >
-                        <SelectValue placeholder="Select college" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {colleges.map((college) => (
-                          <SelectItem key={college._id} value={college._id}>
-                            {college.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {formErrors.collegeId && (
-                      <p className="text-sm text-red-500">
-                        {formErrors.collegeId}
-                      </p>
-                    )}
-                  </div>
+                        <SelectTrigger
+                          className={formErrors.collegeId ? "border-red-500" : ""}
+                        >
+                          <SelectValue placeholder="Select college" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {colleges.map((college) => (
+                            <SelectItem key={college._id} value={college._id}>
+                              {college.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {formErrors.collegeId && (
+                        <p className="text-sm text-red-500">
+                          {formErrors.collegeId}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="department">Department *</Label>
-                    <Select
-                      value={newAlumni.department}
-                      onValueChange={(v) =>
-                        setNewAlumni({ ...newAlumni, department: v })
-                      }
-                    >
+                     <Select
+                       value={newAlumni.department}
+                       onValueChange={(v) => {
+                         setHasInteracted(true);
+                         setNewAlumni({ ...newAlumni, department: v });
+                       }}
+                     >
                       <SelectTrigger className={formErrors.department ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
@@ -532,7 +570,11 @@ const AlumniManagement = () => {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createLoading}>
+                  <Button
+                    type="submit"
+                    disabled={createLoading || !isFormValid}
+                    onClick={() => setHasInteracted(true)}
+                  >
                     {createLoading ? "Creating..." : "Create Alumni"}
                   </Button>
                 </div>

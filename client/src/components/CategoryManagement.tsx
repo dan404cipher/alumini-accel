@@ -152,11 +152,8 @@ export const CategoryManagement = () => {
           ...(response.data || []),
           ...(inactiveResponse.data || []),
         ];
-        // Sort by order, then by name
-        allCategories.sort((a, b) => {
-          if (a.order !== b.order) return a.order - b.order;
-          return a.name.localeCompare(b.name);
-        });
+        // Sort by name only (Order column removed)
+        allCategories.sort((a, b) => a.name.localeCompare(b.name));
         setCategories(allCategories);
       }
     } catch (error) {
@@ -201,6 +198,7 @@ export const CategoryManagement = () => {
       if (editingCategory) {
         await categoryAPI.update(editingCategory._id, {
           ...formData,
+          order: undefined as unknown as number, // ensure order not sent if removed
           name: trimmedName,
         });
         toast({
@@ -210,6 +208,7 @@ export const CategoryManagement = () => {
       } else {
         await categoryAPI.create({
           ...formData,
+          order: undefined as unknown as number,
           name: trimmedName,
           entityType: activeTab,
         });
@@ -384,7 +383,6 @@ export const CategoryManagement = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-20">Order</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead className="w-24">Status</TableHead>
@@ -396,7 +394,6 @@ export const CategoryManagement = () => {
                         .filter((cat) => cat.entityType === entity.value)
                         .map((category) => (
                           <TableRow key={category._id}>
-                            <TableCell>{category.order}</TableCell>
                             <TableCell className="font-medium">
                               {category.name}
                             </TableCell>
@@ -462,28 +459,7 @@ export const CategoryManagement = () => {
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4 py-4">
-              {!editingCategory && (
-                <div className="space-y-2">
-                  <Label htmlFor="entityType">Category Type</Label>
-                  <Select
-                    value={formData.entityType}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, entityType: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ENTITY_TYPES.map((entity) => (
-                        <SelectItem key={entity.value} value={entity.value}>
-                          {entity.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {/* Category Type removed; entity type inferred from active tab */}
               <div className="space-y-2">
                 <Label htmlFor="name">
                   Name <span className="text-red-500">*</span>
@@ -530,25 +506,7 @@ export const CategoryManagement = () => {
                   rows={3}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="order">Display Order</Label>
-                <Input
-                  id="order"
-                  type="number"
-                  value={formData.order}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      order: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  min="0"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Lower numbers appear first. Categories are sorted by order,
-                  then alphabetically.
-                </p>
-              </div>
+              {/* Display Order removed */}
               {editingCategory && (
                 <div className="space-y-2">
                   <Label htmlFor="isActive">Status</Label>

@@ -221,7 +221,7 @@ const Gallery: React.FC = () => {
   );
   const [showGalleryDetail, setShowGalleryDetail] = useState(false);
 
-  // Load gallery categories dynamically per tenant
+  // Load gallery categories dynamically
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -236,7 +236,7 @@ const Gallery: React.FC = () => {
           : [];
         if (mounted) setGalleryCategories(names);
       } catch (_e) {
-        // keep empty list
+        // keep empty list if API fails
       }
     })();
     return () => {
@@ -327,9 +327,16 @@ const Gallery: React.FC = () => {
         return;
       }
 
-      // Validate file types
+      // Validate file types - must be specific image MIME types
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
       const invalidFiles = files.filter(
-        (file) => !file.type.startsWith("image/")
+        (file) => !allowedTypes.includes(file.type.toLowerCase())
       );
       if (invalidFiles.length > 0) {
         toast({
@@ -587,7 +594,7 @@ const Gallery: React.FC = () => {
                         <SelectItem value="all">All Categories</SelectItem>
                         {galleryCategories.length === 0 ? (
                           <SelectItem value="__noopts__" disabled>
-                            No saved categories
+                            No categories available
                           </SelectItem>
                         ) : (
                           galleryCategories.map((category) => (
@@ -946,7 +953,7 @@ const Gallery: React.FC = () => {
                   <SelectContent>
                     {galleryCategories.length === 0 ? (
                       <SelectItem value="__noopts__" disabled>
-                        No saved categories
+                        No categories available
                       </SelectItem>
                     ) : (
                       galleryCategories.map((category) => (
@@ -997,8 +1004,15 @@ const Gallery: React.FC = () => {
                       "border-blue-400",
                       "bg-blue-50"
                     );
+                    const allowedTypes = [
+                      "image/jpeg",
+                      "image/jpg",
+                      "image/png",
+                      "image/gif",
+                      "image/webp",
+                    ];
                     const files = Array.from(e.dataTransfer.files).filter(
-                      (file) => file.type.startsWith("image/")
+                      (file) => allowedTypes.includes(file.type.toLowerCase())
                     );
                     if (files.length > 0) {
                       setSelectedImages(files);
@@ -1006,6 +1020,12 @@ const Gallery: React.FC = () => {
                         URL.createObjectURL(file)
                       );
                       setImagePreviews(previews);
+                    } else {
+                      toast({
+                        title: "Invalid File Type",
+                        description: "Please drop only image files (JPEG, PNG, GIF, WebP)",
+                        variant: "destructive",
+                      });
                     }
                   }}
                 >

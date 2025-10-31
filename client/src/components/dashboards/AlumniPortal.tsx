@@ -366,42 +366,25 @@ const AlumniPortal = () => {
         console.error("Error fetching alumni list:", error);
       }
 
-      // Fetch saved items (Events, Jobs, News, Gallery)
+      // Fetch saved items (Events, Jobs, News)
       try {
-        const [savedEventsRes, savedJobsRes, savedNewsRes, savedGalleriesRes] =
-          await Promise.all([
-            eventAPI.getSavedEvents().catch(() => ({
-              success: false,
-              data: { events: [] },
-            })) as Promise<{ success: boolean; data?: { events?: any[] } }>,
-            jobAPI.getSavedJobs({ limit: 3 }).catch(() => ({
-              success: false,
-              data: { jobs: [] },
-            })) as Promise<{
-              success: boolean;
-              data?: { jobs?: any[] };
-            }>,
-            newsAPI.getSavedNews({ limit: 3 }).catch(() => ({
-              success: false,
-              data: { savedNews: [] },
-            })) as Promise<{ success: boolean; data?: { savedNews?: any[] } }>,
-            // Gallery save feature - placeholder for future API
-            fetch(`${baseUrl}/gallery/saved`, {
-              headers,
-            })
-              .then((res) =>
-                res.ok
-                  ? res.json()
-                  : { success: false, data: { galleries: [] } }
-              )
-              .catch(() => ({
-                success: false,
-                data: { galleries: [] },
-              })) as Promise<{
-              success: boolean;
-              data?: { galleries?: any[] };
-            }>,
-          ]);
+        const [savedEventsRes, savedJobsRes, savedNewsRes] = await Promise.all([
+          eventAPI.getSavedEvents().catch(() => ({
+            success: false,
+            data: { events: [] },
+          })) as Promise<{ success: boolean; data?: { events?: any[] } }>,
+          jobAPI.getSavedJobs({ page: 1, limit: 3 }).catch(() => ({
+            success: false,
+            data: { jobs: [] },
+          })) as Promise<{
+            success: boolean;
+            data?: { jobs?: any[] };
+          }>,
+          newsAPI.getSavedNews({ page: 1, limit: 3 }).catch(() => ({
+            success: false,
+            data: { savedNews: [] },
+          })) as Promise<{ success: boolean; data?: { savedNews?: any[] } }>,
+        ]);
 
         const allSaved: any[] = [];
 
@@ -436,8 +419,8 @@ const AlumniPortal = () => {
         // Process saved news (newsId is populated)
         if (savedNewsRes.success && savedNewsRes.data?.savedNews) {
           savedNewsRes.data.savedNews.forEach((savedNewsItem: any) => {
-            // SavedNews document has newsId populated
-            const news = savedNewsItem.newsId || savedNewsItem;
+            // SavedNews document has newsId populated - handle null newsId (deleted news)
+            const news = savedNewsItem.newsId;
             if (news && news._id) {
               allSaved.push({
                 _id: news._id,
@@ -445,23 +428,6 @@ const AlumniPortal = () => {
                 type: "news",
                 savedAt:
                   savedNewsItem.createdAt || news.createdAt || new Date(),
-              });
-            }
-          });
-        }
-
-        // Process saved galleries (if API exists)
-        if (savedGalleriesRes.success && savedGalleriesRes.data?.galleries) {
-          savedGalleriesRes.data.galleries.forEach((savedGalleryItem: any) => {
-            // Handle both SavedGallery model (with galleryId) and direct gallery objects
-            const gallery = savedGalleryItem.galleryId || savedGalleryItem;
-            if (gallery && gallery._id) {
-              allSaved.push({
-                _id: gallery._id,
-                title: gallery.title || gallery.name || "Untitled Gallery",
-                type: "gallery",
-                savedAt:
-                  savedGalleryItem.createdAt || gallery.createdAt || new Date(),
               });
             }
           });
@@ -653,7 +619,8 @@ const AlumniPortal = () => {
   };
 
   const handleGalleryClick = (galleryId: string) => {
-    navigate(`/gallery/${galleryId}`);
+    // Navigate to gallery page (gallery uses modal dialogs, not detail routes)
+    navigate(`/gallery`);
   };
 
   const handleCommunityClick = (communityId: string) => {
@@ -1931,8 +1898,9 @@ const AlumniPortal = () => {
                               navigate(`/jobs/${item._id}`);
                             else if (item.type === "news")
                               navigate(`/news/${item._id}`);
+                            // Gallery doesn't have detail pages - navigate to gallery page
                             else if (item.type === "gallery")
-                              navigate(`/gallery/${item._id}`);
+                              navigate(`/gallery`);
                           };
                           return (
                             <div

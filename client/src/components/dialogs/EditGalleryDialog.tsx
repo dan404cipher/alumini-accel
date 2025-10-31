@@ -56,9 +56,9 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
   const [newTag, setNewTag] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
-
   const [categories, setCategories] = useState<string[]>([]);
 
+  // Load gallery categories dynamically
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -73,7 +73,7 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
           : [];
         if (mounted) setCategories(names);
       } catch (_e) {
-        // keep empty
+        // keep empty list if API fails
       }
     })();
     return () => {
@@ -98,28 +98,44 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
 
   const handleImageUpload = async (files: FileList) => {
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const formData = new FormData();
-        formData.append("images", file);
+      // Validate file types - must be specific image MIME types
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      const fileArray = Array.from(files);
+      const invalidFiles = fileArray.filter(
+        (file) => !allowedTypes.includes(file.type.toLowerCase())
+      );
+      if (invalidFiles.length > 0) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please select only image files (JPEG, PNG, GIF, WebP)",
+          variant: "destructive",
+        });
+        return;
+      }
 
-        const response = await galleryAPI.uploadImages(formData);
-        if (response.success && response.data.length > 0) {
-          return response.data[0];
-        }
+      // Upload all images at once using the correct API signature
+      const response = await galleryAPI.uploadImages(fileArray);
+      if (response.success && response.data?.images) {
+        const uploadedUrls = response.data.images;
+        setFormData((prev) => ({
+          ...prev,
+          images: [...prev.images, ...uploadedUrls],
+        }));
+        setPreviewImages((prev) => [...prev, ...uploadedUrls]);
+
+        toast({
+          title: "Success",
+          description: `${uploadedUrls.length} image(s) uploaded successfully`,
+        });
+      } else {
         throw new Error("Upload failed");
-      });
-
-      const uploadedUrls = await Promise.all(uploadPromises);
-      setFormData((prev) => ({
-        ...prev,
-        images: [...prev.images, ...uploadedUrls],
-      }));
-      setPreviewImages((prev) => [...prev, ...uploadedUrls]);
-
-      toast({
-        title: "Success",
-        description: `${uploadedUrls.length} image(s) uploaded successfully`,
-      });
+      }
     } catch (error) {
       console.error("Error uploading images:", error);
       toast({
@@ -270,8 +286,8 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
               </SelectTrigger>
               <SelectContent>
                 {categories.length === 0 ? (
-                  <SelectItem value="" disabled>
-                    No saved categories
+                  <SelectItem value="__noopts__" disabled>
+                    No categories available
                   </SelectItem>
                 ) : (
                   categories.map((category) => (
@@ -296,7 +312,7 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
                 <input
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                   onChange={handleFileChange}
                   className="hidden"
                   id="image-upload"

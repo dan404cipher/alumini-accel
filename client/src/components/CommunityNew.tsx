@@ -317,24 +317,42 @@ const CommunityNew = () => {
         ) {
           return "Please select a category";
         }
-        const validCategories = [
-          "department",
-          "batch",
-          "interest",
-          "professional",
-          "location",
-          "academic_research",
-          "professional_career",
-          "entrepreneurship_startups",
-          "social_hobby",
-          "mentorship_guidance",
-          "events_meetups",
-          "community_support_volunteering",
-          "technology_deeptech",
-          "regional_chapter_based",
-          "other",
-        ];
-        if (typeof value === "string" && !validCategories.includes(value)) {
+        if (typeof value === "string") {
+          // Check if it's a valid enum value
+          const validCategories = [
+            "department",
+            "batch",
+            "interest",
+            "professional",
+            "location",
+            "academic_research",
+            "professional_career",
+            "entrepreneurship_startups",
+            "social_hobby",
+            "mentorship_guidance",
+            "events_meetups",
+            "community_support_volunteering",
+            "technology_deeptech",
+            "regional_chapter_based",
+            "other",
+          ];
+          
+          // If it's in the enum list, it's valid
+          if (validCategories.includes(value)) {
+            return "";
+          }
+          
+          // Otherwise, check if it's a valid ObjectId (24 hex characters)
+          // Custom categories from API use ObjectId as the value
+          const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+          if (objectIdRegex.test(value)) {
+            // Also verify it exists in categoryOptions
+            if (categoryOptions.some((c) => c.id === value && c.id !== "all")) {
+              return "";
+            }
+          }
+          
+          // If neither enum nor valid ObjectId, it's invalid
           return "Please select a valid category";
         }
         return "";

@@ -78,7 +78,14 @@ const CommunitySchema = new Schema<ICommunity>(
       required: true,
       validate: {
         validator: function (value: any) {
-          // If it's a string, check if it's in the enum
+          if (!value) return false;
+          
+          // First check if it's a valid ObjectId (as string or ObjectId)
+          if (mongoose.Types.ObjectId.isValid(value)) {
+            return true;
+          }
+          
+          // If not ObjectId, check if it's a valid enum value
           if (typeof value === "string") {
             const validEnums = [
               "department",
@@ -99,8 +106,8 @@ const CommunitySchema = new Schema<ICommunity>(
             ];
             return validEnums.includes(value);
           }
-          // If it's an ObjectId, it's valid
-          return mongoose.Types.ObjectId.isValid(value);
+          
+          return false;
         },
         message: "Category must be a valid enum value or ObjectId",
       },

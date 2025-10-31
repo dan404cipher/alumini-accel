@@ -525,6 +525,9 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     attendeeName: string;
     ctaUrl?: string;
     collegeName?: string;
+    organizerName?: string;
+    speakers?: Array<{ name: string; title?: string; company?: string; photo?: string; bio?: string }>;
+    agenda?: Array<{ title: string; speaker?: string; description?: string }>;
   }): string {
     const title = data.type === "registration" ? "Event Registration Confirmed" : "Event Reminder";
     const bannerText = data.type === "registration" ? "You're Registered!" : "Reminder: Upcoming Event";
@@ -533,6 +536,49 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     const formattedEnd = data.endDate ? new Date(data.endDate).toLocaleString() : undefined;
     const college = data.collegeName || "Alumni Accel";
     const isPaid = typeof data.price === "number" && data.price > 0;
+
+    const speakersHtml = (data.speakers && data.speakers.length)
+      ? `
+          <div style="margin-top:18px;">
+            <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Speakers</div>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f9fafb;border-left:4px solid #10b981;">
+              <tr>
+                <td style="padding:14px 16px;">
+                  ${data.speakers
+                    .map((s) => `
+                      <div style=\"margin-bottom:10px; font-size:14px; color:#111827;\">
+                        <div><strong>${s.name}</strong>${s.title ? `, ${s.title}` : ""}${s.company ? ` - ${s.company}` : ""}</div>
+                      </div>
+                    `)
+                    .join("")}
+                </td>
+              </tr>
+            </table>
+          </div>
+        `
+      : "";
+
+    const agendaHtml = (data.agenda && data.agenda.length)
+      ? `
+          <div style=\"margin-top:18px;\">
+            <div style=\"font-size:16px;font-weight:700;margin-bottom:8px;\">Event Agenda</div>
+            <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\" style=\"background:#f9fafb;border-left:4px solid #3b82f6;\">
+              <tr>
+                <td style=\"padding:14px 16px;\">
+                  ${data.agenda
+                    .map((a) => `
+                      <div style=\\"margin-bottom:10px; font-size:14px; color:#111827;\\">
+                        <div><strong>${a.title}</strong>${a.speaker ? ` - ${a.speaker}` : ""}</div>
+                        ${a.description ? `<div style=\\"color:#4b5563; font-size:13px; margin-top:4px;\\">${a.description}</div>` : ""}
+                      </div>
+                    `)
+                    .join("")}
+                </td>
+              </tr>
+            </table>
+          </div>
+        `
+      : "";
 
     return `
 <!DOCTYPE html>
@@ -570,11 +616,15 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
                   <td style="padding:16px 16px 8px 16px;">
                     <div style="font-size:14px; color:#111827; margin-bottom:8px;"><strong>Date & Time:</strong> ${formattedStart}${formattedEnd ? ` &ndash; ${formattedEnd}` : ""}</div>
                     <div style="font-size:14px; color:#111827; margin-bottom:8px;"><strong>Location:</strong> ${data.isOnline ? "Online" : data.location}</div>
+                    ${data.organizerName ? `<div style=\"font-size:14px; color:#111827; margin-bottom:8px;\"><strong>Organized By:</strong> ${data.organizerName}</div>` : ""}
                     ${data.meetingLink ? `<div style=\"font-size:14px; color:#2563eb; margin-bottom:8px;\"><a style=\"color:#2563eb; text-decoration:underline;\" href=\"${data.meetingLink}\">Join Link</a></div>` : ""}
                     ${isPaid ? `<div style=\"font-size:14px; color:#111827; margin-bottom:8px;\"><strong>Price:</strong> ₹${Number(data.price).toFixed(2)}</div>` : `<div style=\"font-size:14px; color:#111827; margin-bottom:8px;\"><strong>Price:</strong> Free</div>`}
                   </td>
                 </tr>
               </table>
+
+              ${speakersHtml}
+              ${agendaHtml}
 
               ${data.type === "registration" && data.ctaUrl ? `
               <div style="text-align:center; margin-top:22px;">
@@ -614,6 +664,9 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     image?: string;
     ctaUrl?: string;
     collegeName?: string;
+    organizerName?: string;
+    speakers?: Array<{ name: string; title?: string; company?: string; photo?: string; bio?: string }>;
+    agenda?: Array<{ title: string; speaker?: string; description?: string }>;
   }): Promise<boolean> {
     const html = this.generateEventEmailTemplate({ type: "registration", ...data });
     const text = `Registration Confirmed\n\n${data.eventTitle}\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}${typeof data.price === "number" && data.price > 0 ? `Price: ₹${Number(data.price).toFixed(2)}` : "Price: Free"}`;
@@ -634,6 +687,9 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     image?: string;
     ctaUrl?: string;
     collegeName?: string;
+    organizerName?: string;
+    speakers?: Array<{ name: string; title?: string; company?: string; photo?: string; bio?: string }>;
+    agenda?: Array<{ title: string; speaker?: string; description?: string }>;
   }): Promise<boolean> {
     const html = this.generateEventEmailTemplate({ type: "reminder", ...data });
     const text = `Reminder: ${data.eventTitle} (Tomorrow)\n\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}${typeof data.price === "number" && data.price > 0 ? `Price: ₹${Number(data.price).toFixed(2)}` : "Price: Free"}`;

@@ -4,6 +4,7 @@ import Event from "../models/Event";
 import User from "../models/User";
 import { logger } from "../utils/logger";
 import { emailService } from "../services/emailService";
+import Tenant from "../models/Tenant";
 import { EventType } from "../types";
 
 // Get all events
@@ -606,9 +607,12 @@ export const registerForEvent = async (req: Request, res: Response) => {
 
       // Send registration email for free events
       try {
-        const organizer = await (Event as any)
+        const organizerDoc = await (Event as any)
           .findById(req.params.id)
           .populate("organizer", "firstName lastName");
+        const tenant = event.tenantId
+          ? await Tenant.findById(event.tenantId)
+          : null;
         await emailService.sendEventRegistrationEmail({
           to: req.user.email,
           attendeeName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email,
@@ -621,6 +625,10 @@ export const registerForEvent = async (req: Request, res: Response) => {
           meetingLink: event.meetingLink,
           price: event.price,
           image: event.image,
+          collegeName: tenant?.name,
+          organizerName: organizerDoc?.organizer ? `${(organizerDoc as any).organizer.firstName || ""} ${(organizerDoc as any).organizer.lastName || ""}`.trim() : undefined,
+          speakers: Array.isArray(event.speakers) ? (event.speakers as any) : undefined,
+          agenda: Array.isArray(event.agenda) ? (event.agenda as any) : undefined,
         });
       } catch (e) {
         logger.warn("Failed to send free-event registration email", e);
@@ -713,6 +721,7 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
 
     // Send registration confirmation email for paid events after success
     try {
+      const tenant = event.tenantId ? await Tenant.findById(event.tenantId) : null;
       await emailService.sendEventRegistrationEmail({
         to: req.user.email,
         attendeeName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email,
@@ -725,6 +734,10 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
         meetingLink: event.meetingLink,
         price: event.price,
         image: event.image,
+        collegeName: tenant?.name,
+        organizerName: (event as any).organizer ? `${(event as any).organizer.firstName || ""} ${(event as any).organizer.lastName || ""}`.trim() : undefined,
+        speakers: Array.isArray(event.speakers) ? (event.speakers as any) : undefined,
+        agenda: Array.isArray(event.agenda) ? (event.agenda as any) : undefined,
       });
     } catch (e) {
       logger.warn("Failed to send paid-event registration email", e);

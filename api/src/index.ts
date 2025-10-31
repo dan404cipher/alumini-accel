@@ -55,6 +55,7 @@ import reportRoutes from "./routes/reports";
 import categoryRoutes from "./routes/category";
 import cron from "node-cron";
 import Event from "./models/Event";
+import Tenant from "./models/Tenant";
 import { emailService } from "./services/emailService";
 
 const app = express();
@@ -101,7 +102,9 @@ const startServer = async () => {
 
             const events = await Event.find({
               startDate: { $gte: start, $lte: end },
-            }).populate("attendees.userId", "email firstName lastName");
+            })
+              .populate("attendees.userId", "email firstName lastName")
+              .populate("organizer", "firstName lastName");
 
             for (const evt of events) {
               const attendees = Array.isArray(evt.attendees) ? evt.attendees : [];
@@ -109,6 +112,9 @@ const startServer = async () => {
                 if (!a || a.status !== "registered" || a.reminderSent) continue;
                 const user: any = a.userId;
                 if (!user?.email) continue;
+                const tenant = (evt as any).tenantId
+                  ? await Tenant.findById((evt as any).tenantId)
+                  : null;
                 await emailService.sendEventReminderEmail({
                   to: user.email,
                   attendeeName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
@@ -121,6 +127,10 @@ const startServer = async () => {
                   meetingLink: (evt as any).meetingLink,
                   price: (evt as any).price,
                   image: (evt as any).image,
+                  collegeName: tenant?.name,
+                  organizerName: (evt as any).organizer ? `${(evt as any).organizer.firstName || ""} ${(evt as any).organizer.lastName || ""}`.trim() : undefined,
+                  speakers: Array.isArray((evt as any).speakers) ? ((evt as any).speakers as any) : undefined,
+                  agenda: Array.isArray((evt as any).agenda) ? ((evt as any).agenda as any) : undefined,
                 });
                 a.reminderSent = true;
               }

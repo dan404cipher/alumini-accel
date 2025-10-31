@@ -32,6 +32,8 @@ import {
   ExternalLink,
   Target,
   GraduationCap,
+  UserCheck,
+  HeartHandshake,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantAPI } from "@/lib/api";
@@ -60,6 +62,16 @@ const AlumniPortal = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedMentorship, setSelectedMentorship] = useState<any>(null);
+  const [stats, setStats] = useState({
+    totalEvents: 0,
+    totalJobs: 0,
+    totalCommunities: 0,
+    totalMentorships: 0,
+    totalDonations: 0,
+    totalCampaigns: 0,
+    myRegistrations: 0,
+    myConnections: 0,
+  });
 
   // Load college banner
   useEffect(() => {
@@ -129,118 +141,185 @@ const AlumniPortal = () => {
   }, [user?.tenantId]);
 
   // Fetch recent data
-  useEffect(() => {
-    const fetchRecentData = async () => {
-      setLoading(true);
-      try {
-        // Get token from localStorage or sessionStorage (same logic as AuthContext)
-        const token = getAuthTokenOrNull();
-        if (!token) {
-          throw new Error("Access token is required");
-        }
-
-        const headers = {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        };
-
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-
-        // Fetch recent events
-        const eventsResponse = await fetch(`${baseUrl}/events?limit=8`, {
-          headers,
-        });
-        if (eventsResponse.ok) {
-          const eventsData = await eventsResponse.json();
-          setRecentEvents(eventsData.data?.events || []);
-        }
-
-        // Fetch recent news
-        const newsResponse = await fetch(`${baseUrl}/news?limit=8`, {
-          headers,
-        });
-        if (newsResponse.ok) {
-          const newsData = await newsResponse.json();
-          setRecentNews(newsData.data?.news || []);
-        }
-
-        // Fetch recent galleries
-        const galleriesResponse = await fetch(
-          `${baseUrl}/gallery?limit=8&tenantId=${user?.tenantId || ""}`,
-          {
-            headers,
-          }
-        );
-        if (galleriesResponse.ok) {
-          const galleriesData = await galleriesResponse.json();
-          setRecentGalleries(galleriesData.data?.galleries || []);
-        }
-
-        // Fetch top communities
-        const communitiesResponse = await fetch(
-          `${baseUrl}/communities/top?limit=8`,
-          { headers }
-        );
-        if (communitiesResponse.ok) {
-          const communitiesData = await communitiesResponse.json();
-          setRecentCommunities(communitiesData.data || []);
-        }
-
-        // Fetch recent mentorships
-        const mentorshipsResponse = await fetch(
-          `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
-          { headers }
-        );
-        if (mentorshipsResponse.ok) {
-          const mentorshipsData = await mentorshipsResponse.json();
-          const mentorships = mentorshipsData.data?.mentorships || [];
-          setRecentMentorships(mentorships);
-        }
-
-        // Fetch recent jobs
-        const jobsResponse = await fetch(`${baseUrl}/jobs?limit=8`, {
-          headers,
-        });
-        if (jobsResponse.ok) {
-          const jobsData = await jobsResponse.json();
-          setRecentJobs(jobsData.data?.jobs || []);
-        }
-
-        // Fetch recent campaigns
-        const campaignsResponse = await fetch(`${baseUrl}/campaigns?limit=8`, {
-          headers,
-        });
-        if (campaignsResponse.ok) {
-          const campaignsData = await campaignsResponse.json();
-          setRecentCampaigns(
-            campaignsData.data?.campaigns || campaignsData.data || []
-          );
-        }
-
-        // Fetch recent mentorship programs
-        const mentorshipProgramsResponse = await fetch(
-          `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
-          {
-            headers,
-          }
-        );
-        if (mentorshipProgramsResponse.ok) {
-          const mentorshipProgramsData =
-            await mentorshipProgramsResponse.json();
-          setRecentMentorshipPrograms(
-            mentorshipProgramsData.data?.mentorships ||
-              mentorshipProgramsData.data ||
-              []
-          );
-        }
-      } catch (error) {
-        console.error("Error fetching recent data:", error);
-      } finally {
-        setLoading(false);
+  const fetchRecentData = async () => {
+    setLoading(true);
+    try {
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+      if (!token) {
+        throw new Error("Access token is required");
       }
-    };
 
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+
+      const baseUrl =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+
+      // Fetch recent events
+      const eventsResponse = await fetch(`${baseUrl}/events?limit=8`, {
+        headers,
+      });
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        setRecentEvents(eventsData.data?.events || []);
+      }
+
+      // Fetch total events count
+      const eventsCountResponse = await fetch(`${baseUrl}/events`, {
+        headers,
+      });
+      if (eventsCountResponse.ok) {
+        const eventsCountData = await eventsCountResponse.json();
+        const totalEvents =
+          eventsCountData.data?.pagination?.total ||
+          eventsCountData.data?.events?.length ||
+          0;
+        setStats((prev) => ({ ...prev, totalEvents }));
+      }
+
+      // Fetch recent news
+      const newsResponse = await fetch(`${baseUrl}/news?limit=8`, {
+        headers,
+      });
+      if (newsResponse.ok) {
+        const newsData = await newsResponse.json();
+        setRecentNews(newsData.data?.news || []);
+      }
+
+      // Fetch recent galleries
+      const galleriesResponse = await fetch(
+        `${baseUrl}/gallery?limit=8&tenantId=${user?.tenantId || ""}`,
+        {
+          headers,
+        }
+      );
+      if (galleriesResponse.ok) {
+        const galleriesData = await galleriesResponse.json();
+        setRecentGalleries(galleriesData.data?.galleries || []);
+      }
+
+      // Fetch top communities
+      const communitiesResponse = await fetch(
+        `${baseUrl}/communities/top?limit=8`,
+        { headers }
+      );
+      if (communitiesResponse.ok) {
+        const communitiesData = await communitiesResponse.json();
+        setRecentCommunities(communitiesData.data || []);
+        const totalCommunities = Array.isArray(communitiesData.data)
+          ? communitiesData.data.length
+          : 0;
+        setStats((prev) => ({ ...prev, totalCommunities }));
+      }
+
+      // Fetch recent mentorships
+      const mentorshipsResponse = await fetch(
+        `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
+        { headers }
+      );
+      if (mentorshipsResponse.ok) {
+        const mentorshipsData = await mentorshipsResponse.json();
+        const mentorships = mentorshipsData.data?.mentorships || [];
+        setRecentMentorships(mentorships);
+        const totalMentorships =
+          mentorshipsData.data?.pagination?.total || mentorships.length || 0;
+        setStats((prev) => ({ ...prev, totalMentorships }));
+      }
+
+      // Fetch recent jobs
+      const jobsResponse = await fetch(`${baseUrl}/jobs?limit=8`, {
+        headers,
+      });
+      if (jobsResponse.ok) {
+        const jobsData = await jobsResponse.json();
+        setRecentJobs(jobsData.data?.jobs || []);
+      }
+
+      // Fetch total jobs count
+      const jobsCountResponse = await fetch(`${baseUrl}/jobs`, {
+        headers,
+      });
+      if (jobsCountResponse.ok) {
+        const jobsCountData = await jobsCountResponse.json();
+        const totalJobs =
+          jobsCountData.data?.pagination?.total ||
+          jobsCountData.data?.jobs?.length ||
+          0;
+        setStats((prev) => ({ ...prev, totalJobs }));
+      }
+
+      // Fetch recent campaigns
+      const campaignsResponse = await fetch(`${baseUrl}/campaigns?limit=8`, {
+        headers,
+      });
+      if (campaignsResponse.ok) {
+        const campaignsData = await campaignsResponse.json();
+        const campaigns =
+          campaignsData.data?.campaigns || campaignsData.data || [];
+        setRecentCampaigns(campaigns);
+        const totalCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
+        setStats((prev) => ({ ...prev, totalCampaigns }));
+      }
+
+      // Fetch total donations
+      const donationsResponse = await fetch(`${baseUrl}/donations?limit=1`, {
+        headers,
+      });
+      if (donationsResponse.ok) {
+        const donationsData = await donationsResponse.json();
+        const totalDonations =
+          donationsData.data?.pagination?.total ||
+          donationsData.data?.donations?.length ||
+          0;
+        setStats((prev) => ({ ...prev, totalDonations }));
+      }
+
+      // Fetch my event registrations
+      if (user?._id) {
+        const myRegistrationsResponse = await fetch(
+          `${baseUrl}/events?userId=${user._id}`,
+          { headers }
+        );
+        if (myRegistrationsResponse.ok) {
+          const myRegData = await myRegistrationsResponse.json();
+          let myRegCount = 0;
+          if (myRegData.data?.events) {
+            myRegData.data.events.forEach((event: any) => {
+              if (event.attendees?.some((a: any) => a.userId === user._id)) {
+                myRegCount++;
+              }
+            });
+          }
+          setStats((prev) => ({ ...prev, myRegistrations: myRegCount }));
+        }
+      }
+
+      // Fetch recent mentorship programs
+      const mentorshipProgramsResponse = await fetch(
+        `${baseUrl}/mentorship?limit=8&tenantId=${user?.tenantId || ""}`,
+        {
+          headers,
+        }
+      );
+      if (mentorshipProgramsResponse.ok) {
+        const mentorshipProgramsData = await mentorshipProgramsResponse.json();
+        setRecentMentorshipPrograms(
+          mentorshipProgramsData.data?.mentorships ||
+            mentorshipProgramsData.data ||
+            []
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching recent data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchRecentData();
   }, [user?.role]);
 
@@ -366,6 +445,141 @@ const AlumniPortal = () => {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border-l-4 border-l-blue-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Events
+                  </CardTitle>
+                  <Calendar className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalEvents}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Available events
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-green-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    My Registrations
+                  </CardTitle>
+                  <UserCheck className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.myRegistrations}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Events registered
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-purple-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Active Jobs
+                  </CardTitle>
+                  <Briefcase className="h-4 w-4 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalJobs}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Job opportunities
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-orange-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Communities
+                  </CardTitle>
+                  <Users className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.totalCommunities}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Active communities
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-indigo-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Mentorships
+                  </CardTitle>
+                  <TrendingUp className="h-4 w-4 text-indigo-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.totalMentorships}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Available programs
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-red-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Campaigns
+                  </CardTitle>
+                  <Target className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.totalCampaigns}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Active campaigns
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-pink-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Donations
+                  </CardTitle>
+                  <HeartHandshake className="h-4 w-4 text-pink-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.totalDonations}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Total donations
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-cyan-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Connections
+                  </CardTitle>
+                  <UserCheck className="h-4 w-4 text-cyan-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.myConnections}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    My connections
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Recent Events */}
             <div className="bg-white border rounded-lg">
               <div className="flex items-center justify-between p-6 border-b">

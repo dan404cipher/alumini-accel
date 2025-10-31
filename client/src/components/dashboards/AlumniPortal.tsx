@@ -36,14 +36,44 @@ import {
   HeartHandshake,
   ChevronLeft,
   ChevronRight,
+  Hash,
+  Activity,
+  Bookmark,
+  Star,
+  Share2 as ShareIcon,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Instagram,
+  Youtube,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { tenantAPI, alumniAPI } from "@/lib/api";
+import {
+  tenantAPI,
+  alumniAPI,
+  communityAPI,
+  eventAPI,
+  jobAPI,
+  newsAPI,
+} from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import MentorshipActionMenu from "@/components/mentorship/MentorshipActionMenu";
 import EditMentorshipDialog from "@/components/dialogs/EditMentorshipDialog";
 import DeleteMentorshipDialog from "@/components/dialogs/DeleteMentorshipDialog";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+
+// Helper function to format time ago
+const formatTimeAgo = (date: Date): string => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return "Just now";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 2592000)
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  return date.toLocaleDateString();
+};
 
 const AlumniPortal = () => {
   const { user } = useAuth();
@@ -77,6 +107,10 @@ const AlumniPortal = () => {
   });
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [alumniList, setAlumniList] = useState<any[]>([]);
+  const [trendingTags, setTrendingTags] = useState<any[]>([]);
+  const [myActivity, setMyActivity] = useState<any[]>([]);
+  const [savedItems, setSavedItems] = useState<any[]>([]);
+  const [featuredAlumni, setFeaturedAlumni] = useState<any[]>([]);
 
   // Load college banner
   useEffect(() => {
@@ -330,6 +364,273 @@ const AlumniPortal = () => {
         }
       } catch (error) {
         console.error("Error fetching alumni list:", error);
+      }
+
+      // Fetch saved items (Events, Jobs, News, Gallery)
+      try {
+        const [savedEventsRes, savedJobsRes, savedNewsRes, savedGalleriesRes] =
+          await Promise.all([
+            eventAPI.getSavedEvents().catch(() => ({
+              success: false,
+              data: { events: [] },
+            })) as Promise<{ success: boolean; data?: { events?: any[] } }>,
+            jobAPI.getSavedJobs({ limit: 3 }).catch(() => ({
+              success: false,
+              data: { jobs: [] },
+            })) as Promise<{
+              success: boolean;
+              data?: { jobs?: any[] };
+            }>,
+            newsAPI.getSavedNews({ limit: 3 }).catch(() => ({
+              success: false,
+              data: { savedNews: [] },
+            })) as Promise<{ success: boolean; data?: { savedNews?: any[] } }>,
+            // Gallery save feature - placeholder for future API
+            fetch(`${baseUrl}/gallery/saved`, {
+              headers,
+            })
+              .then((res) =>
+                res.ok
+                  ? res.json()
+                  : { success: false, data: { galleries: [] } }
+              )
+              .catch(() => ({
+                success: false,
+                data: { galleries: [] },
+              })) as Promise<{
+              success: boolean;
+              data?: { galleries?: any[] };
+            }>,
+          ]);
+
+        const allSaved: any[] = [];
+
+        // Process saved events
+        if (savedEventsRes.success && savedEventsRes.data?.events) {
+          savedEventsRes.data.events.forEach((event: any) => {
+            if (event && event._id) {
+              allSaved.push({
+                _id: event._id,
+                title: event.title || event.name || "Untitled Event",
+                type: "event",
+                savedAt: event.savedAt || event.createdAt || new Date(),
+              });
+            }
+          });
+        }
+
+        // Process saved jobs
+        if (savedJobsRes.success && savedJobsRes.data?.jobs) {
+          savedJobsRes.data.jobs.forEach((job: any) => {
+            if (job && job._id) {
+              allSaved.push({
+                _id: job._id,
+                title: job.title || job.position || job.name || "Untitled Job",
+                type: "job",
+                savedAt: job.savedAt || job.createdAt || new Date(),
+              });
+            }
+          });
+        }
+
+        // Process saved news (newsId is populated)
+        if (savedNewsRes.success && savedNewsRes.data?.savedNews) {
+          savedNewsRes.data.savedNews.forEach((savedNewsItem: any) => {
+            // SavedNews document has newsId populated
+            const news = savedNewsItem.newsId || savedNewsItem;
+            if (news && news._id) {
+              allSaved.push({
+                _id: news._id,
+                title: news.title || news.name || "Untitled News",
+                type: "news",
+                savedAt:
+                  savedNewsItem.createdAt || news.createdAt || new Date(),
+              });
+            }
+          });
+        }
+
+        // Process saved galleries (if API exists)
+        if (savedGalleriesRes.success && savedGalleriesRes.data?.galleries) {
+          savedGalleriesRes.data.galleries.forEach((savedGalleryItem: any) => {
+            // Handle both SavedGallery model (with galleryId) and direct gallery objects
+            const gallery = savedGalleryItem.galleryId || savedGalleryItem;
+            if (gallery && gallery._id) {
+              allSaved.push({
+                _id: gallery._id,
+                title: gallery.title || gallery.name || "Untitled Gallery",
+                type: "gallery",
+                savedAt:
+                  savedGalleryItem.createdAt || gallery.createdAt || new Date(),
+              });
+            }
+          });
+        }
+
+        // Sort by saved date and limit to 5
+        allSaved.sort(
+          (a, b) =>
+            new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+        );
+        setSavedItems(allSaved.slice(0, 5));
+
+        // Generate activity feed from real user data
+        const activities: any[] = [];
+
+        // Add event registrations as activities
+        if (recentEvents.length > 0 && user?._id) {
+          recentEvents.forEach((event: any) => {
+            if (event.attendees && Array.isArray(event.attendees)) {
+              const userRegistration = event.attendees.find(
+                (a: any) =>
+                  a.userId === user._id ||
+                  a.userId?.toString() === user._id?.toString()
+              );
+              if (userRegistration && userRegistration.registeredAt) {
+                const regDate = new Date(userRegistration.registeredAt);
+                const timeAgo = formatTimeAgo(regDate);
+                activities.push({
+                  id: `event-${event._id}`,
+                  type: "event",
+                  action: "registered for",
+                  title: event.title || "an event",
+                  time: timeAgo,
+                  icon: Calendar,
+                  link: `/events/${event._id}`,
+                });
+              }
+            }
+          });
+        }
+
+        // Add community memberships as activities
+        if (recentCommunities.length > 0 && user?._id) {
+          recentCommunities.slice(0, 3).forEach((community: any) => {
+            // Check if user is a member (you might need to add this check)
+            if (community.memberCount > 0) {
+              const joinDate = community.createdAt
+                ? new Date(community.createdAt)
+                : new Date();
+              const timeAgo = formatTimeAgo(joinDate);
+              activities.push({
+                id: `community-${community._id}`,
+                type: "community",
+                action: "joined",
+                title: community.name || "a community",
+                time: timeAgo,
+                icon: Users,
+                link: `/community/${community._id}`,
+              });
+            }
+          });
+        }
+
+        // Add saved items as activities
+        if (allSaved.length > 0) {
+          allSaved.slice(0, 3).forEach((item: any, index: number) => {
+            const savedDate = item.savedAt
+              ? new Date(item.savedAt)
+              : new Date();
+            const timeAgo = formatTimeAgo(savedDate);
+            let itemLink = "";
+            if (item.type === "event") itemLink = `/events/${item._id}`;
+            else if (item.type === "job") itemLink = `/jobs/${item._id}`;
+            else if (item.type === "news") itemLink = `/news/${item._id}`;
+
+            activities.push({
+              id: `saved-${item._id || index}`,
+              type: "saved",
+              action: "saved",
+              title: item.title || item.name || "an item",
+              time: timeAgo,
+              icon: Bookmark,
+              link: itemLink,
+            });
+          });
+        }
+
+        // Sort by time (most recent first) and limit to 5
+        activities.sort((a, b) => {
+          const timeA = a.time || "";
+          const timeB = b.time || "";
+          return timeB.localeCompare(timeA);
+        });
+        setMyActivity(activities.slice(0, 5));
+      } catch (error) {
+        console.error("Error fetching saved items:", error);
+      }
+
+      // Fetch trending tags from communities (after communities are fetched)
+      try {
+        const topCommunitiesRes = (await communityAPI.getTopCommunities(5)) as {
+          success: boolean;
+          data?: any[];
+        };
+        if (
+          topCommunitiesRes.success &&
+          topCommunitiesRes.data &&
+          Array.isArray(topCommunitiesRes.data) &&
+          topCommunitiesRes.data.length > 0
+        ) {
+          const allTags: any[] = [];
+          for (const community of topCommunitiesRes.data.slice(0, 3)) {
+            try {
+              const tagsResponse = (await communityAPI.getPopularTags(
+                community._id,
+                5
+              )) as { success: boolean; data?: any[] };
+              if (
+                tagsResponse.success &&
+                tagsResponse.data &&
+                Array.isArray(tagsResponse.data)
+              ) {
+                allTags.push(...tagsResponse.data);
+              }
+            } catch (err) {
+              // Continue if one fails
+            }
+          }
+          // Remove duplicates and sort by count
+          const uniqueTags = Array.from(
+            new Map(allTags.map((tag) => [tag.tag || tag.name, tag])).values()
+          );
+          setTrendingTags(uniqueTags.slice(0, 10));
+        }
+      } catch (error) {
+        console.error("Error fetching trending tags:", error);
+      }
+
+      // Fetch featured alumni (mentors or top alumni)
+      try {
+        const mentorsResponse = (await alumniAPI.getMentors({ limit: 5 })) as {
+          success: boolean;
+          data?: { alumni?: any[] } | any[];
+        };
+        if (mentorsResponse.success) {
+          if (
+            mentorsResponse.data &&
+            "alumni" in mentorsResponse.data &&
+            Array.isArray(mentorsResponse.data.alumni)
+          ) {
+            setFeaturedAlumni(mentorsResponse.data.alumni);
+          } else if (Array.isArray(mentorsResponse.data)) {
+            setFeaturedAlumni(mentorsResponse.data);
+          }
+        }
+      } catch (error) {
+        // Fallback to top alumni
+        try {
+          const topAlumniResponse = (await alumniAPI.getAllUsersDirectory({
+            limit: 5,
+            tenantId: user?.tenantId,
+            userType: "alumni",
+          })) as { success: boolean; data?: { users?: any[] } };
+          if (topAlumniResponse.success && topAlumniResponse.data?.users) {
+            setFeaturedAlumni(topAlumniResponse.data.users);
+          }
+        } catch (err) {
+          console.error("Error fetching featured alumni:", err);
+        }
       }
     } catch (error) {
       console.error("Error fetching recent data:", error);
@@ -1469,6 +1770,339 @@ const AlumniPortal = () => {
                         <p className="text-xs">No alumni found</p>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* Trending Topics/Hashtags */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-gray-600" />
+                        <CardTitle className="text-base font-semibold">
+                          Trending Topics
+                        </CardTitle>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {trendingTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {trendingTags
+                          .slice(0, 8)
+                          .map((tag: any, index: number) => (
+                            <Badge
+                              key={tag.tag || tag.name || index}
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-blue-100 hover:text-blue-700 transition-colors text-xs px-2 py-1"
+                              onClick={() => {
+                                // Navigate to communities with this tag
+                                navigate(
+                                  `/community?tag=${encodeURIComponent(
+                                    tag.tag || tag.name
+                                  )}`
+                                );
+                              }}
+                            >
+                              #{tag.tag || tag.name}
+                              {tag.count && (
+                                <span className="ml-1 text-xs opacity-70">
+                                  ({tag.count})
+                                </span>
+                              )}
+                            </Badge>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <Hash className="h-6 w-6 mx-auto mb-2 text-gray-300" />
+                        <p className="text-xs">No trending topics</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* My Activity Feed */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-gray-600" />
+                        <CardTitle className="text-base font-semibold">
+                          My Activity
+                        </CardTitle>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {myActivity.length > 0 ? (
+                      <div className="space-y-3">
+                        {myActivity.map((activity) => {
+                          const IconComponent = activity.icon || Activity;
+                          return (
+                            <div
+                              key={activity.id}
+                              onClick={() => {
+                                if (activity.link) {
+                                  navigate(activity.link);
+                                }
+                              }}
+                              className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
+                                activity.link
+                                  ? "hover:bg-gray-50 cursor-pointer"
+                                  : "hover:bg-gray-50"
+                              }`}
+                            >
+                              <div className="flex-shrink-0 mt-0.5">
+                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <IconComponent className="h-4 w-4 text-blue-600" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-900">
+                                  You{" "}
+                                  <span className="font-medium">
+                                    {activity.action}
+                                  </span>{" "}
+                                  <span
+                                    className={`${
+                                      activity.link
+                                        ? "text-blue-600 hover:underline"
+                                        : "text-blue-600"
+                                    }`}
+                                  >
+                                    {activity.title}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {activity.time}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <Activity className="h-6 w-6 mx-auto mb-2 text-gray-300" />
+                        <p className="text-xs">No recent activity</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Bookmarked/Saved Items */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bookmark className="h-4 w-4 text-gray-600" />
+                        <CardTitle className="text-base font-semibold">
+                          Saved Items
+                        </CardTitle>
+                      </div>
+                      {savedItems.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate("/saved")}
+                          className="h-7 text-xs"
+                        >
+                          View All
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {savedItems.length > 0 ? (
+                      <div className="space-y-2">
+                        {savedItems.slice(0, 5).map((item: any) => {
+                          const getIcon = () => {
+                            if (item.type === "event") return Calendar;
+                            if (item.type === "job") return Briefcase;
+                            if (item.type === "gallery") return ImageIcon;
+                            return MessageSquare;
+                          };
+                          const IconComponent = getIcon();
+                          const handleClick = () => {
+                            if (item.type === "event")
+                              navigate(`/events/${item._id}`);
+                            else if (item.type === "job")
+                              navigate(`/jobs/${item._id}`);
+                            else if (item.type === "news")
+                              navigate(`/news/${item._id}`);
+                            else if (item.type === "gallery")
+                              navigate(`/gallery/${item._id}`);
+                          };
+                          return (
+                            <div
+                              key={item._id}
+                              onClick={handleClick}
+                              className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
+                            >
+                              <div className="flex-shrink-0 mt-0.5">
+                                <IconComponent className="h-3.5 w-3.5 text-gray-500 group-hover:text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-900 truncate group-hover:text-blue-600">
+                                  {item.title || item.name}
+                                </p>
+                                <p className="text-xs text-gray-500 capitalize">
+                                  {item.type === "gallery"
+                                    ? "Gallery"
+                                    : item.type}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <Bookmark className="h-6 w-6 mx-auto mb-2 text-gray-300" />
+                        <p className="text-xs">No saved items</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Featured Alumni/Spotlight */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Star className="h-4 w-4 text-gray-600" />
+                        <CardTitle className="text-base font-semibold">
+                          Featured Alumni
+                        </CardTitle>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {featuredAlumni.length > 0 ? (
+                      <div className="space-y-2">
+                        {featuredAlumni.slice(0, 5).map((alumnus: any) => {
+                          const displayName =
+                            alumnus.name ||
+                            `${alumnus.firstName || ""} ${
+                              alumnus.lastName || ""
+                            }`.trim() ||
+                            "Alumni";
+                          const profileImage =
+                            alumnus.profileImage || alumnus.profilePicture;
+                          return (
+                            <div
+                              key={alumnus.id || alumnus._id}
+                              onClick={() =>
+                                navigate(`/alumni/${alumnus.id || alumnus._id}`)
+                              }
+                              className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
+                            >
+                              <div className="flex-shrink-0">
+                                {profileImage ? (
+                                  <img
+                                    src={profileImage}
+                                    alt={displayName}
+                                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                                    <User className="w-4 h-4 text-blue-600" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-900 truncate group-hover:text-blue-600">
+                                  {displayName}
+                                </p>
+                                {(alumnus.currentRole || alumnus.company) && (
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {alumnus.currentRole || alumnus.company}
+                                  </p>
+                                )}
+                              </div>
+                              <Star className="h-3 w-3 text-yellow-500 flex-shrink-0" />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <Star className="h-6 w-6 mx-auto mb-2 text-gray-300" />
+                        <p className="text-xs">No featured alumni</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Social Media Links */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <ShareIcon className="h-4 w-4 text-gray-600" />
+                      <CardTitle className="text-base font-semibold">
+                        Follow Us
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href="https://facebook.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors group"
+                      >
+                        <Facebook className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs text-gray-700 group-hover:text-blue-600">
+                          Facebook
+                        </span>
+                      </a>
+                      <a
+                        href="https://twitter.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-sky-50 cursor-pointer transition-colors group"
+                      >
+                        <Twitter className="h-4 w-4 text-sky-500 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs text-gray-700 group-hover:text-sky-600">
+                          Twitter
+                        </span>
+                      </a>
+                      <a
+                        href="https://linkedin.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors group"
+                      >
+                        <Linkedin className="h-4 w-4 text-blue-700 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs text-gray-700 group-hover:text-blue-700">
+                          LinkedIn
+                        </span>
+                      </a>
+                      <a
+                        href="https://instagram.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-pink-50 cursor-pointer transition-colors group"
+                      >
+                        <Instagram className="h-4 w-4 text-pink-600 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs text-gray-700 group-hover:text-pink-600">
+                          Instagram
+                        </span>
+                      </a>
+                      <a
+                        href="https://youtube.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-red-50 cursor-pointer transition-colors group col-span-2"
+                      >
+                        <Youtube className="h-4 w-4 text-red-600 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs text-gray-700 group-hover:text-red-600">
+                          YouTube
+                        </span>
+                      </a>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

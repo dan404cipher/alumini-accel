@@ -1977,7 +1977,9 @@ const CollegeAdminDashboard = () => {
                                 </p>
                                 {newsItem.author && (
                                   <Badge variant="outline" className="text-xs">
-                                    {newsItem.author}
+                                    {typeof newsItem.author === "string"
+                                      ? newsItem.author
+                                      : `${newsItem.author.firstName || ""} ${newsItem.author.lastName || ""}`.trim() || newsItem.author.email || "Unknown"}
                                   </Badge>
                                 )}
                       </div>

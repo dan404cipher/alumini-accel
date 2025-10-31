@@ -169,6 +169,10 @@ const eventSchema = new Schema<IEvent>(
           enum: ["free", "pending", "successful", "failed"],
           default: "free",
         },
+        reminderSent: {
+          type: Boolean,
+          default: false,
+        },
       },
     ],
     image: {

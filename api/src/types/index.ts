@@ -416,6 +416,7 @@ export interface IEvent extends Document {
     additionalNotes?: string;
     amountPaid?: number;
     paymentStatus?: "free" | "pending" | "successful" | "failed";
+    reminderSent?: boolean;
   }>;
   photos: string[];
   feedback: Array<{

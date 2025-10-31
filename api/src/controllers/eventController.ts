@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Event from "../models/Event";
 import User from "../models/User";
 import { logger } from "../utils/logger";
+import { emailService } from "../services/emailService";
 import { EventType } from "../types";
 
 // Get all events
@@ -603,6 +604,28 @@ export const registerForEvent = async (req: Request, res: Response) => {
       event.attendees.push(attendee as any);
       await event.save();
 
+      // Send registration email for free events
+      try {
+        const organizer = await (Event as any)
+          .findById(req.params.id)
+          .populate("organizer", "firstName lastName");
+        await emailService.sendEventRegistrationEmail({
+          to: req.user.email,
+          attendeeName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email,
+          eventTitle: event.title,
+          eventDescription: event.description,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          location: event.location,
+          isOnline: event.isOnline,
+          meetingLink: event.meetingLink,
+          price: event.price,
+          image: event.image,
+        });
+      } catch (e) {
+        logger.warn("Failed to send free-event registration email", e);
+      }
+
       return res.json({
         success: true,
         message: "Successfully registered for event",
@@ -629,6 +652,7 @@ export const registerForEvent = async (req: Request, res: Response) => {
     event.attendees.push(attendee as any);
     await event.save();
 
+    // Paid event - pending payment; do not send email yet
     return res.json({
       success: true,
       message: "Payment required to complete registration",
@@ -655,7 +679,7 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
     const { id } = req.params; // event id
     const { paymentStatus } = req.body; // expected 'success'
 
-    const event = await Event.findById(id);
+    const event = await Event.findById(id).populate("organizer", "firstName lastName");
     if (!event) {
       return res
         .status(404)
@@ -686,6 +710,25 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
     existingRegistration.paymentStatus = "successful";
     existingRegistration.amountPaid = event.price;
     await event.save();
+
+    // Send registration confirmation email for paid events after success
+    try {
+      await emailService.sendEventRegistrationEmail({
+        to: req.user.email,
+        attendeeName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email,
+        eventTitle: event.title,
+        eventDescription: event.description,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        location: event.location,
+        isOnline: event.isOnline,
+        meetingLink: event.meetingLink,
+        price: event.price,
+        image: event.image,
+      });
+    } catch (e) {
+      logger.warn("Failed to send paid-event registration email", e);
+    }
 
     return res.json({
       success: true,

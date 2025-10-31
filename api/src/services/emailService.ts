@@ -496,6 +496,149 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
   }): string {
     return this.generateWelcomeEmailTemplate(data);
   }
+
+  // ==========================
+  // Event Emails (Inline CSS)
+  // ==========================
+
+  private buildAbsoluteImageUrl(imagePath?: string): string | null {
+    if (!imagePath) return null;
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath;
+    }
+    // Fallback to local server base URL if relative path
+    const apiBase = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+    return `${apiBase}${imagePath.startsWith("/") ? imagePath : `/${imagePath}`}`;
+  }
+
+  private generateEventEmailTemplate(data: {
+    type: "registration" | "reminder";
+    eventTitle: string;
+    eventDescription?: string;
+    startDate: Date | string;
+    endDate?: Date | string;
+    location: string;
+    isOnline?: boolean;
+    meetingLink?: string;
+    price?: number;
+    image?: string;
+    attendeeName: string;
+    ctaUrl?: string;
+    collegeName?: string;
+  }): string {
+    const title = data.type === "registration" ? "Event Registration Confirmed" : "Event Reminder";
+    const bannerText = data.type === "registration" ? "You're Registered!" : "Reminder: Upcoming Event";
+    const eventImage = this.buildAbsoluteImageUrl(data.image);
+    const formattedStart = new Date(data.startDate).toLocaleString();
+    const formattedEnd = data.endDate ? new Date(data.endDate).toLocaleString() : undefined;
+    const college = data.collegeName || "Alumni Accel";
+    const isPaid = typeof data.price === "number" && data.price > 0;
+
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title} - ${college}</title>
+</head>
+<body style="margin:0;padding:0;font-family: Arial, Helvetica, sans-serif; background-color:#f5f5f5; color:#111827;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f5f5f5;">
+    <tr>
+      <td align="center" style="padding:20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="650" style="max-width:650px;background-color:#ffffff;margin:0 auto;border-radius:8px; overflow:hidden;">
+          <tr>
+            <td style="background:#2563eb;padding:24px 32px;text-align:center;">
+              <div style="color:#ffffff; font-size:24px; font-weight:700;">${bannerText}</div>
+              <div style="color:rgba(255,255,255,0.9); font-size:14px; margin-top:6px;">${college}</div>
+            </td>
+          </tr>
+          ${eventImage ? `
+          <tr>
+            <td style="padding:0;">
+              <img src="${eventImage}" alt="Event image" style="display:block;width:100%;height:auto;" />
+            </td>
+          </tr>` : ""}
+          <tr>
+            <td style="padding:28px 32px;">
+              <div style="font-size:16px;">Hello <strong>${data.attendeeName}</strong>,</div>
+              <div style="font-size:18px;font-weight:700;margin-top:12px;">${data.eventTitle}</div>
+              ${data.eventDescription ? `<div style=\"margin-top:8px; color:#4b5563; line-height:1.7; font-size:14px;\">${data.eventDescription}</div>` : ""}
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top:16px;background-color:#f9fafb;border-left:4px solid #2563eb;">
+                <tr>
+                  <td style="padding:16px 16px 8px 16px;">
+                    <div style="font-size:14px; color:#111827; margin-bottom:8px;"><strong>Date & Time:</strong> ${formattedStart}${formattedEnd ? ` &ndash; ${formattedEnd}` : ""}</div>
+                    <div style="font-size:14px; color:#111827; margin-bottom:8px;"><strong>Location:</strong> ${data.isOnline ? "Online" : data.location}</div>
+                    ${data.meetingLink ? `<div style=\"font-size:14px; color:#2563eb; margin-bottom:8px;\"><a style=\"color:#2563eb; text-decoration:underline;\" href=\"${data.meetingLink}\">Join Link</a></div>` : ""}
+                    ${isPaid ? `<div style=\"font-size:14px; color:#111827; margin-bottom:8px;\"><strong>Price:</strong> ₹${Number(data.price).toFixed(2)}</div>` : `<div style=\"font-size:14px; color:#111827; margin-bottom:8px;\"><strong>Price:</strong> Free</div>`}
+                  </td>
+                </tr>
+              </table>
+
+              ${data.type === "registration" && data.ctaUrl ? `
+              <div style="text-align:center; margin-top:22px;">
+                <a href="${data.ctaUrl}" style="display:inline-block;background-color:#2563eb;color:#ffffff;padding:12px 22px;text-decoration:none;border-radius:6px;font-weight:600; font-size:14px;">View Event</a>
+              </div>
+              ` : ""}
+
+              <div style="margin-top:24px; font-size:13px; color:#6b7280;">
+                If you have questions, reply to this email.
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#1f2937; padding:18px 24px; text-align:center; color:#9ca3af; font-size:12px;">
+              © ${new Date().getFullYear()} ${college}. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+  }
+
+  async sendEventRegistrationEmail(data: {
+    to: string;
+    attendeeName: string;
+    eventTitle: string;
+    eventDescription?: string;
+    startDate: Date | string;
+    endDate?: Date | string;
+    location: string;
+    isOnline?: boolean;
+    meetingLink?: string;
+    price?: number;
+    image?: string;
+    ctaUrl?: string;
+    collegeName?: string;
+  }): Promise<boolean> {
+    const html = this.generateEventEmailTemplate({ type: "registration", ...data });
+    const text = `Registration Confirmed\n\n${data.eventTitle}\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}${typeof data.price === "number" && data.price > 0 ? `Price: ₹${Number(data.price).toFixed(2)}` : "Price: Free"}`;
+    return this.sendEmail({ to: data.to, subject: `Registration Confirmed: ${data.eventTitle}`, html, text });
+  }
+
+  async sendEventReminderEmail(data: {
+    to: string;
+    attendeeName: string;
+    eventTitle: string;
+    eventDescription?: string;
+    startDate: Date | string;
+    endDate?: Date | string;
+    location: string;
+    isOnline?: boolean;
+    meetingLink?: string;
+    price?: number;
+    image?: string;
+    ctaUrl?: string;
+    collegeName?: string;
+  }): Promise<boolean> {
+    const html = this.generateEventEmailTemplate({ type: "reminder", ...data });
+    const text = `Reminder: ${data.eventTitle} (Tomorrow)\n\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}${typeof data.price === "number" && data.price > 0 ? `Price: ₹${Number(data.price).toFixed(2)}` : "Price: Free"}`;
+    return this.sendEmail({ to: data.to, subject: `Reminder: ${data.eventTitle} is tomorrow`, html, text });
+  }
 }
 
 export const emailService = new EmailService();

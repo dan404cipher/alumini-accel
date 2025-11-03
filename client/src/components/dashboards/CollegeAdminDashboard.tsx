@@ -3014,7 +3014,7 @@ const CollegeAdminDashboard = () => {
             <CategoryManagement />
           </TabsContent>
 
-          {/* Fundraisers Management */}
+          {/* Campaigns Management */}
           <TabsContent value="fundraisers" className="space-y-6">
             <CampaignManagement />
           </TabsContent>

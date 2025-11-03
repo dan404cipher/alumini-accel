@@ -66,6 +66,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { userAPI, campaignAPI, tenantAPI, alumniAPI, eventAPI, galleryAPI, newsAPI, communityAPI } from "@/lib/api";
+import CampaignManagement from "../CampaignManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
 
 const StaffPanel = () => {
@@ -74,7 +75,6 @@ const StaffPanel = () => {
   const navigate = useNavigate();
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
   const [isCreateAlumniOpen, setIsCreateAlumniOpen] = useState(false);
-  const [isCreateFundraiserOpen, setIsCreateFundraiserOpen] = useState(false);
 
   // Real data states
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -91,7 +91,6 @@ const StaffPanel = () => {
   const [loading, setLoading] = useState({
     requests: false,
     post: false,
-    fundraiser: false,
     alumni: false,
     events: false,
     campaigns: false,
@@ -128,21 +127,6 @@ const StaffPanel = () => {
     alumni: false,
   });
 
-  const [newFundraiser, setNewFundraiser] = useState({
-    title: "",
-    description: "",
-    category: "scholarship",
-    targetAmount: 0,
-    currency: "INR",
-    startDate: "",
-    endDate: "",
-    location: "",
-    contactInfo: {
-      email: "",
-      phone: "",
-      person: "",
-    },
-  });
 
   // Fetch pending requests (Alumni only for Staff)
   const fetchPendingRequests = useCallback(async () => {
@@ -420,64 +404,6 @@ const StaffPanel = () => {
     }
   };
 
-  // Create fundraiser
-  const handleCreateFundraiser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading((prev) => ({ ...prev, fundraiser: true }));
-
-    try {
-      const campaignData = {
-        title: newFundraiser.title.trim(),
-        description: newFundraiser.description.trim(),
-        category: newFundraiser.category,
-        targetAmount: newFundraiser.targetAmount,
-        currency: newFundraiser.currency,
-        startDate: newFundraiser.startDate,
-        endDate: newFundraiser.endDate,
-        location: newFundraiser.location.trim(),
-        allowAnonymous: true,
-        featured: false,
-        tags: [user?.department || "General"],
-        contactInfo: {
-          email: newFundraiser.contactInfo.email.trim(),
-          phone: newFundraiser.contactInfo.phone.trim(),
-          person: newFundraiser.contactInfo.person.trim(),
-        },
-      };
-
-      const response = await campaignAPI.createCampaign(campaignData);
-
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Fundraiser created successfully",
-        });
-        setNewFundraiser({
-          title: "",
-          description: "",
-          category: "scholarship",
-          targetAmount: 0,
-          currency: "INR",
-          startDate: "",
-          endDate: "",
-          location: "",
-          contactInfo: { email: "", phone: "", person: "" },
-        });
-        setIsCreateFundraiserOpen(false);
-      } else {
-        throw new Error(response.message || "Failed to create fundraiser");
-      }
-    } catch (error) {
-      console.error("Error creating fundraiser:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create fundraiser",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading((prev) => ({ ...prev, fundraiser: false }));
-    }
-  };
 
   // Load data on component mount
   useEffect(() => {
@@ -863,7 +789,7 @@ const StaffPanel = () => {
                 },
                 { 
                   key: "fundraisers", 
-                  label: "Fundraisers", 
+                  label: "Campaigns", 
                   icon: DollarSign,
                   color: "amber"
                 },
@@ -1063,7 +989,7 @@ const StaffPanel = () => {
               <Card className="border-l-4 border-l-orange-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                    Fundraisers Created
+                    Campaigns Created
               </CardTitle>
                   <Target className="h-4 w-4 text-orange-500" />
             </CardHeader>
@@ -1326,8 +1252,8 @@ const StaffPanel = () => {
                         <div className="text-center py-4">
                           <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                           <p className="text-muted-foreground">No galleries found</p>
-                        </div>
-                      ) : (
+                </div>
+              ) : (
                         galleries.slice(0, 5).map((gallery: any) => {
                           const galleryDate = new Date(gallery.createdAt || new Date());
                           const imageCount = Array.isArray(gallery.images) ? gallery.images.length : 0;
@@ -1381,7 +1307,7 @@ const StaffPanel = () => {
 
                 {/* News Room */}
                 <Card>
-                  <CardHeader>
+                    <CardHeader>
                       <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Newspaper className="h-5 w-5 text-blue-500" />
@@ -1441,10 +1367,10 @@ const StaffPanel = () => {
                                       {typeof newsItem.author === "string"
                                         ? newsItem.author
                                         : `${newsItem.author.firstName || ""} ${newsItem.author.lastName || ""}`.trim() || newsItem.author.email || "Unknown"}
-                                    </Badge>
+                          </Badge>
                                   )}
-                                </div>
-                              </div>
+                        </div>
+                      </div>
                             </div>
                           );
                         })
@@ -1464,8 +1390,8 @@ const StaffPanel = () => {
                       <Badge variant="outline">{communities.length}</Badge>
                     </div>
                     <CardDescription>Top active communities</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                    </CardHeader>
+                    <CardContent>
                     <div className="space-y-3">
                       {loading.communities ? (
                         <div className="text-center py-4">
@@ -1526,11 +1452,11 @@ const StaffPanel = () => {
                 {/* Donations */}
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <HeartHandshake className="h-5 w-5 text-rose-500" />
                         <CardTitle>Donations</CardTitle>
-                      </div>
+                        </div>
                       <Badge variant="outline">{donations.length}</Badge>
                     </div>
                     <CardDescription>Recent donations</CardDescription>
@@ -1655,306 +1581,21 @@ const StaffPanel = () => {
                                       day: "numeric",
                                     })}
                                   </p>
-                                </div>
+                        </div>
                               </div>
                             </div>
                           );
                         })
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+            </div>
           </TabsContent>
 
-          {/* Fundraisers */}
+          {/* Campaigns */}
           <TabsContent value="fundraisers" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Fundraisers</h2>
-              <Dialog
-                open={isCreateFundraiserOpen}
-                onOpenChange={setIsCreateFundraiserOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Fundraiser
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Create New Fundraiser</DialogTitle>
-                    <DialogDescription>
-                      Start a fundraising campaign for your department.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateFundraiser} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="fundraiser-title">Title</Label>
-                        <Input
-                          id="fundraiser-title"
-                          placeholder="Enter fundraiser title"
-                          value={newFundraiser.title}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              title: e.target.value,
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="fundraiser-category">Category</Label>
-                        <Select
-                          value={newFundraiser.category}
-                          onValueChange={(value) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              category: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="scholarship">
-                              Scholarship
-                            </SelectItem>
-                            <SelectItem value="infrastructure">
-                              Infrastructure
-                            </SelectItem>
-                            <SelectItem value="research">Research</SelectItem>
-                            <SelectItem value="event">Event</SelectItem>
-                            <SelectItem value="emergency">Emergency</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="fundraiser-description">
-                        Description
-                      </Label>
-                      <Textarea
-                        id="fundraiser-description"
-                        placeholder="Describe your fundraising campaign..."
-                        rows={4}
-                        value={newFundraiser.description}
-                        onChange={(e) =>
-                          setNewFundraiser((prev) => ({
-                            ...prev,
-                            description: e.target.value,
-                          }))
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="fundraiser-target">Target Amount</Label>
-                        <Input
-                          id="fundraiser-target"
-                          type="number"
-                          placeholder="50000"
-                          value={newFundraiser.targetAmount}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              targetAmount: parseInt(e.target.value) || 0,
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="fundraiser-currency">Currency</Label>
-                        <Select
-                          value={newFundraiser.currency}
-                          onValueChange={(value) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              currency: value,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="INR">INR</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="fundraiser-location">Location</Label>
-                        <Input
-                          id="fundraiser-location"
-                          placeholder="City, State"
-                          value={newFundraiser.location}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              location: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="fundraiser-start">Start Date</Label>
-                        <Input
-                          id="fundraiser-start"
-                          type="date"
-                          value={newFundraiser.startDate}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              startDate: e.target.value,
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="fundraiser-end">End Date</Label>
-                        <Input
-                          id="fundraiser-end"
-                          type="date"
-                          value={newFundraiser.endDate}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              endDate: e.target.value,
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="fundraiser-email">Contact Email</Label>
-                        <Input
-                          id="fundraiser-email"
-                          type="email"
-                          placeholder="contact@college.edu"
-                          value={newFundraiser.contactInfo.email}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              contactInfo: {
-                                ...prev.contactInfo,
-                                email: e.target.value,
-                              },
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="fundraiser-phone">Contact Phone</Label>
-                        <Input
-                          id="fundraiser-phone"
-                          placeholder="+1234567890"
-                          value={newFundraiser.contactInfo.phone}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              contactInfo: {
-                                ...prev.contactInfo,
-                                phone: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="fundraiser-person">
-                          Contact Person
-                        </Label>
-                        <Input
-                          id="fundraiser-person"
-                          placeholder="John Doe"
-                          value={newFundraiser.contactInfo.person}
-                          onChange={(e) =>
-                            setNewFundraiser((prev) => ({
-                              ...prev,
-                              contactInfo: {
-                                ...prev.contactInfo,
-                                person: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsCreateFundraiserOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={loading.fundraiser}>
-                        {loading.fundraiser
-                          ? "Creating..."
-                          : "Create Fundraiser"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">
-                        Department Scholarship Fund
-                      </CardTitle>
-                      <CardDescription>
-                        By Staff Member • 2024-01-15
-                      </CardDescription>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">
-                        ₹25,000
-                      </div>
-                      <Badge variant="default">Active</Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">
-                        Research Equipment Fund
-                      </CardTitle>
-                      <CardDescription>
-                        By Staff Member • 2024-01-10
-                      </CardDescription>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">
-                        ₹50,000
-                      </div>
-                      <Badge variant="secondary">Completed</Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            </div>
+            <CampaignManagement />
           </TabsContent>
 
           {/* Moderate Posts */}

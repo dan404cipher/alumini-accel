@@ -152,12 +152,20 @@ export const getCampaignById = asyncHandler(
 export const createCampaign = asyncHandler(
   async (req: Request, res: Response) => {
     try {
+      // All admin roles (college_admin, hod, staff, super_admin) can create campaigns as "active" by default
+      const isAdmin =
+        req.user?.role === "super_admin" ||
+        req.user?.role === "college_admin" ||
+        req.user?.role === "hod" ||
+        req.user?.role === "staff";
+      
       const campaignData = {
         ...req.body,
         createdBy: req.user?.id,
         tenantId: req.user?.tenantId,
         currentAmount: 0,
-        status: "draft",
+        // Admin roles create as "active", others as "draft"
+        status: isAdmin ? (req.body.status || "active") : "draft",
       };
 
       const campaign = new Campaign(campaignData);
@@ -196,10 +204,16 @@ export const updateCampaign = asyncHandler(
       }
 
       // Check if user can update this campaign
-      if (
-        campaign.createdBy.toString() !== req.user?.id &&
-        req.user?.role !== "super_admin"
-      ) {
+      // All admin roles (college_admin, hod, staff, super_admin) can update any campaign in their college
+      const isAdmin =
+        req.user?.role === "super_admin" ||
+        req.user?.role === "college_admin" ||
+        req.user?.role === "hod" ||
+        req.user?.role === "staff";
+      const isCreator = campaign.createdBy.toString() === req.user?.id;
+      const isSameTenant = campaign.tenantId.toString() === req.user?.tenantId?.toString();
+
+      if (!isCreator && (!isAdmin || !isSameTenant)) {
         return res.status(403).json({
           success: false,
           message: "Access denied",
@@ -272,10 +286,16 @@ export const deleteCampaign = asyncHandler(
       }
 
       // Check if user can delete this campaign
+      // All admin roles (college_admin, hod, staff, super_admin) can delete any campaign in their college
+      const isAdmin =
+        req.user?.role === "super_admin" ||
+        req.user?.role === "college_admin" ||
+        req.user?.role === "hod" ||
+        req.user?.role === "staff";
       const isCreator = campaign.createdBy.toString() === req.user?.id;
-      const isSuperAdmin = req.user?.role === "super_admin";
+      const isSameTenant = campaign.tenantId.toString() === req.user?.tenantId?.toString();
 
-      if (!isCreator && !isSuperAdmin) {
+      if (!isCreator && (!isAdmin || !isSameTenant)) {
         return res.status(403).json({
           success: false,
           message: "Access denied",
@@ -480,6 +500,305 @@ export const uploadCampaignImage = asyncHandler(
   }
 );
 
+// Get campaign donors
+export const getCampaignDonors = asyncHandler(
+  async (req: Request, res: Response) => {
+    try {
+      const campaign = await Campaign.findById(req.params.id);
+
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
+
+      // Check if user has access to view donors
+      // All admin roles (college_admin, hod, staff, super_admin) can view donors for campaigns in their college
+      const isAdmin =
+        req.user?.role === "super_admin" ||
+        req.user?.role === "college_admin" ||
+        req.user?.role === "hod" ||
+        req.user?.role === "staff";
+      const isSameTenant = campaign.tenantId.toString() === req.user?.tenantId?.toString();
+
+      if (!isAdmin || !isSameTenant) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const skip = (page - 1) * limit;
+
+      // Get donations for this campaign
+      const donations = await Donation.find({
+        campaignId: campaign._id,
+        paymentStatus: { $in: ["completed", "successful"] },
+      })
+        .populate("donor", "firstName lastName email profilePicture")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      const total = await Donation.countDocuments({
+        campaignId: campaign._id,
+        paymentStatus: { $in: ["completed", "successful"] },
+      });
+
+      // Format donors data
+      const donors = donations.map((donation: any) => ({
+        _id: donation._id,
+        donorName: donation.anonymous
+          ? "Anonymous"
+          : donation.donor
+          ? `${donation.donor.firstName} ${donation.donor.lastName}`
+          : donation.donorName || "Anonymous",
+        donorEmail: donation.anonymous ? null : donation.donor?.email || donation.donorEmail || null,
+        donorProfile: donation.anonymous ? null : donation.donor || null,
+        amount: donation.amount,
+        currency: donation.currency,
+        paymentMethod: donation.paymentMethod,
+        transactionId: donation.transactionId,
+        anonymous: donation.anonymous,
+        message: donation.message,
+        createdAt: donation.createdAt,
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          donors,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        },
+      });
+    } catch (error) {
+      logger.error("Error fetching campaign donors:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching campaign donors",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Get campaign donor statistics
+export const getCampaignDonorStats = asyncHandler(
+  async (req: Request, res: Response) => {
+    try {
+      const campaign = await Campaign.findById(req.params.id);
+
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
+
+      // Check if user has access
+      const isAdmin =
+        req.user?.role === "super_admin" ||
+        req.user?.role === "college_admin" ||
+        req.user?.role === "hod" ||
+        req.user?.role === "staff";
+      const isSameTenant = campaign.tenantId.toString() === req.user?.tenantId?.toString();
+
+      if (!isAdmin || !isSameTenant) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      // Get donor statistics
+      const stats = await Donation.aggregate([
+        {
+          $match: {
+            campaignId: campaign._id,
+            paymentStatus: { $in: ["completed", "successful"] },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalDonors: { $addToSet: "$donor" },
+            totalAmount: { $sum: "$amount" },
+            count: { $sum: 1 },
+            averageAmount: { $avg: "$amount" },
+          },
+        },
+      ]);
+
+      const totalDonors = stats[0]?.totalDonors?.length || 0;
+      const totalAmount = stats[0]?.totalAmount || 0;
+      const totalDonations = stats[0]?.count || 0;
+      const averageAmount = stats[0]?.averageAmount || 0;
+
+      // Get top donors (non-anonymous)
+      const topDonors = await Donation.aggregate([
+        {
+          $match: {
+            campaignId: campaign._id,
+            paymentStatus: { $in: ["completed", "successful"] },
+            anonymous: false,
+          },
+        },
+        {
+          $group: {
+            _id: "$donor",
+            totalAmount: { $sum: "$amount" },
+            donationCount: { $sum: 1 },
+            lastDonation: { $max: "$createdAt" },
+          },
+        },
+        { $sort: { totalAmount: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "donorInfo",
+          },
+        },
+        { $unwind: "$donorInfo" },
+        {
+          $project: {
+            donor: {
+              _id: "$donorInfo._id",
+              firstName: "$donorInfo.firstName",
+              lastName: "$donorInfo.lastName",
+              email: "$donorInfo.email",
+              profilePicture: "$donorInfo.profilePicture",
+            },
+            totalAmount: 1,
+            donationCount: 1,
+            lastDonation: 1,
+          },
+        },
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalDonors,
+          totalAmount,
+          totalDonations,
+          averageAmount,
+          topDonors,
+        },
+      });
+    } catch (error) {
+      logger.error("Error fetching campaign donor stats:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching campaign donor stats",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Export campaign donors
+export const exportCampaignDonors = asyncHandler(
+  async (req: Request, res: Response) => {
+    try {
+      const campaign = await Campaign.findById(req.params.id);
+
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: "Campaign not found",
+        });
+      }
+
+      // Check if user has access
+      const isAdmin =
+        req.user?.role === "super_admin" ||
+        req.user?.role === "college_admin" ||
+        req.user?.role === "hod" ||
+        req.user?.role === "staff";
+      const isSameTenant = campaign.tenantId.toString() === req.user?.tenantId?.toString();
+
+      if (!isAdmin || !isSameTenant) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      // Get all donations (non-anonymous only for export)
+      const donations = await Donation.find({
+        campaignId: campaign._id,
+        paymentStatus: { $in: ["completed", "successful"] },
+        anonymous: false,
+      })
+        .populate("donor", "firstName lastName email")
+        .sort({ createdAt: -1 })
+        .lean();
+
+      // Format for CSV
+      const format = req.query.format || "csv";
+      const csvData = donations.map((donation: any) => ({
+        "Donor Name": donation.donor
+          ? `${donation.donor.firstName} ${donation.donor.lastName}`
+          : donation.donorName || "Unknown",
+        "Email": donation.donor?.email || donation.donorEmail || "",
+        "Amount": donation.amount,
+        "Currency": donation.currency,
+        "Payment Method": donation.paymentMethod,
+        "Transaction ID": donation.transactionId || "",
+        "Date": new Date(donation.createdAt).toLocaleDateString(),
+        "Message": donation.message || "",
+      }));
+
+      if (format === "json") {
+        return res.status(200).json({
+          success: true,
+          data: csvData,
+        });
+      }
+
+      // Convert to CSV
+      const headers = Object.keys(csvData[0] || {});
+      const csvRows = [
+        headers.join(","),
+        ...csvData.map((row: any) =>
+          headers.map((header) => {
+            const value = row[header];
+            return typeof value === "string" ? `"${value.replace(/"/g, '""')}"` : value;
+          }).join(",")
+        ),
+      ];
+
+      const csv = csvRows.join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="campaign-${campaign._id}-donors-${Date.now()}.csv"`
+      );
+      return res.status(200).send(csv);
+    } catch (error) {
+      logger.error("Error exporting campaign donors:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error exporting campaign donors",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 export default {
   getAllCampaigns,
   getCampaignById,
@@ -489,4 +808,7 @@ export default {
   getMyCampaigns,
   getCampaignStats,
   uploadCampaignImage,
+  getCampaignDonors,
+  getCampaignDonorStats,
+  exportCampaignDonors,
 };

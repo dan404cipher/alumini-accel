@@ -46,6 +46,8 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { campaignAPI } from "@/lib/api";
 import { useForm } from "react-hook-form";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -66,6 +68,8 @@ import {
   XCircle,
   Loader2,
   IndianRupee,
+  Download,
+  User,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -152,6 +156,55 @@ const CampaignManagement: React.FC = () => {
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignLimit] = useState(6);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Donor management state
+  const [selectedCampaignForDonors, setSelectedCampaignForDonors] =
+    useState<Campaign | null>(null);
+  const [isDonorsDialogOpen, setIsDonorsDialogOpen] = useState(false);
+  const [donors, setDonors] = useState<
+    Array<{
+      _id: string;
+      donorName: string;
+      donorEmail?: string | null;
+      donorProfile?: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        profilePicture?: string;
+      } | null;
+      amount: number;
+      currency: string;
+      paymentMethod: string;
+      transactionId?: string;
+      anonymous: boolean;
+      message?: string;
+      createdAt: string;
+    }>
+  >([]);
+  const [donorStats, setDonorStats] = useState<{
+    totalDonors?: number;
+    totalAmount?: number;
+    totalDonations?: number;
+    averageAmount?: number;
+    topDonors?: Array<{
+      donor: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        profilePicture?: string;
+      };
+      totalAmount: number;
+      donationCount: number;
+      lastDonation: string;
+    }>;
+  } | null>(null);
+  const [donorsLoading, setDonorsLoading] = useState(false);
+  const [donorsPage, setDonorsPage] = useState(1);
+  const [donorsLimit] = useState(20);
+  const [donorsTotal, setDonorsTotal] = useState(0);
 
   const form = useForm<CampaignFormData>({
     resolver: zodResolver(campaignSchema),
@@ -177,6 +230,7 @@ const CampaignManagement: React.FC = () => {
 
   useEffect(() => {
     fetchCampaigns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCampaigns = async () => {
@@ -296,6 +350,138 @@ const CampaignManagement: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to delete campaign",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Donor management functions
+  const handleViewDonors = async (campaign: Campaign) => {
+    setSelectedCampaignForDonors(campaign);
+    setIsDonorsDialogOpen(true);
+    await fetchCampaignDonors(campaign._id, 1);
+    await fetchCampaignDonorStats(campaign._id);
+  };
+
+  const fetchCampaignDonors = async (campaignId: string, page: number = 1) => {
+    try {
+      setDonorsLoading(true);
+      const response = await campaignAPI.getCampaignDonors(campaignId, {
+        page,
+        limit: donorsLimit,
+      });
+
+      if (response.success && response.data) {
+        const data = response.data as {
+          donors?: Array<{
+            _id: string;
+            donorName: string;
+            donorEmail?: string | null;
+            donorProfile?: {
+              _id: string;
+              firstName: string;
+              lastName: string;
+              email: string;
+              profilePicture?: string;
+            } | null;
+            amount: number;
+            currency: string;
+            paymentMethod: string;
+            transactionId?: string;
+            anonymous: boolean;
+            message?: string;
+            createdAt: string;
+          }>;
+          pagination?: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+          };
+        };
+        setDonors(data.donors || []);
+        setDonorsTotal(data.pagination?.total || 0);
+        setDonorsPage(page);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch donors",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching donors:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch donors",
+        variant: "destructive",
+      });
+    } finally {
+      setDonorsLoading(false);
+    }
+  };
+
+  const fetchCampaignDonorStats = async (campaignId: string) => {
+    try {
+      const response = await campaignAPI.getCampaignDonorStats(campaignId);
+      if (response.success && response.data) {
+        setDonorStats(
+          response.data as {
+            totalDonors?: number;
+            totalAmount?: number;
+            totalDonations?: number;
+            averageAmount?: number;
+            topDonors?: Array<{
+              donor: {
+                _id: string;
+                firstName: string;
+                lastName: string;
+                email: string;
+                profilePicture?: string;
+              };
+              totalAmount: number;
+              donationCount: number;
+              lastDonation: string;
+            }>;
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching donor stats:", error);
+    }
+  };
+
+  const handleExportDonors = async () => {
+    if (!selectedCampaignForDonors) return;
+
+    try {
+      const response = await campaignAPI.exportCampaignDonors(
+        selectedCampaignForDonors._id,
+        "csv"
+      );
+
+      // Create blob and download
+      const blob = new Blob([response], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `campaign-${
+        selectedCampaignForDonors._id
+      }-donors-${Date.now()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Donors exported successfully",
+      });
+    } catch (error) {
+      console.error("Error exporting donors:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export donors",
         variant: "destructive",
       });
     }
@@ -856,6 +1042,12 @@ const CampaignManagement: React.FC = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleViewDonors(campaign)}
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          View Donors
+                        </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Eye className="w-4 h-4 mr-2" />
                           View Details
@@ -974,6 +1166,292 @@ const CampaignManagement: React.FC = () => {
           )}
         </>
       )}
+
+      {/* Donors Dialog */}
+      <Dialog open={isDonorsDialogOpen} onOpenChange={setIsDonorsDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Campaign Donors - {selectedCampaignForDonors?.title}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportDonors}
+                disabled={!donors.length}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </DialogTitle>
+            <DialogDescription>
+              View and manage all donors who contributed to this campaign
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Donor Stats */}
+          {donorStats && (
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Donors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {donorStats.totalDonors || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Raised
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ₹{donorStats.totalAmount?.toLocaleString() || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Average Donation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ₹
+                    {Math.round(donorStats.averageAmount || 0).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Donations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {donorStats.totalDonations || 0}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Top Donors */}
+          {donorStats?.topDonors && donorStats.topDonors.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Top Donors</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {donorStats.topDonors.map((topDonor, index: number) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                          {index + 1}
+                        </div>
+                        {topDonor.donor?.profilePicture ? (
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={topDonor.donor.profilePicture} />
+                            <AvatarFallback>
+                              {topDonor.donor.firstName?.[0]}
+                              {topDonor.donor.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200">
+                            <User className="w-4 h-4 text-gray-600" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium">
+                            {topDonor.donor?.firstName}{" "}
+                            {topDonor.donor?.lastName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {topDonor.donationCount} donation
+                            {topDonor.donationCount !== 1 ? "s" : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg">
+                          ₹{topDonor.totalAmount.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {topDonor.donor?.email}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Donors Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">All Donors</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {donorsLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mr-2" />
+                  <span className="text-muted-foreground">
+                    Loading donors...
+                  </span>
+                </div>
+              ) : donors.length === 0 ? (
+                <div className="text-center p-8">
+                  <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    No donors found for this campaign
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Donor</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Payment Method</TableHead>
+                          <TableHead>Transaction ID</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Message</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {donors.map((donor) => (
+                          <TableRow key={donor._id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {donor.donorProfile?.profilePicture ? (
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage
+                                      src={donor.donorProfile.profilePicture}
+                                    />
+                                    <AvatarFallback>
+                                      {donor.donorName?.[0] || "A"}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ) : (
+                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200">
+                                    <User className="w-4 h-4 text-gray-600" />
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-medium">
+                                    {donor.donorName}
+                                  </div>
+                                  {donor.donorEmail && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {donor.donorEmail}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-semibold">
+                                ₹{donor.amount.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {donor.currency}
+                              </div>
+                            </TableCell>
+                            <TableCell>{donor.paymentMethod}</TableCell>
+                            <TableCell>
+                              <span className="text-xs font-mono">
+                                {donor.transactionId || "N/A"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(donor.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {donor.message ? (
+                                <span className="text-sm line-clamp-2">
+                                  {donor.message}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">
+                                  -
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Donors Pagination */}
+                  {donorsTotal > donorsLimit && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {(donorsPage - 1) * donorsLimit + 1} to{" "}
+                        {Math.min(donorsPage * donorsLimit, donorsTotal)} of{" "}
+                        {donorsTotal} donors
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={donorsPage <= 1}
+                          onClick={() => {
+                            if (selectedCampaignForDonors) {
+                              fetchCampaignDonors(
+                                selectedCampaignForDonors._id,
+                                donorsPage - 1
+                              );
+                            }
+                          }}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground px-2">
+                          Page {donorsPage} of{" "}
+                          {Math.ceil(donorsTotal / donorsLimit)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            donorsPage >= Math.ceil(donorsTotal / donorsLimit)
+                          }
+                          onClick={() => {
+                            if (selectedCampaignForDonors) {
+                              fetchCampaignDonors(
+                                selectedCampaignForDonors._id,
+                                donorsPage + 1
+                              );
+                            }
+                          }}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

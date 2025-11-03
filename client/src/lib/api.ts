@@ -2686,6 +2686,47 @@ export const campaignAPI = {
       url: `/campaigns/${id}/stats`,
     });
   },
+
+  // Get campaign donors
+  getCampaignDonors: async (
+    id: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/campaigns/${id}/donors?${queryParams.toString()}`,
+    });
+  },
+
+  // Get campaign donor statistics
+  getCampaignDonorStats: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/campaigns/${id}/donor-stats`,
+    });
+  },
+
+  // Export campaign donors
+  exportCampaignDonors: async (id: string, format: "csv" | "json" = "csv") => {
+    if (format === "csv") {
+      const response = await api.get(`/campaigns/${id}/donors/export?format=csv`, {
+        responseType: "blob",
+      });
+      return response.data;
+    } else {
+      return apiRequest({
+        method: "GET",
+        url: `/campaigns/${id}/donors/export?format=json`,
+      });
+    }
+  },
 };
 
 // Community API functions

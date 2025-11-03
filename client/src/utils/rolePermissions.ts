@@ -42,6 +42,9 @@ export interface RolePermissions {
   canCreateFundraisers?: boolean;
   canEditFundraisers?: boolean;
   canDeleteFundraisers?: boolean;
+  canViewAllCampaigns?: boolean;
+  canManageAllCampaigns?: boolean;
+  canApproveCampaigns?: boolean;
 
   // Analytics & Reports
   canViewAnalytics: boolean;
@@ -129,6 +132,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canEditAllJobs: true,
     canDeleteJobs: true,
 
+    // Fundraising Management
+    canCreateFundraisers: true,
+    canEditFundraisers: true,
+    canDeleteFundraisers: true,
+    canViewAllCampaigns: true,
+    canManageAllCampaigns: true,
+    canApproveCampaigns: true,
+
     // Analytics & Reports
     canViewAnalytics: true,
     canExportData: true,
@@ -169,12 +180,15 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
 
     // Fundraising Management
     canCreateFundraisers: true,
-    canEditFundraisers: true, // Can edit their own fundraisers
-    canDeleteFundraisers: false, // Can only delete their own fundraisers
+    canEditFundraisers: true, // All admin roles have same permissions
+    canDeleteFundraisers: true, // All admin roles have same permissions
+    canViewAllCampaigns: true,
+    canManageAllCampaigns: true,
+    canApproveCampaigns: true,
 
     // Analytics & Reports
     canViewAnalytics: true,
-    canExportData: false,
+    canExportData: true,
 
     // System Administration
     canManageSystem: false,
@@ -212,12 +226,15 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
 
     // Fundraising Management
     canCreateFundraisers: true,
-    canEditFundraisers: true, // Can edit their own fundraisers
-    canDeleteFundraisers: false, // Can only delete their own fundraisers
+    canEditFundraisers: true, // All admin roles have same permissions
+    canDeleteFundraisers: true, // All admin roles have same permissions
+    canViewAllCampaigns: true,
+    canManageAllCampaigns: true,
+    canApproveCampaigns: true,
 
     // Analytics & Reports
-    canViewAnalytics: false,
-    canExportData: false,
+    canViewAnalytics: true,
+    canExportData: true,
 
     // System Administration
     canManageSystem: false,

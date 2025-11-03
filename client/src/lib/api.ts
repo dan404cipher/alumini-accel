@@ -2727,6 +2727,18 @@ export const campaignAPI = {
       });
     }
   },
+
+  // Upload campaign image
+  uploadCampaignImage: async (id: string, formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: `/campaigns/${id}/image`,
+      data: formData,
+      headers: {
+        "Content-Type": undefined, // Let browser set multipart/form-data with boundary
+      },
+    });
+  },
 };
 
 // Community API functions

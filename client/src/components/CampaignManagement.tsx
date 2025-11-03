@@ -44,7 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { campaignAPI } from "@/lib/api";
+import { campaignAPI, categoryAPI } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -206,6 +206,46 @@ const CampaignManagement: React.FC = () => {
   const [donorsLimit] = useState(20);
   const [donorsTotal, setDonorsTotal] = useState(0);
 
+  // Form state for Create Campaign (Donations page style)
+  const [createFormData, setCreateFormData] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: null as File | null,
+    imagePreviewUrl: "",
+  });
+  const [createFormErrors, setCreateFormErrors] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: "",
+  });
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "donation_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as Array<{ name?: string }>)
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        setCategoryOptions(names);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   const form = useForm<CampaignFormData>({
     resolver: zodResolver(campaignSchema),
     defaultValues: {
@@ -351,37 +391,151 @@ const CampaignManagement: React.FC = () => {
     }
   };
 
-  const handleCreateCampaign = async (data: CampaignFormData) => {
+  // Validate create form (Donations page style)
+  const validateCreateForm = () => {
+    const newErrors = {
+      title: "",
+      description: "",
+      category: "",
+      amount: "",
+      endDate: "",
+      imageFile: "",
+    };
+
+    if (!createFormData.title.trim()) {
+      newErrors.title = "Campaign title is required";
+    } else if (createFormData.title.trim().length < 5) {
+      newErrors.title = "Campaign title must be at least 5 characters";
+    } else if (createFormData.title.trim().length > 100) {
+      newErrors.title = "Campaign title must be less than 100 characters";
+    }
+
+    if (!createFormData.description.trim()) {
+      newErrors.description = "Campaign description is required";
+    } else if (createFormData.description.trim().length < 20) {
+      newErrors.description =
+        "Campaign description must be at least 20 characters";
+    } else if (createFormData.description.trim().length > 1000) {
+      newErrors.description =
+        "Campaign description must be less than 1000 characters";
+    }
+
+    if (!createFormData.category) {
+      newErrors.category = "Please select a category";
+    }
+
+    if (!createFormData.amount) {
+      newErrors.amount = "Target amount is required";
+    } else if (isNaN(Number(createFormData.amount))) {
+      newErrors.amount = "Please enter a valid number";
+    } else if (Number(createFormData.amount) <= 0) {
+      newErrors.amount = "Target amount must be greater than 0";
+    } else if (Number(createFormData.amount) < 1000) {
+      newErrors.amount = "Target amount must be at least ₹1,000";
+    } else if (Number(createFormData.amount) > 100000000) {
+      newErrors.amount = "Target amount cannot exceed ₹10,00,00,000";
+    }
+
+    if (!createFormData.endDate) {
+      newErrors.endDate = "End date is required";
+    } else {
+      const endDate = new Date(createFormData.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (endDate <= today) {
+        newErrors.endDate = "End date must be in the future";
+      } else if (
+        endDate > new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000)
+      ) {
+        newErrors.endDate = "End date cannot be more than 1 year from now";
+      }
+    }
+
+    if (createFormData.imageFile) {
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (createFormData.imageFile.size > maxSize) {
+        newErrors.imageFile = "Image size must be less than 5MB";
+      }
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(createFormData.imageFile.type)) {
+        newErrors.imageFile =
+          "Please upload a valid image (JPEG, PNG, GIF, WebP)";
+      }
+    }
+
+    setCreateFormErrors(newErrors);
+    return Object.values(newErrors).every((error) => !error);
+  };
+
+  const handleCreateCampaign = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (!validateCreateForm()) return;
+
     try {
-      // Ensure all required fields are provided with defaults
       const campaignData = {
-        title: data.title!,
-        description: data.description!,
-        category: data.category!,
-        targetAmount: data.targetAmount!,
-        currency: data.currency || "INR",
-        startDate: data.startDate!,
-        endDate: data.endDate!,
-        allowAnonymous: data.allowAnonymous ?? true,
-        featured: data.featured ?? false,
-        tags: data.tags || [],
-        location: data.location,
+        title: createFormData.title,
+        description: createFormData.description,
+        category: createFormData.category,
+        targetAmount: parseInt(createFormData.amount),
+        currency: "INR",
+        startDate: new Date().toISOString(),
+        endDate: createFormData.endDate,
         contactInfo: {
-          email: data.contactInfo!.email!,
-          phone: data.contactInfo!.phone,
-          person: data.contactInfo!.person,
+          email: "admin@alma-mater.edu",
         },
       };
 
       const response = await campaignAPI.createCampaign(campaignData);
 
       if (response.success) {
+        // Upload image if provided
+        const campaignId =
+          (response.data as { _id?: string; id?: string })?._id ||
+          (response.data as { _id?: string; id?: string })?.id;
+        if (createFormData.imageFile && campaignId) {
+          try {
+            const imageFormData = new FormData();
+            imageFormData.append("image", createFormData.imageFile);
+            // Check if uploadCampaignImage exists, otherwise skip
+            if (campaignAPI.uploadCampaignImage) {
+              await campaignAPI.uploadCampaignImage(campaignId, imageFormData);
+            }
+          } catch (imageError) {
+            console.error("Error uploading campaign image:", imageError);
+            // Don't fail the entire operation if image upload fails
+          }
+        }
+
         toast({
           title: "Success",
           description: "Campaign created successfully",
         });
         setIsCreateDialogOpen(false);
-        form.reset();
+        setCreateFormData({
+          title: "",
+          description: "",
+          category: "",
+          amount: "",
+          endDate: "",
+          imageFile: null,
+          imagePreviewUrl: "",
+        });
+        setCreateFormErrors({
+          title: "",
+          description: "",
+          category: "",
+          amount: "",
+          endDate: "",
+          imageFile: "",
+        });
         fetchCampaigns();
       } else {
         toast({
@@ -398,6 +552,31 @@ const CampaignManagement: React.FC = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      setCreateFormData((prev) => ({
+        ...prev,
+        imageFile: null,
+        imagePreviewUrl: "",
+      }));
+      setCreateFormErrors((prev) => ({ ...prev, imageFile: "" }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const url = (evt.target?.result as string) || "";
+      setCreateFormData((prev) => ({
+        ...prev,
+        imageFile: file,
+        imagePreviewUrl: url,
+      }));
+      setCreateFormErrors((prev) => ({ ...prev, imageFile: "" }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteCampaign = async (campaignId: string) => {
@@ -692,306 +871,210 @@ const CampaignManagement: React.FC = () => {
                   Create a new fundraising campaign
                 </DialogDescription>
               </DialogHeader>
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(handleCreateCampaign)}
-                  className="space-y-6"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Basic Information */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">
-                        Basic Information
-                      </h3>
-                      <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Campaign Title</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter campaign title"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Category</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select category" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="scholarship">
-                                  Scholarship
-                                </SelectItem>
-                                <SelectItem value="infrastructure">
-                                  Infrastructure
-                                </SelectItem>
-                                <SelectItem value="research">
-                                  Research
-                                </SelectItem>
-                                <SelectItem value="event">Event</SelectItem>
-                                <SelectItem value="emergency">
-                                  Emergency
-                                </SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Enter campaign description"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+              <form onSubmit={handleCreateCampaign} className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Campaign Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={createFormData.title}
+                    onChange={(e) =>
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter campaign title"
+                    className={`mt-1 w-full border ${
+                      createFormErrors.title
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                  />
+                  {createFormErrors.title && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.title}
+                    </p>
+                  )}
+                </div>
 
-                    {/* Financial Information */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">
-                        Financial Information
-                      </h3>
-                      <FormField
-                        control={form.control}
-                        name="targetAmount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Target Amount</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="Enter target amount"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="currency"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Currency</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select currency" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="INR">INR (₹)</SelectItem>
-                                <SelectItem value="USD">USD ($)</SelectItem>
-                                <SelectItem value="EUR">EUR (€)</SelectItem>
-                                <SelectItem value="GBP">GBP (£)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="startDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Start Date</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="endDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>End Date</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Description *
+                  </label>
+                  <textarea
+                    name="description"
+                    value={createFormData.description}
+                    onChange={(e) =>
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="Describe your campaign goals and impact"
+                    rows={3}
+                    className={`mt-1 w-full border ${
+                      createFormErrors.description
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                  />
+                  {createFormErrors.description && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.description}
+                    </p>
+                  )}
+                </div>
 
-                  {/* Contact Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">
-                      Contact Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="contactInfo.email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Contact Email</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="email"
-                                placeholder="contact@example.com"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contactInfo.phone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Phone</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="+1 (555) 123-4567"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contactInfo.person"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Contact Person</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Contact person name"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Location</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Campaign location"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Settings */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Settings</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="allowAnonymous"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                              <FormLabel className="text-base">
-                                Allow Anonymous Donations
-                              </FormLabel>
-                              <div className="text-sm text-muted-foreground">
-                                Allow donors to donate anonymously
-                              </div>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="featured"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                              <FormLabel className="text-base">
-                                Featured Campaign
-                              </FormLabel>
-                              <div className="text-sm text-muted-foreground">
-                                Highlight this campaign as featured
-                              </div>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreateDialogOpen(false)}
+                {/* Category & Amount */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Category *
+                    </label>
+                    <Select
+                      value={createFormData.category}
+                      onValueChange={(value) =>
+                        setCreateFormData((prev) => ({
+                          ...prev,
+                          category: value,
+                        }))
+                      }
                     >
-                      Cancel
-                    </Button>
-                    <Button type="submit">Create Campaign</Button>
+                      <SelectTrigger
+                        className={`mt-1 ${
+                          createFormErrors.category ? "border-red-500" : ""
+                        }`}
+                      >
+                        <SelectValue placeholder="Select an option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoryOptions.length === 0 ? (
+                          <SelectItem value="__noopts__" disabled>
+                            No saved categories
+                          </SelectItem>
+                        ) : (
+                          categoryOptions.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {createFormErrors.category && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {createFormErrors.category}
+                      </p>
+                    )}
                   </div>
-                </form>
-              </Form>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Target Amount (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      name="amount"
+                      value={createFormData.amount}
+                      onChange={(e) =>
+                        setCreateFormData((prev) => ({
+                          ...prev,
+                          amount: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter target amount"
+                      className={`mt-1 w-full border ${
+                        createFormErrors.amount
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                    />
+                    {createFormErrors.amount && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {createFormErrors.amount}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Campaign End Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={createFormData.endDate}
+                    onChange={(e) =>
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        endDate: e.target.value,
+                      }))
+                    }
+                    className={`mt-1 w-full border ${
+                      createFormErrors.endDate
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                  />
+                  {createFormErrors.endDate && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.endDate}
+                    </p>
+                  )}
+                </div>
+
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Campaign Image (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                    className={`mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+                      createFormErrors.imageFile
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload a JPG or PNG image. A preview will appear below.
+                  </p>
+                  {createFormErrors.imageFile && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.imageFile}
+                    </p>
+                  )}
+                  {createFormData.imagePreviewUrl && (
+                    <div className="mt-2">
+                      <img
+                        src={createFormData.imagePreviewUrl}
+                        alt="Preview"
+                        className="w-full h-40 object-cover rounded-lg border"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Buttons */}
+                <div className="flex justify-end gap-3 mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit">+ Create Campaign</Button>
+                </div>
+              </form>
             </DialogContent>
           </Dialog>
         </div>

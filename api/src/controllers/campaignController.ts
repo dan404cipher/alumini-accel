@@ -444,10 +444,16 @@ export const uploadCampaignImage = asyncHandler(
       }
 
       // Check if user can update this campaign
-      if (
-        campaign.createdBy.toString() !== req.user?.id &&
-        req.user?.role !== "super_admin"
-      ) {
+      // All admin roles (college_admin, hod, staff, super_admin) can upload images for any campaign in their college
+      const isAdmin =
+        req.user?.role === "super_admin" ||
+        req.user?.role === "college_admin" ||
+        req.user?.role === "hod" ||
+        req.user?.role === "staff";
+      const isCreator = campaign.createdBy.toString() === req.user?.id;
+      const isSameTenant = campaign.tenantId.toString() === req.user?.tenantId?.toString();
+
+      if (!isCreator && (!isAdmin || !isSameTenant)) {
         return res.status(403).json({
           success: false,
           message: "Access denied",

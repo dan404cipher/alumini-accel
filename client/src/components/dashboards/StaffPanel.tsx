@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,10 +52,20 @@ import {
   EyeOff,
   UserPlus,
   Mail,
+  LayoutDashboard,
+  Tags,
+  Building2,
+  Image,
+  Newspaper,
+  HeartHandshake,
+  BookOpen,
+  Activity,
+  Briefcase,
+  IndianRupee,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { userAPI, campaignAPI, tenantAPI, alumniAPI } from "@/lib/api";
+import { userAPI, campaignAPI, tenantAPI, alumniAPI, eventAPI, galleryAPI, newsAPI, communityAPI } from "@/lib/api";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
 
 const StaffPanel = () => {
@@ -69,11 +79,23 @@ const StaffPanel = () => {
   // Real data states
   const [pendingRequests, setPendingRequests] = useState([]);
   const [alumni, setAlumni] = useState([]);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [galleries, setGalleries] = useState<any[]>([]);
+  const [news, setNews] = useState<any[]>([]);
+  const [communities, setCommunities] = useState<any[]>([]);
+  const [alumniByDepartment, setAlumniByDepartment] = useState<Record<string, number>>({});
+  const [eventsByStatus, setEventsByStatus] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState({
     requests: false,
     post: false,
     fundraiser: false,
     alumni: false,
+    events: false,
+    campaigns: false,
+    galleries: false,
+    news: false,
+    communities: false,
   });
 
   // Form states
@@ -535,15 +557,140 @@ const StaffPanel = () => {
     };
   }, [user?.tenantId]);
 
-  // Mock data - replace with actual API calls
+  // Fetch recent events
+  const fetchRecentEvents = useCallback(async () => {
+    if (!user?.tenantId) return;
+    try {
+      setLoading((prev) => ({ ...prev, events: true }));
+      const response = await eventAPI.getAllEvents({
+        limit: 10,
+        tenantId: user.tenantId,
+      });
+      if (response.success && response.data?.events) {
+        const events = response.data.events;
+        setRecentEvents(events);
+        const statusCounts: Record<string, number> = {};
+        events.forEach((event: any) => {
+          const status = event.status || "upcoming";
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        setEventsByStatus(statusCounts);
+      }
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, events: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch campaigns
+  const fetchCampaigns = useCallback(async () => {
+    if (!user?.tenantId) return;
+    try {
+      setLoading((prev) => ({ ...prev, campaigns: true }));
+      const response = await campaignAPI.getAllCampaigns({ limit: 10 });
+      if (response.success && response.data?.campaigns) {
+        setCampaigns(response.data.campaigns);
+      } else if (response.success && Array.isArray(response.data)) {
+        setCampaigns(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, campaigns: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch galleries
+  const fetchGalleries = useCallback(async () => {
+    if (!user?.tenantId) return;
+    try {
+      setLoading((prev) => ({ ...prev, galleries: true }));
+      const response = await galleryAPI.getAllGalleries({ limit: 10 });
+      if (response.success && response.data?.galleries) {
+        setGalleries(response.data.galleries);
+      } else if (response.success && Array.isArray(response.data)) {
+        setGalleries(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching galleries:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, galleries: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch news
+  const fetchNews = useCallback(async () => {
+    if (!user?.tenantId) return;
+    try {
+      setLoading((prev) => ({ ...prev, news: true }));
+      const response = await newsAPI.getAllNews({ limit: 10 });
+      if (response.success && response.data?.news) {
+        setNews(response.data.news);
+      } else if (response.success && Array.isArray(response.data)) {
+        setNews(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching news:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, news: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch communities
+  const fetchCommunities = useCallback(async () => {
+    if (!user?.tenantId) return;
+    try {
+      setLoading((prev) => ({ ...prev, communities: true }));
+      const response = await communityAPI.getTopCommunities(10);
+      if (response.success && response.data) {
+        setCommunities(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      console.error("Error fetching communities:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, communities: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Calculate alumni by department
+  useEffect(() => {
+    if (alumni.length > 0) {
+      const deptCounts: Record<string, number> = {};
+      alumni.forEach((alum: any) => {
+        const dept = alum.department || alum.userId?.department || "Unknown";
+        deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+      });
+      setAlumniByDepartment(deptCounts);
+    }
+  }, [alumni]);
+
+  // Fetch all dashboard data on mount
+  useEffect(() => {
+    fetchRecentEvents();
+    fetchCampaigns();
+    fetchGalleries();
+    fetchNews();
+    fetchCommunities();
+  }, [fetchRecentEvents, fetchCampaigns, fetchGalleries, fetchNews, fetchCommunities]);
+
+  // Stats calculation
   const stats = {
     alumniVerified: 45,
     postsMade: 23,
-    eventsPosted: 8,
+    eventsPosted: recentEvents.length,
     pendingAlumni: pendingRequests.filter((req: any) => req.role === "alumni")
       .length,
     postsModerated: 12,
+    totalAlumniVerified: alumni.length,
+    totalContributions: campaigns.reduce((sum: number, c: any) => sum + (c.currentAmount || 0), 0),
+    totalCampaigns: campaigns.length,
+    activeCampaigns: campaigns.filter((c: any) => c.status === "active").length,
+    totalCampaignRaised: campaigns.reduce((sum: number, c: any) => sum + (c.currentAmount || 0), 0),
+    totalCampaignTarget: campaigns.reduce((sum: number, c: any) => sum + (c.targetAmount || 0), 0),
   };
+
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   const pendingAlumni = [
     {
@@ -627,32 +774,142 @@ const StaffPanel = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pt-20">
-      <div className="space-y-6">
-        {/* College Banner */}
-        {collegeBanner && (
-          <div className="relative overflow-hidden rounded-lg shadow-lg">
-            <img
-              src={collegeBanner}
-              alt="College Banner"
-              className="w-full h-80 object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 right-0 p-8">
-              <div className="max-w-4xl">
-                <h2 className="text-4xl font-bold text-white mb-4">
-                  Welcome to Your College Staff Portal
-                </h2>
-                <p className="text-xl text-white/90 mb-6 max-w-2xl">
-                  Support alumni engagement, manage content, and contribute to
-                  college initiatives
-                </p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex h-[calc(100vh-5rem)] overflow-hidden">
+        {/* Enhanced Sidebar */}
+        <aside className="hidden lg:block w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm">
+          <div className="h-full flex flex-col">
+            {/* Sidebar Header */}
+            <div className="p-6 border-b bg-gradient-to-r from-green-600 to-green-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-lg">Staff</h3>
+                  <p className="text-green-100 text-xs">Management Portal</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Menu */}
+            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+              {[
+                { 
+                  key: "dashboard", 
+                  label: "Dashboard", 
+                  icon: LayoutDashboard,
+                  color: "purple"
+                },
+                { 
+                  key: "fundraisers", 
+                  label: "Fundraisers", 
+                  icon: DollarSign,
+                  color: "amber"
+                },
+                { 
+                  key: "moderate", 
+                  label: "Moderate", 
+                  icon: Edit,
+                  color: "rose"
+                },
+                { 
+                  key: "alumni", 
+                  label: "Alumni", 
+                  icon: GraduationCap,
+                  color: "amber"
+                },
+                { 
+                  key: "eligible-students", 
+                  label: "Eligible Students", 
+                  icon: GraduationCap,
+                  color: "blue"
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.key;
+                const colorMap: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+                  purple: {
+                    bg: "bg-purple-50",
+                    border: "border-purple-200",
+                    text: "text-purple-700",
+                    dot: "bg-purple-500"
+                  },
+                  blue: {
+                    bg: "bg-blue-50",
+                    border: "border-blue-200",
+                    text: "text-blue-700",
+                    dot: "bg-blue-500"
+                  },
+                  green: {
+                    bg: "bg-green-50",
+                    border: "border-green-200",
+                    text: "text-green-700",
+                    dot: "bg-green-500"
+                  },
+                  amber: {
+                    bg: "bg-amber-50",
+                    border: "border-amber-200",
+                    text: "text-amber-700",
+                    dot: "bg-amber-500"
+                  },
+                  indigo: {
+                    bg: "bg-indigo-50",
+                    border: "border-indigo-200",
+                    text: "text-indigo-700",
+                    dot: "bg-indigo-500"
+                  },
+                  rose: {
+                    bg: "bg-rose-50",
+                    border: "border-rose-200",
+                    text: "text-rose-700",
+                    dot: "bg-rose-500"
+                  },
+                };
+
+                const activeColors = colorMap[item.color] || colorMap.blue;
+
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? `${activeColors.bg} ${activeColors.border} ${activeColors.text} border-l-4 shadow-sm`
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent"
+                    }`}
+                  >
+                    <Icon 
+                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`} 
+                    />
+                    <span className="flex-1">{item.label}</span>
+                    {isActive && (
+                      <div className={`w-2 h-2 rounded-full ${activeColors.dot}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Sidebar Footer */}
+            <div className="p-4 border-t bg-gray-50">
+              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                </div>
               </div>
             </div>
           </div>
-        )}
-
-        {/* Header */}
+        </aside>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* Header - only on Dashboard tab */}
+        {activeTab === "dashboard" && (
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Staff Dashboard</h1>
@@ -665,166 +922,547 @@ const StaffPanel = () => {
             Staff Member
           </Badge>
         </div>
+        )}
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Alumni Verified
-              </CardTitle>
-              <GraduationCap className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.alumniVerified}</div>
-              <p className="text-xs text-muted-foreground">
-                +{stats.pendingAlumni} pending
-              </p>
-            </CardContent>
-          </Card>
+        {/* College Banner Display - only on Dashboard tab */}
+        {activeTab === "dashboard" && collegeBanner && (
+          <div className="relative overflow-hidden rounded-lg shadow-lg mt-6">
+            <img
+              src={collegeBanner}
+              alt="College Banner"
+              className="w-full h-80 object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+            <div className="absolute bottom-0 left-0 right-0 p-8">
+              <div className="max-w-4xl">
+                <h2 className="text-4xl font-bold text-white mb-4">
+                  Welcome to {user?.tenantId ? "Your College" : "AlumniAccel"}
+                </h2>
+                <p className="text-xl text-white/90 mb-6 max-w-2xl">
+                  Support alumni engagement, manage content, and contribute to college initiatives
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Posts Made</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.postsMade}</div>
-              <p className="text-xs text-muted-foreground">+5 this month</p>
-            </CardContent>
-          </Card>
+        {/* Main Content controlled by sidebar */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-6">
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Events Posted
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.eventsPosted}</div>
-              <p className="text-xs text-muted-foreground">+2 this month</p>
-            </CardContent>
-          </Card>
+          {/* Dashboard Overview */}
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border-l-4 border-l-blue-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Alumni Verified
+                  </CardTitle>
+                  <Users className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalAlumniVerified}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Verified alumni
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Posts Moderated
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.postsModerated}</div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
-          </Card>
-        </div>
+              <Card className="border-l-4 border-l-green-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Pending Approvals
+                  </CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.pendingAlumni}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Awaiting approval
+                  </p>
+                </CardContent>
+              </Card>
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="approvals" className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Approvals</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="fundraisers"
-              className="flex items-center gap-2"
-            >
-              <DollarSign className="w-4 h-4" />
-              <span className="hidden sm:inline">Fundraisers</span>
-            </TabsTrigger>
-            <TabsTrigger value="moderate" className="flex items-center gap-2">
-              <Edit className="w-4 h-4" />
-              <span className="hidden sm:inline">Moderate</span>
-            </TabsTrigger>
-            <TabsTrigger value="alumni" className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4" />
-              <span className="hidden sm:inline">Alumni</span>
-            </TabsTrigger>
-            <TabsTrigger value="eligible-students" className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4" />
-              <span className="hidden sm:inline">Eligible Students</span>
-            </TabsTrigger>
-          </TabsList>
+              <Card className="border-l-4 border-l-purple-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Posts Moderated
+                  </CardTitle>
+                  <FileText className="h-4 w-4 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.postsModerated}</div>
+                  <p className="text-xs text-muted-foreground">
+                    This month
+                  </p>
+                </CardContent>
+              </Card>
 
-          {/* Approvals - Alumni */}
-          <TabsContent value="approvals" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">
-                Pending Alumni Approvals
-              </h2>
-              <Badge variant="secondary">
-                {stats.pendingAlumni} Total Pending
-              </Badge>
+              <Card className="border-l-4 border-l-orange-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Fundraisers Created
+                  </CardTitle>
+                  <Target className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.postsMade > 0 ? "Active" : "0"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Active campaigns
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="space-y-4">
-              {loading.requests ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    Loading pending requests...
-                  </p>
-                </div>
-              ) : pendingRequests.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    No pending alumni requests
-                  </p>
-                </div>
-              ) : (
-                pendingRequests.map((request: any) => (
-                  <Card key={request.requestId}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-lg">
-                            {request.firstName} {request.lastName}
-                          </CardTitle>
-                          <CardDescription>{request.email}</CardDescription>
+              {/* Detailed Statistics Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                {/* Alumni by Department */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5" />
+                      Alumni by Department
+                    </CardTitle>
+                    <CardDescription>
+                      Distribution across departments
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.keys(alumniByDepartment).length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No data available
+                        </p>
+                      ) : (
+                        Object.entries(alumniByDepartment)
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 5)
+                          .map(([dept, count]) => (
+                            <div key={dept} className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="font-medium truncate">{dept}</span>
+                                <span className="text-muted-foreground">{count}</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div
+                                  className="bg-blue-500 h-1.5 rounded-full"
+                                  style={{
+                                    width: `${(count / stats.totalAlumniVerified) * 100 || 0}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Events by Status */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Events by Status
+                    </CardTitle>
+                    <CardDescription>
+                      Event status breakdown
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.keys(eventsByStatus).length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No events yet
+                        </p>
+                      ) : (
+                        Object.entries(eventsByStatus).map(([status, count]) => (
+                          <div key={status} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-3 h-3 rounded-full ${
+                                  status === "upcoming"
+                                    ? "bg-green-500"
+                                    : status === "completed"
+                                    ? "bg-blue-500"
+                                    : "bg-gray-400"
+                                }`}
+                              />
+                              <span className="text-sm font-medium capitalize">{status}</span>
+                            </div>
+                            <Badge variant="secondary">{count}</Badge>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Campaign Performance */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Campaign Performance
+                    </CardTitle>
+                    <CardDescription>
+                      Overall fundraising progress
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Raised</span>
+                          <span className="font-bold text-lg">
+                            ₹{stats.totalCampaignRaised.toLocaleString()}
+                          </span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline">
-                            {request.department || "N/A"}
-                          </Badge>
-                          <Badge variant="default">Alumni</Badge>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Target</span>
+                          <span className="font-medium">
+                            ₹{stats.totalCampaignTarget.toLocaleString()}
+                          </span>
+                        </div>
+                        {stats.totalCampaignTarget > 0 && (
+                          <>
+                            <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                              <div
+                                className="bg-rose-500 h-3 rounded-full transition-all"
+                                style={{
+                                  width: `${Math.min((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100, 100)}%`,
+                                }}
+                              />
+                            </div>
+                            <p className="text-xs text-center text-muted-foreground">
+                              {Math.round((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100)}% Complete
+                            </p>
+                          </>
+                        )}
+                      </div>
+                      <div className="pt-2 border-t">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Active Campaigns:</span>
+                          <span className="font-medium text-green-600">{stats.activeCampaigns}</span>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-muted-foreground">
-                          Applied on{" "}
-                          {new Date(request.requestedAt).toLocaleDateString()}
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleRejectRequest(request.requestId)
-                            }
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Reject
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              handleApproveRequest(request.requestId)
-                            }
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Approve
-                          </Button>
-                        </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Activity - All Models */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                {/* Recent Events */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-purple-500" />
+                        <CardTitle>Recent Events</CardTitle>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+                      <Badge variant="outline">{recentEvents.length}</Badge>
+                    </div>
+                    <CardDescription>Latest events and their performance</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.events ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">Loading events...</p>
+                        </div>
+                      ) : recentEvents.length === 0 ? (
+                        <div className="text-center py-4">
+                          <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No events found</p>
+                        </div>
+                      ) : (
+                        recentEvents.slice(0, 5).map((event: any) => {
+                          const attendeesCount = Array.isArray(event.attendees)
+                            ? event.attendees.length
+                            : typeof event.attendees === "number"
+                            ? event.attendees
+                            : 0;
+                          const eventDate = new Date(event.date || event.startDate);
+                          const isUpcoming = eventDate > new Date();
+                          const eventStatus = event.status || (isUpcoming ? "upcoming" : "past");
+
+                          return (
+                            <div
+                              key={event._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                {event.image ? (
+                                  <img
+                                    src={event.image}
+                                    alt={event.title}
+                                    className="w-12 h-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                                    <Calendar className="h-6 w-6 text-purple-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-sm">{event.title}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <p className="text-xs text-muted-foreground">
+                                    {eventDate.toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </p>
+                                  {event.location && (
+                                    <>
+                                      <span className="text-muted-foreground">•</span>
+                                      <p className="text-xs text-muted-foreground truncate">
+                                        {event.location}
+                                      </p>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs text-muted-foreground">
+                                    {attendeesCount} attendees
+                                  </span>
+                                  <Badge variant={eventStatus === "completed" ? "default" : "secondary"} className="text-xs">
+                                    {eventStatus}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Gallery */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Image className="h-5 w-5 text-cyan-500" />
+                        <CardTitle>Gallery</CardTitle>
+                      </div>
+                      <Badge variant="outline">{galleries.length}</Badge>
+                    </div>
+                    <CardDescription>Recent photo galleries</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.galleries ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">Loading galleries...</p>
+                        </div>
+                      ) : galleries.length === 0 ? (
+                        <div className="text-center py-4">
+                          <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No galleries found</p>
+                        </div>
+                      ) : (
+                        galleries.slice(0, 5).map((gallery: any) => {
+                          const galleryDate = new Date(gallery.createdAt || new Date());
+                          const imageCount = Array.isArray(gallery.images) ? gallery.images.length : 0;
+                          const firstImage = Array.isArray(gallery.images) && gallery.images.length > 0 ? gallery.images[0] : null;
+
+                          return (
+                            <div
+                              key={gallery._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                {firstImage ? (
+                                  <img
+                                    src={firstImage}
+                                    alt={gallery.title}
+                                    className="w-12 h-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-cyan-100 flex items-center justify-center">
+                                    <Image className="h-6 w-6 text-cyan-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-sm">{gallery.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {galleryDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {imageCount} images
+                                  </Badge>
+                                  {gallery.category && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {gallery.category}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* News Room */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Newspaper className="h-5 w-5 text-blue-500" />
+                        <CardTitle>News Room</CardTitle>
+                      </div>
+                      <Badge variant="outline">{news.length}</Badge>
+                    </div>
+                    <CardDescription>Latest news and updates</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.news ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">Loading news...</p>
+                        </div>
+                      ) : news.length === 0 ? (
+                        <div className="text-center py-4">
+                          <Newspaper className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No news found</p>
+                        </div>
+                      ) : (
+                        news.slice(0, 5).map((newsItem: any) => {
+                          const newsDate = new Date(newsItem.publishedAt || newsItem.createdAt || new Date());
+
+                          return (
+                            <div
+                              key={newsItem._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                {newsItem.image ? (
+                                  <img
+                                    src={newsItem.image}
+                                    alt={newsItem.title}
+                                    className="w-12 h-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                                    <Newspaper className="h-6 w-6 text-blue-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-sm">{newsItem.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                  {newsItem.summary || newsItem.content?.substring(0, 60) || ""}
+                                </p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    {newsDate.toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </p>
+                                  {newsItem.author && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {typeof newsItem.author === "string"
+                                        ? newsItem.author
+                                        : `${newsItem.author.firstName || ""} ${newsItem.author.lastName || ""}`.trim() || newsItem.author.email || "Unknown"}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Community */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5 text-green-500" />
+                        <CardTitle>Communities</CardTitle>
+                      </div>
+                      <Badge variant="outline">{communities.length}</Badge>
+                    </div>
+                    <CardDescription>Top active communities</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.communities ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">Loading communities...</p>
+                        </div>
+                      ) : communities.length === 0 ? (
+                        <div className="text-center py-4">
+                          <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No communities found</p>
+                        </div>
+                      ) : (
+                        communities.slice(0, 5).map((community: any) => {
+                          const memberCount = community.members?.length || community.memberCount || 0;
+                          const postCount = community.posts?.length || community.postCount || 0;
+
+                          return (
+                            <div
+                              key={community._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                {community.image ? (
+                                  <img
+                                    src={community.image}
+                                    alt={community.name}
+                                    className="w-12 h-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                                    <MessageSquare className="h-6 w-6 text-green-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-sm">{community.name}</p>
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                  {community.description || ""}
+                                </p>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <div className="flex items-center gap-1">
+                                    <Users className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground">{memberCount} members</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <FileText className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground">{postCount} posts</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
           </TabsContent>
 
           {/* Fundraisers */}
@@ -1750,6 +2388,7 @@ const StaffPanel = () => {
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </div>
   );

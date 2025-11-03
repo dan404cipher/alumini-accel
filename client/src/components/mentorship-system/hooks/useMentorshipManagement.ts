@@ -214,6 +214,18 @@ export const useMentorshipManagement = (
   // Memoized mentor actions
   const handleAddMentor = useCallback(
     async (mentor: Mentor) => {
+      // Check if user is a student - students cannot register as mentors
+      if (currentUser?.role === "student") {
+        toast({
+          title: "Restriction",
+          description: "Students cannot register as mentors. Please contact your administrator if you need to update your role.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setOpenForm(false);
+        return;
+      }
+
       try {
         // Transform mentor data to API format
         const mentorData = {

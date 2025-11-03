@@ -447,13 +447,24 @@ const MentorshipSystem: React.FC = () => {
               </div>
 
               {/* Register as Mentor Button */}
-              <Button
-                onClick={() => setOpenForm(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <UserCheck className="w-4 h-4 mr-2" />
-                Register as Mentor
-              </Button>
+              {user?.role !== "student" ? (
+                <Button
+                  onClick={() => setOpenForm(true)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <UserCheck className="w-4 h-4 mr-2" />
+                  Register as Mentor
+                </Button>
+              ) : (
+                <Button
+                  disabled
+                  className="w-full bg-gray-300 text-gray-500 cursor-not-allowed"
+                  title="Students cannot register as mentors"
+                >
+                  <UserCheck className="w-4 h-4 mr-2" />
+                  Register as Mentor
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>

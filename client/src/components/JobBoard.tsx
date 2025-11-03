@@ -1612,13 +1612,15 @@ const JobBoard = () => {
                     <p className="text-gray-500 mb-4">
                       You haven't posted any jobs yet
                     </p>
-                    <Button
-                      onClick={() => setIsPostJobOpen(true)}
-                      variant="gradient"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Post Your First Job
-                    </Button>
+                    {canCreateJobs && (
+                      <Button
+                        onClick={() => setIsPostJobOpen(true)}
+                        variant="gradient"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Post Your First Job
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">

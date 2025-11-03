@@ -228,6 +228,80 @@ const CampaignManagement: React.FC = () => {
     },
   });
 
+  // Prefill edit form when opening edit dialog
+  useEffect(() => {
+    if (isEditDialogOpen && selectedCampaign) {
+      form.reset({
+        title: selectedCampaign.title || "",
+        description: selectedCampaign.description || "",
+        category: selectedCampaign.category || "",
+        targetAmount: selectedCampaign.targetAmount || 0,
+        currency: "INR",
+        startDate: selectedCampaign.startDate
+          ? new Date(selectedCampaign.startDate).toISOString().slice(0, 16)
+          : "",
+        endDate: selectedCampaign.endDate
+          ? new Date(selectedCampaign.endDate).toISOString().slice(0, 16)
+          : "",
+        featured: selectedCampaign.featured ?? false,
+        tags: selectedCampaign.tags || [],
+      });
+    }
+  }, [isEditDialogOpen, selectedCampaign, form]);
+
+  const handleUpdateCampaign = async (data: CampaignFormData) => {
+    if (!selectedCampaign?._id) return;
+    try {
+      const campaignData = {
+        title: data.title!,
+        description: data.description!,
+        category: data.category!,
+        targetAmount: data.targetAmount!,
+        currency: data.currency || "INR",
+        startDate: data.startDate!,
+        endDate: data.endDate!,
+        allowAnonymous: data.allowAnonymous ?? true,
+        featured: data.featured ?? false,
+        tags: data.tags || [],
+        location: data.location,
+        contactInfo: {
+          email: data.contactInfo!.email!,
+          phone: data.contactInfo!.phone,
+          person: data.contactInfo!.person,
+        },
+      };
+
+      const response = await campaignAPI.updateCampaign(
+        selectedCampaign._id,
+        campaignData
+      );
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Campaign updated successfully",
+        });
+        setIsEditDialogOpen(false);
+        setSelectedCampaign(null);
+        form.reset();
+        fetchCampaigns();
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to update campaign",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating campaign:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update campaign",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchCampaigns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -922,6 +996,236 @@ const CampaignManagement: React.FC = () => {
           </Dialog>
         </div>
       </div>
+
+      {/* Edit Campaign Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Campaign</DialogTitle>
+            <DialogDescription>
+              Update the details of this fundraising campaign
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handleUpdateCampaign)}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Basic Information</h3>
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campaign Title</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter campaign title"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="scholarship">
+                              Scholarship
+                            </SelectItem>
+                            <SelectItem value="infrastructure">
+                              Infrastructure
+                            </SelectItem>
+                            <SelectItem value="research">Research</SelectItem>
+                            <SelectItem value="event">Event</SelectItem>
+                            <SelectItem value="emergency">Emergency</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Enter campaign description"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Financial Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">
+                    Financial Information
+                  </h3>
+                  <FormField
+                    control={form.control}
+                    name="targetAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Target Amount</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Enter target amount"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value) || 0)
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="INR">INR</SelectItem>
+                            <SelectItem value="USD">USD</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="datetime-local" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>End Date</FormLabel>
+                          <FormControl>
+                            <Input type="datetime-local" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Settings */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Additional Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="allowAnonymous"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Allow Anonymous Donations
+                          </FormLabel>
+                          <div className="text-sm text-muted-foreground">
+                            Allow donors to contribute anonymously
+                          </div>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="featured"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Featured Campaign
+                          </FormLabel>
+                          <div className="text-sm text-muted-foreground">
+                            Highlight this campaign as featured
+                          </div>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Update Campaign</Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       {/* Enhanced Filters */}
       {!loading && (

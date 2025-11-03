@@ -84,6 +84,8 @@ const StaffPanel = () => {
   const [galleries, setGalleries] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
   const [communities, setCommunities] = useState<any[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
+  const [mentorships, setMentorships] = useState<any[]>([]);
   const [alumniByDepartment, setAlumniByDepartment] = useState<Record<string, number>>({});
   const [eventsByStatus, setEventsByStatus] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState({
@@ -96,6 +98,8 @@ const StaffPanel = () => {
     galleries: false,
     news: false,
     communities: false,
+    donations: false,
+    mentorships: false,
   });
 
   // Form states
@@ -653,6 +657,60 @@ const StaffPanel = () => {
     }
   }, [user?.tenantId]);
 
+  // Fetch donations
+  const fetchDonations = useCallback(async () => {
+    if (!user?.tenantId) return;
+    try {
+      setLoading((prev) => ({ ...prev, donations: true }));
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      
+      const response = await fetch(`${baseUrl}/donations?limit=5`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const donationsData = data.data?.donations || data.data || [];
+        setDonations(Array.isArray(donationsData) ? donationsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching donations:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, donations: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch mentorships
+  const fetchMentorships = useCallback(async () => {
+    if (!user?.tenantId) return;
+    try {
+      setLoading((prev) => ({ ...prev, mentorships: true }));
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      
+      const response = await fetch(`${baseUrl}/mentorship?limit=5`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const mentorshipsData = data.data?.mentorships || data.data || [];
+        setMentorships(Array.isArray(mentorshipsData) ? mentorshipsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching mentorships:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, mentorships: false }));
+    }
+  }, [user?.tenantId]);
+
   // Calculate alumni by department
   useEffect(() => {
     if (alumni.length > 0) {
@@ -672,7 +730,9 @@ const StaffPanel = () => {
     fetchGalleries();
     fetchNews();
     fetchCommunities();
-  }, [fetchRecentEvents, fetchCampaigns, fetchGalleries, fetchNews, fetchCommunities]);
+    fetchDonations();
+    fetchMentorships();
+  }, [fetchRecentEvents, fetchCampaigns, fetchGalleries, fetchNews, fetchCommunities, fetchDonations, fetchMentorships]);
 
   // Stats calculation
   const stats = {
@@ -784,12 +844,12 @@ const StaffPanel = () => {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
                   <Users className="h-6 w-6 text-green-600" />
-                </div>
+              </div>
                 <div>
                   <h3 className="text-white font-bold text-lg">Staff</h3>
                   <p className="text-green-100 text-xs">Management Portal</p>
-                </div>
-              </div>
+            </div>
+          </div>
             </div>
 
             {/* Navigation Menu */}
@@ -954,69 +1014,69 @@ const StaffPanel = () => {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="border-l-4 border-l-blue-500">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
                     Total Alumni Verified
-                  </CardTitle>
+              </CardTitle>
                   <Users className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent>
+            </CardHeader>
+            <CardContent>
                   <div className="text-2xl font-bold">{stats.totalAlumniVerified}</div>
-                  <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                     Verified alumni
-                  </p>
-                </CardContent>
-              </Card>
+              </p>
+            </CardContent>
+          </Card>
 
               <Card className="border-l-4 border-l-green-500">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Pending Approvals
                   </CardTitle>
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
+            </CardHeader>
+            <CardContent>
                   <div className="text-2xl font-bold">
                     {stats.pendingAlumni}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Awaiting approval
                   </p>
-                </CardContent>
-              </Card>
+            </CardContent>
+          </Card>
 
               <Card className="border-l-4 border-l-purple-500">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
                     Posts Moderated
-                  </CardTitle>
+              </CardTitle>
                   <FileText className="h-4 w-4 text-purple-500" />
-                </CardHeader>
-                <CardContent>
+            </CardHeader>
+            <CardContent>
                   <div className="text-2xl font-bold">{stats.postsModerated}</div>
                   <p className="text-xs text-muted-foreground">
                     This month
                   </p>
-                </CardContent>
-              </Card>
+            </CardContent>
+          </Card>
 
               <Card className="border-l-4 border-l-orange-500">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
                     Fundraisers Created
-                  </CardTitle>
+              </CardTitle>
                   <Target className="h-4 w-4 text-orange-500" />
-                </CardHeader>
-                <CardContent>
+            </CardHeader>
+            <CardContent>
                   <div className="text-2xl font-bold">
                     {stats.postsMade > 0 ? "Active" : "0"}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Active campaigns
                   </p>
-                </CardContent>
-              </Card>
-            </div>
+            </CardContent>
+          </Card>
+        </div>
 
               {/* Detailed Statistics Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -1093,7 +1153,7 @@ const StaffPanel = () => {
                                 }`}
                               />
                               <span className="text-sm font-medium capitalize">{status}</span>
-                            </div>
+            </div>
                             <Badge variant="secondary">{count}</Badge>
                           </div>
                         ))
@@ -1114,14 +1174,14 @@ const StaffPanel = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
+            <div className="space-y-4">
                       <div>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-muted-foreground">Raised</span>
                           <span className="font-bold text-lg">
                             ₹{stats.totalCampaignRaised.toLocaleString()}
                           </span>
-                        </div>
+                </div>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-muted-foreground">Target</span>
                           <span className="font-medium">
@@ -1143,7 +1203,7 @@ const StaffPanel = () => {
                             </p>
                           </>
                         )}
-                      </div>
+                </div>
                       <div className="pt-2 border-t">
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">Active Campaigns:</span>
@@ -1159,12 +1219,12 @@ const StaffPanel = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                 {/* Recent Events */}
                 <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-5 w-5 text-purple-500" />
                         <CardTitle>Recent Events</CardTitle>
-                      </div>
+                        </div>
                       <Badge variant="outline">{recentEvents.length}</Badge>
                     </div>
                     <CardDescription>Latest events and their performance</CardDescription>
@@ -1233,9 +1293,9 @@ const StaffPanel = () => {
                                   </span>
                                   <Badge variant={eventStatus === "completed" ? "default" : "secondary"} className="text-xs">
                                     {eventStatus}
-                                  </Badge>
-                                </div>
-                              </div>
+                          </Badge>
+                        </div>
+                      </div>
                             </div>
                           );
                         })
@@ -1255,8 +1315,8 @@ const StaffPanel = () => {
                       <Badge variant="outline">{galleries.length}</Badge>
                     </div>
                     <CardDescription>Recent photo galleries</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                    </CardHeader>
+                    <CardContent>
                     <div className="space-y-3">
                       {loading.galleries ? (
                         <div className="text-center py-4">
@@ -1322,11 +1382,11 @@ const StaffPanel = () => {
                 {/* News Room */}
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Newspaper className="h-5 w-5 text-blue-500" />
                         <CardTitle>News Room</CardTitle>
-                      </div>
+                        </div>
                       <Badge variant="outline">{news.length}</Badge>
                     </div>
                     <CardDescription>Latest news and updates</CardDescription>
@@ -1361,7 +1421,7 @@ const StaffPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
                                     <Newspaper className="h-6 w-6 text-blue-500" />
-                                  </div>
+                        </div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1389,9 +1449,9 @@ const StaffPanel = () => {
                           );
                         })
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                 {/* Community */}
                 <Card>
@@ -1453,6 +1513,148 @@ const StaffPanel = () => {
                                     <FileText className="h-3 w-3 text-muted-foreground" />
                                     <span className="text-xs text-muted-foreground">{postCount} posts</span>
                                   </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Donations */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <HeartHandshake className="h-5 w-5 text-rose-500" />
+                        <CardTitle>Donations</CardTitle>
+                      </div>
+                      <Badge variant="outline">{donations.length}</Badge>
+                    </div>
+                    <CardDescription>Recent donations</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.donations ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">Loading donations...</p>
+                        </div>
+                      ) : donations.length === 0 ? (
+                        <div className="text-center py-4">
+                          <HeartHandshake className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No donations found</p>
+                        </div>
+                      ) : (
+                        donations.slice(0, 5).map((donation: any) => {
+                          const donationDate = new Date(donation.createdAt || donation.donatedAt || new Date());
+                          const amount = donation.amount || 0;
+                          const donorName = donation.donor?.firstName && donation.donor?.lastName
+                            ? `${donation.donor.firstName} ${donation.donor.lastName}`
+                            : donation.donorName || "Anonymous";
+
+                          return (
+                            <div
+                              key={donation._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 rounded-lg bg-rose-100 flex items-center justify-center">
+                                  <HeartHandshake className="h-6 w-6 text-rose-500" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-sm">{donorName}</p>
+                                <p className="text-lg font-bold text-rose-600 mt-1">
+                                  ₹{amount.toLocaleString()}
+                                </p>
+                                {donation.campaign?.title && (
+                                  <p className="text-xs text-muted-foreground truncate mt-1">
+                                    {donation.campaign.title}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  {donationDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Mentorship */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5 text-indigo-500" />
+                        <CardTitle>Mentorship</CardTitle>
+                      </div>
+                      <Badge variant="outline">{mentorships.length}</Badge>
+                    </div>
+                    <CardDescription>Recent mentorship connections</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.mentorships ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">Loading mentorships...</p>
+                        </div>
+                      ) : mentorships.length === 0 ? (
+                        <div className="text-center py-4">
+                          <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No mentorships found</p>
+                        </div>
+                      ) : (
+                        mentorships.slice(0, 5).map((mentorship: any) => {
+                          const mentorshipDate = new Date(mentorship.createdAt || new Date());
+                          const mentorName = mentorship.mentor?.firstName && mentorship.mentor?.lastName
+                            ? `${mentorship.mentor.firstName} ${mentorship.mentor.lastName}`
+                            : mentorship.mentorName || "Unknown";
+                          const menteeName = mentorship.mentee?.firstName && mentorship.mentee?.lastName
+                            ? `${mentorship.mentee.firstName} ${mentorship.mentee.lastName}`
+                            : mentorship.menteeName || "Unknown";
+
+                          return (
+                            <div
+                              key={mentorship._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                  <BookOpen className="h-6 w-6 text-indigo-500" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm">Mentor: {mentorName}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Mentee: {menteeName}</p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <Badge
+                                    variant={
+                                      mentorship.status === "active"
+                                        ? "default"
+                                        : mentorship.status === "completed"
+                                        ? "secondary"
+                                        : "outline"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {mentorship.status || "pending"}
+                                  </Badge>
+                                  <p className="text-xs text-muted-foreground">
+                                    {mentorshipDate.toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </p>
                                 </div>
                               </div>
                             </div>

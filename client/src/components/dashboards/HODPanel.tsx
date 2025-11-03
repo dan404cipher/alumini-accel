@@ -95,6 +95,8 @@ const HODPanel = () => {
   const [galleries, setGalleries] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
   const [communities, setCommunities] = useState<any[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
+  const [mentorships, setMentorships] = useState<any[]>([]);
   const [alumniByDepartment, setAlumniByDepartment] = useState<
     Record<string, number>
   >({});
@@ -111,6 +113,8 @@ const HODPanel = () => {
     galleries: false,
     news: false,
     communities: false,
+    donations: false,
+    mentorships: false,
   });
 
   // Form states
@@ -761,6 +765,66 @@ const HODPanel = () => {
     }
   }, [user?.tenantId]);
 
+  // Fetch donations
+  const fetchDonations = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, donations: true }));
+      const baseUrl =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
+      const response = await fetch(`${baseUrl}/donations?limit=5`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const donationsData = data.data?.donations || data.data || [];
+        setDonations(Array.isArray(donationsData) ? donationsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching donations:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, donations: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch mentorships
+  const fetchMentorships = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, mentorships: true }));
+      const baseUrl =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
+      const response = await fetch(`${baseUrl}/mentorship?limit=5`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const mentorshipsData = data.data?.mentorships || data.data || [];
+        setMentorships(Array.isArray(mentorshipsData) ? mentorshipsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching mentorships:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, mentorships: false }));
+    }
+  }, [user?.tenantId]);
+
   // Calculate alumni by department
   useEffect(() => {
     if (alumni.length > 0) {
@@ -780,12 +844,16 @@ const HODPanel = () => {
     fetchGalleries();
     fetchNews();
     fetchCommunities();
+    fetchDonations();
+    fetchMentorships();
   }, [
     fetchRecentEvents,
     fetchCampaigns,
     fetchGalleries,
     fetchNews,
     fetchCommunities,
+    fetchDonations,
+    fetchMentorships,
   ]);
 
   // Stats calculation
@@ -1684,6 +1752,179 @@ const HODPanel = () => {
                                       {postCount} posts
                                     </span>
                                   </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Donations */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <HeartHandshake className="h-5 w-5 text-rose-500" />
+                        <CardTitle>Donations</CardTitle>
+                      </div>
+                      <Badge variant="outline">{donations.length}</Badge>
+                    </div>
+                    <CardDescription>Recent donations</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.donations ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">
+                            Loading donations...
+                          </p>
+                        </div>
+                      ) : donations.length === 0 ? (
+                        <div className="text-center py-4">
+                          <HeartHandshake className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">
+                            No donations found
+                          </p>
+                        </div>
+                      ) : (
+                        donations.slice(0, 5).map((donation: any) => {
+                          const donationDate = new Date(
+                            donation.createdAt ||
+                              donation.donatedAt ||
+                              new Date()
+                          );
+                          const amount = donation.amount || 0;
+                          const donorName =
+                            donation.donor?.firstName &&
+                            donation.donor?.lastName
+                              ? `${donation.donor.firstName} ${donation.donor.lastName}`
+                              : donation.donorName || "Anonymous";
+
+                          return (
+                            <div
+                              key={donation._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 rounded-lg bg-rose-100 flex items-center justify-center">
+                                  <HeartHandshake className="h-6 w-6 text-rose-500" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-sm">
+                                  {donorName}
+                                </p>
+                                <p className="text-lg font-bold text-rose-600 mt-1">
+                                  ₹{amount.toLocaleString()}
+                                </p>
+                                {donation.campaign?.title && (
+                                  <p className="text-xs text-muted-foreground truncate mt-1">
+                                    {donation.campaign.title}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  {donationDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Mentorship */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5 text-indigo-500" />
+                        <CardTitle>Mentorship</CardTitle>
+                      </div>
+                      <Badge variant="outline">{mentorships.length}</Badge>
+                    </div>
+                    <CardDescription>
+                      Recent mentorship connections
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loading.mentorships ? (
+                        <div className="text-center py-4">
+                          <p className="text-muted-foreground">
+                            Loading mentorships...
+                          </p>
+                        </div>
+                      ) : mentorships.length === 0 ? (
+                        <div className="text-center py-4">
+                          <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">
+                            No mentorships found
+                          </p>
+                        </div>
+                      ) : (
+                        mentorships.slice(0, 5).map((mentorship: any) => {
+                          const mentorshipDate = new Date(
+                            mentorship.createdAt || new Date()
+                          );
+                          const mentorName =
+                            mentorship.mentor?.firstName &&
+                            mentorship.mentor?.lastName
+                              ? `${mentorship.mentor.firstName} ${mentorship.mentor.lastName}`
+                              : mentorship.mentorName || "Unknown";
+                          const menteeName =
+                            mentorship.mentee?.firstName &&
+                            mentorship.mentee?.lastName
+                              ? `${mentorship.mentee.firstName} ${mentorship.mentee.lastName}`
+                              : mentorship.menteeName || "Unknown";
+
+                          return (
+                            <div
+                              key={mentorship._id}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                  <BookOpen className="h-6 w-6 text-indigo-500" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm">
+                                  Mentor: {mentorName}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Mentee: {menteeName}
+                                </p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <Badge
+                                    variant={
+                                      mentorship.status === "active"
+                                        ? "default"
+                                        : mentorship.status === "completed"
+                                        ? "secondary"
+                                        : "outline"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {mentorship.status || "pending"}
+                                  </Badge>
+                                  <p className="text-xs text-muted-foreground">
+                                    {mentorshipDate.toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                      }
+                                    )}
+                                  </p>
                                 </div>
                               </div>
                             </div>

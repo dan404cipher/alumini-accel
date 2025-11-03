@@ -57,6 +57,7 @@ import { useToast } from "@/hooks/use-toast";
 import { userAPI, campaignAPI, tenantAPI, alumniAPI } from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
+import EligibleStudentsPanel from "../EligibleStudentsPanel";
 
 const HODPanel = () => {
   const { user } = useAuth();
@@ -786,7 +787,7 @@ const HODPanel = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="approvals" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Approvals</span>
@@ -805,6 +806,10 @@ const HODPanel = () => {
             <TabsTrigger value="alumni" className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
               <span className="hidden sm:inline">Alumni</span>
+            </TabsTrigger>
+            <TabsTrigger value="eligible-students" className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4" />
+              <span className="hidden sm:inline">Eligible Students</span>
             </TabsTrigger>
             <TabsTrigger value="categories" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -1863,6 +1868,11 @@ const HODPanel = () => {
                 ))
               )}
             </div>
+          </TabsContent>
+
+          {/* Eligible Students Management */}
+          <TabsContent value="eligible-students" className="space-y-6">
+            <EligibleStudentsPanel />
           </TabsContent>
 
           {/* Category Management */}

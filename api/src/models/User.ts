@@ -151,6 +151,10 @@ const userSchema = new Schema<IUser>(
         "Graduation year cannot be in the future",
       ],
     },
+    eligibleForAlumni: {
+      type: Boolean,
+      default: false,
+    },
     timezone: {
       type: String,
       default: "UTC",
@@ -221,6 +225,7 @@ const userSchema = new Schema<IUser>(
 // Indexes for better query performance
 // Note: email index is automatically created by unique: true
 userSchema.index({ role: 1, status: 1 });
+userSchema.index({ role: 1, eligibleForAlumni: 1 });
 userSchema.index({ createdAt: -1 });
 userSchema.index({ "preferences.emailNotifications": 1 });
 
@@ -240,6 +245,24 @@ userSchema.pre("save", async function (next) {
   } catch (error) {
     next(error as Error);
   }
+});
+
+// Pre-save middleware to check eligibility for alumni
+userSchema.pre("save", function (next) {
+  // Only check eligibility for students with graduationYear
+  if (
+    this.role === UserRole.STUDENT &&
+    this.graduationYear &&
+    typeof this.graduationYear === "number"
+  ) {
+    const currentYear = new Date().getFullYear();
+    // Mark as eligible if graduation year is <= current year
+    this.eligibleForAlumni = this.graduationYear <= currentYear;
+  } else if (this.role !== UserRole.STUDENT) {
+    // Reset eligibleForAlumni if user is not a student
+    this.eligibleForAlumni = false;
+  }
+  next();
 });
 
 // Instance method to compare password

@@ -59,6 +59,7 @@ import { userAPI, alumniAPI, eventAPI, jobAPI, tenantAPI, communityAPI, campaign
 import AlumniManagement from "../AlumniManagement";
 import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
+import EligibleStudentsPanel from "../EligibleStudentsPanel";
 // Note: College Admin only manages their own college, not all colleges
 
 const CollegeAdminDashboard = () => {
@@ -1235,6 +1236,12 @@ const CollegeAdminDashboard = () => {
                   label: "Alumni", 
                   icon: GraduationCap,
                   color: "amber"
+                },
+                { 
+                  key: "eligible-students", 
+                  label: "Eligible Students", 
+                  icon: Users,
+                  color: "blue"
                 },
                 { 
                   key: "categories", 
@@ -2995,6 +3002,11 @@ const CollegeAdminDashboard = () => {
           {/* Alumni Management */}
           <TabsContent value="alumni" className="space-y-6">
             <AlumniManagement />
+          </TabsContent>
+
+          {/* Eligible Students Management */}
+          <TabsContent value="eligible-students" className="space-y-6">
+            <EligibleStudentsPanel />
           </TabsContent>
 
           {/* Category Management */}

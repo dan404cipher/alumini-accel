@@ -600,6 +600,136 @@ export const bulkUpdateUsers = async (req: Request, res: Response) => {
   }
 };
 
+// Get eligible students (admin only)
+export const getEligibleStudents = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    // Find students who are eligible for alumni promotion
+    const eligibleStudents = await User.find({
+      role: UserRole.STUDENT,
+      eligibleForAlumni: true,
+    })
+      .select(
+        "firstName lastName email graduationYear department profilePicture status createdAt"
+      )
+      .sort({ graduationYear: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalCount = await User.countDocuments({
+      role: UserRole.STUDENT,
+      eligibleForAlumni: true,
+    });
+
+    return res.json({
+      success: true,
+      message: "Eligible students retrieved successfully",
+      data: {
+        students: eligibleStudents,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalCount,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPrevPage: page > 1,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get eligible students error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch eligible students",
+    });
+  }
+};
+
+// Promote student to alumni (admin only)
+export const promoteStudentToAlumni = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Check if user has permission (admin roles)
+    if (
+      !["super_admin", "college_admin", "hod", "staff"].includes(
+        currentUser.role
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to promote students",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Validate that user is a student
+    if (user.role !== UserRole.STUDENT) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not a student",
+      });
+    }
+
+    // Validate that student is eligible
+    if (!user.eligibleForAlumni) {
+      return res.status(400).json({
+        success: false,
+        message: "Student is not eligible for alumni promotion",
+      });
+    }
+
+    // Promote to alumni
+    user.role = UserRole.ALUMNI;
+    user.eligibleForAlumni = false;
+
+    await user.save();
+
+    logger.info(
+      `Student ${user.email} promoted to alumni by ${currentUser.email}`
+    );
+
+    return res.json({
+      success: true,
+      message: "Student promoted to alumni successfully",
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          graduationYear: user.graduationYear,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Promote student to alumni error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to promote student to alumni",
+    });
+  }
+};
+
 // Upload profile image
 export const uploadProfileImage = async (req: Request, res: Response) => {
   try {
@@ -1196,4 +1326,6 @@ export default {
   bulkCreateAlumni,
   exportAlumniData,
   testExport,
+  getEligibleStudents,
+  promoteStudentToAlumni,
 };

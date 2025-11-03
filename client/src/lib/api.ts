@@ -442,6 +442,26 @@ export const userAPI = {
     });
   },
 
+  // Get eligible students for alumni promotion (admin only)
+  getEligibleStudents: async (params?: {
+    page?: number;
+    limit?: number;
+  }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/users/eligible-students",
+      params,
+    });
+  },
+
+  // Promote student to alumni (admin only)
+  promoteStudentToAlumni: async (userId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/users/${userId}/promote-to-alumni`,
+    });
+  },
+
   // Get pending approvals
   getPendingApprovals: async () => {
     try {

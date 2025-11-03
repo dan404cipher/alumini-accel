@@ -26,7 +26,6 @@ import EventsMeetups from "./components/EventsMeetups";
 import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";
 import NewsDetail from "./pages/NewsDetail";
-import AdminDashboard from "./components/AdminDashboard";
 import AlumniProfile from "./components/AlumniProfile";
 import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
@@ -291,15 +290,6 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/admin"
-                    element={
-                      <ProtectedRoute>
-                        <AdminDashboard />
                       </ProtectedRoute>
                     }
                   />

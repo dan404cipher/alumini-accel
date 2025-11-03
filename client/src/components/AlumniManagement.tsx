@@ -101,6 +101,7 @@ const AlumniManagement = () => {
     password: "",
     collegeId: "",
     department: "",
+    role: "alumni", // Default to alumni, can be changed to "student"
     graduationYear: new Date().getFullYear(),
     currentCompany: "",
     currentPosition: "",
@@ -229,7 +230,16 @@ const AlumniManagement = () => {
       errors.department = "Department is required";
     }
 
-    if (
+    // Validate graduationYear - required for students
+    if (newAlumni.role === "student") {
+      if (
+        !newAlumni.graduationYear ||
+        newAlumni.graduationYear < 1900 ||
+        newAlumni.graduationYear > new Date().getFullYear() + 10
+      ) {
+        errors.graduationYear = "Please enter a valid graduation year";
+      }
+    } else if (
       !newAlumni.graduationYear ||
       newAlumni.graduationYear < 1900 ||
       newAlumni.graduationYear > new Date().getFullYear() + 10
@@ -345,15 +355,20 @@ const AlumniManagement = () => {
       }
 
       // Create actual user account directly (no approval needed)
-      const userData = {
+      const userData: any = {
         firstName: newAlumni.firstName.trim(),
         lastName: newAlumni.lastName.trim(),
         email: newAlumni.email.trim(),
         password: newAlumni.password,
-        role: "alumni",
+        role: newAlumni.role || "alumni",
         tenantId: newAlumni.collegeId,
         department: newAlumni.department,
       };
+
+      // Add graduationYear if role is student
+      if (newAlumni.role === "student") {
+        userData.graduationYear = newAlumni.graduationYear;
+      }
 
       // Import the userAPI to create user directly
       const { userAPI } = await import("@/lib/api");
@@ -368,9 +383,10 @@ const AlumniManagement = () => {
       }
 
       // Show success message for account creation
+      const roleLabel = newAlumni.role === "student" ? "Student" : "Alumni";
       toast({
         title: "Success",
-        description: "Alumni account created successfully!",
+        description: `${roleLabel} account created successfully!`,
       });
 
       // Reset form
@@ -381,6 +397,7 @@ const AlumniManagement = () => {
         password: "",
         collegeId: "",
         department: "",
+        role: "alumni",
         graduationYear: new Date().getFullYear(),
         currentCompany: "",
         currentPosition: "",
@@ -459,16 +476,17 @@ const AlumniManagement = () => {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Alumni Account
+                  Create User Account
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Create New Alumni Account</DialogTitle>
+                  <DialogTitle>Create New User Account</DialogTitle>
                   <DialogDescription>
-                    Create a new alumni account with profile information. Make
-                    sure to use a unique email address that hasn't been
-                    registered before.
+                    Create a new user account (Student or Alumni) with profile
+                    information. Make sure to use a unique email address that
+                    hasn't been registered before. Students with graduation
+                    year ≤ current year will be eligible for alumni promotion.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCreateAlumni} className="space-y-4">
@@ -551,6 +569,30 @@ const AlumniManagement = () => {
                     )}
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role *</Label>
+                    <Select
+                      value={newAlumni.role}
+                      onValueChange={(value) => {
+                        setHasInteracted(true);
+                        setNewAlumni({ ...newAlumni, role: value });
+                      }}
+                    >
+                      <SelectTrigger
+                        className={formErrors.role ? "border-red-500" : ""}
+                      >
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="alumni">Alumni</SelectItem>
+                        <SelectItem value="student">Student</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {formErrors.role && (
+                      <p className="text-sm text-red-500">{formErrors.role}</p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     {user?.role === "super_admin" && (
                       <div className="space-y-2">
@@ -623,7 +665,9 @@ const AlumniManagement = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="graduationYear">Graduation Year *</Label>
+                    <Label htmlFor="graduationYear">
+                      Graduation Year {newAlumni.role === "student" ? "*" : ""}
+                    </Label>
                     <Input
                       id="graduationYear"
                       type="number"
@@ -646,6 +690,12 @@ const AlumniManagement = () => {
                         {formErrors.graduationYear}
                       </p>
                     )}
+                    {newAlumni.role === "student" && (
+                      <p className="text-xs text-muted-foreground">
+                        Required for students. Students with graduation year ≤
+                        current year will be eligible for alumni promotion.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex justify-end space-x-2">
@@ -661,7 +711,11 @@ const AlumniManagement = () => {
                       disabled={createLoading || !isFormValid}
                       onClick={() => setHasInteracted(true)}
                     >
-                      {createLoading ? "Creating..." : "Create Alumni"}
+                      {createLoading
+                        ? "Creating..."
+                        : newAlumni.role === "student"
+                        ? "Create Student"
+                        : "Create Alumni"}
                     </Button>
                   </div>
                 </form>

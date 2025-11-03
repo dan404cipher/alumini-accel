@@ -11,9 +11,9 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
-    // Build filter for alumni only
+    // Build filter for alumni and students
     const userFilter: any = {
-      role: UserRole.ALUMNI,
+      role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] },
     };
 
     // 🔒 MULTI-TENANT FILTERING: Only show alumni from same college (unless super admin)
@@ -86,7 +86,7 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
         achievements: [],
       };
 
-      // Add profile-specific data
+      // Add profile-specific data for alumni (students may not have AlumniProfile)
       if (user.role === UserRole.ALUMNI) {
         const profile = alumniMap.get(user._id.toString());
         console.log(`User ${user.firstName} ${user.lastName} (${user._id}):`, {
@@ -105,7 +105,7 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
             ...baseUser,
             graduationYear: profile.graduationYear,
             batchYear: profile.batchYear,
-            department: profile.department,
+            department: profile.department || user.department,
             specialization: profile.specialization,
             currentRole: profile.currentPosition,
             company: profile.currentCompany,
@@ -119,6 +119,25 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
             achievements: profile.achievements || [],
           };
         }
+      } else if (user.role === UserRole.STUDENT) {
+        // For students, use User model data directly
+        return {
+          ...baseUser,
+          graduationYear: user.graduationYear,
+          department: user.department,
+          // Students don't have AlumniProfile, so use empty/default values
+          specialization: undefined,
+          currentRole: undefined,
+          company: undefined,
+          currentLocation: undefined,
+          experience: undefined,
+          skills: [],
+          careerInterests: [],
+          isHiring: false,
+          availableForMentorship: false,
+          mentorshipDomains: [],
+          achievements: [],
+        };
       }
 
       return baseUser;
@@ -1003,22 +1022,27 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
   }
 };
 
-// Get alumni by ID
+// Get user by ID (alumni or student)
 export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Get user (alumni only)
-    const user = await User.findOne({ _id: id, role: UserRole.ALUMNI });
+    // Get user (alumni or student)
+    const user = await User.findOne({ 
+      _id: id, 
+      role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] } 
+    });
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "Alumni not found",
+        message: "User not found",
       });
     }
 
-    // Get alumni profile
-    const profile = await AlumniProfile.findOne({ userId: user._id });
+    // Get alumni profile (only if user is alumni)
+    const profile = user.role === UserRole.ALUMNI 
+      ? await AlumniProfile.findOne({ userId: user._id })
+      : null;
 
     // Format the response
     const baseUser = {
@@ -1040,20 +1064,22 @@ export const getUserById = async (req: Request, res: Response) => {
       availableForMentorship: false,
       mentorshipDomains: [],
       achievements: [],
+      graduationYear: user.graduationYear,
+      department: user.department,
     };
 
-    // Add profile-specific data
-    if (profile) {
+    // Add profile-specific data for alumni
+    if (profile && user.role === UserRole.ALUMNI) {
       const alumniProfile = profile as any;
       const formattedUser = {
         ...baseUser,
-        graduationYear: alumniProfile.graduationYear,
+        graduationYear: alumniProfile.graduationYear || user.graduationYear,
         batchYear: alumniProfile.batchYear,
-        department: alumniProfile.department,
+        department: alumniProfile.department || user.department,
         specialization: alumniProfile.specialization,
         currentRole: alumniProfile.currentPosition,
         company: alumniProfile.currentCompany,
-        currentLocation: alumniProfile.currentLocation,
+        currentLocation: alumniProfile.currentLocation || user.location,
         experience: alumniProfile.experience,
         skills: alumniProfile.skills || [],
         careerInterests: alumniProfile.careerInterests || [],
@@ -1074,7 +1100,7 @@ export const getUserById = async (req: Request, res: Response) => {
       });
     }
 
-    // Return base user if no profile found
+    // For students or alumni without profile, return base user with User model data
     return res.json({
       success: true,
       data: { user: baseUser },

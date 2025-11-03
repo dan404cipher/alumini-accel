@@ -10,6 +10,7 @@ export enum UserRole {
   COLLEGE_ADMIN = "college_admin", // Manages one specific college
   HOD = "hod", // Head of Department
   STAFF = "staff", // College staff member
+  STUDENT = "student", // Student member
   ALUMNI = "alumni", // Alumni member
 }
 
@@ -165,6 +166,7 @@ export interface IUser extends Document {
   currentCompany?: string;
   currentPosition?: string;
   graduationYear?: number;
+  eligibleForAlumni?: boolean;
   timezone?: string;
   preferences: {
     emailNotifications: boolean;

@@ -4,6 +4,7 @@ export enum UserRole {
   COLLEGE_ADMIN = "college_admin",
   HOD = "hod",
   STAFF = "staff",
+  STUDENT = "student",
   ALUMNI = "alumni",
 }
 
@@ -58,6 +59,7 @@ export const ROLE_HIERARCHY = {
   [UserRole.HOD]: 3,
   [UserRole.STAFF]: 2,
   [UserRole.ALUMNI]: 1,
+  [UserRole.STUDENT]: 1, // Same level as alumni
 };
 
 // Permission definitions for each role
@@ -258,6 +260,43 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canManageSystem: false,
     canViewLogs: false,
   },
+
+  [UserRole.STUDENT]: {
+    // User Management
+    canCreateUsers: false,
+    canEditUsers: false,
+    canDeleteUsers: false,
+    canViewAllUsers: false,
+
+    // College Management
+    canManageColleges: false,
+    canViewAllColleges: false,
+
+    // Content Management
+    canCreatePosts: true,
+    canEditAllPosts: false, // Can only edit their own posts
+    canDeletePosts: false, // Can only delete their own posts
+    canPinPosts: false,
+    canFeaturePosts: false,
+
+    // Events Management
+    canCreateEvents: false, // Students cannot create events
+    canEditAllEvents: false,
+    canDeleteEvents: false,
+
+    // Job Management
+    canCreateJobs: false, // Students cannot post jobs
+    canEditAllJobs: false,
+    canDeleteJobs: false,
+
+    // Analytics & Reports
+    canViewAnalytics: false,
+    canExportData: false,
+
+    // System Administration
+    canManageSystem: false,
+    canViewLogs: false,
+  },
 };
 
 // Helper function to check if a role has a specific permission
@@ -354,6 +393,7 @@ export const getRoleDisplayName = (role: string): string => {
     [UserRole.HOD]: "Head of Department",
     [UserRole.STAFF]: "Staff",
     [UserRole.ALUMNI]: "Alumni",
+    [UserRole.STUDENT]: "Student",
   };
 
   return roleNames[role as UserRole] || role;
@@ -366,7 +406,8 @@ export const getRoleColor = (role: string): string => {
     [UserRole.COLLEGE_ADMIN]: "bg-purple-100 text-purple-800",
     [UserRole.HOD]: "bg-blue-100 text-blue-800",
     [UserRole.STAFF]: "bg-green-100 text-green-800",
-    [UserRole.ALUMNI]: "bg-gray-100 text-gray-800",
+    [UserRole.ALUMNI]: "bg-orange-100 text-orange-800",
+    [UserRole.STUDENT]: "bg-blue-100 text-blue-800",
   };
 
   return roleColors[role as UserRole] || "bg-gray-100 text-gray-800";

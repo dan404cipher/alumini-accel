@@ -909,6 +909,22 @@ const AlumniDirectory = () => {
                       <div className="flex items-center space-x-3 ml-4">
                         {/* Status Badges */}
                         <div className="flex space-x-2">
+                          {directoryUser.role === "student" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs bg-blue-100 text-blue-800"
+                            >
+                              Student
+                            </Badge>
+                          )}
+                          {directoryUser.role === "alumni" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs bg-orange-100 text-orange-800"
+                            >
+                              Alumni
+                            </Badge>
+                          )}
                           {directoryUser.availableForMentorship && (
                             <Badge variant="secondary" className="text-xs">
                               Mentoring
@@ -1058,6 +1074,22 @@ const AlumniDirectory = () => {
 
                         {/* Status Badges */}
                         <div className="mb-4">
+                          {directoryUser.role === "student" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs mr-2 bg-blue-100 text-blue-800"
+                            >
+                              Student
+                            </Badge>
+                          )}
+                          {directoryUser.role === "alumni" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs mr-2 bg-orange-100 text-orange-800"
+                            >
+                              Alumni
+                            </Badge>
+                          )}
                           {directoryUser.availableForMentorship && (
                             <Badge variant="secondary" className="text-xs mr-2">
                               Mentoring

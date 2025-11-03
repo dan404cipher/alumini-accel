@@ -56,6 +56,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { userAPI, campaignAPI, tenantAPI, alumniAPI } from "@/lib/api";
+import EligibleStudentsPanel from "../EligibleStudentsPanel";
 
 const StaffPanel = () => {
   const { user } = useAuth();
@@ -722,7 +723,7 @@ const StaffPanel = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="approvals" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Approvals</span>
@@ -741,6 +742,10 @@ const StaffPanel = () => {
             <TabsTrigger value="alumni" className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
               <span className="hidden sm:inline">Alumni</span>
+            </TabsTrigger>
+            <TabsTrigger value="eligible-students" className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4" />
+              <span className="hidden sm:inline">Eligible Students</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1298,6 +1303,10 @@ const StaffPanel = () => {
           </TabsContent>
 
           {/* Alumni Management */}
+          <TabsContent value="eligible-students" className="space-y-6">
+            <EligibleStudentsPanel />
+          </TabsContent>
+
           <TabsContent value="alumni" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">Alumni Management</h2>

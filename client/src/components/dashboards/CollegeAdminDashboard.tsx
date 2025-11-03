@@ -10,6 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { categoryAPI } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -139,6 +147,31 @@ const CollegeAdminDashboard = () => {
     department: "",
     password: "",
   });
+
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "department",
+          isActive: "true",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDepartmentOptions(names);
+      } catch (_) {
+        if (mounted) setDepartmentOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const [newStaff, setNewStaff] = useState({
     firstName: "",
@@ -2689,16 +2722,10 @@ const CollegeAdminDashboard = () => {
                       </div>
                       <div>
                         <Label htmlFor="hod-department">Department</Label>
-                        <Input
-                          id="hod-department"
-                          placeholder="Computer Science"
+                        <Select
                           value={newHOD.department}
-                          onChange={(e) => {
-                            setNewHOD((prev) => ({
-                              ...prev,
-                              department: e.target.value,
-                            }));
-                            // Clear error when user starts typing
+                          onValueChange={(val) => {
+                            setNewHOD((prev) => ({ ...prev, department: val }));
                             if (validationErrors.hod.department) {
                               updateValidationErrors("hod", {
                                 ...validationErrors.hod,
@@ -2706,13 +2733,24 @@ const CollegeAdminDashboard = () => {
                               });
                             }
                           }}
-                          className={
-                            validationErrors.hod.department
-                              ? "border-red-500"
-                              : ""
-                          }
-                          required
-                        />
+                        >
+                          <SelectTrigger id="hod-department">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departmentOptions.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                No departments available
+                              </SelectItem>
+                            ) : (
+                              departmentOptions.map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
                         {validationErrors.hod.department && (
                           <p className="text-sm text-red-500 mt-1">
                             {validationErrors.hod.department}
@@ -2849,18 +2887,29 @@ const CollegeAdminDashboard = () => {
                       </div>
                       <div>
                         <Label htmlFor="staff-department">Department</Label>
-                        <Input
-                          id="staff-department"
-                          placeholder="Administration"
+                        <Select
                           value={newStaff.department}
-                          onChange={(e) =>
-                            setNewStaff((prev) => ({
-                              ...prev,
-                              department: e.target.value,
-                            }))
+                          onValueChange={(val) =>
+                            setNewStaff((prev) => ({ ...prev, department: val }))
                           }
-                          required
-                        />
+                        >
+                          <SelectTrigger id="staff-department">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departmentOptions.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                No departments available
+                              </SelectItem>
+                            ) : (
+                              departmentOptions.map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label htmlFor="staff-password">Default Password</Label>

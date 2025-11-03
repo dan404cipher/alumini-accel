@@ -642,6 +642,8 @@ export const CategoryManagement = () => {
                       ? "e.g., Junior, Senior"
                       : formData.entityType === "job_industry"
                       ? "e.g., AI/ML, FinTech"
+                      : formData.entityType === "department"
+                      ? "e.g., Alumni Department, HOD Department, Staffs Department, Computer Science"
                       : "e.g., Workshop, Full-time, Entry Level"
                   }
                   required

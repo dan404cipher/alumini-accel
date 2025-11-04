@@ -127,6 +127,7 @@ const AlumniDirectory = () => {
   }, []);
   const [selectedGraduationYear, setSelectedGraduationYear] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
+  const [selectedRole, setSelectedRole] = useState("all");
   const [selectedExperience, setSelectedExperience] = useState("all");
   const [selectedSkills, setSelectedSkills] = useState("all");
   const [registerNumberFilter, setRegisterNumberFilter] = useState("");
@@ -229,6 +230,7 @@ const AlumniDirectory = () => {
         department: selectedDepartment !== "all" ? selectedDepartment : undefined,
         graduationYear: selectedGraduationYear !== "all" ? selectedGraduationYear : undefined,
         location: selectedLocation !== "all" ? selectedLocation : undefined,
+        role: selectedRole !== "all" ? selectedRole : undefined,
       });
 
       if (
@@ -266,7 +268,7 @@ const AlumniDirectory = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, user?.tenantId, currentPage, itemsPerPage, searchQuery, selectedDepartment, selectedGraduationYear, selectedLocation]);
+  }, [toast, user?.tenantId, currentPage, itemsPerPage, searchQuery, selectedDepartment, selectedGraduationYear, selectedLocation, selectedRole]);
 
   // Fetch users data from API
   useEffect(() => {
@@ -288,6 +290,7 @@ const AlumniDirectory = () => {
     selectedDepartment,
     selectedGraduationYear,
     selectedLocation,
+    selectedRole,
     selectedExperience,
     selectedSkills,
     registerNumberFilter,
@@ -448,6 +451,24 @@ const AlumniDirectory = () => {
                   </Select>
                 </div>
 
+                {/* Role Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Role</label>
+                  <Select
+                    value={selectedRole}
+                    onValueChange={setSelectedRole}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="alumni">Alumni</SelectItem>
+                      <SelectItem value="student">Student</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Experience Level */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
@@ -502,6 +523,7 @@ const AlumniDirectory = () => {
                   (selectedGraduationYear &&
                     selectedGraduationYear !== "all") ||
                   (selectedLocation && selectedLocation !== "all") ||
+                  (selectedRole && selectedRole !== "all") ||
                   (selectedExperience && selectedExperience !== "all") ||
                   registerNumberFilter) && (
                   <Button
@@ -512,6 +534,7 @@ const AlumniDirectory = () => {
                       setSelectedDepartment("all");
                       setSelectedGraduationYear("all");
                       setSelectedLocation("all");
+                      setSelectedRole("all");
                       setSelectedExperience("all");
                       setRegisterNumberFilter("");
                     }}

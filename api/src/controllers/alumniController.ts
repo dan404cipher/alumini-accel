@@ -17,6 +17,15 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] },
     };
 
+    // Apply role filter if specified
+    if (req.query.role && req.query.role !== "all") {
+      if (req.query.role === "alumni") {
+        userFilter.role = UserRole.ALUMNI;
+      } else if (req.query.role === "student") {
+        userFilter.role = UserRole.STUDENT;
+      }
+    }
+
     // 🔒 MULTI-TENANT FILTERING: Only show alumni from same college (unless super admin)
     if (req.query.tenantId) {
       userFilter.tenantId = req.query.tenantId;

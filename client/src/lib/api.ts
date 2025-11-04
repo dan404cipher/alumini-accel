@@ -789,6 +789,7 @@ export const alumniAPI = {
     department?: string;
     graduationYear?: string;
     location?: string;
+    role?: string;
   }) => {
     return apiRequest({
       method: "GET",

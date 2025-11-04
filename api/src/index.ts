@@ -60,6 +60,10 @@ import { emailService } from "./services/emailService";
 
 const app = express();
 const server = createServer(app);
+// Set server timeout to 10 minutes for bulk operations
+server.timeout = 600000; // 10 minutes
+server.keepAliveTimeout = 65000; // 65 seconds
+server.headersTimeout = 66000; // 66 seconds
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 

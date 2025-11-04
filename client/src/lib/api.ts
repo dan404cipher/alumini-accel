@@ -13,7 +13,7 @@ const API_BASE_URL =
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 300000, // 5 minutes for bulk operations
   headers: {
     "Content-Type": "application/json",
   },
@@ -742,6 +742,7 @@ export const userAPI = {
       method: "POST",
       url: "/users/bulk-alumni",
       data: { alumniData },
+      timeout: 600000, // 10 minutes for bulk uploads (can handle up to 1000 records)
     });
   },
 

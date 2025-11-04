@@ -830,10 +830,10 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
       });
     }
 
-    if (alumniData.length > 100) {
+    if (alumniData.length > 1000) {
       return res.status(400).json({
         success: false,
-        message: "Cannot create more than 100 alumni at once",
+        message: "Cannot create more than 1000 alumni at once",
       });
     }
 
@@ -909,6 +909,31 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
           tenantId = currentUser.tenantId;
         }
 
+        // Normalize gender field to match enum values
+        let normalizedGender: string | undefined = undefined;
+        if (alumniRecord.gender) {
+          const genderLower = alumniRecord.gender.toLowerCase().trim();
+          // Map common gender values to enum values
+          const genderMap: Record<string, string> = {
+            male: "male",
+            female: "female",
+            "m": "male",
+            "f": "female",
+            "other": "other",
+            "o": "other",
+            "prefer not to say": "other",
+            "not specified": "other",
+            "unspecified": "other",
+          };
+          normalizedGender = genderMap[genderLower];
+          if (!normalizedGender) {
+            // If no mapping found, try to match enum values directly
+            if (["male", "female", "other"].includes(genderLower)) {
+              normalizedGender = genderLower;
+            }
+          }
+        }
+
         // Create user data
         const userData = {
           firstName: alumniRecord.firstName.trim(),
@@ -933,7 +958,7 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
           dateOfBirth: alumniRecord.dateOfBirth
             ? new Date(alumniRecord.dateOfBirth)
             : undefined,
-          gender: alumniRecord.gender || undefined,
+          gender: normalizedGender,
         };
 
         // Create the user

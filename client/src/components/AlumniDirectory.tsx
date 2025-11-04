@@ -646,77 +646,79 @@ const AlumniDirectory = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen ml-0 lg:ml-80">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="w-4 h-4 mr-2" />
-              Filters
-            </Button>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">
-                Alumni Directory
-              </h1>
-              <p className="text-muted-foreground text-sm lg:text-base">
-                Connect with our global network • {filterUsers(users).length}{" "}
-                users
-              </p>
+      <div className="flex-1 flex flex-col overflow-y-auto h-screen ml-0 lg:ml-80">
+        <div className="p-4 lg:p-6 space-y-6">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="w-4 h-4 mr-2" />
+                Filters
+              </Button>
+              <div>
+                <h1 className="text-2xl lg:text-3xl font-bold">
+                  Alumni Directory
+                </h1>
+                <p className="text-muted-foreground text-sm lg:text-base">
+                  Connect with our global network • {filterUsers(users).length}{" "}
+                  users
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/connections")}
+                className="flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                My Connections
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/connections")}
-              className="flex items-center gap-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              My Connections
-            </Button>
-          </div>
-        </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">
-              Loading users directory...
-            </p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <div className="text-center py-12">
-            <div className="text-red-500 mb-4">
-              <Users className="h-12 w-12 mx-auto mb-2" />
-              <p className="text-lg font-semibold">
-                Failed to load users directory
+          {/* Loading State */}
+          {loading && (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">
+                Loading users directory...
               </p>
-              <p className="text-sm text-muted-foreground">{error}</p>
             </div>
-            <Button onClick={fetchUsers} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        )}
+          )}
 
-        {/* Users Grid/List */}
-        {!loading && !error && (
-          <div
-            className={
-              viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-                : "space-y-4"
-            }
-          >
+          {/* Error State */}
+          {error && !loading && (
+            <div className="text-center py-12">
+              <div className="text-red-500 mb-4">
+                <Users className="h-12 w-12 mx-auto mb-2" />
+                <p className="text-lg font-semibold">
+                  Failed to load users directory
+                </p>
+                <p className="text-sm text-muted-foreground">{error}</p>
+              </div>
+              <Button onClick={fetchUsers} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          {/* Users Grid/List */}
+          {!loading && !error && (
+            <div className="flex-1 flex flex-col">
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                    : "space-y-4"
+                }
+              >
             {users.length === 0 ? (
               <div
                 className={
@@ -1172,20 +1174,83 @@ const AlumniDirectory = () => {
                 </Card>
               ))
             )}
-          </div>
-        )}
+              </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              className="justify-center"
-            />
+              {/* Pagination */}
+              {(totalPages > 1 || (users.length > 0 && !loading)) && (
+                <div className="mt-8 mb-4">
+                  {totalPages > 1 && (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      className="justify-center"
+                    />
+                  )}
+                  {totalPages <= 1 && users.length > 0 && (
+                    <div className="text-center text-sm text-muted-foreground py-4">
+                      Showing all {users.length} users
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <footer className="bg-background border-t border-border mt-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              {/* Left side - Copyright */}
+              <div className="flex items-center text-sm text-muted-foreground">
+                <span>© {new Date().getFullYear()} AlumniAccel. All rights reserved.</span>
+              </div>
+
+              {/* Center - Legal Links */}
+              <div className="flex items-center space-x-6 text-sm text-muted-foreground">
+                <a
+                  href="/privacy"
+                  className="hover:text-primary transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/privacy");
+                  }}
+                >
+                  Privacy Policy
+                </a>
+                <a
+                  href="/terms"
+                  className="hover:text-primary transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/terms");
+                  }}
+                >
+                  Terms of Service
+                </a>
+                <a
+                  href="/cookies"
+                  className="hover:text-primary transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate("/cookies");
+                  }}
+                >
+                  Cookie Policy
+                </a>
+              </div>
+
+              {/* Right side - Made with love */}
+              <div className="flex items-center text-sm text-muted-foreground">
+                <span className="flex items-center">
+                  Made with <Heart className="w-4 h-4 mx-1 text-red-500" /> by the
+                  AlumniAccel Team
+                </span>
+              </div>
+            </div>
           </div>
-        )}
+        </footer>
       </div>
 
       {/* Dialogs */}

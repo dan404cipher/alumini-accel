@@ -307,13 +307,51 @@ const EventsMeetups = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["events", refreshKey, user?.tenantId, currentPage],
-    queryFn: () =>
-      eventAPI.getAllEvents({
+    queryKey: [
+      "events",
+      refreshKey,
+      user?.tenantId,
+      currentPage,
+      searchQuery,
+      selectedEventType,
+      selectedLocation,
+      selectedPrice,
+      selectedDateRange,
+    ],
+    queryFn: () => {
+      const params: Record<string, unknown> = {
         page: currentPage,
         limit: itemsPerPage,
         tenantId: user?.tenantId,
-      }),
+      };
+
+      if (selectedEventType !== "all") {
+        params.type = selectedEventType;
+      }
+
+      if (selectedLocation !== "all") {
+        // Handle special location filters
+        if (selectedLocation === "online") {
+          params.isOnline = "true";
+        } else {
+          params.location = selectedLocation;
+        }
+      }
+
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      if (selectedDateRange !== "all") {
+        params.dateRange = selectedDateRange;
+      }
+
+      if (selectedPrice !== "all") {
+        params.price = selectedPrice;
+      }
+
+      return eventAPI.getAllEvents(params);
+    },
   });
 
   // Map API events to component format
@@ -340,7 +378,7 @@ const EventsMeetups = () => {
 
   // Extract pagination info from API response
   const paginationInfo = (
-    eventsResponse?.data as { pagination?: { totalPages: number } } | undefined
+    eventsResponse?.data as { pagination?: { totalPages: number; total: number } } | undefined
   )?.pagination;
   useEffect(() => {
     if (paginationInfo) {
@@ -458,146 +496,11 @@ const EventsMeetups = () => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Helper function to filter events by all criteria
+  // Note: Backend already handles: search, type, location, price, dateRange
+  // Client-side filtering only needed for time-based tabs (upcoming/today/past) and user-specific filters (my events, saved)
+  // This function is kept for compatibility but returns events as-is since backend handles all filters
   const filterEvents = (events: MappedEvent[]) => {
-    return events.filter((event) => {
-      // Search query filter
-      if (debouncedSearchQuery) {
-        const searchLower = debouncedSearchQuery.toLowerCase();
-        const matchesSearch =
-          (event.title && event.title.toLowerCase().includes(searchLower)) ||
-          (event.description &&
-            event.description.toLowerCase().includes(searchLower)) ||
-          (event.location &&
-            event.location.toLowerCase().includes(searchLower)) ||
-          (event.organizer &&
-            event.organizer.toLowerCase().includes(searchLower)) ||
-          (event.tags &&
-            event.tags.some(
-              (tag) => tag && tag.toLowerCase().includes(searchLower)
-            ));
-
-        if (!matchesSearch) return false;
-      }
-
-      // Event type filter (compare against rawType to support custom categories)
-      if (selectedEventType !== "all" && event.rawType !== selectedEventType)
-        return false;
-
-      // Location filter
-      if (selectedLocation !== "all") {
-        if (
-          selectedLocation === "online" &&
-          !event.location.toLowerCase().includes("online")
-        )
-          return false;
-        if (
-          selectedLocation === "hybrid" &&
-          !event.location.toLowerCase().includes("hybrid")
-        )
-          return false;
-        if (
-          selectedLocation === "campus" &&
-          !event.location.toLowerCase().includes("campus")
-        )
-          return false;
-        if (
-          !["online", "hybrid", "campus"].includes(selectedLocation) &&
-          !event.location.toLowerCase().includes(selectedLocation.toLowerCase())
-        )
-          return false;
-      }
-
-      // Price filter (supports presets and custom ranges from categories)
-      if (selectedPrice !== "all") {
-        const eventPrice = parseFloat(
-          event.price.replace("$", "").replace("Free", "0")
-        );
-        const val = selectedPrice.toLowerCase();
-        if (val === "free") {
-          if (eventPrice > 0) return false;
-        } else if (val.includes("-")) {
-          const [minStr, maxStr] = val.split("-");
-          const min = parseFloat(minStr) || 0;
-          const max = parseFloat(maxStr) || Number.MAX_SAFE_INTEGER;
-          if (eventPrice < min || eventPrice > max) return false;
-        } else if (val.endsWith("+")) {
-          const min = parseFloat(val.replace("+", "")) || 0;
-          if (eventPrice < min) return false;
-        } else {
-          switch (val) {
-            case "0-25":
-              if (eventPrice < 0 || eventPrice > 25) return false;
-              break;
-            case "25-50":
-              if (eventPrice < 25 || eventPrice > 50) return false;
-              break;
-            case "50-100":
-              if (eventPrice < 50 || eventPrice > 100) return false;
-              break;
-            case "100+":
-              if (eventPrice < 100) return false;
-              break;
-          }
-        }
-      }
-
-      // Date range filter
-      if (selectedDateRange !== "all") {
-        const eventDate = new Date(event.startDate);
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const thisWeekEnd = new Date(today);
-        thisWeekEnd.setDate(today.getDate() + 7);
-        const nextWeekEnd = new Date(today);
-        nextWeekEnd.setDate(today.getDate() + 14);
-        const thisMonthEnd = new Date(
-          today.getFullYear(),
-          today.getMonth() + 1,
-          1
-        );
-        const nextMonthEnd = new Date(
-          today.getFullYear(),
-          today.getMonth() + 2,
-          1
-        );
-
-        switch (selectedDateRange) {
-          case "today":
-            if (eventDate < today || eventDate >= tomorrow) return false;
-            break;
-          case "tomorrow":
-            if (
-              eventDate < tomorrow ||
-              eventDate >= new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
-            )
-              return false;
-            break;
-          case "this_week":
-            if (eventDate < today || eventDate >= thisWeekEnd) return false;
-            break;
-          case "next_week":
-            if (eventDate < thisWeekEnd || eventDate >= nextWeekEnd)
-              return false;
-            break;
-          case "this_month":
-            if (eventDate < today || eventDate >= thisMonthEnd) return false;
-            break;
-          case "next_month":
-            if (eventDate < thisMonthEnd || eventDate >= nextMonthEnd)
-              return false;
-            break;
-        }
-      }
-
-      return true;
-    });
+    return events;
   };
 
   // Filter events for "My Events" or "Registered Events" based on user role

@@ -1320,6 +1320,9 @@ export const eventAPI = {
     limit?: number;
     type?: string;
     location?: string;
+    search?: string;
+    dateRange?: string;
+    price?: string;
     tenantId?: string;
   }) => {
     try {

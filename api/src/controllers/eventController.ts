@@ -33,6 +33,117 @@ export const getAllEvents = async (req: Request, res: Response) => {
       filter.startDate = { $gte: new Date() };
     }
 
+    // Search filter
+    if (req.query.search) {
+      const searchConditions = [
+        { title: { $regex: req.query.search, $options: "i" } },
+        { description: { $regex: req.query.search, $options: "i" } },
+        { location: { $regex: req.query.search, $options: "i" } },
+        { tags: { $in: [new RegExp(req.query.search as string, "i")] } },
+      ];
+      
+      // If filter.$or already exists, combine with $and
+      if (filter.$or) {
+        filter.$and = filter.$and || [];
+        filter.$and.push({ $or: filter.$or });
+        filter.$and.push({ $or: searchConditions });
+        delete filter.$or;
+      } else {
+        filter.$or = searchConditions;
+      }
+    }
+
+    // Date range filter
+    if (req.query.dateRange && req.query.dateRange !== "all") {
+      const now = new Date();
+      const today = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const thisWeekStart = new Date(today);
+      thisWeekStart.setDate(today.getDate() - today.getDay());
+      const lastWeekStart = new Date(thisWeekStart);
+      lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+      const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastMonthStart = new Date(
+        today.getFullYear(),
+        today.getMonth() - 1,
+        1
+      );
+      const thisYearStart = new Date(today.getFullYear(), 0, 1);
+
+      switch (req.query.dateRange) {
+        case "today":
+          filter.startDate = { $gte: today, $lt: tomorrow };
+          break;
+        case "tomorrow":
+          filter.startDate = { $gte: tomorrow };
+          const dayAfterTomorrow = new Date(tomorrow);
+          dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+          filter.startDate = { $gte: tomorrow, $lt: dayAfterTomorrow };
+          break;
+        case "this_week":
+          filter.startDate = { $gte: thisWeekStart };
+          break;
+        case "next_week":
+          const nextWeekStart = new Date(thisWeekStart);
+          nextWeekStart.setDate(thisWeekStart.getDate() + 7);
+          const nextWeekEnd = new Date(nextWeekStart);
+          nextWeekEnd.setDate(nextWeekStart.getDate() + 7);
+          filter.startDate = { $gte: nextWeekStart, $lt: nextWeekEnd };
+          break;
+        case "this_month":
+          filter.startDate = { $gte: thisMonthStart };
+          break;
+        case "next_month":
+          const nextMonthStart = new Date(
+            today.getFullYear(),
+            today.getMonth() + 1,
+            1
+          );
+          const nextMonthEnd = new Date(
+            today.getFullYear(),
+            today.getMonth() + 2,
+            1
+          );
+          filter.startDate = { $gte: nextMonthStart, $lt: nextMonthEnd };
+          break;
+        case "this_year":
+          filter.startDate = { $gte: thisYearStart };
+          break;
+      }
+    }
+
+    // Price filter
+    if (req.query.price && req.query.price !== "all") {
+      const priceValue = req.query.price as string;
+      if (priceValue === "free") {
+        filter.$and = filter.$and || [];
+        filter.$and.push({
+          $or: [
+            { price: { $exists: false } },
+            { price: 0 },
+            { price: null },
+          ],
+        });
+      } else if (priceValue.includes("-")) {
+        const [min, max] = priceValue.split("-").map((p) => parseFloat(p.trim()));
+        if (!isNaN(min) && !isNaN(max)) {
+          filter.price = { $gte: min, $lte: max };
+        } else if (!isNaN(min)) {
+          filter.price = { $gte: min };
+        }
+      } else if (priceValue.endsWith("+")) {
+        const min = parseFloat(priceValue.replace("+", ""));
+        if (!isNaN(min)) {
+          filter.price = { $gte: min };
+        }
+      }
+    }
+
     const events = await Event.find(filter)
       .populate("organizer", "firstName lastName email profilePicture")
       .populate("customEventType", "name")

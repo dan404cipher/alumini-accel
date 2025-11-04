@@ -60,6 +60,8 @@ import {
   LayoutDashboard,
   Tags,
   FolderKanban,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +70,7 @@ import AlumniManagement from "../AlumniManagement";
 import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
+import Footer from "../Footer";
 // Note: College Admin only manages their own college, not all colleges
 
 const CollegeAdminDashboard = () => {
@@ -76,6 +79,9 @@ const CollegeAdminDashboard = () => {
   const [isCreateHODOpen, setIsCreateHODOpen] = useState(false);
   const [isCreateStaffOpen, setIsCreateStaffOpen] = useState(false);
   const [isCreateAdminOpen, setIsCreateAdminOpen] = useState(false);
+
+  // Mobile sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // College Settings state
   const [collegeLogo, setCollegeLogo] = useState<File | null>(null);
@@ -1225,21 +1231,42 @@ const CollegeAdminDashboard = () => {
 
   const [activeTab, setActiveTab] = useState("dashboard");
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex h-screen overflow-hidden pt-16">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Enhanced Sidebar */}
-        <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm z-40">
+        <aside className={`
+          ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
+          top-16 w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm h-[calc(100vh-4rem)]
+        `}>
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
             <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
-                  <Building2 className="h-6 w-6 text-blue-600" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                    <Building2 className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-lg">College Admin</h3>
+                    <p className="text-blue-100 text-xs">Management Portal</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-white font-bold text-lg">College Admin</h3>
-                  <p className="text-blue-100 text-xs">Management Portal</p>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden text-white hover:bg-white/20"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
               </div>
             </div>
 
@@ -1370,13 +1397,26 @@ const CollegeAdminDashboard = () => {
             </div>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-72">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 lg:ml-72">
+        {/* Mobile Menu Button */}
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Menu className="w-4 h-4" />
+            Menu
+          </Button>
+        </div>
+
         {/* Header - only on Dashboard tab */}
         {activeTab === "dashboard" && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">College Admin Dashboard</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">College Admin Dashboard</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Manage your college's alumni network and operations
             </p>
           </div>
@@ -3070,6 +3110,7 @@ const CollegeAdminDashboard = () => {
         </Tabs>
       </div>
       </div>
+      <Footer />
     </div>
   );
 };

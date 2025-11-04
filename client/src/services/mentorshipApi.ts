@@ -208,8 +208,18 @@ class MentorshipApiService {
   }
 
   // User-Specific Endpoints
-  async getMyMentorships(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<ApiResponse<any[]>>("/mentorship/my-mentorships");
+  async getMyMentorships(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<MentorshipApiData>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const queryString = queryParams.toString();
+    const endpoint = `/mentorship/my-mentorships${queryString ? `?${queryString}` : ""}`;
+
+    return this.makeRequest<ApiResponse<MentorshipApiData>>(endpoint);
   }
 
   async getActiveMentorships(): Promise<ApiResponse<any[]>> {

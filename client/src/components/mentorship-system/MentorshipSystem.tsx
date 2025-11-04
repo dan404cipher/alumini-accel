@@ -63,6 +63,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { mentorshipApi } from "@/services/mentorshipApi";
 import { useToast } from "@/hooks/use-toast";
 import Footer from "../Footer";
+import Pagination from "@/components/ui/Pagination";
 
 // Sample mentor data for demonstration
 const sampleMentors: Mentor[] = [
@@ -163,6 +164,16 @@ const MentorshipSystem: React.FC = () => {
   const [selectedMentorship, setSelectedMentorship] =
     useState<IMentorship | null>(null);
 
+  // Pagination state
+  const [mentorshipsPage, setMentorshipsPage] = useState(1);
+  const [mentorshipsLimit] = useState(10); // 10 mentorships per page
+  const [mentorshipsPagination, setMentorshipsPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+
   // Mentor management state
   const [showEditMentorDialog, setShowEditMentorDialog] = useState(false);
   const [showDeleteMentorDialog, setShowDeleteMentorDialog] = useState(false);
@@ -198,12 +209,18 @@ const MentorshipSystem: React.FC = () => {
 
     setLoadingMentorships(true);
     try {
-      const response = await mentorshipApi.getMyMentorships();
+      const response = await mentorshipApi.getMyMentorships({
+        page: mentorshipsPage,
+        limit: mentorshipsLimit,
+      });
 
       if (response.success && response.data) {
-        // Ensure data is an array
-        const mentorships = Array.isArray(response.data) ? response.data : [];
+        // Handle paginated response structure
+        const mentorships = response.data.mentorships || [];
         setMyMentorships(mentorships);
+        if (response.data.pagination) {
+          setMentorshipsPagination(response.data.pagination);
+        }
       } else {
         setMyMentorships([]);
       }
@@ -218,7 +235,7 @@ const MentorshipSystem: React.FC = () => {
     } finally {
       setLoadingMentorships(false);
     }
-  }, [user?._id, toast]);
+  }, [user?._id, toast, mentorshipsPage, mentorshipsLimit]);
 
   // Handle edit mentorship
   const handleEditMentorship = (mentorship: IMentorship) => {
@@ -319,6 +336,9 @@ const MentorshipSystem: React.FC = () => {
     filters,
     loading,
     error,
+    mentorsPage,
+    setMentorsPage,
+    mentorsPagination,
 
     // Setters
     setMentors,
@@ -537,6 +557,11 @@ const MentorshipSystem: React.FC = () => {
                       <p className="text-xs sm:text-sm text-gray-600 truncate">
                         Available Mentors
                       </p>
+                      {mentorsPagination.total > 0 && (
+                        <p className="text-xs text-gray-500 truncate">
+                          Showing {mentors.length} of {mentorsPagination.total}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -683,29 +708,40 @@ const MentorshipSystem: React.FC = () => {
                         </p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                        {filteredMentors.map((mentor, index) => (
-                          <MentorCard
-                            key={index}
-                            mentor={mentor}
-                            onShowStyle={(style) =>
-                              handleOpenContentModal("Mentoring Style", style)
-                            }
-                            onShowTestimonial={(testimonial) =>
-                              handleOpenContentModal(
-                                "Success Story",
-                                testimonial
-                              )
-                            }
-                            onRequestMentorship={() =>
-                              handleRequestMentorship(mentor)
-                            }
-                            onViewDetails={handleViewMentorDetails}
-                            onEdit={handleEditMentor}
-                            onDelete={handleDeleteMentor}
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                          {filteredMentors.map((mentor, index) => (
+                            <MentorCard
+                              key={index}
+                              mentor={mentor}
+                              onShowStyle={(style) =>
+                                handleOpenContentModal("Mentoring Style", style)
+                              }
+                              onShowTestimonial={(testimonial) =>
+                                handleOpenContentModal(
+                                  "Success Story",
+                                  testimonial
+                                )
+                              }
+                              onRequestMentorship={() =>
+                                handleRequestMentorship(mentor)
+                              }
+                              onViewDetails={handleViewMentorDetails}
+                              onEdit={handleEditMentor}
+                              onDelete={handleDeleteMentor}
+                            />
+                          ))}
+                        </div>
+                        {/* Pagination */}
+                        {mentorsPagination.totalPages > 1 && (
+                          <Pagination
+                            currentPage={mentorsPage}
+                            totalPages={mentorsPagination.totalPages}
+                            onPageChange={setMentorsPage}
+                            className="mt-6"
                           />
-                        ))}
-                      </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -743,9 +779,17 @@ const MentorshipSystem: React.FC = () => {
             {activeTab === "active" && (
               <div className="bg-white border rounded-lg shadow-sm">
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    My Mentorships
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      My Mentorships
+                    </h2>
+                    {mentorshipsPagination.total > 0 && (
+                      <div className="text-sm text-gray-600">
+                        Showing {myMentorships.length} of{" "}
+                        {mentorshipsPagination.total} mentorships
+                      </div>
+                    )}
+                  </div>
                   {loadingMentorships ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -759,86 +803,100 @@ const MentorshipSystem: React.FC = () => {
                       <p className="text-gray-600">No mentorships found.</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {myMentorships.map((mentorship) => (
-                        <div
-                          key={mentorship._id}
-                          className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                  {mentorship.domain}
-                                </h3>
-                                <span
-                                  className={`px-2 py-1 text-xs rounded-full ${
-                                    mentorship.status === "active"
-                                      ? "bg-green-100 text-green-800"
-                                      : mentorship.status === "pending"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : "bg-gray-100 text-gray-800"
-                                  }`}
-                                >
-                                  {mentorship.status}
-                                </span>
-                              </div>
-                              <p className="text-gray-600 mb-2">
-                                {mentorship.description}
-                              </p>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span>
-                                  <strong>Mentor:</strong>{" "}
-                                  {mentorship.mentor?.firstName}{" "}
-                                  {mentorship.mentor?.lastName}
-                                </span>
-                                <span>
-                                  <strong>Mentee:</strong>{" "}
-                                  {mentorship.mentee?.firstName}{" "}
-                                  {mentorship.mentee?.lastName}
-                                </span>
-                                {mentorship.duration && (
-                                  <span>
-                                    <strong>Duration:</strong>{" "}
-                                    {mentorship.duration} weeks
+                    <>
+                      <div className="space-y-4">
+                        {myMentorships.map((mentorship) => (
+                          <div
+                            key={mentorship._id}
+                            className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-semibold text-gray-900">
+                                    {mentorship.domain}
+                                  </h3>
+                                  <span
+                                    className={`px-2 py-1 text-xs rounded-full ${
+                                      mentorship.status === "active"
+                                        ? "bg-green-100 text-green-800"
+                                        : mentorship.status === "pending"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : "bg-gray-100 text-gray-800"
+                                    }`}
+                                  >
+                                    {mentorship.status}
                                   </span>
-                                )}
-                              </div>
-                              {mentorship.goals &&
-                                mentorship.goals.length > 0 && (
-                                  <div className="mt-2">
-                                    <strong className="text-sm text-gray-700">
-                                      Goals:
-                                    </strong>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {mentorship.goals.map(
-                                        (goal: string, index: number) => (
-                                          <span
-                                            key={index}
-                                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
-                                          >
-                                            {goal}
-                                          </span>
-                                        )
-                                      )}
+                                </div>
+                                <p className="text-gray-600 mb-2">
+                                  {mentorship.description}
+                                </p>
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                  <span>
+                                    <strong>Mentor:</strong>{" "}
+                                    {mentorship.mentor?.firstName}{" "}
+                                    {mentorship.mentor?.lastName}
+                                  </span>
+                                  <span>
+                                    <strong>Mentee:</strong>{" "}
+                                    {mentorship.mentee?.firstName}{" "}
+                                    {mentorship.mentee?.lastName}
+                                  </span>
+                                  {mentorship.duration && (
+                                    <span>
+                                      <strong>Duration:</strong>{" "}
+                                      {mentorship.duration} weeks
+                                    </span>
+                                  )}
+                                </div>
+                                {mentorship.goals &&
+                                  mentorship.goals.length > 0 && (
+                                    <div className="mt-2">
+                                      <strong className="text-sm text-gray-700">
+                                        Goals:
+                                      </strong>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {mentorship.goals.map(
+                                          (goal: string, index: number) => (
+                                            <span
+                                              key={index}
+                                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                                            >
+                                              {goal}
+                                            </span>
+                                          )
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                            </div>
-                            <div className="ml-4">
-                              <MentorshipActionMenu
-                                mentorship={mentorship}
-                                currentUser={user}
-                                onEdit={() => handleEditMentorship(mentorship)}
-                                onDelete={() =>
-                                  handleDeleteMentorship(mentorship)
-                                }
-                              />
+                                  )}
+                              </div>
+                              <div className="ml-4">
+                                <MentorshipActionMenu
+                                  mentorship={mentorship}
+                                  currentUser={user}
+                                  onEdit={() =>
+                                    handleEditMentorship(mentorship)
+                                  }
+                                  onDelete={() =>
+                                    handleDeleteMentorship(mentorship)
+                                  }
+                                />
+                              </div>
                             </div>
                           </div>
+                        ))}
+                      </div>
+                      {/* Pagination */}
+                      {mentorshipsPagination.totalPages > 1 && (
+                        <div className="mt-6 pt-4 border-t">
+                          <Pagination
+                            currentPage={mentorshipsPage}
+                            totalPages={mentorshipsPagination.totalPages}
+                            onPageChange={setMentorshipsPage}
+                          />
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

@@ -8,6 +8,10 @@ import { logger } from "../utils/logger";
 export const getAllCampaigns = asyncHandler(
   async (req: Request, res: Response) => {
     try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const skip = (page - 1) * limit;
+
       const filter: any = { isPublic: true };
 
       // Multi-tenant filtering
@@ -37,7 +41,11 @@ export const getAllCampaigns = asyncHandler(
         .populate("createdBy", "firstName lastName email")
         .populate("tenantId", "name")
         .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
         .lean();
+
+      const total = await Campaign.countDocuments(filter);
 
       // Calculate additional fields for frontend
       const campaignsWithStats = campaigns.map((campaign) => ({
@@ -63,7 +71,15 @@ export const getAllCampaigns = asyncHandler(
 
       return res.status(200).json({
         success: true,
-        data: campaignsWithStats,
+        data: {
+          campaigns: campaignsWithStats,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        },
         count: campaignsWithStats.length,
       });
     } catch (error) {

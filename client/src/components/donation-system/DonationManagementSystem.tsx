@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Pagination from "@/components/ui/Pagination";
 import { useDonationManagement } from "./hooks/useDonationManagement";
 import DonationCard from "./components/DonationCard";
 import EnhancedDonationTable from "./components/EnhancedDonationTable";
@@ -57,6 +58,12 @@ const DonationManagementSystem: React.FC = () => {
     filteredActive,
     totalDonated,
     completedDonations,
+    campaignsPage,
+    setCampaignsPage,
+    campaignsPagination,
+    donationsPage,
+    setDonationsPage,
+    donationsPagination,
     setCategoryFilter,
     setMenuOpenForCampaign,
     setActiveTab,
@@ -401,68 +408,79 @@ const DonationManagementSystem: React.FC = () => {
                     Active Campaigns
                   </h2>
                   <div className="text-sm text-gray-600">
-                    Showing {filteredActive.length} of {campaigns.length}{" "}
+                    Showing {campaigns.length} of {campaignsPagination.total}{" "}
                     campaigns
                   </div>
                 </div>
 
                 {filteredActive.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                    {filteredActive.map((campaign, index) => (
-                      <DonationCard
-                        key={`card-${campaign.title}-${index}`}
-                        category={campaign.category}
-                        status={
-                          new Date(campaign.endDate) < new Date()
-                            ? "Ended"
-                            : "Active"
-                        }
-                        imageUrl={campaign.imageUrl}
-                        title={campaign.title}
-                        description={campaign.description}
-                        raisedAmount={campaign.raised}
-                        targetAmount={Number(campaign.amount)}
-                        donorsCount={campaign.donors}
-                        by="Alumni Admin"
-                        endDateLabel={`Ends ${new Date(
-                          campaign.endDate
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}`}
-                        onDonate={() =>
-                          handleOpenDonationModal(campaign, index)
-                        }
-                        onShare={() => handleShareCampaign(campaign)}
-                        onEdit={
-                          user?.role &&
-                          [
-                            "college_admin",
-                            "hod",
-                            "staff",
-                            "super_admin",
-                          ].includes(user.role)
-                            ? () => handleEditCampaign(campaign, index)
-                            : undefined
-                        }
-                        onDelete={
-                          user?.role &&
-                          [
-                            "college_admin",
-                            "hod",
-                            "staff",
-                            "super_admin",
-                          ].includes(user.role)
-                            ? () => handleDeleteCampaign(index)
-                            : undefined
-                        }
-                        onViewDetails={() =>
-                          handleViewCampaignDetails(campaign)
-                        }
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredActive.map((campaign, index) => (
+                        <DonationCard
+                          key={`card-${campaign.title}-${index}`}
+                          category={campaign.category}
+                          status={
+                            new Date(campaign.endDate) < new Date()
+                              ? "Ended"
+                              : "Active"
+                          }
+                          imageUrl={campaign.imageUrl}
+                          title={campaign.title}
+                          description={campaign.description}
+                          raisedAmount={campaign.raised}
+                          targetAmount={Number(campaign.amount)}
+                          donorsCount={campaign.donors}
+                          by="Alumni Admin"
+                          endDateLabel={`Ends ${new Date(
+                            campaign.endDate
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}`}
+                          onDonate={() =>
+                            handleOpenDonationModal(campaign, index)
+                          }
+                          onShare={() => handleShareCampaign(campaign)}
+                          onEdit={
+                            user?.role &&
+                            [
+                              "college_admin",
+                              "hod",
+                              "staff",
+                              "super_admin",
+                            ].includes(user.role)
+                              ? () => handleEditCampaign(campaign, index)
+                              : undefined
+                          }
+                          onDelete={
+                            user?.role &&
+                            [
+                              "college_admin",
+                              "hod",
+                              "staff",
+                              "super_admin",
+                            ].includes(user.role)
+                              ? () => handleDeleteCampaign(index)
+                              : undefined
+                          }
+                          onViewDetails={() =>
+                            handleViewCampaignDetails(campaign)
+                          }
+                        />
+                      ))}
+                    </div>
+                    {/* Pagination */}
+                    {campaignsPagination.totalPages > 1 && (
+                      <Pagination
+                        currentPage={campaignsPage}
+                        totalPages={campaignsPagination.totalPages}
+                        onPageChange={setCampaignsPage}
+                        className="mt-6"
                       />
-                    ))}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center py-12">
                     <div className="text-gray-600">No campaigns found</div>
@@ -474,15 +492,33 @@ const DonationManagementSystem: React.FC = () => {
             {!loading && !error && activeTab === "history" && (
               <div className="bg-white border rounded-lg shadow-sm">
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Donation History
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Donation History
+                    </h2>
+                    {donationsPagination.total > 0 && (
+                      <div className="text-sm text-gray-600">
+                        Showing {userDonations.length} of{" "}
+                        {donationsPagination.total} donations
+                      </div>
+                    )}
+                  </div>
                   <EnhancedDonationTable
                     items={userDonations}
                     campaigns={donationCampaignsArr}
                     categoryFilter={categoryFilter}
                     onCategoryFilterChange={setCategoryFilter}
                   />
+                  {/* Pagination */}
+                  {donationsPagination.totalPages > 1 && (
+                    <div className="mt-6 pt-4 border-t">
+                      <Pagination
+                        currentPage={donationsPage}
+                        totalPages={donationsPagination.totalPages}
+                        onPageChange={setDonationsPage}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

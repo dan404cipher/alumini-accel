@@ -206,13 +206,29 @@ export const getDonationsByRecipient = async (req: Request, res: Response) => {
 // Get my donations
 export const getMyDonations = async (req: Request, res: Response) => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
     const donations = await Donation.find({ donor: req.user?.id })
       .populate("campaignId", "title")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Donation.countDocuments({ donor: req.user?.id });
 
     return res.status(200).json({
       success: true,
-      data: donations,
+      data: {
+        donations,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
       count: donations.length,
     });
   } catch (error) {

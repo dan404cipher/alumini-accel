@@ -318,10 +318,10 @@ const AlumniDirectory = () => {
       <div
         className={`
         ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
-        top-16 w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
       `}
       >
-        <div className="h-full overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto p-4 sm:p-6">
           <Card className="h-fit">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -554,7 +554,7 @@ const AlumniDirectory = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
-        <div className="p-4 lg:p-6 space-y-6 pb-20">
+        <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 pb-20">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -622,7 +622,7 @@ const AlumniDirectory = () => {
               <div
                 className={
                   viewMode === "grid"
-                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
                     : "space-y-4"
                 }
               >
@@ -656,13 +656,13 @@ const AlumniDirectory = () => {
                   <CardContent
                     className={`${
                       viewMode === "list"
-                        ? "p-4 flex items-center w-full"
-                        : "p-6"
+                        ? "p-3 sm:p-4 flex items-center w-full"
+                        : "p-4 sm:p-6"
                     }`}
                   >
                     {/* Profile Header */}
                     <div
-                      className={`flex items-start space-x-4 ${
+                      className={`flex items-start space-x-2 sm:space-x-4 ${
                         viewMode === "list" ? "mb-0 flex-1" : "mb-4"
                       }`}
                     >

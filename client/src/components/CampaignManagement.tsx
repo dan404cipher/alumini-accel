@@ -324,7 +324,7 @@ const CampaignManagement: React.FC = () => {
         setIsEditDialogOpen(false);
         setSelectedCampaign(null);
         form.reset();
-        fetchCampaigns();
+    fetchCampaigns();
       } else {
         toast({
           title: "Error",
@@ -858,17 +858,17 @@ const CampaignManagement: React.FC = () => {
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
           >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Campaign
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Campaign</DialogTitle>
-                <DialogDescription>
-                  Create a new fundraising campaign
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Campaign
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Campaign</DialogTitle>
+              <DialogDescription>
+                Create a new fundraising campaign
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateCampaign} className="space-y-4">
@@ -1087,132 +1087,132 @@ const CampaignManagement: React.FC = () => {
             <DialogTitle>Edit Campaign</DialogTitle>
             <DialogDescription>
               Update the details of this fundraising campaign
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form
               onSubmit={form.handleSubmit(handleUpdateCampaign)}
-              className="space-y-6"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Basic Information</h3>
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Campaign Title</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter campaign title"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                className="space-y-6"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Basic Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Basic Information</h3>
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Campaign Title</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
+                            <Input
+                              placeholder="Enter campaign title"
+                              {...field}
+                            />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="scholarship">
-                              Scholarship
-                            </SelectItem>
-                            <SelectItem value="infrastructure">
-                              Infrastructure
-                            </SelectItem>
-                            <SelectItem value="research">Research</SelectItem>
-                            <SelectItem value="event">Event</SelectItem>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="scholarship">
+                                Scholarship
+                              </SelectItem>
+                              <SelectItem value="infrastructure">
+                                Infrastructure
+                              </SelectItem>
+                              <SelectItem value="research">Research</SelectItem>
+                              <SelectItem value="event">Event</SelectItem>
                             <SelectItem value="emergency">Emergency</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Enter campaign description"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Financial Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">
-                    Financial Information
-                  </h3>
-                  <FormField
-                    control={form.control}
-                    name="targetAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Target Amount</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Enter target amount"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
+                            <Textarea
+                              placeholder="Enter campaign description"
+                              {...field}
+                            />
                           </FormControl>
-                          <SelectContent>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Financial Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">
+                      Financial Information
+                    </h3>
+                    <FormField
+                      control={form.control}
+                      name="targetAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Target Amount</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Enter target amount"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Currency</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
                             <SelectItem value="INR">INR</SelectItem>
                             <SelectItem value="USD">USD</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -1241,114 +1241,114 @@ const CampaignManagement: React.FC = () => {
                       )}
                     />
                   </div>
+                  </div>
                 </div>
-              </div>
 
               {/* Additional Settings */}
-              <div className="space-y-4">
+                <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Additional Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="allowAnonymous"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Allow Anonymous Donations
-                          </FormLabel>
-                          <div className="text-sm text-muted-foreground">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="allowAnonymous"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Allow Anonymous Donations
+                            </FormLabel>
+                            <div className="text-sm text-muted-foreground">
                             Allow donors to contribute anonymously
+                            </div>
                           </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="featured"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Featured Campaign
-                          </FormLabel>
-                          <div className="text-sm text-muted-foreground">
-                            Highlight this campaign as featured
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="featured"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Featured Campaign
+                            </FormLabel>
+                            <div className="text-sm text-muted-foreground">
+                              Highlight this campaign as featured
+                            </div>
                           </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
                   onClick={() => setIsEditDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
+                  >
+                    Cancel
+                  </Button>
                 <Button type="submit">Update Campaign</Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
 
       {/* Enhanced Filters */}
       {!loading && (
         <div className="flex items-center space-x-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search campaigns..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="scholarship">Scholarship</SelectItem>
-              <SelectItem value="infrastructure">Infrastructure</SelectItem>
-              <SelectItem value="research">Research</SelectItem>
-              <SelectItem value="event">Event</SelectItem>
-              <SelectItem value="emergency">Emergency</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="paused">Paused</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
+          <Input
+            placeholder="Search campaigns..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="scholarship">Scholarship</SelectItem>
+            <SelectItem value="infrastructure">Infrastructure</SelectItem>
+            <SelectItem value="research">Research</SelectItem>
+            <SelectItem value="event">Event</SelectItem>
+            <SelectItem value="emergency">Emergency</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="paused">Paused</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
           {(searchTerm ||
             categoryFilter !== "all" ||
             statusFilter !== "all") && (
@@ -1357,7 +1357,7 @@ const CampaignManagement: React.FC = () => {
               {filteredCampaigns.length !== 1 ? "s" : ""}
             </Badge>
           )}
-        </div>
+      </div>
       )}
 
       {/* Campaigns Grid */}
@@ -1402,75 +1402,71 @@ const CampaignManagement: React.FC = () => {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedCampaigns.map((campaign) => (
-              <Card key={campaign._id} className="relative">
-                {campaign.featured && (
-                  <div className="absolute top-2 right-2 z-10">
-                    <Badge className="bg-yellow-100 text-yellow-800">
-                      Featured
-                    </Badge>
-                  </div>
-                )}
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg line-clamp-2">
-                        {campaign.title}
-                      </CardTitle>
-                      <CardDescription className="line-clamp-2 mt-1">
-                        {campaign.description}
-                      </CardDescription>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+          <Card key={campaign._id} className="relative">
+            {campaign.featured && (
+              <div className="absolute top-2 right-2 z-10">
+                <Badge className="bg-yellow-100 text-yellow-800">
+                  Featured
+                </Badge>
+              </div>
+            )}
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <CardTitle className="text-lg line-clamp-2">
+                    {campaign.title}
+                  </CardTitle>
+                  <CardDescription className="line-clamp-2 mt-1">
+                    {campaign.description}
+                  </CardDescription>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={() => handleViewDonors(campaign)}
                         >
                           <Users className="w-4 h-4 mr-2" />
                           View Donors
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedCampaign(campaign);
-                            setIsEditDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteCampaign(campaign._id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    {getCategoryBadge(campaign.category)}
-                    {getStatusBadge(campaign.status)}
-                  </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedCampaign(campaign);
+                        setIsEditDialogOpen(true);
+                      }}
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteCampaign(campaign._id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                {getCategoryBadge(campaign.category)}
+                {getStatusBadge(campaign.status)}
+              </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Progress</span>
-                      <span className="font-medium">
-                        {campaign.progressPercentage}%
-                      </span>
-                    </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Progress</span>
+                  <span className="font-medium">
+                    {campaign.progressPercentage}%
+                  </span>
+                </div>
                     <Progress
                       value={campaign.progressPercentage || 0}
                       className="h-2"
@@ -1484,39 +1480,39 @@ const CampaignManagement: React.FC = () => {
                         <IndianRupee className="w-3 h-3" />
                         {campaign.targetAmount.toLocaleString()}
                       </span>
-                    </div>
-                  </div>
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-4 h-4 text-gray-400" />
-                      <span>{campaign.statistics.totalDonors} donors</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span>{campaign.daysRemaining} days left</span>
-                    </div>
-                  </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <span>{campaign.statistics.totalDonors} donors</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span>{campaign.daysRemaining} days left</span>
+                </div>
+              </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center justify-between pt-2 border-t">
                     <div className="text-xs text-muted-foreground truncate pr-2">
-                      Created by {campaign.createdBy.firstName}{" "}
-                      {campaign.createdBy.lastName}
-                    </div>
+                  Created by {campaign.createdBy.firstName}{" "}
+                  {campaign.createdBy.lastName}
+                </div>
                     <div className="flex space-x-2 flex-shrink-0">
                       <Button size="sm" variant="outline" className="text-xs">
                         <Heart className="w-3 h-3 mr-1" />
                         {campaign.statistics?.totalDonations || 0}
-                      </Button>
+                  </Button>
                       <Button size="sm" variant="outline" className="text-xs">
                         <Share2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
           {/* Pagination Controls */}
           {filteredCampaigns.length > 0 && (
@@ -1578,7 +1574,7 @@ const CampaignManagement: React.FC = () => {
           {/* Donor Stats */}
           {donorStats && (
             <div className="grid grid-cols-4 gap-4 mb-6">
-              <Card>
+        <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">
                     Total Donors
@@ -1808,7 +1804,7 @@ const CampaignManagement: React.FC = () => {
                           }}
                         >
                           Previous
-                        </Button>
+                </Button>
                         <span className="text-sm text-muted-foreground px-2">
                           Page {donorsPage} of{" "}
                           {Math.ceil(donorsTotal / donorsLimit)}
@@ -1835,8 +1831,8 @@ const CampaignManagement: React.FC = () => {
                   )}
                 </>
               )}
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
         </DialogContent>
       </Dialog>
     </div>

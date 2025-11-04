@@ -1244,7 +1244,7 @@ const CollegeAdminDashboard = () => {
         {/* Enhanced Sidebar */}
         <aside className={`
           ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
-          top-16 w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm h-[calc(100vh-4rem)]
+          top-16 w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
         `}>
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
@@ -1380,24 +1380,9 @@ const CollegeAdminDashboard = () => {
                 );
               })}
             </nav>
-
-            {/* Sidebar Footer */}
-            <div className="p-4 border-t bg-gray-50">
-              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                </div>
-              </div>
-            </div>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 lg:ml-72">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 lg:ml-72 pb-20">
         {/* Mobile Menu Button */}
         <div className="lg:hidden mb-4">
           <Button

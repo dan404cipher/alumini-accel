@@ -18,8 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Pagination from "@/components/ui/pagination";
+import Pagination from "@/components/ui/Pagination";
 import { categoryAPI } from "@/lib/api";
+import Footer from "./Footer";
 import {
   Calendar,
   MapPin,
@@ -1369,7 +1370,8 @@ const EventsMeetups = () => {
   };
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden pt-16">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -1382,10 +1384,10 @@ const EventsMeetups = () => {
       <div
         className={`
         ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
-        w-80 flex-shrink-0 bg-background h-[calc(100vh-4rem)]
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
       `}
       >
-        <div className="h-full overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto p-4 sm:p-6">
           <Card className="h-fit">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1597,30 +1599,34 @@ const EventsMeetups = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen ml-0 lg:ml-80">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+        <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden">
             <Button
               variant="outline"
               size="sm"
-              className="lg:hidden"
               onClick={() => setSidebarOpen(true)}
+              className="flex items-center gap-2"
             >
-              <Menu className="w-4 h-4 mr-2" />
+              <Menu className="w-4 h-4" />
               Filters
             </Button>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">
-                Events & Meetups
-              </h1>
-              <p className="text-muted-foreground text-sm lg:text-base">
-                Connect, learn, and grow with our alumni community •{" "}
-                {events.length} events
-              </p>
+          </div>
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold">
+                  Events & Meetups
+                </h1>
+                <p className="text-muted-foreground text-sm lg:text-base">
+                  Connect, learn, and grow with our alumni community •{" "}
+                  {events.length} events
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Loading State */}
         {isLoading && (
@@ -1918,9 +1924,13 @@ const EventsMeetups = () => {
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
+      <Footer />
 
       {/* Dialogs */}
+      <>
       <CreateEventDialog
         open={isCreateEventOpen}
         onOpenChange={setIsCreateEventOpen}
@@ -2116,6 +2126,7 @@ const EventsMeetups = () => {
           </div>
         </DialogContent>
       </Dialog>
+      </>
     </div>
   );
 };

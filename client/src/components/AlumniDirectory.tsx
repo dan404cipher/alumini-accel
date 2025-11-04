@@ -59,6 +59,7 @@ import {
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import ConnectionButton from "./ConnectionButton";
 import { alumniAPI, categoryAPI } from "@/lib/api";
+import Footer from "./Footer";
 
 // User interface (for both students and alumni)
 interface User {
@@ -303,7 +304,8 @@ const AlumniDirectory = () => {
   };
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden pt-16">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -316,7 +318,7 @@ const AlumniDirectory = () => {
       <div
         className={`
         ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
-        w-80 flex-shrink-0 bg-background h-[calc(100vh-4rem)]
+        top-16 w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
       `}
       >
         <div className="h-full overflow-y-auto p-6">
@@ -551,8 +553,8 @@ const AlumniDirectory = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-y-auto h-screen ml-0 lg:ml-80">
-        <div className="p-4 lg:p-6 space-y-6">
+      <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+        <div className="p-4 lg:p-6 space-y-6 pb-20">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -1102,61 +1104,9 @@ const AlumniDirectory = () => {
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <footer className="bg-background border-t border-border mt-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              {/* Left side - Copyright */}
-              <div className="flex items-center text-sm text-muted-foreground">
-                <span>© {new Date().getFullYear()} AlumniAccel. All rights reserved.</span>
-              </div>
-
-              {/* Center - Legal Links */}
-              <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                <a
-                  href="/privacy"
-                  className="hover:text-primary transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate("/privacy");
-                  }}
-                >
-                  Privacy Policy
-                </a>
-                <a
-                  href="/terms"
-                  className="hover:text-primary transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate("/terms");
-                  }}
-                >
-                  Terms of Service
-                </a>
-                <a
-                  href="/cookies"
-                  className="hover:text-primary transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate("/cookies");
-                  }}
-                >
-                  Cookie Policy
-                </a>
-              </div>
-
-              {/* Right side - Made with love */}
-              <div className="flex items-center text-sm text-muted-foreground">
-                <span className="flex items-center">
-                  Made with <Heart className="w-4 h-4 mx-1 text-red-500" /> by the
-                  AlumniAccel Team
-                </span>
-              </div>
-            </div>
-          </div>
-        </footer>
       </div>
+      </div>
+      <Footer />
 
       {/* Dialogs */}
       <AddAlumniDialog

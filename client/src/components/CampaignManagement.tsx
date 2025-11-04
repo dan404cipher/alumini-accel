@@ -62,8 +62,6 @@ import {
   TrendingUp,
   MoreHorizontal,
   Eye,
-  Heart,
-  Share2,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -110,6 +108,7 @@ interface Campaign {
   startDate: string;
   endDate: string;
   status: string;
+  imageUrl?: string;
   images: string[];
   documents: string[];
   allowAnonymous: boolean;
@@ -167,11 +166,13 @@ const CampaignManagement: React.FC = () => {
       _id: string;
       donorName: string;
       donorEmail?: string | null;
+      donorPhone?: string | null;
       donorProfile?: {
         _id: string;
         firstName: string;
         lastName: string;
         email: string;
+        phone?: string;
         profilePicture?: string;
       } | null;
       amount: number;
@@ -217,6 +218,24 @@ const CampaignManagement: React.FC = () => {
     imagePreviewUrl: "",
   });
   const [createFormErrors, setCreateFormErrors] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: "",
+  });
+  // Form state for Edit Campaign (Donations page style)
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: null as File | null,
+    imagePreviewUrl: "",
+  });
+  const [editFormErrors, setEditFormErrors] = useState({
     title: "",
     description: "",
     category: "",
@@ -271,44 +290,137 @@ const CampaignManagement: React.FC = () => {
   // Prefill edit form when opening edit dialog
   useEffect(() => {
     if (isEditDialogOpen && selectedCampaign) {
-      form.reset({
+      setEditFormData({
         title: selectedCampaign.title || "",
         description: selectedCampaign.description || "",
         category: selectedCampaign.category || "",
-        targetAmount: selectedCampaign.targetAmount || 0,
-        currency: "INR",
-        startDate: selectedCampaign.startDate
-          ? new Date(selectedCampaign.startDate).toISOString().slice(0, 16)
-          : "",
+        amount: selectedCampaign.targetAmount?.toString() || "",
         endDate: selectedCampaign.endDate
-          ? new Date(selectedCampaign.endDate).toISOString().slice(0, 16)
+          ? new Date(selectedCampaign.endDate).toISOString().split("T")[0]
           : "",
-        featured: selectedCampaign.featured ?? false,
-        tags: selectedCampaign.tags || [],
+        imageFile: null,
+        imagePreviewUrl:
+          selectedCampaign.imageUrl || selectedCampaign.images?.[0] || "",
+      });
+      setEditFormErrors({
+        title: "",
+        description: "",
+        category: "",
+        amount: "",
+        endDate: "",
+        imageFile: "",
+      });
+    } else if (!isEditDialogOpen) {
+      // Reset form when dialog closes
+      setEditFormData({
+        title: "",
+        description: "",
+        category: "",
+        amount: "",
+        endDate: "",
+        imageFile: null,
+        imagePreviewUrl: "",
       });
     }
-  }, [isEditDialogOpen, selectedCampaign, form]);
+  }, [isEditDialogOpen, selectedCampaign]);
 
-  const handleUpdateCampaign = async (data: CampaignFormData) => {
+  // Validate edit form (Donations page style)
+  const validateEditForm = () => {
+    const newErrors = {
+      title: "",
+      description: "",
+      category: "",
+      amount: "",
+      endDate: "",
+      imageFile: "",
+    };
+
+    if (!editFormData.title.trim()) {
+      newErrors.title = "Campaign title is required";
+    } else if (editFormData.title.trim().length < 5) {
+      newErrors.title = "Campaign title must be at least 5 characters";
+    } else if (editFormData.title.trim().length > 100) {
+      newErrors.title = "Campaign title must be less than 100 characters";
+    }
+
+    if (!editFormData.description.trim()) {
+      newErrors.description = "Campaign description is required";
+    } else if (editFormData.description.trim().length < 20) {
+      newErrors.description =
+        "Campaign description must be at least 20 characters";
+    } else if (editFormData.description.trim().length > 1000) {
+      newErrors.description =
+        "Campaign description must be less than 1000 characters";
+    }
+
+    if (!editFormData.category) {
+      newErrors.category = "Please select a category";
+    }
+
+    if (!editFormData.amount) {
+      newErrors.amount = "Target amount is required";
+    } else if (isNaN(Number(editFormData.amount))) {
+      newErrors.amount = "Please enter a valid number";
+    } else if (Number(editFormData.amount) <= 0) {
+      newErrors.amount = "Target amount must be greater than 0";
+    } else if (Number(editFormData.amount) < 1000) {
+      newErrors.amount = "Target amount must be at least ₹1,000";
+    } else if (Number(editFormData.amount) > 100000000) {
+      newErrors.amount = "Target amount cannot exceed ₹10,00,00,000";
+    }
+
+    if (!editFormData.endDate) {
+      newErrors.endDate = "End date is required";
+    } else {
+      const endDate = new Date(editFormData.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (endDate <= today) {
+        newErrors.endDate = "End date must be in the future";
+      } else if (
+        endDate > new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000)
+      ) {
+        newErrors.endDate = "End date cannot be more than 1 year from now";
+      }
+    }
+
+    if (editFormData.imageFile) {
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (editFormData.imageFile.size > maxSize) {
+        newErrors.imageFile = "Image size must be less than 5MB";
+      }
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(editFormData.imageFile.type)) {
+        newErrors.imageFile =
+          "Please upload a valid image (JPEG, PNG, GIF, WebP)";
+      }
+    }
+
+    setEditFormErrors(newErrors);
+    return Object.values(newErrors).every((error) => !error);
+  };
+
+  const handleUpdateCampaign = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
     if (!selectedCampaign?._id) return;
+    if (!validateEditForm()) return;
+
     try {
       const campaignData = {
-        title: data.title!,
-        description: data.description!,
-        category: data.category!,
-        targetAmount: data.targetAmount!,
-        currency: data.currency || "INR",
-        startDate: data.startDate!,
-        endDate: data.endDate!,
-        allowAnonymous: data.allowAnonymous ?? true,
-        featured: data.featured ?? false,
-        tags: data.tags || [],
-        location: data.location,
-        contactInfo: {
-          email: data.contactInfo!.email!,
-          phone: data.contactInfo!.phone,
-          person: data.contactInfo!.person,
-        },
+        title: editFormData.title,
+        description: editFormData.description,
+        category: editFormData.category,
+        targetAmount: parseInt(editFormData.amount),
+        currency: "INR",
+        endDate: editFormData.endDate,
       };
 
       const response = await campaignAPI.updateCampaign(
@@ -317,14 +429,39 @@ const CampaignManagement: React.FC = () => {
       );
 
       if (response.success) {
+        // Upload image if provided
+        if (editFormData.imageFile) {
+          try {
+            const imageFormData = new FormData();
+            imageFormData.append("image", editFormData.imageFile);
+            if (campaignAPI.uploadCampaignImage) {
+              await campaignAPI.uploadCampaignImage(
+                selectedCampaign._id,
+                imageFormData
+              );
+            }
+          } catch (imageError) {
+            console.error("Error uploading image:", imageError);
+            // Don't fail the entire update if image upload fails
+          }
+        }
+
         toast({
           title: "Success",
           description: "Campaign updated successfully",
         });
         setIsEditDialogOpen(false);
         setSelectedCampaign(null);
-        form.reset();
-    fetchCampaigns();
+        setEditFormData({
+          title: "",
+          description: "",
+          category: "",
+          amount: "",
+          endDate: "",
+          imageFile: null,
+          imagePreviewUrl: "",
+        });
+        fetchCampaigns();
       } else {
         toast({
           title: "Error",
@@ -579,6 +716,33 @@ const CampaignManagement: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleEditImageFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      setEditFormData((prev) => ({
+        ...prev,
+        imageFile: null,
+        imagePreviewUrl: "",
+      }));
+      setEditFormErrors((prev) => ({ ...prev, imageFile: "" }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const url = (evt.target?.result as string) || "";
+      setEditFormData((prev) => ({
+        ...prev,
+        imageFile: file,
+        imagePreviewUrl: url,
+      }));
+      setEditFormErrors((prev) => ({ ...prev, imageFile: "" }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDeleteCampaign = async (campaignId: string) => {
     if (!confirm("Are you sure you want to delete this campaign?")) return;
 
@@ -588,7 +752,10 @@ const CampaignManagement: React.FC = () => {
       if (response.success) {
         toast({
           title: "Success",
-          description: "Campaign deleted successfully",
+          description: response.message || "Campaign deleted successfully",
+          variant: response.message?.includes("Warning")
+            ? "default"
+            : "default",
         });
         fetchCampaigns();
       } else {
@@ -598,11 +765,16 @@ const CampaignManagement: React.FC = () => {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error deleting campaign:", error);
+      const errorMessage =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : undefined;
       toast({
         title: "Error",
-        description: "Failed to delete campaign",
+        description: errorMessage || "Failed to delete campaign",
         variant: "destructive",
       });
     }
@@ -630,11 +802,13 @@ const CampaignManagement: React.FC = () => {
             _id: string;
             donorName: string;
             donorEmail?: string | null;
+            donorPhone?: string | null;
             donorProfile?: {
               _id: string;
               firstName: string;
               lastName: string;
               email: string;
+              phone?: string;
               profilePicture?: string;
             } | null;
             amount: number;
@@ -858,17 +1032,17 @@ const CampaignManagement: React.FC = () => {
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
           >
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Campaign
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Campaign</DialogTitle>
-              <DialogDescription>
-                Create a new fundraising campaign
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Campaign
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Campaign</DialogTitle>
+                <DialogDescription>
+                  Create a new fundraising campaign
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateCampaign} className="space-y-4">
@@ -1082,273 +1256,253 @@ const CampaignManagement: React.FC = () => {
 
       {/* Edit Campaign Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Edit Campaign</DialogTitle>
             <DialogDescription>
               Update the details of this fundraising campaign
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form
-              onSubmit={form.handleSubmit(handleUpdateCampaign)}
-                className="space-y-6"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Basic Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Basic Information</h3>
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campaign Title</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter campaign title"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="scholarship">
-                                Scholarship
-                              </SelectItem>
-                              <SelectItem value="infrastructure">
-                                Infrastructure
-                              </SelectItem>
-                              <SelectItem value="research">Research</SelectItem>
-                              <SelectItem value="event">Event</SelectItem>
-                            <SelectItem value="emergency">Emergency</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Enter campaign description"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleUpdateCampaign}>
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Campaign Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={editFormData.title}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({
+                    ...prev,
+                    title: e.target.value,
+                  }))
+                }
+                placeholder="Enter campaign title"
+                className={`mt-1 w-full border ${
+                  editFormErrors.title ? "border-red-500" : "border-gray-300"
+                } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+              />
+              {editFormErrors.title && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.title}
+                </p>
+              )}
+            </div>
 
-                  {/* Financial Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">
-                      Financial Information
-                    </h3>
-                    <FormField
-                      control={form.control}
-                      name="targetAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Target Amount</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="Enter target amount"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseFloat(e.target.value) || 0)
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Currency</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select currency" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            <SelectItem value="INR">INR</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Start Date</FormLabel>
-                          <FormControl>
-                            <Input type="datetime-local" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>End Date</FormLabel>
-                          <FormControl>
-                            <Input type="datetime-local" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  </div>
-                </div>
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Description *
+              </label>
+              <textarea
+                name="description"
+                value={editFormData.description}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                placeholder="Describe your campaign goals and impact"
+                rows={3}
+                className={`mt-1 w-full border ${
+                  editFormErrors.description
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+              />
+              {editFormErrors.description && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.description}
+                </p>
+              )}
+            </div>
 
-              {/* Additional Settings */}
-                <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Additional Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="allowAnonymous"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Anonymous Donations
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                            Allow donors to contribute anonymously
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="featured"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Featured Campaign
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Highlight this campaign as featured
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
+            {/* Category & Amount */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Category *
+                </label>
+                <Select
+                  value={editFormData.category}
+                  onValueChange={(value) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      category: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger
+                    className={`mt-1 ${
+                      editFormErrors.category ? "border-red-500" : ""
+                    }`}
                   >
-                    Cancel
-                  </Button>
-                <Button type="submit">Update Campaign</Button>
+                    <SelectValue placeholder="Select an option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved categories
+                      </SelectItem>
+                    ) : (
+                      categoryOptions.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {editFormErrors.category && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {editFormErrors.category}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Target Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  name="amount"
+                  value={editFormData.amount}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      amount: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter target amount"
+                  className={`mt-1 w-full border ${
+                    editFormErrors.amount ? "border-red-500" : "border-gray-300"
+                  } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                />
+                {editFormErrors.amount && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {editFormErrors.amount}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* End Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Campaign End Date *
+              </label>
+              <input
+                type="date"
+                name="endDate"
+                value={editFormData.endDate}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }))
+                }
+                className={`mt-1 w-full border ${
+                  editFormErrors.endDate ? "border-red-500" : "border-gray-300"
+                } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+              />
+              {editFormErrors.endDate && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.endDate}
+                </p>
+              )}
+            </div>
+
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Campaign Image (Optional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleEditImageFileChange}
+                className={`mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+                  editFormErrors.imageFile
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Upload a JPG or PNG image. A preview will appear below.
+              </p>
+              {editFormErrors.imageFile && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.imageFile}
+                </p>
+              )}
+              {editFormData.imagePreviewUrl && (
+                <div className="mt-2">
+                  <img
+                    src={editFormData.imagePreviewUrl}
+                    alt="Preview"
+                    className="w-full h-40 object-cover rounded-lg border"
+                  />
                 </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-3 mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Enhanced Filters */}
       {!loading && (
         <div className="flex items-center space-x-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search campaigns..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="scholarship">Scholarship</SelectItem>
-            <SelectItem value="infrastructure">Infrastructure</SelectItem>
-            <SelectItem value="research">Research</SelectItem>
-            <SelectItem value="event">Event</SelectItem>
-            <SelectItem value="emergency">Emergency</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="paused">Paused</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+            <Input
+              placeholder="Search campaigns..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="scholarship">Scholarship</SelectItem>
+              <SelectItem value="infrastructure">Infrastructure</SelectItem>
+              <SelectItem value="research">Research</SelectItem>
+              <SelectItem value="event">Event</SelectItem>
+              <SelectItem value="emergency">Emergency</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
           {(searchTerm ||
             categoryFilter !== "all" ||
             statusFilter !== "all") && (
@@ -1357,7 +1511,7 @@ const CampaignManagement: React.FC = () => {
               {filteredCampaigns.length !== 1 ? "s" : ""}
             </Badge>
           )}
-      </div>
+        </div>
       )}
 
       {/* Campaigns Grid */}
@@ -1402,71 +1556,73 @@ const CampaignManagement: React.FC = () => {
         </Card>
       ) : (
         <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedCampaigns.map((campaign) => (
-          <Card key={campaign._id} className="relative">
-            {campaign.featured && (
-              <div className="absolute top-2 right-2 z-10">
-                <Badge className="bg-yellow-100 text-yellow-800">
-                  Featured
-                </Badge>
-              </div>
-            )}
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg line-clamp-2">
-                    {campaign.title}
-                  </CardTitle>
-                  <CardDescription className="line-clamp-2 mt-1">
-                    {campaign.description}
-                  </CardDescription>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+              <Card key={campaign._id} className="relative">
+                {campaign.featured && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <Badge className="bg-yellow-100 text-yellow-800">
+                      Featured
+                    </Badge>
+                  </div>
+                )}
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg line-clamp-2">
+                        {campaign.title}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-2 mt-1">
+                        {campaign.description}
+                      </CardDescription>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => handleViewDonors(campaign)}
+                          onSelect={() => handleViewDonors(campaign)}
                         >
                           <Users className="w-4 h-4 mr-2" />
                           View Donors
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDeleteCampaign(campaign._id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                {getCategoryBadge(campaign.category)}
-                {getStatusBadge(campaign.status)}
-              </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            setSelectedCampaign(campaign);
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            handleDeleteCampaign(campaign._id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    {getCategoryBadge(campaign.category)}
+                  </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Progress</span>
-                  <span className="font-medium">
-                    {campaign.progressPercentage}%
-                  </span>
-                </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Progress</span>
+                      <span className="font-medium">
+                        {campaign.progressPercentage}%
+                      </span>
+                    </div>
                     <Progress
                       value={campaign.progressPercentage || 0}
                       className="h-2"
@@ -1480,39 +1636,30 @@ const CampaignManagement: React.FC = () => {
                         <IndianRupee className="w-3 h-3" />
                         {campaign.targetAmount.toLocaleString()}
                       </span>
-                </div>
-              </div>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <span>{campaign.statistics.totalDonors} donors</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span>{campaign.daysRemaining} days left</span>
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-4 h-4 text-gray-400" />
+                      <span>{campaign.statistics.totalDonors} donors</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span>{campaign.daysRemaining} days left</span>
+                    </div>
+                  </div>
 
-              <div className="flex items-center justify-between pt-2 border-t">
+                  <div className="flex items-center justify-between pt-2 border-t">
                     <div className="text-xs text-muted-foreground truncate pr-2">
-                  Created by {campaign.createdBy.firstName}{" "}
-                  {campaign.createdBy.lastName}
-                </div>
-                    <div className="flex space-x-2 flex-shrink-0">
-                      <Button size="sm" variant="outline" className="text-xs">
-                        <Heart className="w-3 h-3 mr-1" />
-                        {campaign.statistics?.totalDonations || 0}
-                  </Button>
-                      <Button size="sm" variant="outline" className="text-xs">
-                        <Share2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                      Created by {campaign.createdBy.firstName}{" "}
+                      {campaign.createdBy.lastName}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
           {/* Pagination Controls */}
           {filteredCampaigns.length > 0 && (
@@ -1574,7 +1721,7 @@ const CampaignManagement: React.FC = () => {
           {/* Donor Stats */}
           {donorStats && (
             <div className="grid grid-cols-4 gap-4 mb-6">
-        <Card>
+              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">
                     Total Donors
@@ -1709,6 +1856,8 @@ const CampaignManagement: React.FC = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Donor</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead>Payment Method</TableHead>
                           <TableHead>Transaction ID</TableHead>
@@ -1735,17 +1884,36 @@ const CampaignManagement: React.FC = () => {
                                     <User className="w-4 h-4 text-gray-600" />
                                   </div>
                                 )}
-                                <div>
-                                  <div className="font-medium">
-                                    {donor.donorName}
-                                  </div>
-                                  {donor.donorEmail && (
-                                    <div className="text-xs text-muted-foreground">
-                                      {donor.donorEmail}
-                                    </div>
-                                  )}
+                                <div className="font-medium">
+                                  {donor.donorName}
                                 </div>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              {donor.anonymous ? (
+                                <span className="text-muted-foreground text-sm">
+                                  Anonymous
+                                </span>
+                              ) : (
+                                <span className="text-sm">
+                                  {donor.donorEmail ||
+                                    donor.donorProfile?.email ||
+                                    "-"}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {donor.anonymous ? (
+                                <span className="text-muted-foreground text-sm">
+                                  -
+                                </span>
+                              ) : (
+                                <span className="text-sm">
+                                  {donor.donorPhone ||
+                                    donor.donorProfile?.phone ||
+                                    "-"}
+                                </span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="font-semibold">
@@ -1804,7 +1972,7 @@ const CampaignManagement: React.FC = () => {
                           }}
                         >
                           Previous
-                </Button>
+                        </Button>
                         <span className="text-sm text-muted-foreground px-2">
                           Page {donorsPage} of{" "}
                           {Math.ceil(donorsTotal / donorsLimit)}
@@ -1831,8 +1999,8 @@ const CampaignManagement: React.FC = () => {
                   )}
                 </>
               )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
         </DialogContent>
       </Dialog>
     </div>

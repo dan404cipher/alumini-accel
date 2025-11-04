@@ -761,9 +761,9 @@ const StaffPanel = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex h-[calc(100vh-5rem)] overflow-hidden">
+      <div className="flex h-screen overflow-hidden pt-16">
         {/* Enhanced Sidebar */}
-        <aside className="hidden lg:block w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm">
+        <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm z-40">
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
             <div className="p-6 border-b bg-gradient-to-r from-green-600 to-green-700">
@@ -893,7 +893,7 @@ const StaffPanel = () => {
             </div>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-72">
         {/* Header - only on Dashboard tab */}
         {activeTab === "dashboard" && (
         <div className="flex items-center justify-between">
@@ -1152,10 +1152,10 @@ const StaffPanel = () => {
                         <CardTitle>Recent Events</CardTitle>
                         </div>
                       <Badge variant="outline">{recentEvents.length}</Badge>
-                    </div>
+                        </div>
                     <CardDescription>Latest events and their performance</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                    </CardHeader>
+                    <CardContent>
                     <div className="space-y-3">
                       {loading.events ? (
                         <div className="text-center py-4">
@@ -1192,7 +1192,7 @@ const StaffPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
                                     <Calendar className="h-6 w-6 text-purple-500" />
-                                  </div>
+                        </div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1226,9 +1226,9 @@ const StaffPanel = () => {
                           );
                         })
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                 {/* Gallery */}
                 <Card>
@@ -1275,8 +1275,8 @@ const StaffPanel = () => {
                                   <div className="w-12 h-12 rounded-lg bg-cyan-100 flex items-center justify-center">
                                     <Image className="h-6 w-6 text-cyan-500" />
                                   </div>
-                                )}
-                              </div>
+              )}
+            </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium truncate text-sm">{gallery.title}</p>
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -1308,7 +1308,7 @@ const StaffPanel = () => {
                 {/* News Room */}
                 <Card>
                     <CardHeader>
-                      <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Newspaper className="h-5 w-5 text-blue-500" />
                         <CardTitle>News Room</CardTitle>
@@ -1347,9 +1347,9 @@ const StaffPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
                                     <Newspaper className="h-6 w-6 text-blue-500" />
-                        </div>
+                      </div>
                                 )}
-                              </div>
+                      </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium truncate text-sm">{newsItem.title}</p>
                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -1369,9 +1369,9 @@ const StaffPanel = () => {
                                         : `${newsItem.author.firstName || ""} ${newsItem.author.lastName || ""}`.trim() || newsItem.author.email || "Unknown"}
                           </Badge>
                                   )}
-                        </div>
+                    </div>
+                    </div>
                       </div>
-                            </div>
                           );
                         })
                       )}
@@ -1396,7 +1396,7 @@ const StaffPanel = () => {
                       {loading.communities ? (
                         <div className="text-center py-4">
                           <p className="text-muted-foreground">Loading communities...</p>
-                        </div>
+                      </div>
                       ) : communities.length === 0 ? (
                         <div className="text-center py-4">
                           <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
@@ -1422,9 +1422,9 @@ const StaffPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
                                     <MessageSquare className="h-6 w-6 text-green-500" />
-                                  </div>
+                      </div>
                                 )}
-                              </div>
+                    </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium truncate text-sm">{community.name}</p>
                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -1434,14 +1434,14 @@ const StaffPanel = () => {
                                   <div className="flex items-center gap-1">
                                     <Users className="h-3 w-3 text-muted-foreground" />
                                     <span className="text-xs text-muted-foreground">{memberCount} members</span>
-                                  </div>
+                      </div>
                                   <div className="flex items-center gap-1">
                                     <FileText className="h-3 w-3 text-muted-foreground" />
                                     <span className="text-xs text-muted-foreground">{postCount} posts</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                      </div>
+                      </div>
+                    </div>
+            </div>
                           );
                         })
                       )}
@@ -1450,15 +1450,15 @@ const StaffPanel = () => {
                 </Card>
 
                 {/* Donations */}
-                <Card>
-                  <CardHeader>
-                      <div className="flex items-center justify-between">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <HeartHandshake className="h-5 w-5 text-rose-500" />
                         <CardTitle>Donations</CardTitle>
-                        </div>
-                      <Badge variant="outline">{donations.length}</Badge>
                     </div>
+                      <Badge variant="outline">{donations.length}</Badge>
+                      </div>
                     <CardDescription>Recent donations</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1466,12 +1466,12 @@ const StaffPanel = () => {
                       {loading.donations ? (
                         <div className="text-center py-4">
                           <p className="text-muted-foreground">Loading donations...</p>
-                        </div>
+                    </div>
                       ) : donations.length === 0 ? (
                         <div className="text-center py-4">
                           <HeartHandshake className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                           <p className="text-muted-foreground">No donations found</p>
-                        </div>
+                  </div>
                       ) : (
                         donations.slice(0, 5).map((donation: any) => {
                           const donationDate = new Date(donation.createdAt || donation.donatedAt || new Date());
@@ -1514,18 +1514,18 @@ const StaffPanel = () => {
                       )}
                     </div>
                   </CardContent>
-                </Card>
+              </Card>
 
                 {/* Mentorship */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-5 w-5 text-indigo-500" />
                         <CardTitle>Mentorship</CardTitle>
-                      </div>
-                      <Badge variant="outline">{mentorships.length}</Badge>
                     </div>
+                      <Badge variant="outline">{mentorships.length}</Badge>
+                      </div>
                     <CardDescription>Recent mentorship connections</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1533,12 +1533,12 @@ const StaffPanel = () => {
                       {loading.mentorships ? (
                         <div className="text-center py-4">
                           <p className="text-muted-foreground">Loading mentorships...</p>
-                        </div>
+                    </div>
                       ) : mentorships.length === 0 ? (
                         <div className="text-center py-4">
                           <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                           <p className="text-muted-foreground">No mentorships found</p>
-                        </div>
+                  </div>
                       ) : (
                         mentorships.slice(0, 5).map((mentorship: any) => {
                           const mentorshipDate = new Date(mentorship.createdAt || new Date());
@@ -1589,7 +1589,7 @@ const StaffPanel = () => {
                       )}
                       </div>
                     </CardContent>
-                  </Card>
+              </Card>
             </div>
           </TabsContent>
 

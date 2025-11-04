@@ -306,18 +306,30 @@ export const deleteCampaign = asyncHandler(
       const donationCount = await Donation.countDocuments({
         campaignId: campaign._id,
       });
+      
+      // Allow admins to delete campaigns with donations, but warn them
       if (donationCount > 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Cannot delete campaign with existing donations",
-        });
+        if (isAdmin && isSameTenant) {
+          // Admin can delete campaigns with donations, but log a warning
+          logger.warn(
+            `Admin ${req.user?.id} deleted campaign ${campaign._id} with ${donationCount} donations`
+          );
+        } else {
+          // Non-admin creators cannot delete campaigns with donations
+          return res.status(400).json({
+            success: false,
+            message: "Cannot delete campaign with existing donations",
+          });
+        }
       }
 
       await Campaign.findByIdAndDelete(req.params.id);
 
       return res.status(200).json({
         success: true,
-        message: "Campaign deleted successfully",
+        message: donationCount > 0
+          ? `Campaign deleted successfully. Warning: ${donationCount} donation(s) are still associated with this campaign.`
+          : "Campaign deleted successfully",
       });
     } catch (error) {
       logger.error("Error deleting campaign:", error);
@@ -544,7 +556,7 @@ export const getCampaignDonors = asyncHandler(
         campaignId: campaign._id,
         paymentStatus: { $in: ["completed", "successful"] },
       })
-        .populate("donor", "firstName lastName email profilePicture")
+        .populate("donor", "firstName lastName email phone profilePicture")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -564,6 +576,7 @@ export const getCampaignDonors = asyncHandler(
           ? `${donation.donor.firstName} ${donation.donor.lastName}`
           : donation.donorName || "Anonymous",
         donorEmail: donation.anonymous ? null : donation.donor?.email || donation.donorEmail || null,
+        donorPhone: donation.anonymous ? null : donation.donor?.phone || donation.donorPhone || null,
         donorProfile: donation.anonymous ? null : donation.donor || null,
         amount: donation.amount,
         currency: donation.currency,
@@ -748,7 +761,7 @@ export const exportCampaignDonors = asyncHandler(
         paymentStatus: { $in: ["completed", "successful"] },
         anonymous: false,
       })
-        .populate("donor", "firstName lastName email")
+        .populate("donor", "firstName lastName email phone")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -759,6 +772,7 @@ export const exportCampaignDonors = asyncHandler(
           ? `${donation.donor.firstName} ${donation.donor.lastName}`
           : donation.donorName || "Unknown",
         "Email": donation.donor?.email || donation.donorEmail || "",
+        "Phone": donation.donor?.phone || donation.donorPhone || "",
         "Amount": donation.amount,
         "Currency": donation.currency,
         "Payment Method": donation.paymentMethod,

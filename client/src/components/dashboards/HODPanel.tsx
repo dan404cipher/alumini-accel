@@ -884,9 +884,9 @@ const HODPanel = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex h-[calc(100vh-5rem)] overflow-hidden">
+      <div className="flex h-screen overflow-hidden pt-16">
         {/* Enhanced Sidebar */}
-        <aside className="hidden lg:block w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm">
+        <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm z-40">
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
             <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
@@ -1029,7 +1029,7 @@ const HODPanel = () => {
             </div>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-72">
           {/* Header - only on Dashboard tab */}
           {activeTab === "dashboard" && (
         <div className="flex items-center justify-between">

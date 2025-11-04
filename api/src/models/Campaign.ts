@@ -5,14 +5,7 @@ export interface ICampaign extends Document {
   description: string;
   tenantId: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
-  category:
-    | "Infrastructure"
-    | "Scholarships & Student Support"
-    | "Research & Academics"
-    | "Sports, Arts & Culture"
-    | "Community & Social Impact"
-    | "Emergency"
-    | "Other";
+  category: string;
   targetAmount: number;
   currentAmount: number;
   currency: string;
@@ -77,16 +70,9 @@ const campaignSchema = new Schema<ICampaign>(
     },
     category: {
       type: String,
-      enum: [
-        "Infrastructure",
-        "Scholarships & Student Support",
-        "Research & Academics",
-        "Sports, Arts & Culture",
-        "Community & Social Impact",
-        "Emergency",
-        "Other",
-      ],
       required: true,
+      trim: true,
+      maxlength: [100, "Category cannot exceed 100 characters"],
     },
     targetAmount: {
       type: Number,

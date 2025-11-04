@@ -670,8 +670,8 @@ const SuperAdminDashboard = () => {
   return (
     <div className="flex bg-gray-50 min-h-screen">
       {/* Left Sidebar */}
-      <div className="fixed top-16 left-0 bottom-0 w-64 bg-white shadow-lg border-r border-gray-200 overflow-hidden">
-        <nav className="p-4 space-y-2">
+      <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-white shadow-lg border-r border-gray-200 overflow-hidden z-40">
+        <nav className="p-4 space-y-2 h-full overflow-y-auto">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -704,7 +704,7 @@ const SuperAdminDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 ml-64">
+      <div className="flex-1 overflow-y-auto bg-gray-50 ml-64 pt-16">
         <div className="p-4 sm:p-6 lg:p-8 min-h-full">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">

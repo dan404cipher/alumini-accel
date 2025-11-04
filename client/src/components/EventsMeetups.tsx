@@ -1369,7 +1369,7 @@ const EventsMeetups = () => {
   };
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
+    <div className="flex gap-6 h-screen w-full overflow-hidden pt-16">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -1381,11 +1381,11 @@ const EventsMeetups = () => {
       {/* Left Sidebar */}
       <div
         className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
+        w-80 flex-shrink-0 bg-background h-[calc(100vh-4rem)]
       `}
       >
-        <div className="sticky top-0 h-screen overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto p-6">
           <Card className="h-fit">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1597,7 +1597,7 @@ const EventsMeetups = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen">
+      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen ml-0 lg:ml-80">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">

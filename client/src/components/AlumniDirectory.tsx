@@ -133,6 +133,7 @@ const AlumniDirectory = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [itemsPerPage] = useState(12);
   const sendingMessageRef = useRef<string | null>(null);
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
@@ -223,6 +224,10 @@ const AlumniDirectory = () => {
         page: currentPage,
         limit: itemsPerPage,
         tenantId: user?.tenantId,
+        search: searchQuery || undefined,
+        department: selectedDepartment !== "all" ? selectedDepartment : undefined,
+        graduationYear: selectedGraduationYear !== "all" ? selectedGraduationYear : undefined,
+        location: selectedLocation !== "all" ? selectedLocation : undefined,
       });
 
       if (
@@ -237,14 +242,16 @@ const AlumniDirectory = () => {
       ) {
         const data = response.data as {
           users: User[];
-          pagination?: { totalPages: number };
+          pagination?: { totalPages: number; total: number };
         };
         setUsers(data.users);
         if (data.pagination) {
           setTotalPages(data.pagination.totalPages || 1);
+          setTotalUsers(data.pagination.total || 0);
         }
       } else {
         setUsers([]);
+        setTotalUsers(0);
       }
     } catch (error) {
       console.error("Error fetching users directory:", error);
@@ -258,7 +265,7 @@ const AlumniDirectory = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, user?.tenantId, currentPage, itemsPerPage]);
+  }, [toast, user?.tenantId, currentPage, itemsPerPage, searchQuery, selectedDepartment, selectedGraduationYear, selectedLocation]);
 
   // Fetch users data from API
   useEffect(() => {
@@ -286,113 +293,11 @@ const AlumniDirectory = () => {
   ]);
 
   // Filter users based on search and filter criteria
+  // Note: Main filtering is now done on backend, this only excludes current user
   const filterUsers = (users: User[]) => {
     return users.filter((directoryUser) => {
       // Exclude current user
       if (directoryUser.id === user?._id) return false;
-
-      // Search query filter
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        const matchesSearch =
-          directoryUser.name.toLowerCase().includes(searchLower) ||
-          directoryUser.email.toLowerCase().includes(searchLower) ||
-          (directoryUser.company &&
-            directoryUser.company.toLowerCase().includes(searchLower)) ||
-          (directoryUser.currentRole &&
-            directoryUser.currentRole.toLowerCase().includes(searchLower)) ||
-          (directoryUser.department &&
-            directoryUser.department.toLowerCase().includes(searchLower)) ||
-          (directoryUser.skills &&
-            directoryUser.skills.some((skill) =>
-              skill.toLowerCase().includes(searchLower)
-            )) ||
-          (directoryUser.registerNumber &&
-            directoryUser.registerNumber.toLowerCase().includes(searchLower));
-        if (!matchesSearch) return false;
-      }
-
-      // Department filter (uses category-driven department names)
-      if (selectedDepartment !== "all") {
-        const userDept = directoryUser.department || "";
-        if (!userDept || !userDept.toLowerCase().includes(selectedDepartment.toLowerCase())) {
-          return false;
-        }
-      }
-
-      // Graduation year filter
-      if (
-        selectedGraduationYear !== "all" &&
-        directoryUser.graduationYear !== parseInt(selectedGraduationYear)
-      )
-        return false;
-
-      // Location filter
-      if (selectedLocation !== "all") {
-        const locationMap: { [key: string]: string[] } = {
-          bangalore: ["bangalore", "bengaluru"],
-          mumbai: ["mumbai"],
-          delhi: ["delhi", "new delhi"],
-          chennai: ["chennai", "madras"],
-          hyderabad: ["hyderabad"],
-          pune: ["pune"],
-          kolkata: ["kolkata", "calcutta"],
-          international: [
-            "usa",
-            "united states",
-            "canada",
-            "uk",
-            "united kingdom",
-            "australia",
-            "singapore",
-            "dubai",
-          ],
-        };
-        const targetLocations = locationMap[selectedLocation] || [];
-        const userLocation = (
-          directoryUser.currentLocation ||
-          directoryUser.location ||
-          ""
-        ).toLowerCase();
-        if (!targetLocations.some((loc) => userLocation.includes(loc)))
-          return false;
-      }
-
-      // Experience filter
-      if (selectedExperience !== "all") {
-        const experience = directoryUser.experience || 0;
-        switch (selectedExperience) {
-          case "student":
-            if (directoryUser.role !== "student") return false;
-            break;
-          case "0-1":
-            if (experience < 0 || experience > 1) return false;
-            break;
-          case "1-3":
-            if (experience < 1 || experience > 3) return false;
-            break;
-          case "3-5":
-            if (experience < 3 || experience > 5) return false;
-            break;
-          case "5-10":
-            if (experience < 5 || experience > 10) return false;
-            break;
-          case "10+":
-            if (experience < 10) return false;
-            break;
-        }
-      }
-
-      // Register number filter
-      if (
-        registerNumberFilter &&
-        (!directoryUser.registerNumber ||
-          !directoryUser.registerNumber
-            .toLowerCase()
-            .includes(registerNumberFilter.toLowerCase()))
-      )
-        return false;
-
       return true;
     });
   };
@@ -665,7 +570,7 @@ const AlumniDirectory = () => {
                   Alumni Directory
                 </h1>
                 <p className="text-muted-foreground text-sm lg:text-base">
-                  Connect with our global network • {filterUsers(users).length}{" "}
+                  Connect with our global network • {totalUsers > 0 ? totalUsers : filterUsers(users).length}{" "}
                   users
                 </p>
               </div>
@@ -738,7 +643,7 @@ const AlumniDirectory = () => {
                 </p>
               </div>
             ) : (
-              filterUsers(users).map((directoryUser) => (
+              users.map((directoryUser) => (
                 <Card
                   key={directoryUser.id}
                   className={`group hover:shadow-lg transition-all duration-200 cursor-pointer ${

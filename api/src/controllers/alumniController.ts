@@ -11,6 +11,7 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
+    
     // Build filter for alumni and students
     const userFilter: any = {
       role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] },
@@ -23,13 +24,52 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       userFilter.tenantId = req.user.tenantId;
     }
 
-    // Get all users
+    // Exclude current user from results
+    if (req.user?._id) {
+      userFilter._id = { $ne: req.user._id };
+    }
+
+    // Apply search filter
+    if (req.query.search) {
+      const searchRegex = { $regex: req.query.search as string, $options: "i" };
+      userFilter.$or = [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+        { department: searchRegex },
+        { location: searchRegex },
+      ];
+    }
+
+    // Apply department filter
+    if (req.query.department && req.query.department !== "all") {
+      userFilter.department = { $regex: req.query.department as string, $options: "i" };
+    }
+
+    // Apply graduation year filter
+    if (req.query.graduationYear && req.query.graduationYear !== "all") {
+      userFilter.graduationYear = parseInt(req.query.graduationYear as string);
+    }
+
+    // Apply location filter (combine with search if exists)
+    if (req.query.location && req.query.location !== "all") {
+      const locationRegex = { $regex: req.query.location as string, $options: "i" };
+      if (userFilter.$or) {
+        // If $or already exists (from search), add location to it
+        userFilter.$or.push({ location: locationRegex });
+      } else {
+        // Otherwise create new $or
+        userFilter.$or = [{ location: locationRegex }];
+      }
+    }
+
+    // Get all users matching filters
     const users = await User.find(userFilter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    // Get total count
+    // Get total count with filters applied
     const total = await User.countDocuments(userFilter);
 
     // Get profiles for all users

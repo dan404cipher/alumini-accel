@@ -785,6 +785,10 @@ export const alumniAPI = {
     limit?: number;
     userType?: "student" | "alumni" | "all";
     tenantId?: string;
+    search?: string;
+    department?: string;
+    graduationYear?: string;
+    location?: string;
   }) => {
     return apiRequest({
       method: "GET",

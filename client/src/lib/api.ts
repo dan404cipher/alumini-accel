@@ -1985,6 +1985,9 @@ export const galleryAPI = {
     page?: number;
     limit?: number;
     category?: string;
+    search?: string;
+    dateRange?: string;
+    sortBy?: string;
     tenantId?: string;
   }) => {
     try {
@@ -1993,6 +1996,9 @@ export const galleryAPI = {
       if (params?.page) queryParams.append("page", params.page.toString());
       if (params?.limit) queryParams.append("limit", params.limit.toString());
       if (params?.category) queryParams.append("category", params.category);
+      if (params?.search) queryParams.append("search", params.search);
+      if (params?.dateRange) queryParams.append("dateRange", params.dateRange);
+      if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
       if (params?.tenantId) queryParams.append("tenantId", params.tenantId);
 
       const response = await apiRequest({

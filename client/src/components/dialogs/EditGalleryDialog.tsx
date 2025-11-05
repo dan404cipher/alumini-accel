@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Upload, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { galleryAPI } from "@/lib/api";
+import { galleryAPI, categoryAPI } from "@/lib/api";
 
 interface GalleryItem {
   _id: string;
@@ -56,17 +56,30 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
   const [newTag, setNewTag] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
 
-  const categories = [
-    "Events",
-    "Campus Life",
-    "Sports",
-    "Academic",
-    "Social",
-    "Cultural",
-    "Alumni Meet",
-    "Other",
-  ];
+  // Load gallery categories dynamically
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "gallery_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setCategories(names);
+      } catch (_e) {
+        // keep empty list if API fails
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Initialize form data when gallery changes
   useEffect(() => {
@@ -85,28 +98,44 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
 
   const handleImageUpload = async (files: FileList) => {
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const formData = new FormData();
-        formData.append("images", file);
+      // Validate file types - must be specific image MIME types
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      const fileArray = Array.from(files);
+      const invalidFiles = fileArray.filter(
+        (file) => !allowedTypes.includes(file.type.toLowerCase())
+      );
+      if (invalidFiles.length > 0) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please select only image files (JPEG, PNG, GIF, WebP)",
+          variant: "destructive",
+        });
+        return;
+      }
 
-        const response = await galleryAPI.uploadImages(formData);
-        if (response.success && response.data.length > 0) {
-          return response.data[0];
-        }
+      // Upload all images at once using the correct API signature
+      const response = await galleryAPI.uploadImages(fileArray);
+      if (response.success && response.data?.images) {
+        const uploadedUrls = response.data.images;
+        setFormData((prev) => ({
+          ...prev,
+          images: [...prev.images, ...uploadedUrls],
+        }));
+        setPreviewImages((prev) => [...prev, ...uploadedUrls]);
+
+        toast({
+          title: "Success",
+          description: `${uploadedUrls.length} image(s) uploaded successfully`,
+        });
+      } else {
         throw new Error("Upload failed");
-      });
-
-      const uploadedUrls = await Promise.all(uploadPromises);
-      setFormData((prev) => ({
-        ...prev,
-        images: [...prev.images, ...uploadedUrls],
-      }));
-      setPreviewImages((prev) => [...prev, ...uploadedUrls]);
-
-      toast({
-        title: "Success",
-        description: `${uploadedUrls.length} image(s) uploaded successfully`,
-      });
+      }
     } catch (error) {
       console.error("Error uploading images:", error);
       toast({
@@ -256,11 +285,17 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                {categories.length === 0 ? (
+                  <SelectItem value="__noopts__" disabled>
+                    No categories available
                   </SelectItem>
-                ))}
+                ) : (
+                  categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -277,7 +312,7 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
                 <input
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                   onChange={handleFileChange}
                   className="hidden"
                   id="image-upload"

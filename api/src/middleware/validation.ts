@@ -82,8 +82,21 @@ export const validateUserCreation = [
     .isLength({ min: 2, max: 50 })
     .withMessage("Last name must be between 2 and 50 characters"),
   body("role")
-    .isIn(["super_admin", "college_admin", "hod", "staff", "alumni"])
+    .isIn(["super_admin", "college_admin", "hod", "staff", "student", "alumni"])
     .withMessage("Invalid role"),
+  body("graduationYear")
+    .optional()
+    .isInt({ min: 1950, max: new Date().getFullYear() + 5 })
+    .withMessage("Graduation year must be a valid year"),
+  body("graduationYear")
+    .custom((value, { req }) => {
+      const role = req.body.role;
+      // If role is "student", graduationYear is required
+      if (role === "student" && !value) {
+        throw new Error("Graduation year is required when role is student");
+      }
+      return true;
+    }),
   body("tenantId").custom((value, { req }) => {
     const role = req.body.role;
     if (role && role !== "super_admin") {

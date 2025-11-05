@@ -19,7 +19,10 @@ export interface ICommunity extends Document {
     | "community_support_volunteering"
     | "technology_deeptech"
     | "regional_chapter_based"
-    | "other";
+    | "other"
+    | mongoose.Types.ObjectId; // Support for custom categories
+  customCategory?: mongoose.Types.ObjectId; // Reference to Category model
+  tenantId?: mongoose.Types.ObjectId; // Add tenantId for multi-tenancy
   coverImage?: string;
   logo?: string;
   createdBy: mongoose.Types.ObjectId;
@@ -71,25 +74,53 @@ const CommunitySchema = new Schema<ICommunity>(
       required: true,
     },
     category: {
-      type: String,
-      enum: [
-        "department",
-        "batch",
-        "interest",
-        "professional",
-        "location",
-        "academic_research",
-        "professional_career",
-        "entrepreneurship_startups",
-        "social_hobby",
-        "mentorship_guidance",
-        "events_meetups",
-        "community_support_volunteering",
-        "technology_deeptech",
-        "regional_chapter_based",
-        "other",
-      ],
+      type: Schema.Types.Mixed, // Can be String (enum) or ObjectId (custom)
       required: true,
+      validate: {
+        validator: function (value: any) {
+          if (!value) return false;
+          
+          // First check if it's a valid ObjectId (as string or ObjectId)
+          if (mongoose.Types.ObjectId.isValid(value)) {
+            return true;
+          }
+          
+          // If not ObjectId, check if it's a valid enum value
+          if (typeof value === "string") {
+            const validEnums = [
+              "department",
+              "batch",
+              "interest",
+              "professional",
+              "location",
+              "academic_research",
+              "professional_career",
+              "entrepreneurship_startups",
+              "social_hobby",
+              "mentorship_guidance",
+              "events_meetups",
+              "community_support_volunteering",
+              "technology_deeptech",
+              "regional_chapter_based",
+              "other",
+            ];
+            return validEnums.includes(value);
+          }
+          
+          return false;
+        },
+        message: "Category must be a valid enum value or ObjectId",
+      },
+    },
+    customCategory: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
+    },
+    tenantId: {
+      type: Schema.Types.ObjectId,
+      ref: "Tenant",
+      index: true,
     },
     coverImage: {
       type: String,

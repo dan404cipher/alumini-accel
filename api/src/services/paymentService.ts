@@ -56,12 +56,14 @@ export class PaymentService {
           created_at: order.created_at,
         },
       };
-    } catch (error) {
-      console.error("Error creating Razorpay order:", error);
+    } catch (error: any) {
+      // Razorpay SDK often returns rich error objects; surface the description when available
+      const sdkDescription = error?.error?.description || error?.message;
+      const fallback = typeof error === "string" ? error : JSON.stringify(error);
+      console.error("Error creating Razorpay order:", sdkDescription || fallback);
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to create order",
+        error: sdkDescription || fallback || "Failed to create order",
       };
     }
   }

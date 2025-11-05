@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Event from "../models/Event";
 import User from "../models/User";
 import { logger } from "../utils/logger";
+import { emailService } from "../services/emailService";
+import Tenant from "../models/Tenant";
 import { EventType } from "../types";
 
 // Get all events
@@ -30,8 +33,121 @@ export const getAllEvents = async (req: Request, res: Response) => {
       filter.startDate = { $gte: new Date() };
     }
 
+    // Search filter
+    if (req.query.search) {
+      const searchConditions = [
+        { title: { $regex: req.query.search, $options: "i" } },
+        { description: { $regex: req.query.search, $options: "i" } },
+        { location: { $regex: req.query.search, $options: "i" } },
+        { tags: { $in: [new RegExp(req.query.search as string, "i")] } },
+      ];
+      
+      // If filter.$or already exists, combine with $and
+      if (filter.$or) {
+        filter.$and = filter.$and || [];
+        filter.$and.push({ $or: filter.$or });
+        filter.$and.push({ $or: searchConditions });
+        delete filter.$or;
+      } else {
+        filter.$or = searchConditions;
+      }
+    }
+
+    // Date range filter
+    if (req.query.dateRange && req.query.dateRange !== "all") {
+      const now = new Date();
+      const today = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const thisWeekStart = new Date(today);
+      thisWeekStart.setDate(today.getDate() - today.getDay());
+      const lastWeekStart = new Date(thisWeekStart);
+      lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+      const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastMonthStart = new Date(
+        today.getFullYear(),
+        today.getMonth() - 1,
+        1
+      );
+      const thisYearStart = new Date(today.getFullYear(), 0, 1);
+
+      switch (req.query.dateRange) {
+        case "today":
+          filter.startDate = { $gte: today, $lt: tomorrow };
+          break;
+        case "tomorrow":
+          filter.startDate = { $gte: tomorrow };
+          const dayAfterTomorrow = new Date(tomorrow);
+          dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+          filter.startDate = { $gte: tomorrow, $lt: dayAfterTomorrow };
+          break;
+        case "this_week":
+          filter.startDate = { $gte: thisWeekStart };
+          break;
+        case "next_week":
+          const nextWeekStart = new Date(thisWeekStart);
+          nextWeekStart.setDate(thisWeekStart.getDate() + 7);
+          const nextWeekEnd = new Date(nextWeekStart);
+          nextWeekEnd.setDate(nextWeekStart.getDate() + 7);
+          filter.startDate = { $gte: nextWeekStart, $lt: nextWeekEnd };
+          break;
+        case "this_month":
+          filter.startDate = { $gte: thisMonthStart };
+          break;
+        case "next_month":
+          const nextMonthStart = new Date(
+            today.getFullYear(),
+            today.getMonth() + 1,
+            1
+          );
+          const nextMonthEnd = new Date(
+            today.getFullYear(),
+            today.getMonth() + 2,
+            1
+          );
+          filter.startDate = { $gte: nextMonthStart, $lt: nextMonthEnd };
+          break;
+        case "this_year":
+          filter.startDate = { $gte: thisYearStart };
+          break;
+      }
+    }
+
+    // Price filter
+    if (req.query.price && req.query.price !== "all") {
+      const priceValue = req.query.price as string;
+      if (priceValue === "free") {
+        filter.$and = filter.$and || [];
+        filter.$and.push({
+          $or: [
+            { price: { $exists: false } },
+            { price: 0 },
+            { price: null },
+          ],
+        });
+      } else if (priceValue.includes("-")) {
+        const [min, max] = priceValue.split("-").map((p) => parseFloat(p.trim()));
+        if (!isNaN(min) && !isNaN(max)) {
+          filter.price = { $gte: min, $lte: max };
+        } else if (!isNaN(min)) {
+          filter.price = { $gte: min };
+        }
+      } else if (priceValue.endsWith("+")) {
+        const min = parseFloat(priceValue.replace("+", ""));
+        if (!isNaN(min)) {
+          filter.price = { $gte: min };
+        }
+      }
+    }
+
     const events = await Event.find(filter)
       .populate("organizer", "firstName lastName email profilePicture")
+      .populate("customEventType", "name")
+      .select("+attendees") // Ensure attendees are included in response
       .sort({ startDate: 1 })
       .skip(skip)
       .limit(limit);
@@ -45,6 +161,21 @@ export const getAllEvents = async (req: Request, res: Response) => {
       // Don't persist here; just override for response
       const obj = evt.toObject ? evt.toObject() : evt;
       obj.currentAttendees = confirmed;
+      // If custom event type exists, use its name, otherwise use the enum type
+      if (obj.customEventType && obj.customEventType.name) {
+        obj.typeDisplayName = obj.customEventType.name;
+      } else {
+        // Map enum values to display names
+        const typeMap: Record<string, string> = {
+          meetup: "Meetup",
+          workshop: "Workshop",
+          webinar: "Webinar",
+          conference: "Conference",
+          career_fair: "Career Fair",
+          reunion: "Reunion",
+        };
+        obj.typeDisplayName = typeMap[obj.type] || obj.type;
+      }
       return obj;
     });
 
@@ -76,7 +207,8 @@ export const getEventById = async (req: Request, res: Response) => {
   try {
     const event = await Event.findById(req.params.id)
       .populate("organizer", "firstName lastName email profilePicture")
-      .populate("attendees.userId", "firstName lastName email profilePicture");
+      .populate("attendees.userId", "firstName lastName email profilePicture")
+      .populate("customEventType", "name");
 
     if (!event) {
       return res.status(404).json({
@@ -140,10 +272,15 @@ export const createEventWithImage = async (req: Request, res: Response) => {
       imageUrl = `/uploads/events/${imageFile.filename}`;
     }
 
+    // Check if type is a custom category (ObjectId) or default enum
+    const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+    const eventType = isCustomType ? type : type;
+
     const event = new Event({
       title,
       description,
-      type,
+      type: eventType,
+      customEventType: isCustomType ? type : undefined,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       location,
@@ -211,10 +348,15 @@ export const createEvent = async (req: Request, res: Response) => {
       organizerNotes,
     } = req.body;
 
+    // Check if type is a custom category (ObjectId) or default enum
+    const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+    const eventType = isCustomType ? type : type;
+
     const event = new Event({
       title,
       description,
-      type,
+      type: eventType,
+      customEventType: isCustomType ? type : undefined,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       location,
@@ -312,7 +454,11 @@ export const updateEvent = async (req: Request, res: Response) => {
     // Update fields if provided
     if (title !== undefined) event.title = title;
     if (description !== undefined) event.description = description;
-    if (type !== undefined) event.type = type;
+    if (type !== undefined) {
+      const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+      event.type = type;
+      event.customEventType = isCustomType ? type : undefined;
+    }
     if (startDate !== undefined) event.startDate = new Date(startDate);
     if (endDate !== undefined) event.endDate = new Date(endDate);
     if (location !== undefined) event.location = location;
@@ -404,7 +550,11 @@ export const updateEventWithImage = async (req: Request, res: Response) => {
     // Update event fields
     if (title !== undefined) event.title = title;
     if (description !== undefined) event.description = description;
-    if (type !== undefined) event.type = type;
+    if (type !== undefined) {
+      const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+      event.type = type;
+      event.customEventType = isCustomType ? type : undefined;
+    }
     if (startDate !== undefined) event.startDate = new Date(startDate);
     if (endDate !== undefined) event.endDate = new Date(endDate);
     if (location !== undefined) event.location = location;
@@ -515,18 +665,41 @@ export const registerForEvent = async (req: Request, res: Response) => {
       (attendee) => attendee.userId.toString() === req.user.id
     );
 
-    if (existingRegistration) {
+    // Extract additional registration details from request body
+    const { phone, dietaryRequirements, emergencyContact, additionalNotes } =
+      req.body;
+
+    // If already registered (not pending), block duplicate
+    if (existingRegistration && existingRegistration.status === "registered") {
       return res.status(400).json({
         success: false,
         message: "You are already registered for this event",
       });
     }
 
-    // Extract additional registration details from request body
-    const { phone, dietaryRequirements, emergencyContact, additionalNotes } =
-      req.body;
+    // If pending payment, allow resuming payment
+    if (existingRegistration && existingRegistration.status === "pending_payment") {
+      // Update registration details if provided
+      if (phone) existingRegistration.phone = phone;
+      if (dietaryRequirements) existingRegistration.dietaryRequirements = dietaryRequirements;
+      if (emergencyContact) existingRegistration.emergencyContact = emergencyContact;
+      if (additionalNotes) existingRegistration.additionalNotes = additionalNotes;
+      await event.save();
 
-    // Free vs Paid flow
+      return res.json({
+        success: true,
+        message: "Payment required to complete registration",
+        data: {
+          status: "pending_payment",
+          paymentRequired: true,
+          amount: event.price,
+          currency: "INR",
+          attendee: existingRegistration,
+        },
+      });
+    }
+
+    // Free vs Paid flow (new registration)
     if (!event.price || event.price === 0) {
       // Free event: register immediately
       const attendee = {
@@ -542,6 +715,35 @@ export const registerForEvent = async (req: Request, res: Response) => {
       };
       event.attendees.push(attendee as any);
       await event.save();
+
+      // Send registration email for free events
+      try {
+        const organizerDoc = await (Event as any)
+          .findById(req.params.id)
+          .populate("organizer", "firstName lastName");
+        const tenant = event.tenantId
+          ? await Tenant.findById(event.tenantId)
+          : null;
+        await emailService.sendEventRegistrationEmail({
+          to: req.user.email,
+          attendeeName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email,
+          eventTitle: event.title,
+          eventDescription: event.description,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          location: event.location,
+          isOnline: event.isOnline,
+          meetingLink: event.meetingLink,
+          price: event.price,
+          image: event.image,
+          collegeName: tenant?.name,
+          organizerName: organizerDoc?.organizer ? `${(organizerDoc as any).organizer.firstName || ""} ${(organizerDoc as any).organizer.lastName || ""}`.trim() : undefined,
+          speakers: Array.isArray(event.speakers) ? (event.speakers as any) : undefined,
+          agenda: Array.isArray(event.agenda) ? (event.agenda as any) : undefined,
+        });
+      } catch (e) {
+        logger.warn("Failed to send free-event registration email", e);
+      }
 
       return res.json({
         success: true,
@@ -569,6 +771,7 @@ export const registerForEvent = async (req: Request, res: Response) => {
     event.attendees.push(attendee as any);
     await event.save();
 
+    // Paid event - pending payment; do not send email yet
     return res.json({
       success: true,
       message: "Payment required to complete registration",
@@ -595,7 +798,7 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
     const { id } = req.params; // event id
     const { paymentStatus } = req.body; // expected 'success'
 
-    const event = await Event.findById(id);
+    const event = await Event.findById(id).populate("organizer", "firstName lastName");
     if (!event) {
       return res
         .status(404)
@@ -626,6 +829,30 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
     existingRegistration.paymentStatus = "successful";
     existingRegistration.amountPaid = event.price;
     await event.save();
+
+    // Send registration confirmation email for paid events after success
+    try {
+      const tenant = event.tenantId ? await Tenant.findById(event.tenantId) : null;
+      await emailService.sendEventRegistrationEmail({
+        to: req.user.email,
+        attendeeName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email,
+        eventTitle: event.title,
+        eventDescription: event.description,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        location: event.location,
+        isOnline: event.isOnline,
+        meetingLink: event.meetingLink,
+        price: event.price,
+        image: event.image,
+        collegeName: tenant?.name,
+        organizerName: (event as any).organizer ? `${(event as any).organizer.firstName || ""} ${(event as any).organizer.lastName || ""}`.trim() : undefined,
+        speakers: Array.isArray(event.speakers) ? (event.speakers as any) : undefined,
+        agenda: Array.isArray(event.agenda) ? (event.agenda as any) : undefined,
+      });
+    } catch (e) {
+      logger.warn("Failed to send paid-event registration email", e);
+    }
 
     return res.json({
       success: true,

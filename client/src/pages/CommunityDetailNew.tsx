@@ -11,7 +11,6 @@ import {
   CommunityDetailHeader,
   CommunityDetailTabs,
   CommunityLeftSidebar,
-  CommunityRightSidebar,
   CommunityMobileSidebar,
   CommunityPostsTab,
   CommunityAboutTab,
@@ -573,6 +572,11 @@ const CommunityDetailNew: React.FC = () => {
           onClearFilters={clearFilters}
           onCreatePost={handleCreatePost}
           isMember={isMember}
+          community={community}
+          isAdmin={isAdmin}
+          onJoinCommunity={handleJoinCommunity}
+          onLeaveCommunity={handleLeaveCommunity}
+          onTagClick={handleTagClick}
         />
 
         {/* Main Content Area */}
@@ -699,16 +703,7 @@ const CommunityDetailNew: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <CommunityRightSidebar
-          community={community}
-          isMember={isMember}
-          isAdmin={isAdmin}
-          onJoinCommunity={handleJoinCommunity}
-          onLeaveCommunity={handleLeaveCommunity}
-          onCreatePost={handleCreatePost}
-          onTagClick={handleTagClick}
-        />
+        {/* Right Sidebar removed: moved content to left sidebar */}
       </div>
 
       {/* Create Discussion Modal */}

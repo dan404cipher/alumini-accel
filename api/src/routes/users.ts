@@ -89,6 +89,16 @@ router.put(
   asyncHandler(userController.updateProfile)
 );
 
+// @route   GET /api/v1/users/eligible-students
+// @desc    Get eligible students for alumni promotion (admin only)
+// @access  Private/Admin
+router.get(
+  "/eligible-students",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(userController.getEligibleStudents)
+);
+
 // @route   GET /api/v1/users/:id
 // @desc    Get user by ID
 // @access  Private
@@ -140,6 +150,17 @@ router.put(
   requireAdmin,
   ...validateRequest(validateId),
   asyncHandler(userController.updateUserStatus)
+);
+
+// @route   POST /api/v1/users/:id/promote-to-alumni
+// @desc    Promote eligible student to alumni (admin only)
+// @access  Private/Admin
+router.post(
+  "/:id/promote-to-alumni",
+  authenticateToken,
+  requireAdmin,
+  ...validateRequest(validateId),
+  asyncHandler(userController.promoteStudentToAlumni)
 );
 
 export default router;

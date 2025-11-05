@@ -45,6 +45,7 @@ export const ROLE_HIERARCHY = {
   [UserRole.HOD]: 3,
   [UserRole.STAFF]: 2,
   [UserRole.ALUMNI]: 1,
+  [UserRole.STUDENT]: 1,
 };
 
 // Permission definitions for each role
@@ -198,6 +199,43 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
   },
 
   [UserRole.ALUMNI]: {
+    // User Management
+    canCreateUsers: false,
+    canEditUsers: false,
+    canDeleteUsers: false,
+    canViewAllUsers: false,
+
+    // College Management
+    canManageColleges: false,
+    canViewAllColleges: false,
+
+    // Content Management
+    canCreatePosts: true,
+    canEditAllPosts: false, // Can only edit their own posts
+    canDeletePosts: false, // Can only delete their own posts
+    canPinPosts: false,
+    canFeaturePosts: false,
+
+    // Events Management
+    canCreateEvents: false,
+    canEditAllEvents: false,
+    canDeleteEvents: false,
+
+    // Job Management
+    canCreateJobs: false,
+    canEditAllJobs: false,
+    canDeleteJobs: false,
+
+    // Analytics & Reports
+    canViewAnalytics: false,
+    canExportData: false,
+
+    // System Administration
+    canManageSystem: false,
+    canViewLogs: false,
+  },
+
+  [UserRole.STUDENT]: {
     // User Management
     canCreateUsers: false,
     canEditUsers: false,

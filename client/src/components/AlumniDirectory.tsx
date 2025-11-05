@@ -58,7 +58,8 @@ import {
 } from "lucide-react";
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import ConnectionButton from "./ConnectionButton";
-import { alumniAPI } from "@/lib/api";
+import { alumniAPI, categoryAPI } from "@/lib/api";
+import Footer from "./Footer";
 
 // User interface (for both students and alumni)
 interface User {
@@ -103,8 +104,30 @@ const AlumniDirectory = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "department", isActive: "true" });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDepartmentOptions(names);
+      } catch (_) {
+        if (mounted) setDepartmentOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const [selectedGraduationYear, setSelectedGraduationYear] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
+  const [selectedRole, setSelectedRole] = useState("all");
   const [selectedExperience, setSelectedExperience] = useState("all");
   const [selectedSkills, setSelectedSkills] = useState("all");
   const [registerNumberFilter, setRegisterNumberFilter] = useState("");
@@ -112,6 +135,7 @@ const AlumniDirectory = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [itemsPerPage] = useState(12);
   const sendingMessageRef = useRef<string | null>(null);
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
@@ -202,6 +226,11 @@ const AlumniDirectory = () => {
         page: currentPage,
         limit: itemsPerPage,
         tenantId: user?.tenantId,
+        search: searchQuery || undefined,
+        department: selectedDepartment !== "all" ? selectedDepartment : undefined,
+        graduationYear: selectedGraduationYear !== "all" ? selectedGraduationYear : undefined,
+        location: selectedLocation !== "all" ? selectedLocation : undefined,
+        role: selectedRole !== "all" ? selectedRole : undefined,
       });
 
       if (
@@ -216,14 +245,16 @@ const AlumniDirectory = () => {
       ) {
         const data = response.data as {
           users: User[];
-          pagination?: { totalPages: number };
+          pagination?: { totalPages: number; total: number };
         };
         setUsers(data.users);
         if (data.pagination) {
           setTotalPages(data.pagination.totalPages || 1);
+          setTotalUsers(data.pagination.total || 0);
         }
       } else {
         setUsers([]);
+        setTotalUsers(0);
       }
     } catch (error) {
       console.error("Error fetching users directory:", error);
@@ -237,7 +268,7 @@ const AlumniDirectory = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, user?.tenantId, currentPage, itemsPerPage]);
+  }, [toast, user?.tenantId, currentPage, itemsPerPage, searchQuery, selectedDepartment, selectedGraduationYear, selectedLocation, selectedRole]);
 
   // Fetch users data from API
   useEffect(() => {
@@ -259,138 +290,25 @@ const AlumniDirectory = () => {
     selectedDepartment,
     selectedGraduationYear,
     selectedLocation,
+    selectedRole,
     selectedExperience,
     selectedSkills,
     registerNumberFilter,
   ]);
 
   // Filter users based on search and filter criteria
+  // Note: Main filtering is now done on backend, this only excludes current user
   const filterUsers = (users: User[]) => {
     return users.filter((directoryUser) => {
       // Exclude current user
       if (directoryUser.id === user?._id) return false;
-
-      // Search query filter
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        const matchesSearch =
-          directoryUser.name.toLowerCase().includes(searchLower) ||
-          directoryUser.email.toLowerCase().includes(searchLower) ||
-          (directoryUser.company &&
-            directoryUser.company.toLowerCase().includes(searchLower)) ||
-          (directoryUser.currentRole &&
-            directoryUser.currentRole.toLowerCase().includes(searchLower)) ||
-          (directoryUser.department &&
-            directoryUser.department.toLowerCase().includes(searchLower)) ||
-          (directoryUser.skills &&
-            directoryUser.skills.some((skill) =>
-              skill.toLowerCase().includes(searchLower)
-            )) ||
-          (directoryUser.registerNumber &&
-            directoryUser.registerNumber.toLowerCase().includes(searchLower));
-        if (!matchesSearch) return false;
-      }
-
-      // Department filter
-      if (selectedDepartment !== "all") {
-        const departmentMap: { [key: string]: string } = {
-          cs: "Computer Science",
-          ee: "Electrical Engineering",
-          me: "Mechanical Engineering",
-          ba: "Business Administration",
-          ce: "Civil Engineering",
-          it: "Information Technology",
-          mba: "MBA",
-        };
-        const targetDepartment = departmentMap[selectedDepartment];
-        if (
-          !directoryUser.department ||
-          !directoryUser.department
-            .toLowerCase()
-            .includes(targetDepartment.toLowerCase())
-        )
-          return false;
-      }
-
-      // Graduation year filter
-      if (
-        selectedGraduationYear !== "all" &&
-        directoryUser.graduationYear !== parseInt(selectedGraduationYear)
-      )
-        return false;
-
-      // Location filter
-      if (selectedLocation !== "all") {
-        const locationMap: { [key: string]: string[] } = {
-          bangalore: ["bangalore", "bengaluru"],
-          mumbai: ["mumbai"],
-          delhi: ["delhi", "new delhi"],
-          chennai: ["chennai", "madras"],
-          hyderabad: ["hyderabad"],
-          pune: ["pune"],
-          kolkata: ["kolkata", "calcutta"],
-          international: [
-            "usa",
-            "united states",
-            "canada",
-            "uk",
-            "united kingdom",
-            "australia",
-            "singapore",
-            "dubai",
-          ],
-        };
-        const targetLocations = locationMap[selectedLocation] || [];
-        const userLocation = (
-          directoryUser.currentLocation ||
-          directoryUser.location ||
-          ""
-        ).toLowerCase();
-        if (!targetLocations.some((loc) => userLocation.includes(loc)))
-          return false;
-      }
-
-      // Experience filter
-      if (selectedExperience !== "all") {
-        const experience = directoryUser.experience || 0;
-        switch (selectedExperience) {
-          case "student":
-            if (directoryUser.role !== "student") return false;
-            break;
-          case "0-1":
-            if (experience < 0 || experience > 1) return false;
-            break;
-          case "1-3":
-            if (experience < 1 || experience > 3) return false;
-            break;
-          case "3-5":
-            if (experience < 3 || experience > 5) return false;
-            break;
-          case "5-10":
-            if (experience < 5 || experience > 10) return false;
-            break;
-          case "10+":
-            if (experience < 10) return false;
-            break;
-        }
-      }
-
-      // Register number filter
-      if (
-        registerNumberFilter &&
-        (!directoryUser.registerNumber ||
-          !directoryUser.registerNumber
-            .toLowerCase()
-            .includes(registerNumberFilter.toLowerCase()))
-      )
-        return false;
-
       return true;
     });
   };
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -402,11 +320,11 @@ const AlumniDirectory = () => {
       {/* Left Sidebar */}
       <div
         className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
       `}
       >
-        <div className="sticky top-0 h-screen overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto p-4 sm:p-6">
           <Card className="h-fit">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -466,15 +384,17 @@ const AlumniDirectory = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      <SelectItem value="cs">Computer Science</SelectItem>
-                      <SelectItem value="ee">Electrical Engineering</SelectItem>
-                      <SelectItem value="me">Mechanical Engineering</SelectItem>
-                      <SelectItem value="ba">
-                        Business Administration
-                      </SelectItem>
-                      <SelectItem value="ce">Civil Engineering</SelectItem>
-                      <SelectItem value="it">Information Technology</SelectItem>
-                      <SelectItem value="mba">MBA</SelectItem>
+                      {departmentOptions.length === 0 ? (
+                        <SelectItem value="__noopts__" disabled>
+                          No saved departments
+                        </SelectItem>
+                      ) : (
+                        departmentOptions.map((name) => (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -527,6 +447,24 @@ const AlumniDirectory = () => {
                       <SelectItem value="international">
                         International
                       </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Role Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Role</label>
+                  <Select
+                    value={selectedRole}
+                    onValueChange={setSelectedRole}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="alumni">Alumni</SelectItem>
+                      <SelectItem value="student">Student</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -585,6 +523,7 @@ const AlumniDirectory = () => {
                   (selectedGraduationYear &&
                     selectedGraduationYear !== "all") ||
                   (selectedLocation && selectedLocation !== "all") ||
+                  (selectedRole && selectedRole !== "all") ||
                   (selectedExperience && selectedExperience !== "all") ||
                   registerNumberFilter) && (
                   <Button
@@ -595,6 +534,7 @@ const AlumniDirectory = () => {
                       setSelectedDepartment("all");
                       setSelectedGraduationYear("all");
                       setSelectedLocation("all");
+                      setSelectedRole("all");
                       setSelectedExperience("all");
                       setRegisterNumberFilter("");
                     }}
@@ -636,77 +576,79 @@ const AlumniDirectory = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="w-4 h-4 mr-2" />
-              Filters
-            </Button>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">
-                Alumni Directory
-              </h1>
-              <p className="text-muted-foreground text-sm lg:text-base">
-                Connect with our global network • {filterUsers(users).length}{" "}
-                users
-              </p>
+      <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+        <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 pb-20">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="w-4 h-4 mr-2" />
+                Filters
+              </Button>
+              <div>
+                <h1 className="text-2xl lg:text-3xl font-bold">
+                  Alumni Directory
+                </h1>
+                <p className="text-muted-foreground text-sm lg:text-base">
+                  Connect with our global network • {totalUsers > 0 ? totalUsers : filterUsers(users).length}{" "}
+                  users
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/connections")}
+                className="flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                My Connections
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/connections")}
-              className="flex items-center gap-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              My Connections
-            </Button>
-          </div>
-        </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">
-              Loading users directory...
-            </p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <div className="text-center py-12">
-            <div className="text-red-500 mb-4">
-              <Users className="h-12 w-12 mx-auto mb-2" />
-              <p className="text-lg font-semibold">
-                Failed to load users directory
+          {/* Loading State */}
+          {loading && (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">
+                Loading users directory...
               </p>
-              <p className="text-sm text-muted-foreground">{error}</p>
             </div>
-            <Button onClick={fetchUsers} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        )}
+          )}
 
-        {/* Users Grid/List */}
-        {!loading && !error && (
-          <div
-            className={
-              viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-                : "space-y-4"
-            }
-          >
+          {/* Error State */}
+          {error && !loading && (
+            <div className="text-center py-12">
+              <div className="text-red-500 mb-4">
+                <Users className="h-12 w-12 mx-auto mb-2" />
+                <p className="text-lg font-semibold">
+                  Failed to load users directory
+                </p>
+                <p className="text-sm text-muted-foreground">{error}</p>
+              </div>
+              <Button onClick={fetchUsers} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          {/* Users Grid/List */}
+          {!loading && !error && (
+            <div className="flex-1 flex flex-col">
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+                    : "space-y-4"
+                }
+              >
             {users.length === 0 ? (
               <div
                 className={
@@ -726,7 +668,7 @@ const AlumniDirectory = () => {
                 </p>
               </div>
             ) : (
-              filterUsers(users).map((directoryUser) => (
+              users.map((directoryUser) => (
                 <Card
                   key={directoryUser.id}
                   className={`group hover:shadow-lg transition-all duration-200 cursor-pointer ${
@@ -737,13 +679,13 @@ const AlumniDirectory = () => {
                   <CardContent
                     className={`${
                       viewMode === "list"
-                        ? "p-4 flex items-center w-full"
-                        : "p-6"
+                        ? "p-3 sm:p-4 flex items-center w-full"
+                        : "p-4 sm:p-6"
                     }`}
                   >
                     {/* Profile Header */}
                     <div
-                      className={`flex items-start space-x-4 ${
+                      className={`flex items-start space-x-2 sm:space-x-4 ${
                         viewMode === "list" ? "mb-0 flex-1" : "mb-4"
                       }`}
                     >
@@ -899,6 +841,22 @@ const AlumniDirectory = () => {
                       <div className="flex items-center space-x-3 ml-4">
                         {/* Status Badges */}
                         <div className="flex space-x-2">
+                          {directoryUser.role === "student" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs bg-blue-100 text-blue-800"
+                            >
+                              Student
+                            </Badge>
+                          )}
+                          {directoryUser.role === "alumni" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs bg-orange-100 text-orange-800"
+                            >
+                              Alumni
+                            </Badge>
+                          )}
                           {directoryUser.availableForMentorship && (
                             <Badge variant="secondary" className="text-xs">
                               Mentoring
@@ -1048,6 +1006,22 @@ const AlumniDirectory = () => {
 
                         {/* Status Badges */}
                         <div className="mb-4">
+                          {directoryUser.role === "student" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs mr-2 bg-blue-100 text-blue-800"
+                            >
+                              Student
+                            </Badge>
+                          )}
+                          {directoryUser.role === "alumni" && (
+                            <Badge
+                              variant="default"
+                              className="text-xs mr-2 bg-orange-100 text-orange-800"
+                            >
+                              Alumni
+                            </Badge>
+                          )}
                           {directoryUser.availableForMentorship && (
                             <Badge variant="secondary" className="text-xs mr-2">
                               Mentoring
@@ -1130,21 +1104,32 @@ const AlumniDirectory = () => {
                 </Card>
               ))
             )}
-          </div>
-        )}
+              </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              className="justify-center"
-            />
-          </div>
-        )}
+              {/* Pagination */}
+              {(totalPages > 1 || (users.length > 0 && !loading)) && (
+                <div className="mt-8 mb-4">
+                  {totalPages > 1 && (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      className="justify-center"
+                    />
+                  )}
+                  {totalPages <= 1 && users.length > 0 && (
+                    <div className="text-center text-sm text-muted-foreground py-4">
+                      Showing all {users.length} users
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+      </div>
+      <Footer />
 
       {/* Dialogs */}
       <AddAlumniDialog

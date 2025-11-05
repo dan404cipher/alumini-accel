@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, MapPin, Clock } from "lucide-react";
-import { eventAPI } from "@/lib/api";
+import { eventAPI, categoryAPI } from "@/lib/api";
 
 interface EventData extends Record<string, unknown> {
   title: string;
@@ -64,6 +64,12 @@ export const CreateEventDialog = ({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const [eventTypes, setEventTypes] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [locationOptions, setLocationOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -121,11 +127,55 @@ export const CreateEventDialog = ({
     setFieldErrors({});
   };
 
-  // Reset form when dialog opens
+  // Fetch event type categories (dynamic only)
   useEffect(() => {
+    const fetchEventTypes = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_type",
+          isActive: "true",
+        });
+
+        if (response.success && response.data && Array.isArray(response.data)) {
+          const customTypes = response.data.map((cat: any) => ({
+            value: cat._id, // Use ObjectId as value
+            label: cat.name,
+          }));
+          setEventTypes(customTypes);
+        } else {
+          setEventTypes([]);
+        }
+      } catch (error) {
+        setEventTypes([]);
+      }
+    };
+
     if (open) {
+      fetchEventTypes();
       resetForm();
     }
+  }, [open]);
+
+  // Fetch event location categories
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_location",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const opts = response.data.map((c: any) => ({
+            value: c.name,
+            label: c.name,
+          }));
+          setLocationOptions(opts);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    if (open) fetchLocations();
   }, [open]);
 
   const validateForm = () => {
@@ -463,7 +513,7 @@ export const CreateEventDialog = ({
       const eventData: EventData = {
         title: trimmedTitle,
         description: trimmedDescription,
-        type: formData.type,
+        type: formData.type, // Now formData.type already holds ObjectId from Select
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         location: trimmedLocation,
@@ -557,6 +607,7 @@ export const CreateEventDialog = ({
           }
         }
 
+
         toast({
           title: "Error",
           description: errorMessage,
@@ -565,7 +616,6 @@ export const CreateEventDialog = ({
         return; // Don't throw error, just show toast
       }
     } catch (error: unknown) {
-      console.error("Unexpected error creating event:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -739,14 +789,46 @@ export const CreateEventDialog = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => handleFieldChange("location", e.target.value)}
-                placeholder="University Campus or Virtual"
-                required
-                className={fieldErrors.location ? "border-red-500" : ""}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) =>
+                      handleFieldChange("location", e.target.value)
+                    }
+                    placeholder="University Campus or Virtual"
+                    required
+                    className={fieldErrors.location ? "border-red-500" : ""}
+                  />
+                </div>
+                <div className="w-60">
+                  <Select
+                    onValueChange={(value) =>
+                      handleFieldChange("location", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick from categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locationOptions.length === 0 ? (
+                        <div className="px-2 py-1 text-sm text-muted-foreground">
+                          No saved locations
+                        </div>
+                      ) : (
+                        locationOptions
+                          .filter((opt) => opt.value && opt.label)
+                          .map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-gray-500">
                   {formData.location.length}/200 characters (minimum 2)
@@ -778,12 +860,22 @@ export const CreateEventDialog = ({
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="meetup">Meetup</SelectItem>
-                  <SelectItem value="workshop">Workshop</SelectItem>
-                  <SelectItem value="webinar">Webinar</SelectItem>
-                  <SelectItem value="conference">Conference</SelectItem>
-                  <SelectItem value="career_fair">Career Fair</SelectItem>
-                  <SelectItem value="reunion">Reunion</SelectItem>
+                  {eventTypes.length === 0 ? (
+                    <SelectItem value="__noopts__" disabled>
+                      No saved types
+                    </SelectItem>
+                  ) : (
+                    eventTypes
+                      .filter((et) => et.value && et.label)
+                      .map((eventType) => (
+                        <SelectItem
+                          key={eventType.value}
+                          value={eventType.value}
+                        >
+                          {eventType.label}
+                        </SelectItem>
+                      ))
+                  )}
                 </SelectContent>
               </Select>
               {fieldErrors.type && (
@@ -918,10 +1010,10 @@ export const CreateEventDialog = ({
                 )}
                 {formData.priceType === "paid" && (
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (USD) *</Label>
+                    <Label htmlFor="price">Price (INR) *</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                        $
+                        ₹
                       </span>
                       <Input
                         id="price"

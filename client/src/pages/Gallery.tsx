@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
-import { galleryAPI } from "@/lib/api";
+import { galleryAPI, categoryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/ui/Pagination";
@@ -101,110 +101,12 @@ const Gallery: React.FC = () => {
   const [itemsPerPage] = useState(12);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [galleryCategories, setGalleryCategories] = useState<string[]>([]);
+  const [paginationInfo, setPaginationInfo] = useState<{ pages: number; total: number } | null>(null);
 
-  // Filter galleries based on search and filter criteria
-  const filterGalleries = (galleryItems: GalleryItem[]) => {
-    return galleryItems.filter((gallery) => {
-      // Search query filter
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        const matchesSearch =
-          (gallery.title &&
-            gallery.title.toLowerCase().includes(searchLower)) ||
-          (gallery.description &&
-            gallery.description.toLowerCase().includes(searchLower)) ||
-          (gallery.createdBy?.firstName &&
-            gallery.createdBy.firstName.toLowerCase().includes(searchLower)) ||
-          (gallery.createdBy?.lastName &&
-            gallery.createdBy.lastName.toLowerCase().includes(searchLower)) ||
-          (gallery.tags &&
-            gallery.tags.some(
-              (tag) => tag && tag.toLowerCase().includes(searchLower)
-            ));
-        if (!matchesSearch) return false;
-      }
-
-      // Category filter
-      if (selectedCategory !== "all") {
-        // Assuming galleries have a category field, adjust as needed
-        if (!gallery.category || gallery.category !== selectedCategory)
-          return false;
-      }
-
-      // Date range filter
-      if (selectedDateRange !== "all") {
-        const galleryDate = new Date(gallery.createdAt);
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const thisWeekStart = new Date(today);
-        thisWeekStart.setDate(today.getDate() - today.getDay());
-        const lastWeekStart = new Date(thisWeekStart);
-        lastWeekStart.setDate(thisWeekStart.getDate() - 7);
-        const thisMonthStart = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          1
-        );
-        const lastMonthStart = new Date(
-          today.getFullYear(),
-          today.getMonth() - 1,
-          1
-        );
-
-        switch (selectedDateRange) {
-          case "today":
-            if (galleryDate < today) return false;
-            break;
-          case "yesterday":
-            if (galleryDate < yesterday || galleryDate >= today) return false;
-            break;
-          case "this_week":
-            if (galleryDate < thisWeekStart) return false;
-            break;
-          case "last_week":
-            if (galleryDate < lastWeekStart || galleryDate >= thisWeekStart)
-              return false;
-            break;
-          case "this_month":
-            if (galleryDate < thisMonthStart) return false;
-            break;
-          case "last_month":
-            if (galleryDate < lastMonthStart || galleryDate >= thisMonthStart)
-              return false;
-            break;
-        }
-      }
-
-      return true;
-    });
-  };
-
-  const filteredGalleries = filterGalleries(galleries);
-
-  // Sort galleries based on selected sort option
-  const sortedGalleries = [...filteredGalleries].sort((a, b) => {
-    switch (selectedSortBy) {
-      case "oldest":
-        return (
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-      case "popular":
-        // Assuming galleries have a viewCount or similar field, adjust as needed
-        return (b.viewCount || 0) - (a.viewCount || 0);
-      case "title":
-        return a.title.localeCompare(b.title);
-      default: // newest
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-    }
-  });
+  // Note: Backend already handles: search, category, dateRange, sortBy
+  // No client-side filtering or sorting needed
+  const sortedGalleries = galleries;
 
   // Create gallery form state
   const [formData, setFormData] = useState({
@@ -220,14 +122,28 @@ const Gallery: React.FC = () => {
   );
   const [showGalleryDetail, setShowGalleryDetail] = useState(false);
 
-  const categories = [
-    "Events",
-    "Campus",
-    "Sports",
-    "Academic",
-    "Cultural",
-    "Other",
-  ];
+  // Load gallery categories dynamically
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "gallery_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setGalleryCategories(names);
+      } catch (_e) {
+        // keep empty list if API fails
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Check if user can create galleries (HOD, Staff, College Admin only)
   const canCreateGallery =
@@ -240,21 +156,39 @@ const Gallery: React.FC = () => {
   const fetchGalleries = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await galleryAPI.getAllGalleries({
-        category: selectedCategory === "all" ? undefined : selectedCategory,
+      const params: Record<string, unknown> = {
         page: currentPage,
         limit: itemsPerPage,
-        tenantId: user?.tenantId, // Pass user's tenantId to filter by college
-      });
+        tenantId: user?.tenantId,
+      };
+
+      if (selectedCategory !== "all") {
+        params.category = selectedCategory;
+      }
+
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      if (selectedDateRange !== "all") {
+        params.dateRange = selectedDateRange;
+      }
+
+      if (selectedSortBy) {
+        params.sortBy = selectedSortBy;
+      }
+
+      const response = await galleryAPI.getAllGalleries(params);
 
       if (response.success) {
         const data = response.data as {
           galleries: GalleryItem[];
-          pagination?: { totalPages: number };
+          pagination?: { pages: number; total: number };
         };
         setGalleries(data.galleries);
         if (data.pagination) {
-          setTotalPages(data.pagination.totalPages || 1);
+          setTotalPages(data.pagination.pages || 1);
+          setPaginationInfo(data.pagination);
         }
       }
     } catch (error) {
@@ -267,7 +201,7 @@ const Gallery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, currentPage, itemsPerPage, user?.tenantId, toast]);
+  }, [selectedCategory, currentPage, itemsPerPage, user?.tenantId, searchQuery, selectedDateRange, selectedSortBy, toast]);
 
   useEffect(() => {
     fetchGalleries();
@@ -312,9 +246,16 @@ const Gallery: React.FC = () => {
         return;
       }
 
-      // Validate file types
+      // Validate file types - must be specific image MIME types
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
       const invalidFiles = files.filter(
-        (file) => !file.type.startsWith("image/")
+        (file) => !allowedTypes.includes(file.type.toLowerCase())
       );
       if (invalidFiles.length > 0) {
         toast({
@@ -488,9 +429,9 @@ const Gallery: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navigation activeTab="gallery" onTabChange={() => {}} />
-      <div className="flex gap-6 h-[calc(100vh-4rem)] w-full overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div
@@ -502,11 +443,11 @@ const Gallery: React.FC = () => {
         {/* Left Sidebar */}
         <div
           className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
       `}
         >
-          <div className="sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto p-6">
+          <div className="h-full overflow-y-auto p-4 sm:p-6">
             <Card className="h-fit">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -570,11 +511,17 @@ const Gallery: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
+                        {galleryCategories.length === 0 ? (
+                          <SelectItem value="__noopts__" disabled>
+                            No categories available
                           </SelectItem>
-                        ))}
+                        ) : (
+                          galleryCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -690,29 +637,34 @@ const Gallery: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-[calc(100vh-4rem)]">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+        <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+          <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+            {/* Mobile Menu Button */}
+            <div className="lg:hidden">
               <Button
                 variant="outline"
                 size="sm"
-                className="lg:hidden"
                 onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-2"
               >
-                <Menu className="w-4 h-4 mr-2" />
+                <Menu className="w-4 h-4" />
                 Filters
               </Button>
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold">
-                  Photo Gallery
-                </h1>
-                <p className="text-muted-foreground text-sm lg:text-base">
-                  Explore memorable moments • {sortedGalleries.length} galleries
-                </p>
+            </div>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold">
+                    Photo Gallery
+                  </h1>
+                  <p className="text-muted-foreground text-sm lg:text-base">
+                    Explore memorable moments •{" "}
+                    {paginationInfo?.total || sortedGalleries.length} galleries
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
           {/* Gallery Grid */}
           {loading ? (
@@ -872,10 +824,13 @@ const Gallery: React.FC = () => {
               className="mt-6"
             />
           )}
+          </div>
         </div>
+      </div>
 
-        {/* Create Gallery Dialog */}
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      {/* Dialogs */}
+      <>
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Gallery</DialogTitle>
@@ -923,11 +878,17 @@ const Gallery: React.FC = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                    {galleryCategories.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No categories available
                       </SelectItem>
-                    ))}
+                    ) : (
+                      galleryCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -970,8 +931,15 @@ const Gallery: React.FC = () => {
                       "border-blue-400",
                       "bg-blue-50"
                     );
+                    const allowedTypes = [
+                      "image/jpeg",
+                      "image/jpg",
+                      "image/png",
+                      "image/gif",
+                      "image/webp",
+                    ];
                     const files = Array.from(e.dataTransfer.files).filter(
-                      (file) => file.type.startsWith("image/")
+                      (file) => allowedTypes.includes(file.type.toLowerCase())
                     );
                     if (files.length > 0) {
                       setSelectedImages(files);
@@ -979,6 +947,12 @@ const Gallery: React.FC = () => {
                         URL.createObjectURL(file)
                       );
                       setImagePreviews(previews);
+                    } else {
+                      toast({
+                        title: "Invalid File Type",
+                        description: "Please drop only image files (JPEG, PNG, GIF, WebP)",
+                        variant: "destructive",
+                      });
                     }
                   }}
                 >
@@ -1176,8 +1150,7 @@ const Gallery: React.FC = () => {
           gallery={selectedGallery}
           onSuccess={handleDeleteSuccess}
         />
-      </div>
-
+      </>
       <Footer />
     </div>
   );

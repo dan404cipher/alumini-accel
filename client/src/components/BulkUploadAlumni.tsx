@@ -173,6 +173,15 @@ const BulkUploadAlumni = () => {
       return;
     }
 
+    if (parsedData.length > 1000) {
+      toast({
+        title: "Too many records",
+        description: "Cannot upload more than 1000 alumni at once. Please split your file into smaller batches.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -290,12 +299,22 @@ const BulkUploadAlumni = () => {
                   {parsedData.length > 0 && (
                     <Button
                       onClick={handleBulkUpload}
-                      disabled={isUploading}
+                      disabled={isUploading || parsedData.length > 1000}
                       className="flex items-center"
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       {isUploading ? "Uploading..." : "Upload Alumni"}
                     </Button>
+                  )}
+                  {parsedData.length > 0 && (
+                    <div className="text-sm text-muted-foreground mt-2">
+                      {parsedData.length} records ready to upload
+                      {parsedData.length > 1000 && (
+                        <span className="text-red-500 ml-2">
+                          (Maximum 1000 allowed)
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -323,18 +342,34 @@ const BulkUploadAlumni = () => {
                 <br />
                 <strong>Note:</strong> If password is not provided, a random
                 password will be generated for each user.
+                <br />
+                <strong>Limit:</strong> Maximum 1000 alumni per upload.
               </AlertDescription>
             </Alert>
           </TabsContent>
 
           <TabsContent value="preview" className="space-y-4">
             {parsedData.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    Data Preview ({parsedData.length} records)
-                  </CardTitle>
-                </CardHeader>
+              <>
+                {parsedData.length > 1000 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Too many records:</strong> You have {parsedData.length} records, but the maximum allowed is 1000. Please split your file into smaller batches.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      Data Preview ({parsedData.length} records)
+                      {parsedData.length > 1000 && (
+                        <Badge variant="destructive" className="ml-2">
+                          Exceeds limit
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -369,6 +404,7 @@ const BulkUploadAlumni = () => {
                   </div>
                 </CardContent>
               </Card>
+              </>
             ) : (
               <Alert>
                 <AlertCircle className="h-4 w-4" />

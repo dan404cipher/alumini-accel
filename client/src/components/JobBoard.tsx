@@ -55,7 +55,9 @@ import ApplicationManagementDashboard from "./ApplicationManagementDashboard";
 import ApplicationStatusTracking from "./ApplicationStatusTracking";
 import { jobAPI, jobApplicationAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { categoryAPI } from "@/lib/api";
 import { hasPermission } from "@/utils/rolePermissions";
+import Footer from "./Footer";
 
 interface Job {
   _id: string;
@@ -111,6 +113,42 @@ const JobBoard = () => {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedExperience, setSelectedExperience] = useState("all");
   const [selectedIndustry, setSelectedIndustry] = useState("all");
+  const [typeOptions, setTypeOptions] = useState<string[]>([]);
+  const [experienceOptions, setExperienceOptions] = useState<string[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [typesRes, expRes, indRes] = await Promise.all([
+          categoryAPI.getAll({ entityType: "job_type", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "job_experience", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "job_industry", isActive: "true" }),
+        ]);
+        const namesFrom = (res: any) =>
+          Array.isArray(res.data)
+            ? (res.data as any[])
+                .filter((c) => c && typeof c.name === "string")
+                .map((c) => c.name as string)
+            : [];
+        if (mounted) {
+          setTypeOptions(namesFrom(typesRes));
+          setExperienceOptions(namesFrom(expRes));
+          setIndustryOptions(namesFrom(indRes));
+        }
+      } catch (_) {
+        if (mounted) {
+          setTypeOptions([]);
+          setExperienceOptions([]);
+          setIndustryOptions([]);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
   const [selectedRemoteWork, setSelectedRemoteWork] = useState("all");
   const [selectedVacancies, setSelectedVacancies] = useState("all");
@@ -255,6 +293,15 @@ const JobBoard = () => {
         params.experience = selectedExperience;
       if (selectedIndustry && selectedIndustry !== "all")
         params.industry = selectedIndustry;
+      // Handle remote work filter
+      if (selectedRemoteWork !== "all") {
+        if (selectedRemoteWork === "remote") {
+          params.remote = "true";
+        } else if (selectedRemoteWork === "onsite") {
+          params.remote = "false";
+        }
+        // For "hybrid", we don't set remote param, let backend handle location-based filtering
+      }
 
       const response = await jobAPI.getAllJobs(params);
 
@@ -309,6 +356,7 @@ const JobBoard = () => {
     selectedType,
     selectedExperience,
     selectedIndustry,
+    selectedRemoteWork,
   ]);
 
   // Store the latest fetchJobs function in ref
@@ -330,8 +378,8 @@ const JobBoard = () => {
     selectedType,
     selectedExperience,
     selectedIndustry,
-    selectedSalaryRange,
     selectedRemoteWork,
+    selectedSalaryRange,
     selectedVacancies,
   ]);
 
@@ -443,65 +491,16 @@ const JobBoard = () => {
     setIsShareJobOpen(true);
   }, []);
 
-  // Filter jobs based on search and filter criteria
+  // Filter jobs based on client-side only filters (salary range, vacancies, hybrid)
+  // Note: Backend already handles: search, location, type, experience, industry, remote (true/false)
   const filterJobs = (jobs: Job[]) => {
     return jobs.filter((job) => {
-      // Search query filter
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        const matchesSearch =
-          job.position.toLowerCase().includes(searchLower) ||
-          job.company.toLowerCase().includes(searchLower) ||
-          job.description.toLowerCase().includes(searchLower) ||
-          job.location.toLowerCase().includes(searchLower) ||
-          (job.tags &&
-            job.tags.some((tag) => tag.toLowerCase().includes(searchLower)));
-        if (!matchesSearch) return false;
+      // Handle hybrid filter (client-side only - backend doesn't distinguish hybrid)
+      if (selectedRemoteWork === "hybrid") {
+        if (!job.location.toLowerCase().includes("hybrid")) return false;
       }
 
-      // Job type filter
-      if (selectedType !== "all" && job.type !== selectedType) return false;
-
-      // Experience level filter
-      if (selectedExperience !== "all" && job.experience !== selectedExperience)
-        return false;
-
-      // Industry filter
-      if (selectedIndustry !== "all" && job.industry !== selectedIndustry)
-        return false;
-
-      // Location filter
-      if (selectedLocation !== "all") {
-        if (selectedLocation === "remote" && !job.remote) return false;
-        if (
-          selectedLocation === "hybrid" &&
-          !job.location.toLowerCase().includes("hybrid")
-        )
-          return false;
-        if (
-          !["remote", "hybrid"].includes(selectedLocation) &&
-          !job.location.toLowerCase().includes(selectedLocation.toLowerCase())
-        )
-          return false;
-      }
-
-      // Remote work filter
-      if (selectedRemoteWork !== "all") {
-        switch (selectedRemoteWork) {
-          case "remote":
-            if (!job.remote) return false;
-            break;
-          case "hybrid":
-            if (!job.location.toLowerCase().includes("hybrid")) return false;
-            break;
-          case "onsite":
-            if (job.remote || job.location.toLowerCase().includes("hybrid"))
-              return false;
-            break;
-        }
-      }
-
-      // Salary range filter
+      // Salary range filter (client-side only - backend doesn't support this)
       if (selectedSalaryRange !== "all" && job.salary) {
         const salary = job.salary.min; // Use minimum salary for comparison
         switch (selectedSalaryRange) {
@@ -526,7 +525,7 @@ const JobBoard = () => {
         }
       }
 
-      // Number of vacancies filter
+      // Number of vacancies filter (client-side only - backend doesn't support this)
       if (selectedVacancies !== "all" && job.numberOfVacancies) {
         const vacancies = job.numberOfVacancies;
         switch (selectedVacancies) {
@@ -647,7 +646,8 @@ const JobBoard = () => {
   }
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -659,11 +659,11 @@ const JobBoard = () => {
       {/* Left Sidebar */}
       <div
         className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
       `}
       >
-        <div className="sticky top-0 h-screen overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto p-4 sm:p-6">
           <Card className="h-fit">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -720,15 +720,20 @@ const JobBoard = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select job type" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="full-time">Full-time</SelectItem>
-                      <SelectItem value="part-time">Part-time</SelectItem>
-                      <SelectItem value="contract">Contract</SelectItem>
-                      <SelectItem value="internship">Internship</SelectItem>
-                      <SelectItem value="freelance">Freelance</SelectItem>
-                      <SelectItem value="temporary">Temporary</SelectItem>
-                    </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {typeOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved types
+                      </SelectItem>
+                    ) : (
+                      typeOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
                   </Select>
                 </div>
 
@@ -744,19 +749,20 @@ const JobBoard = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select experience" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Levels</SelectItem>
-                      <SelectItem value="entry">
-                        Entry Level (0-2 years)
+                  <SelectContent>
+                    <SelectItem value="all">All Levels</SelectItem>
+                    {experienceOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved levels
                       </SelectItem>
-                      <SelectItem value="mid">Mid Level (3-5 years)</SelectItem>
-                      <SelectItem value="senior">
-                        Senior Level (6-10 years)
-                      </SelectItem>
-                      <SelectItem value="lead">
-                        Lead/Principal (10+ years)
-                      </SelectItem>
-                    </SelectContent>
+                    ) : (
+                      experienceOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
                   </Select>
                 </div>
 
@@ -770,18 +776,20 @@ const JobBoard = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Industries</SelectItem>
-                      <SelectItem value="technology">Technology</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="healthcare">Healthcare</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="consulting">Consulting</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="sales">Sales</SelectItem>
-                      <SelectItem value="operations">Operations</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">All Industries</SelectItem>
+                    {industryOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved industries
+                      </SelectItem>
+                    ) : (
+                      industryOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
                   </Select>
                 </div>
 
@@ -967,20 +975,24 @@ const JobBoard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen">
-        {/* Header */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-4 h-4 mr-2" />
-                Filters
-              </Button>
+      <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+        <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSidebarOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Menu className="w-4 h-4" />
+              Filters
+            </Button>
+          </div>
+
+          {/* Header */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex-1">
                 <h1 className="text-2xl lg:text-3xl font-bold">Job Board</h1>
                 <p className="text-muted-foreground text-sm lg:text-base">
@@ -990,9 +1002,6 @@ const JobBoard = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="jobs" className="flex items-center gap-2">
@@ -1057,9 +1066,9 @@ const JobBoard = () => {
                           key={job._id}
                           className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
                         >
-                          <CardContent className="p-4">
+                          <CardContent className="p-3 sm:p-4">
                             <div className="flex items-start justify-between">
-                              <div className="flex items-start space-x-3 flex-1">
+                              <div className="flex items-start space-x-2 sm:space-x-3 flex-1">
                                 <img
                                   src={getCompanyLogo(job.company)}
                                   alt={job.company}
@@ -1265,9 +1274,9 @@ const JobBoard = () => {
                         key={job._id}
                         className="group hover:shadow-strong transition-smooth cursor-pointer animate-fade-in-up bg-gradient-card border-0"
                       >
-                        <CardContent className="p-4 lg:p-6">
+                        <CardContent className="p-3 sm:p-4 lg:p-6">
                           <div className="flex items-start justify-between">
-                            <div className="flex items-start space-x-3 lg:space-x-4 flex-1">
+                            <div className="flex items-start space-x-2 sm:space-x-3 lg:space-x-4 flex-1">
                               <img
                                 src={getCompanyLogo(job.company)}
                                 alt={job.company}
@@ -1567,13 +1576,15 @@ const JobBoard = () => {
                     <p className="text-gray-500 mb-4">
                       You haven't posted any jobs yet
                     </p>
-                    <Button
-                      onClick={() => setIsPostJobOpen(true)}
-                      variant="gradient"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Post Your First Job
-                    </Button>
+                    {canCreateJobs && (
+                      <Button
+                        onClick={() => setIsPostJobOpen(true)}
+                        variant="gradient"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Post Your First Job
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -1677,7 +1688,10 @@ const JobBoard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
+      </div>
+      <Footer />
 
       {/* Dialogs */}
       <PostJobDialog

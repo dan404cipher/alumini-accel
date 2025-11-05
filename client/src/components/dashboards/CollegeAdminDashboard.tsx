@@ -8,8 +8,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { categoryAPI } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -32,16 +40,37 @@ import {
   Settings,
   BarChart3,
   FileDown,
+  FileText,
   UserPlus,
   Building2,
   Eye,
   EyeOff,
+  TrendingUp,
+  TrendingDown,
+  Users2,
+  Briefcase,
+  Target,
+  MessageSquare,
+  IndianRupee,
+  Activity,
+  Image,
+  Newspaper,
+  HeartHandshake,
+  BookOpen,
+  LayoutDashboard,
+  Tags,
+  FolderKanban,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { userAPI, alumniAPI, eventAPI, jobAPI, tenantAPI } from "@/lib/api";
+import { userAPI, alumniAPI, eventAPI, jobAPI, tenantAPI, communityAPI, campaignAPI, galleryAPI, newsAPI } from "@/lib/api";
 import AlumniManagement from "../AlumniManagement";
 import CampaignManagement from "../CampaignManagement";
+import { CategoryManagement } from "../CategoryManagement";
+import EligibleStudentsPanel from "../EligibleStudentsPanel";
+import Footer from "../Footer";
 // Note: College Admin only manages their own college, not all colleges
 
 const CollegeAdminDashboard = () => {
@@ -50,6 +79,9 @@ const CollegeAdminDashboard = () => {
   const [isCreateHODOpen, setIsCreateHODOpen] = useState(false);
   const [isCreateStaffOpen, setIsCreateStaffOpen] = useState(false);
   const [isCreateAdminOpen, setIsCreateAdminOpen] = useState(false);
+
+  // Mobile sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // College Settings state
   const [collegeLogo, setCollegeLogo] = useState<File | null>(null);
@@ -71,16 +103,46 @@ const CollegeAdminDashboard = () => {
     pendingAlumni: 0,
     pendingHOD: 0,
     pendingStaff: 0,
+    totalCommunities: 0,
+    totalCampaigns: 0,
+    activeCampaigns: 0,
+    totalJobs: 0,
+    activeJobs: 0,
+    hodCount: 0,
+    staffCount: 0,
+    adminCount: 0,
+    totalCampaignRaised: 0,
+    totalCampaignTarget: 0,
   });
 
   const [pendingAlumni, setPendingAlumni] = useState([]);
   const [hodStaff, setHodStaff] = useState([]);
+  const [staffPage, setStaffPage] = useState(1);
+  const [staffLimit] = useState(10);
+  const [totalStaff, setTotalStaff] = useState(0);
   const [recentEvents, setRecentEvents] = useState([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [galleries, setGalleries] = useState<any[]>([]);
+  const [news, setNews] = useState<any[]>([]);
+  const [communities, setCommunities] = useState<any[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
+  const [mentorships, setMentorships] = useState<any[]>([]);
+  const [alumniByDepartment, setAlumniByDepartment] = useState<Record<string, number>>({});
+  const [eventsByStatus, setEventsByStatus] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState({
     stats: false,
     alumni: false,
     staff: false,
     events: false,
+    communities: false,
+    campaigns: false,
+    jobs: false,
+    galleries: false,
+    news: false,
+    donations: false,
+    mentorships: false,
   });
 
   // Form states for creating HOD/Staff
@@ -91,6 +153,31 @@ const CollegeAdminDashboard = () => {
     department: "",
     password: "",
   });
+
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "department",
+          isActive: "true",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDepartmentOptions(names);
+      } catch (_) {
+        if (mounted) setDepartmentOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const [newStaff, setNewStaff] = useState({
     firstName: "",
@@ -137,33 +224,51 @@ const CollegeAdminDashboard = () => {
     try {
       setLoading((prev) => ({ ...prev, stats: true }));
 
-      // Fetch alumni count
-      const alumniResponse = await alumniAPI.getAllAlumni({
+      // Fetch all data in parallel
+      const [
+        alumniResponse,
+        staffResponse,
+        eventsResponse,
+        pendingAlumniResponse,
+        communitiesResponse,
+        campaignsResponse,
+        jobsResponse,
+        allStaffResponse,
+      ] = await Promise.all([
+        alumniAPI.getAllAlumni({
         limit: 1,
         tenantId: user.tenantId,
-      });
-
-      // Fetch staff count (HOD + Staff roles)
-      const staffResponse = await userAPI.getAllUsers({
+        }),
+        userAPI.getAllUsers({
         role: "hod,staff",
         tenantId: user.tenantId,
         limit: 1,
-      });
-
-      // Fetch events count
-      const eventsResponse = await eventAPI.getAllEvents({
+        }),
+        eventAPI.getAllEvents({
         limit: 1,
         tenantId: user.tenantId,
-      });
+        }),
+        userAPI.getPendingUserRequests(),
+        communityAPI.getTopCommunities(100).catch(() => ({ success: false, data: [] })),
+        campaignAPI.getAllCampaigns({
+          limit: 100,
+        }).catch(() => ({ success: false, data: { campaigns: [] } })),
+        jobAPI.getAllJobs({
+          limit: 1,
+          tenantId: user.tenantId,
+        }).catch(() => ({ success: false, data: { pagination: { total: 0 } } })),
+        userAPI.getAllUsers({
+          role: "college_admin,hod,staff",
+          tenantId: user.tenantId,
+        }).catch(() => ({ success: false, data: { users: [] } })),
+      ]);
 
-      // Fetch pending alumni requests
-      const pendingAlumniResponse = await userAPI.getPendingUserRequests();
+      // Process pending requests
       const pendingAlumniCount =
         pendingAlumniResponse.data?.filter(
           (req: any) => req.role === "alumni" && req.tenantId === user.tenantId
         ).length || 0;
 
-      // Fetch pending staff requests
       const pendingStaffCount =
         pendingAlumniResponse.data?.filter(
           (req: any) =>
@@ -171,14 +276,57 @@ const CollegeAdminDashboard = () => {
             req.tenantId === user.tenantId
         ).length || 0;
 
+      // Process staff breakdown
+      const allStaff = allStaffResponse.data?.users || [];
+      const hodCount = allStaff.filter((s: any) => s.role === "hod").length;
+      const staffCount = allStaff.filter((s: any) => s.role === "staff").length;
+      const adminCount = allStaff.filter((s: any) => s.role === "college_admin").length;
+
+      // Process communities
+      const communitiesData = communitiesResponse.data || [];
+      const totalCommunities = Array.isArray(communitiesData) ? communitiesData.length : 0;
+
+      // Process campaigns
+      const campaignsData = campaignsResponse.data?.campaigns || campaignsResponse.data || [];
+      const allCampaigns = Array.isArray(campaignsData) ? campaignsData : [];
+      const totalCampaigns = allCampaigns.length;
+      const activeCampaigns = allCampaigns.filter(
+        (c: any) => c.status === "active"
+      ).length;
+      const totalRaised = allCampaigns.reduce(
+        (sum: number, c: any) => sum + (c.currentAmount || 0),
+        0
+      );
+      const totalTarget = allCampaigns.reduce(
+        (sum: number, c: any) => sum + (c.targetAmount || 0),
+        0
+      );
+
+      // Process jobs
+      const jobsTotal = jobsResponse.data?.pagination?.total || 0;
+      const jobsData = jobsResponse.data?.jobs || [];
+      const activeJobsCount = jobsData.filter(
+        (j: any) => j.status === "active" || j.status === "open"
+      ).length;
+
       setStats({
         totalAlumni: alumniResponse.data?.pagination?.total || 0,
         activeStaff: staffResponse.data?.pagination?.total || 0,
         eventsPosted: eventsResponse.data?.pagination?.total || 0,
-        fundsRaised: 125000, // Keep as mock for now
+        fundsRaised: totalRaised,
         pendingAlumni: pendingAlumniCount,
         pendingHOD: pendingStaffCount,
         pendingStaff: pendingStaffCount,
+        totalCommunities,
+        totalCampaigns,
+        activeCampaigns,
+        totalJobs: jobsTotal,
+        activeJobs: activeJobsCount,
+        hodCount,
+        staffCount,
+        adminCount,
+        totalCampaignRaised: totalRaised,
+        totalCampaignTarget: totalTarget,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -227,10 +375,14 @@ const CollegeAdminDashboard = () => {
       const response = await userAPI.getAllUsers({
         role: "college_admin,hod,staff",
         tenantId: user.tenantId,
+        page: staffPage,
+        limit: staffLimit,
       });
 
       if (response.success && response.data?.users) {
         setHodStaff(response.data.users);
+        const total = response.data?.pagination?.total || response.data?.total || response.data?.count || 0;
+        setTotalStaff(total);
       }
     } catch (error) {
       console.error("Error fetching HOD/Staff:", error);
@@ -242,7 +394,7 @@ const CollegeAdminDashboard = () => {
     } finally {
       setLoading((prev) => ({ ...prev, staff: false }));
     }
-  }, [user?.tenantId, toast]);
+  }, [user?.tenantId, toast, staffPage, staffLimit]);
 
   // Fetch recent events
   const fetchRecentEvents = useCallback(async () => {
@@ -251,12 +403,21 @@ const CollegeAdminDashboard = () => {
     try {
       setLoading((prev) => ({ ...prev, events: true }));
       const response = await eventAPI.getAllEvents({
-        limit: 5,
+        limit: 10,
         tenantId: user.tenantId,
       });
 
       if (response.success && response.data?.events) {
-        setRecentEvents(response.data.events);
+        const events = response.data.events;
+        setRecentEvents(events);
+        
+        // Calculate events by status
+        const statusCounts: Record<string, number> = {};
+        events.forEach((event: any) => {
+          const status = event.status || "upcoming";
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        setEventsByStatus(statusCounts);
       }
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -269,6 +430,194 @@ const CollegeAdminDashboard = () => {
       setLoading((prev) => ({ ...prev, events: false }));
     }
   }, [user?.tenantId, toast]);
+
+  // Fetch campaigns
+  const fetchCampaigns = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, campaigns: true }));
+      const response = await campaignAPI.getAllCampaigns({
+        limit: 10,
+      });
+
+      if (response.success && response.data) {
+        const campaignsData = response.data.campaigns || response.data || [];
+        setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, campaigns: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch jobs
+  const fetchJobs = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, jobs: true }));
+      const response = await jobAPI.getAllJobs({
+        limit: 10,
+        tenantId: user.tenantId,
+      });
+
+      if (response.success && response.data) {
+        const jobsData = response.data.jobs || response.data || [];
+        setJobs(Array.isArray(jobsData) ? jobsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, jobs: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch alumni breakdown by department
+  const fetchAlumniBreakdown = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      const response = await alumniAPI.getAllAlumni({
+        limit: 1000,
+        tenantId: user.tenantId,
+      });
+
+      if (response.success && response.data) {
+        const alumniData = response.data.alumni || response.data.profiles || response.data || [];
+        const alumniArray = Array.isArray(alumniData) ? alumniData : [];
+        
+        // Group by department
+        const deptCounts: Record<string, number> = {};
+        alumniArray.forEach((alumni: any) => {
+          const dept = alumni.department || alumni.userId?.department || "Unknown";
+          deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+        });
+        setAlumniByDepartment(deptCounts);
+      }
+    } catch (error) {
+      console.error("Error fetching alumni breakdown:", error);
+    }
+  }, [user?.tenantId]);
+
+  // Fetch galleries
+  const fetchGalleries = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, galleries: true }));
+      const response = await galleryAPI.getAllGalleries({
+        limit: 5,
+        tenantId: user.tenantId,
+      });
+
+      if (response.success && response.data) {
+        const galleriesData = response.data.galleries || response.data || [];
+        setGalleries(Array.isArray(galleriesData) ? galleriesData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching galleries:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, galleries: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch news
+  const fetchNews = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, news: true }));
+      const response = await newsAPI.getAllNews({
+        limit: 5,
+      });
+
+      if (response.success && response.data) {
+        const newsData = response.data.news || response.data || [];
+        setNews(Array.isArray(newsData) ? newsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching news:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, news: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch communities
+  const fetchCommunities = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, communities: true }));
+      const response = await communityAPI.getTopCommunities(5);
+
+      if (response.success && response.data) {
+        const communitiesData = response.data || [];
+        setCommunities(Array.isArray(communitiesData) ? communitiesData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching communities:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, communities: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch donations
+  const fetchDonations = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, donations: true }));
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      
+      const response = await fetch(`${baseUrl}/donations?limit=5`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const donationsData = data.data?.donations || data.data || [];
+        setDonations(Array.isArray(donationsData) ? donationsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching donations:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, donations: false }));
+    }
+  }, [user?.tenantId]);
+
+  // Fetch mentorships
+  const fetchMentorships = useCallback(async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, mentorships: true }));
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      
+      const response = await fetch(`${baseUrl}/mentorship?limit=5`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const mentorshipsData = data.data?.mentorships || data.data || [];
+        setMentorships(Array.isArray(mentorshipsData) ? mentorshipsData : []);
+      }
+    } catch (error) {
+      console.error("Error fetching mentorships:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, mentorships: false }));
+    }
+  }, [user?.tenantId]);
 
   // Alumni approval/rejection functions
   const handleApproveAlumni = async (requestId: string) => {
@@ -840,6 +1189,14 @@ const CollegeAdminDashboard = () => {
     fetchPendingAlumni();
     fetchHodStaff();
     fetchRecentEvents();
+    fetchCampaigns();
+    fetchJobs();
+    fetchAlumniBreakdown();
+    fetchGalleries();
+    fetchNews();
+    fetchCommunities();
+    fetchDonations();
+    fetchMentorships();
 
     // Load existing college settings from database
     // For college_admin, if tenantId is undefined, use the user's _id as tenantId
@@ -851,7 +1208,7 @@ const CollegeAdminDashboard = () => {
     if (tenantId) {
       loadCollegeSettings(tenantId);
     }
-  }, [fetchStats, fetchPendingAlumni, fetchHodStaff, fetchRecentEvents]);
+  }, [fetchStats, fetchPendingAlumni, fetchHodStaff, fetchRecentEvents, fetchCampaigns, fetchJobs, fetchAlumniBreakdown, fetchGalleries, fetchNews, fetchCommunities, fetchDonations, fetchMentorships]);
 
   // Listen for banner updates
   useEffect(() => {
@@ -872,14 +1229,179 @@ const CollegeAdminDashboard = () => {
     };
   }, [user?.tenantId]);
 
+  const [activeTab, setActiveTab] = useState("dashboard");
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pt-20">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Enhanced Sidebar */}
+        <aside className={`
+          ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
+          top-16 w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
+        `}>
+          <div className="h-full flex flex-col">
+            {/* Sidebar Header */}
+            <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                    <Building2 className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-lg">College Admin</h3>
+                    <p className="text-blue-100 text-xs">Management Portal</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden text-white hover:bg-white/20"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Navigation Menu */}
+            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+              {[
+                { 
+                  key: "dashboard", 
+                  label: "Dashboard", 
+                  icon: LayoutDashboard,
+                  color: "purple"
+                },
+                { 
+                  key: "college", 
+                  label: "College Settings", 
+                  icon: Settings,
+                  color: "blue"
+                },
+                { 
+                  key: "admin-staff", 
+                  label: "Admin & Staff", 
+                  icon: Users2,
+                  color: "green"
+                },
+                { 
+                  key: "alumni", 
+                  label: "Alumni", 
+                  icon: GraduationCap,
+                  color: "amber"
+                },
+                { 
+                  key: "eligible-students", 
+                  label: "Eligible Students", 
+                  icon: Users,
+                  color: "blue"
+                },
+                { 
+                  key: "categories", 
+                  label: "Categories", 
+                  icon: Tags,
+                  color: "indigo"
+                },
+                { 
+                  key: "fundraisers", 
+                  label: "Campaign", 
+                  icon: Target,
+                  color: "rose"
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.key;
+                const colorMap: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+                  purple: {
+                    bg: "bg-purple-50",
+                    border: "border-purple-200",
+                    text: "text-purple-700",
+                    dot: "bg-purple-500"
+                  },
+                  blue: {
+                    bg: "bg-blue-50",
+                    border: "border-blue-200",
+                    text: "text-blue-700",
+                    dot: "bg-blue-500"
+                  },
+                  green: {
+                    bg: "bg-green-50",
+                    border: "border-green-200",
+                    text: "text-green-700",
+                    dot: "bg-green-500"
+                  },
+                  amber: {
+                    bg: "bg-amber-50",
+                    border: "border-amber-200",
+                    text: "text-amber-700",
+                    dot: "bg-amber-500"
+                  },
+                  indigo: {
+                    bg: "bg-indigo-50",
+                    border: "border-indigo-200",
+                    text: "text-indigo-700",
+                    dot: "bg-indigo-500"
+                  },
+                  rose: {
+                    bg: "bg-rose-50",
+                    border: "border-rose-200",
+                    text: "text-rose-700",
+                    dot: "bg-rose-500"
+                  },
+                };
+
+                const activeColors = colorMap[item.color] || colorMap.blue;
+
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? `${activeColors.bg} ${activeColors.border} ${activeColors.text} border-l-4 shadow-sm`
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent"
+                    }`}
+                  >
+                    <Icon 
+                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`} 
+                    />
+                    <span className="flex-1">{item.label}</span>
+                    {isActive && (
+                      <div className={`w-2 h-2 rounded-full ${activeColors.dot}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 lg:ml-72 pb-20">
+        {/* Mobile Menu Button */}
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Menu className="w-4 h-4" />
+            Menu
+          </Button>
+        </div>
+
+        {/* Header - only on Dashboard tab */}
+        {activeTab === "dashboard" && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">College Admin Dashboard</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">College Admin Dashboard</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Manage your college's alumni network and operations
             </p>
           </div>
@@ -888,9 +1410,10 @@ const CollegeAdminDashboard = () => {
             College Admin
           </Badge>
         </div>
+        )}
 
-        {/* College Banner Display */}
-        {bannerPreview && (
+        {/* College Banner Display - only on Dashboard tab */}
+        {activeTab === "dashboard" && bannerPreview && (
           <div className="relative overflow-hidden rounded-lg shadow-lg">
             <img
               src={bannerPreview}
@@ -911,36 +1434,8 @@ const CollegeAdminDashboard = () => {
           </div>
         )}
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </TabsTrigger>
-            <TabsTrigger value="college" className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">College Settings</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="admin-staff"
-              className="flex items-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Admin & Staff</span>
-            </TabsTrigger>
-            <TabsTrigger value="alumni" className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4" />
-              <span className="hidden sm:inline">Alumni</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="fundraisers"
-              className="flex items-center gap-2"
-            >
-              <DollarSign className="w-4 h-4" />
-              <span className="hidden sm:inline">Fundraisers</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Main Content controlled by sidebar */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
 
           {/* Dashboard Overview */}
           <TabsContent value="dashboard" className="space-y-6">
@@ -953,6 +1448,14 @@ const CollegeAdminDashboard = () => {
                   fetchPendingAlumni();
                   fetchHodStaff();
                   fetchRecentEvents();
+                  fetchCampaigns();
+                  fetchJobs();
+                  fetchAlumniBreakdown();
+                  fetchGalleries();
+                  fetchNews();
+                  fetchCommunities();
+                  fetchDonations();
+                  fetchMentorships();
                 }}
               >
                 <BarChart3 className="w-4 h-4 mr-2" />
@@ -960,130 +1463,302 @@ const CollegeAdminDashboard = () => {
               </Button>
             </div>
 
-            {/* Quick Stats Summary */}
+            {/* Enhanced KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
+              {/* Total Alumni */}
+              <Card className="border-l-4 border-l-blue-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Total Alumni
                   </CardTitle>
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  <GraduationCap className="h-5 w-5 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-3xl font-bold">
                     {loading.stats ? "..." : stats.totalAlumni.toLocaleString()}
                   </div>
+                  <div className="flex items-center mt-2">
+                    {stats.pendingAlumni > 0 ? (
+                      <>
+                        <TrendingUp className="h-3 w-3 text-orange-500 mr-1" />
+                        <p className="text-xs text-orange-600 font-medium">
+                          {stats.pendingAlumni} pending approval
+                        </p>
+                      </>
+                    ) : (
                   <p className="text-xs text-muted-foreground">
-                    +{stats.pendingAlumni} pending approval
+                        All up to date
                   </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* Active Staff Breakdown */}
+              <Card className="border-l-4 border-l-green-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Active Staff
                   </CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-5 w-5 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-3xl font-bold">
                     {loading.stats ? "..." : stats.activeStaff}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">HOD:</span>
+                      <span className="font-medium">{stats.hodCount}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Staff:</span>
+                      <span className="font-medium">{stats.staffCount}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Admin:</span>
+                      <span className="font-medium">{stats.adminCount}</span>
+                    </div>
+                  </div>
+                  {stats.pendingStaff > 0 && (
+                    <p className="text-xs text-orange-600 mt-1">
                     +{stats.pendingStaff} pending
                   </p>
+                  )}
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* Events Posted */}
+              <Card className="border-l-4 border-l-purple-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Events Posted
                   </CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-5 w-5 text-purple-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-3xl font-bold">
                     {loading.stats ? "..." : stats.eventsPosted}
                   </div>
-                  <p className="text-xs text-muted-foreground">+3 this month</p>
+                  <div className="mt-2 space-y-1">
+                    {Object.keys(eventsByStatus).length > 0 ? (
+                      Object.entries(eventsByStatus).slice(0, 2).map(([status, count]) => (
+                        <div key={status} className="flex justify-between text-xs">
+                          <span className="text-muted-foreground capitalize">{status}:</span>
+                          <span className="font-medium">{count}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No events yet</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* Funds Raised */}
+              <Card className="border-l-4 border-l-amber-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
                     Funds Raised
                   </CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <IndianRupee className="h-5 w-5 text-amber-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    ${stats.fundsRaised.toLocaleString()}
+                  <div className="text-3xl font-bold">
+                    {loading.stats ? "..." : `₹${stats.fundsRaised.toLocaleString()}`}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    +15% from last month
+                  {stats.totalCampaignTarget > 0 && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Progress:</span>
+                        <span className="font-medium">
+                          {Math.round((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-amber-500 h-2 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Communities */}
+              <Card className="border-l-4 border-l-cyan-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Communities
+                  </CardTitle>
+                  <MessageSquare className="h-5 w-5 text-cyan-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">
+                    {loading.stats ? "..." : stats.totalCommunities}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Active communities
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Campaigns */}
+              <Card className="border-l-4 border-l-rose-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Campaigns
+                  </CardTitle>
+                  <Target className="h-5 w-5 text-rose-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">
+                    {loading.stats ? "..." : stats.totalCampaigns}
+            </div>
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Active:</span>
+                      <span className="font-medium text-green-600">{stats.activeCampaigns}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Total:</span>
+                      <span className="font-medium">{stats.totalCampaigns}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Jobs */}
+              <Card className="border-l-4 border-l-indigo-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Job Postings
+                  </CardTitle>
+                  <Briefcase className="h-5 w-5 text-indigo-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">
+                    {loading.stats ? "..." : stats.totalJobs}
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Active:</span>
+                      <span className="font-medium text-green-600">{stats.activeJobs}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Total:</span>
+                      <span className="font-medium">{stats.totalJobs}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Overall Engagement */}
+              <Card className="border-l-4 border-l-teal-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Engagement
+                  </CardTitle>
+                  <Activity className="h-5 w-5 text-teal-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">
+                    {loading.stats
+                      ? "..."
+                      : Math.round(
+                          ((stats.totalAlumni + stats.activeStaff) /
+                            (stats.totalAlumni + stats.activeStaff + stats.pendingAlumni + stats.pendingStaff)) *
+                            100 || 0
+                        )}
+                    %
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Verified members
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Detailed Statistics Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Alumni by Department */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Events</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5" />
+                    Alumni by Department
+                  </CardTitle>
                   <CardDescription>
-                    Latest events and their performance
+                    Distribution across departments
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {loading.events ? (
-                      <div className="text-center py-4">
-                        <p className="text-muted-foreground">
-                          Loading events...
-                        </p>
-                      </div>
-                    ) : recentEvents.length === 0 ? (
-                      <div className="text-center py-4">
-                        <p className="text-muted-foreground">No events found</p>
-                      </div>
+                    {Object.keys(alumniByDepartment).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No data available
+                      </p>
                     ) : (
-                      recentEvents.map((event: any) => (
-                        <div
-                          key={event._id}
-                          className="flex items-center justify-between p-3 border rounded-lg"
-                        >
-                          <div>
-                            <p className="font-medium">{event.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(event.date).toLocaleDateString()}
-                            </p>
+                      Object.entries(alumniByDepartment)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([dept, count]) => (
+                          <div key={dept} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-medium truncate">{dept}</span>
+                              <span className="text-muted-foreground">{count}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className="bg-blue-500 h-1.5 rounded-full"
+                                style={{
+                                  width: `${(count / stats.totalAlumni) * 100 || 0}%`,
+                                }}
+                              />
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-medium">
-                              {Array.isArray(event.attendees)
-                                ? event.attendees.length
-                                : typeof event.attendees === "number"
-                                ? event.attendees
-                                : 0}{" "}
-                              attendees
-                            </p>
-                            <Badge
-                              variant={
-                                typeof event.status === "string" &&
-                                event.status === "completed"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {typeof event.status === "string"
-                                ? event.status
-                                : "scheduled"}
-                            </Badge>
+                        ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Events by Status */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Events by Status
+                  </CardTitle>
+                  <CardDescription>
+                    Event status breakdown
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {Object.keys(eventsByStatus).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No events yet
+                      </p>
+                    ) : (
+                      Object.entries(eventsByStatus).map(([status, count]) => (
+                        <div key={status} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-3 h-3 rounded-full ${
+                                status === "upcoming"
+                                  ? "bg-green-500"
+                                  : status === "completed"
+                                  ? "bg-blue-500"
+                                  : "bg-gray-400"
+                              }`}
+                            />
+                            <span className="text-sm font-medium capitalize">{status}</span>
                           </div>
+                          <Badge variant="secondary">{count}</Badge>
                         </div>
                       ))
                     )}
@@ -1091,62 +1766,504 @@ const CollegeAdminDashboard = () => {
                 </CardContent>
               </Card>
 
+              {/* Campaign Performance */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Pending Approvals</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Campaign Performance
+                  </CardTitle>
                   <CardDescription>
-                    Alumni requests awaiting approval
+                    Overall fundraising progress
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {loading.alumni ? (
-                      <div className="text-center py-4">
-                        <p className="text-muted-foreground">
-                          Loading pending requests...
-                        </p>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-muted-foreground">Raised</span>
+                        <span className="font-bold text-lg">
+                          ₹{stats.totalCampaignRaised.toLocaleString()}
+                        </span>
                       </div>
-                    ) : pendingAlumni.length === 0 ? (
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-muted-foreground">Target</span>
+                        <span className="font-medium">
+                          ₹{stats.totalCampaignTarget.toLocaleString()}
+                        </span>
+                      </div>
+                      {stats.totalCampaignTarget > 0 && (
+                        <>
+                          <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                            <div
+                              className="bg-rose-500 h-3 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100, 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-center text-muted-foreground">
+                            {Math.round((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100)}% Complete
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <div className="pt-2 border-t">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Active Campaigns:</span>
+                        <span className="font-medium text-green-600">{stats.activeCampaigns}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Activity - All Models */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Recent Events */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-purple-500" />
+                      <CardTitle>Recent Events</CardTitle>
+                    </div>
+                    <Badge variant="outline">{recentEvents.length}</Badge>
+                  </div>
+                  <CardDescription>Latest events and their performance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.events ? (
                       <div className="text-center py-4">
-                        <p className="text-muted-foreground">
-                          No pending requests
-                        </p>
+                        <p className="text-muted-foreground">Loading events...</p>
+                      </div>
+                    ) : recentEvents.length === 0 ? (
+                      <div className="text-center py-4">
+                        <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No events found</p>
                       </div>
                     ) : (
-                      pendingAlumni.slice(0, 3).map((alumni: any) => (
+                      recentEvents.slice(0, 5).map((event: any) => {
+                        const attendeesCount = Array.isArray(event.attendees)
+                          ? event.attendees.length
+                          : typeof event.attendees === "number"
+                          ? event.attendees
+                          : 0;
+                        const eventDate = new Date(event.date || event.startDate);
+                        const isUpcoming = eventDate > new Date();
+                        const eventStatus = event.status || (isUpcoming ? "upcoming" : "past");
+
+                        return (
                         <div
-                          key={alumni.requestId}
-                          className="flex items-center justify-between p-3 border rounded-lg"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              {alumni.firstName} {alumni.lastName}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {alumni.email}
-                            </p>
+                          key={event._id}
+                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex-shrink-0">
+                              {event.image ? (
+                                <img
+                                  src={event.image}
+                                  alt={event.title}
+                                  className="w-12 h-12 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                                  <Calendar className="h-6 w-6 text-purple-500" />
                           </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                handleRejectAlumni(alumni.requestId)
-                              }
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleApproveAlumni(alumni.requestId)
-                              }
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{event.title}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-muted-foreground">
+                                  {eventDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </p>
+                                {event.location && (
+                                  <>
+                                    <span className="text-muted-foreground">•</span>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {event.location}
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {attendeesCount} attendees
+                                </span>
+                                <Badge variant={eventStatus === "completed" ? "default" : "secondary"} className="text-xs">
+                                  {eventStatus}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Gallery */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Image className="h-5 w-5 text-cyan-500" />
+                      <CardTitle>Gallery</CardTitle>
+                    </div>
+                    <Badge variant="outline">{galleries.length}</Badge>
+                  </div>
+                  <CardDescription>Recent photo galleries</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.galleries ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">Loading galleries...</p>
+                      </div>
+                    ) : galleries.length === 0 ? (
+                      <div className="text-center py-4">
+                        <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No galleries found</p>
+                      </div>
+                    ) : (
+                      galleries.slice(0, 5).map((gallery: any) => {
+                        const galleryDate = new Date(gallery.createdAt || new Date());
+                        const imageCount = Array.isArray(gallery.images) ? gallery.images.length : 0;
+                        const firstImage = Array.isArray(gallery.images) && gallery.images.length > 0 ? gallery.images[0] : null;
+
+                        return (
+                          <div
+                            key={gallery._id}
+                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex-shrink-0">
+                              {firstImage ? (
+                                <img
+                                  src={firstImage}
+                                  alt={gallery.title}
+                                  className="w-12 h-12 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-lg bg-cyan-100 flex items-center justify-center">
+                                  <Image className="h-6 w-6 text-cyan-500" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{gallery.title}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {galleryDate.toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {imageCount} images
+                            </Badge>
+                                {gallery.category && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {gallery.category}
+                                  </Badge>
+                                )}
                           </div>
                         </div>
-                      ))
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* News Room */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Newspaper className="h-5 w-5 text-blue-500" />
+                      <CardTitle>News Room</CardTitle>
+                    </div>
+                    <Badge variant="outline">{news.length}</Badge>
+                  </div>
+                  <CardDescription>Latest news and updates</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.news ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">Loading news...</p>
+                      </div>
+                    ) : news.length === 0 ? (
+                      <div className="text-center py-4">
+                        <Newspaper className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No news found</p>
+                      </div>
+                    ) : (
+                      news.slice(0, 5).map((newsItem: any) => {
+                        const newsDate = new Date(newsItem.publishedAt || newsItem.createdAt || new Date());
+
+                        return (
+                          <div
+                            key={newsItem._id}
+                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex-shrink-0">
+                              {newsItem.image ? (
+                                <img
+                                  src={newsItem.image}
+                                  alt={newsItem.title}
+                                  className="w-12 h-12 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                                  <Newspaper className="h-6 w-6 text-blue-500" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{newsItem.title}</p>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {newsItem.summary || newsItem.content?.substring(0, 60) || ""}
+                              </p>
+                              <div className="flex items-center justify-between mt-2">
+                                <p className="text-xs text-muted-foreground">
+                                  {newsDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </p>
+                                {newsItem.author && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {typeof newsItem.author === "string"
+                                      ? newsItem.author
+                                      : `${newsItem.author.firstName || ""} ${newsItem.author.lastName || ""}`.trim() || newsItem.author.email || "Unknown"}
+                                  </Badge>
+                                )}
+                      </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Community */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-green-500" />
+                      <CardTitle>Communities</CardTitle>
+                    </div>
+                    <Badge variant="outline">{communities.length}</Badge>
+                  </div>
+                  <CardDescription>Top active communities</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.communities ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">Loading communities...</p>
+                      </div>
+                    ) : communities.length === 0 ? (
+                      <div className="text-center py-4">
+                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No communities found</p>
+                      </div>
+                    ) : (
+                      communities.slice(0, 5).map((community: any) => {
+                        const memberCount = community.members?.length || community.memberCount || 0;
+                        const postCount = community.posts?.length || community.postCount || 0;
+
+                        return (
+                          <div
+                            key={community._id}
+                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex-shrink-0">
+                              {community.image ? (
+                                <img
+                                  src={community.image}
+                                  alt={community.name}
+                                  className="w-12 h-12 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                                  <MessageSquare className="h-6 w-6 text-green-500" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{community.name}</p>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {community.description || ""}
+                              </p>
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">{memberCount} members</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <FileText className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">{postCount} posts</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Donations */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <HeartHandshake className="h-5 w-5 text-rose-500" />
+                      <CardTitle>Donations</CardTitle>
+                    </div>
+                    <Badge variant="outline">{donations.length}</Badge>
+                  </div>
+                  <CardDescription>Recent donations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.donations ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">Loading donations...</p>
+                      </div>
+                    ) : donations.length === 0 ? (
+                      <div className="text-center py-4">
+                        <HeartHandshake className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No donations found</p>
+                      </div>
+                    ) : (
+                      donations.slice(0, 5).map((donation: any) => {
+                        const donationDate = new Date(donation.createdAt || donation.donatedAt || new Date());
+                        const amount = donation.amount || 0;
+                        const donorName = donation.donor?.firstName && donation.donor?.lastName
+                          ? `${donation.donor.firstName} ${donation.donor.lastName}`
+                          : donation.donorName || "Anonymous";
+
+                        return (
+                          <div
+                            key={donation._id}
+                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex-shrink-0">
+                              <div className="w-12 h-12 rounded-lg bg-rose-100 flex items-center justify-center">
+                                <HeartHandshake className="h-6 w-6 text-rose-500" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{donorName}</p>
+                              <p className="text-lg font-bold text-rose-600 mt-1">
+                                ₹{amount.toLocaleString()}
+                              </p>
+                              {donation.campaign?.title && (
+                                <p className="text-xs text-muted-foreground truncate mt-1">
+                                  {donation.campaign.title}
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {donationDate.toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                            </p>
+                          </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Mentorship */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-indigo-500" />
+                      <CardTitle>Mentorship</CardTitle>
+                    </div>
+                    <Badge variant="outline">{mentorships.length}</Badge>
+                  </div>
+                  <CardDescription>Recent mentorship connections</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {loading.mentorships ? (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">Loading mentorships...</p>
+                      </div>
+                    ) : mentorships.length === 0 ? (
+                      <div className="text-center py-4">
+                        <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No mentorships found</p>
+                      </div>
+                    ) : (
+                      mentorships.slice(0, 5).map((mentorship: any) => {
+                        const mentorshipDate = new Date(mentorship.createdAt || new Date());
+                        const mentorName = mentorship.mentor?.firstName && mentorship.mentor?.lastName
+                          ? `${mentorship.mentor.firstName} ${mentorship.mentor.lastName}`
+                          : mentorship.mentorName || "Unknown";
+                        const menteeName = mentorship.mentee?.firstName && mentorship.mentee?.lastName
+                          ? `${mentorship.mentee.firstName} ${mentorship.mentee.lastName}`
+                          : mentorship.menteeName || "Unknown";
+
+                        return (
+                          <div
+                            key={mentorship._id}
+                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex-shrink-0">
+                              <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                <BookOpen className="h-6 w-6 text-indigo-500" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm">Mentor: {mentorName}</p>
+                              <p className="text-xs text-muted-foreground mt-1">Mentee: {menteeName}</p>
+                              <div className="flex items-center justify-between mt-2">
+                                <Badge
+                                  variant={
+                                    mentorship.status === "active"
+                                      ? "default"
+                                      : mentorship.status === "completed"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {mentorship.status || "pending"}
+                                </Badge>
+                                <p className="text-xs text-muted-foreground">
+                                  {mentorshipDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </p>
+                          </div>
+                        </div>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </CardContent>
@@ -1306,10 +2423,16 @@ const CollegeAdminDashboard = () => {
           {/* Admin & Staff Management - Only for this college */}
           <TabsContent value="admin-staff" className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">
-                Admin & Staff Management
-              </h2>
-              <div className="flex space-x-2">
+              <div>
+                <h2 className="text-2xl font-semibold">Admin & Staff Management</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage admins, HODs and staff for your college
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="text-sm">
+                  Total: {totalStaff}
+                </Badge>
                 <Dialog
                   open={isCreateAdminOpen}
                   onOpenChange={setIsCreateAdminOpen}
@@ -1624,16 +2747,10 @@ const CollegeAdminDashboard = () => {
                       </div>
                       <div>
                         <Label htmlFor="hod-department">Department</Label>
-                        <Input
-                          id="hod-department"
-                          placeholder="Computer Science"
+                        <Select
                           value={newHOD.department}
-                          onChange={(e) => {
-                            setNewHOD((prev) => ({
-                              ...prev,
-                              department: e.target.value,
-                            }));
-                            // Clear error when user starts typing
+                          onValueChange={(val) => {
+                            setNewHOD((prev) => ({ ...prev, department: val }));
                             if (validationErrors.hod.department) {
                               updateValidationErrors("hod", {
                                 ...validationErrors.hod,
@@ -1641,13 +2758,24 @@ const CollegeAdminDashboard = () => {
                               });
                             }
                           }}
-                          className={
-                            validationErrors.hod.department
-                              ? "border-red-500"
-                              : ""
-                          }
-                          required
-                        />
+                        >
+                          <SelectTrigger id="hod-department">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departmentOptions.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                No departments available
+                              </SelectItem>
+                            ) : (
+                              departmentOptions.map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
                         {validationErrors.hod.department && (
                           <p className="text-sm text-red-500 mt-1">
                             {validationErrors.hod.department}
@@ -1784,18 +2912,29 @@ const CollegeAdminDashboard = () => {
                       </div>
                       <div>
                         <Label htmlFor="staff-department">Department</Label>
-                        <Input
-                          id="staff-department"
-                          placeholder="Administration"
+                        <Select
                           value={newStaff.department}
-                          onChange={(e) =>
-                            setNewStaff((prev) => ({
-                              ...prev,
-                              department: e.target.value,
-                            }))
+                          onValueChange={(val) =>
+                            setNewStaff((prev) => ({ ...prev, department: val }))
                           }
-                          required
-                        />
+                        >
+                          <SelectTrigger id="staff-department">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departmentOptions.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                No departments available
+                              </SelectItem>
+                            ) : (
+                              departmentOptions.map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label htmlFor="staff-password">Default Password</Label>
@@ -1910,6 +3049,28 @@ const CollegeAdminDashboard = () => {
                 ))
               )}
             </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between pt-2">
+              <div className="text-sm text-muted-foreground">
+                Page {staffPage} of {Math.max(1, Math.ceil(totalStaff / staffLimit))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={staffPage <= 1 || loading.staff}
+                  onClick={() => setStaffPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  disabled={staffPage >= Math.ceil(totalStaff / staffLimit) || loading.staff}
+                  onClick={() => setStaffPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </TabsContent>
 
           {/* Alumni Management */}
@@ -1917,12 +3078,24 @@ const CollegeAdminDashboard = () => {
             <AlumniManagement />
           </TabsContent>
 
-          {/* Fundraisers Management */}
+          {/* Eligible Students Management */}
+          <TabsContent value="eligible-students" className="space-y-6">
+            <EligibleStudentsPanel />
+          </TabsContent>
+
+          {/* Category Management */}
+          <TabsContent value="categories" className="space-y-6">
+            <CategoryManagement />
+          </TabsContent>
+
+          {/* Campaigns Management */}
           <TabsContent value="fundraisers" className="space-y-6">
             <CampaignManagement />
           </TabsContent>
         </Tabs>
       </div>
+      </div>
+      <Footer />
     </div>
   );
 };

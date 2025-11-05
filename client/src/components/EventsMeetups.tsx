@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -18,7 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Pagination from "@/components/ui/pagination";
+import Pagination from "@/components/ui/Pagination";
+import { categoryAPI } from "@/lib/api";
+import Footer from "./Footer";
 import {
   Calendar,
   MapPin,
@@ -74,6 +76,11 @@ interface Event {
   endDate: string;
   location: string;
   type: string;
+  typeDisplayName?: string; // Display name from backend (for custom categories)
+  customEventType?: {
+    _id: string;
+    name: string;
+  };
   organizer?: {
     firstName: string;
     lastName: string;
@@ -84,6 +91,11 @@ interface Event {
   tags?: string[];
   price?: number;
   registrationDeadline?: string;
+  attendees?: Array<{
+    userId: string | { _id: string };
+    status: "registered" | "pending_payment" | "attended" | "cancelled";
+    paymentStatus?: string;
+  }>;
 }
 
 interface MappedEvent {
@@ -95,6 +107,7 @@ interface MappedEvent {
   time: string;
   location: string;
   type: string;
+  rawType: string;
   organizer: string;
   attendees: number;
   maxAttendees: number;
@@ -122,9 +135,16 @@ const EventsMeetups = () => {
   const [selectedEvent, setSelectedEvent] = useState<MappedEvent | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedEventType, setSelectedEventType] = useState<string>("all");
+  const [eventTypeOptions, setEventTypeOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([{ value: "all", label: "All Events" }]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [selectedPrice, setSelectedPrice] = useState("all");
+  const [priceOptions, setPriceOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([{ value: "all", label: "All Prices" }]);
+  const [locationCategoryOptions, setLocationCategoryOptions] = useState<string[]>([]);
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
@@ -212,16 +232,74 @@ const EventsMeetups = () => {
     user?.role === "hod" ||
     user?.role === "staff";
 
-  // Event types for filtering
-  const eventTypes = [
-    { value: "all", label: "All Events" },
-    { value: "meetup", label: "Meetup" },
-    { value: "workshop", label: "Workshop" },
-    { value: "webinar", label: "Webinar" },
-    { value: "conference", label: "Conference" },
-    { value: "career_fair", label: "Career Fair" },
-    { value: "reunion", label: "Reunion" },
-  ];
+  // Load custom event types from categories and merge with defaults
+  useEffect(() => {
+    const loadEventTypeOptions = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_type",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const customTypes = (
+            response.data as Array<{ _id: string; name: string }>
+          ).map((c) => ({ value: c._id, label: c.name }));
+          setEventTypeOptions((prev) => {
+            const defaults = [
+              { value: "all", label: "All Events" },
+              { value: "meetup", label: "Meetup" },
+              { value: "workshop", label: "Workshop" },
+              { value: "webinar", label: "Webinar" },
+              { value: "conference", label: "Conference" },
+              { value: "career_fair", label: "Career Fair" },
+              { value: "reunion", label: "Reunion" },
+            ];
+            return [...defaults, ...customTypes];
+          });
+        }
+      } catch (e) {
+        // keep defaults
+      }
+    };
+    loadEventTypeOptions();
+  }, []);
+
+  // Load custom price ranges from categories and merge with defaults
+  useEffect(() => {
+    const loadPriceOptions = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_price_range",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const custom = (response.data as Array<{ name: string }>).map(
+            (c) => ({
+              value: c.name.toLowerCase(),
+              label: c.name,
+            })
+          );
+          setPriceOptions((prev) => {
+            const defaults = [
+              { value: "all", label: "All Prices" },
+              { value: "free", label: "Free" },
+              { value: "0-25", label: "$0 - $25" },
+              { value: "25-50", label: "$25 - $50" },
+              { value: "50-100", label: "$50 - $100" },
+              { value: "100+", label: "$100+" },
+            ];
+            return [...defaults, ...custom];
+          });
+        }
+      } catch (e) {
+        // keep defaults
+      }
+    };
+    loadPriceOptions();
+  }, []);
+
+  // Build location options from available events (computed after apiEvents is defined later)
+  // NOTE: we compute this below with useMemo to avoid referencing before initialization
 
   // Fetch events from API
   const {
@@ -229,13 +307,51 @@ const EventsMeetups = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["events", refreshKey, user?.tenantId, currentPage],
-    queryFn: () =>
-      eventAPI.getAllEvents({
+    queryKey: [
+      "events",
+      refreshKey,
+      user?.tenantId,
+      currentPage,
+      searchQuery,
+      selectedEventType,
+      selectedLocation,
+      selectedPrice,
+      selectedDateRange,
+    ],
+    queryFn: () => {
+      const params: Record<string, unknown> = {
         page: currentPage,
         limit: itemsPerPage,
         tenantId: user?.tenantId,
-      }),
+      };
+
+      if (selectedEventType !== "all") {
+        params.type = selectedEventType;
+      }
+
+      if (selectedLocation !== "all") {
+        // Handle special location filters
+        if (selectedLocation === "online") {
+          params.isOnline = "true";
+        } else {
+          params.location = selectedLocation;
+        }
+      }
+
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      if (selectedDateRange !== "all") {
+        params.dateRange = selectedDateRange;
+      }
+
+      if (selectedPrice !== "all") {
+        params.price = selectedPrice;
+      }
+
+      return eventAPI.getAllEvents(params);
+    },
   });
 
   // Map API events to component format
@@ -262,7 +378,7 @@ const EventsMeetups = () => {
 
   // Extract pagination info from API response
   const paginationInfo = (
-    eventsResponse?.data as { pagination?: { totalPages: number } } | undefined
+    eventsResponse?.data as { pagination?: { totalPages: number; total: number } } | undefined
   )?.pagination;
   useEffect(() => {
     if (paginationInfo) {
@@ -284,7 +400,24 @@ const EventsMeetups = () => {
     setRegisteredEventIds(new Set(events.map((e) => e._id)));
   }, [myRegsResponse]);
 
+  // Helper function to get user's registration status for an event
+  const getUserRegistrationStatus = (eventId: string): "registered" | "pending_payment" | null => {
+    if (!user) return null;
+    const originalEvent = apiEvents.find((e: Event) => e._id === eventId);
+    if (!originalEvent || !originalEvent.attendees) return null;
+    const myAttendee = originalEvent.attendees.find((attendee: any) => {
+      const userId = typeof attendee.userId === "string" ? attendee.userId : attendee.userId?._id;
+      return userId === user._id;
+    });
+    if (!myAttendee) return null;
+    if (myAttendee.status === "registered") return "registered";
+    if (myAttendee.status === "pending_payment") return "pending_payment";
+    return null;
+  };
+
   const mappedEvents = apiEvents.map((event: Event): MappedEvent => {
+    // Use typeDisplayName if available (for custom categories), otherwise use type
+    const displayType = event.typeDisplayName || event.type;
     return {
       id: event._id,
       title: event.title,
@@ -296,7 +429,9 @@ const EventsMeetups = () => {
         minute: "2-digit",
       }),
       location: event.location,
-      type: event.type,
+      type: displayType, // Use display name for UI
+      // Preserve raw type value for filtering (enum string or ObjectId string)
+      rawType: event.type as unknown as string,
       organizer: event.organizer?.firstName
         ? `${event.organizer.firstName} ${event.organizer.lastName}`
         : "Unknown",
@@ -305,10 +440,55 @@ const EventsMeetups = () => {
       image: event.image,
       tags: event.tags || [],
       featured: false,
-      price: event.price ? `$${event.price}` : "Free",
+      price: event.price ? `₹${event.price}` : "Free",
       registrationDeadline: event.registrationDeadline,
     };
   });
+
+  // Build location options from categories only (plus All)
+  const locationOptions = useMemo(() => {
+    const cat = locationCategoryOptions
+      .slice()
+      .sort((a, b) => a.localeCompare(b))
+      .map((loc) => ({ value: loc, label: loc }));
+    return [{ value: "all", label: "All Locations" }, ...cat];
+  }, [locationCategoryOptions]);
+
+  // Load category-driven options for event type, location, and price
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [typesRes, locRes, priceRes] = await Promise.all([
+          categoryAPI.getAll({ entityType: "event_type", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "event_location", isActive: "true" }),
+          categoryAPI.getAll({ entityType: "event_price_range", isActive: "true" }),
+        ]);
+        if (mounted) {
+          const mapNames = (res: any) =>
+            Array.isArray(res.data)
+              ? (res.data as any[])
+                  .filter((c) => c && typeof c.name === "string")
+                  .map((c) => String(c.name))
+              : [];
+          const types = mapNames(typesRes).map((n) => ({ value: n, label: n }));
+          setEventTypeOptions([{ value: "all", label: "All Events" }, ...types]);
+          setLocationCategoryOptions(mapNames(locRes));
+          const price = mapNames(priceRes).map((n) => ({ value: n, label: n }));
+          setPriceOptions([{ value: "all", label: "All Prices" }, ...price]);
+        }
+      } catch (_) {
+        if (mounted) {
+          setEventTypeOptions([{ value: "all", label: "All Events" }]);
+          setLocationCategoryOptions([]);
+          setPriceOptions([{ value: "all", label: "All Prices" }]);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Filter events by time periods and event type
   const now = new Date();
@@ -316,136 +496,11 @@ const EventsMeetups = () => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Helper function to filter events by all criteria
+  // Note: Backend already handles: search, type, location, price, dateRange
+  // Client-side filtering only needed for time-based tabs (upcoming/today/past) and user-specific filters (my events, saved)
+  // This function is kept for compatibility but returns events as-is since backend handles all filters
   const filterEvents = (events: MappedEvent[]) => {
-    return events.filter((event) => {
-      // Search query filter
-      if (debouncedSearchQuery) {
-        const searchLower = debouncedSearchQuery.toLowerCase();
-        const matchesSearch =
-          (event.title && event.title.toLowerCase().includes(searchLower)) ||
-          (event.description &&
-            event.description.toLowerCase().includes(searchLower)) ||
-          (event.location &&
-            event.location.toLowerCase().includes(searchLower)) ||
-          (event.organizer &&
-            event.organizer.toLowerCase().includes(searchLower)) ||
-          (event.tags &&
-            event.tags.some(
-              (tag) => tag && tag.toLowerCase().includes(searchLower)
-            ));
-
-        if (!matchesSearch) return false;
-      }
-
-      // Event type filter
-      if (selectedEventType !== "all" && event.type !== selectedEventType)
-        return false;
-
-      // Location filter
-      if (selectedLocation !== "all") {
-        if (
-          selectedLocation === "online" &&
-          !event.location.toLowerCase().includes("online")
-        )
-          return false;
-        if (
-          selectedLocation === "hybrid" &&
-          !event.location.toLowerCase().includes("hybrid")
-        )
-          return false;
-        if (
-          selectedLocation === "campus" &&
-          !event.location.toLowerCase().includes("campus")
-        )
-          return false;
-        if (
-          !["online", "hybrid", "campus"].includes(selectedLocation) &&
-          !event.location.toLowerCase().includes(selectedLocation.toLowerCase())
-        )
-          return false;
-      }
-
-      // Price filter
-      if (selectedPrice !== "all") {
-        const eventPrice = parseFloat(
-          event.price.replace("$", "").replace("Free", "0")
-        );
-        switch (selectedPrice) {
-          case "free":
-            if (eventPrice > 0) return false;
-            break;
-          case "0-25":
-            if (eventPrice < 0 || eventPrice > 25) return false;
-            break;
-          case "25-50":
-            if (eventPrice < 25 || eventPrice > 50) return false;
-            break;
-          case "50-100":
-            if (eventPrice < 50 || eventPrice > 100) return false;
-            break;
-          case "100+":
-            if (eventPrice < 100) return false;
-            break;
-        }
-      }
-
-      // Date range filter
-      if (selectedDateRange !== "all") {
-        const eventDate = new Date(event.startDate);
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const thisWeekEnd = new Date(today);
-        thisWeekEnd.setDate(today.getDate() + 7);
-        const nextWeekEnd = new Date(today);
-        nextWeekEnd.setDate(today.getDate() + 14);
-        const thisMonthEnd = new Date(
-          today.getFullYear(),
-          today.getMonth() + 1,
-          1
-        );
-        const nextMonthEnd = new Date(
-          today.getFullYear(),
-          today.getMonth() + 2,
-          1
-        );
-
-        switch (selectedDateRange) {
-          case "today":
-            if (eventDate < today || eventDate >= tomorrow) return false;
-            break;
-          case "tomorrow":
-            if (
-              eventDate < tomorrow ||
-              eventDate >= new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
-            )
-              return false;
-            break;
-          case "this_week":
-            if (eventDate < today || eventDate >= thisWeekEnd) return false;
-            break;
-          case "next_week":
-            if (eventDate < thisWeekEnd || eventDate >= nextWeekEnd)
-              return false;
-            break;
-          case "this_month":
-            if (eventDate < today || eventDate >= thisMonthEnd) return false;
-            break;
-          case "next_month":
-            if (eventDate < thisMonthEnd || eventDate >= nextMonthEnd)
-              return false;
-            break;
-        }
-      }
-
-      return true;
-    });
+    return events;
   };
 
   // Filter events for "My Events" or "Registered Events" based on user role
@@ -605,8 +660,8 @@ const EventsMeetups = () => {
     if (eventsList.length === 0) {
       const isFiltered = selectedEventType !== "all";
       const selectedTypeLabel =
-        eventTypes.find((type) => type.value === selectedEventType)?.label ||
-        selectedEventType;
+        eventTypeOptions.find((type) => type.value === selectedEventType)
+          ?.label || selectedEventType;
 
       return (
         <div className="text-center py-12">
@@ -877,27 +932,47 @@ const EventsMeetups = () => {
                           ? "Event Full"
                           : "Registration Closed"}
                       </Button>
-                    ) : registeredEventIds.has(event.id) ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="flex-1 text-xs lg:text-sm"
-                        onClick={() => navigate(`/events/${event.id}`)}
-                      >
-                        Registered
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="flex-1 text-xs lg:text-sm"
-                        onClick={() => {
-                          setSelectedEventForRegistration(event);
-                          setIsRegistrationOpen(true);
-                        }}
-                      >
-                        Register
-                      </Button>
-                    )}
+                    ) : (() => {
+                      const registrationStatus = getUserRegistrationStatus(event.id);
+                      if (registrationStatus === "registered") {
+                        return (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="flex-1 text-xs lg:text-sm"
+                            onClick={() => navigate(`/events/${event.id}`)}
+                          >
+                            Registered
+                          </Button>
+                        );
+                      }
+                      if (registrationStatus === "pending_payment") {
+                        return (
+                          <Button
+                            size="sm"
+                            className="flex-1 text-xs lg:text-sm bg-yellow-600 hover:bg-yellow-700"
+                            onClick={() => {
+                              setSelectedEventForRegistration(event);
+                              setIsRegistrationOpen(true);
+                            }}
+                          >
+                            Complete Payment
+                          </Button>
+                        );
+                      }
+                      return (
+                        <Button
+                          size="sm"
+                          className="flex-1 text-xs lg:text-sm"
+                          onClick={() => {
+                            setSelectedEventForRegistration(event);
+                            setIsRegistrationOpen(true);
+                          }}
+                        >
+                          Register
+                        </Button>
+                      );
+                    })()}
                     {canManageEvents && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1154,29 +1229,52 @@ const EventsMeetups = () => {
   };
 
   const getEventTypeIcon = (type: string) => {
-    switch (type) {
-      case "Virtual":
+    // Normalize type for comparison (handle custom categories and enum values)
+    const normalizedType = type.toLowerCase();
+    switch (normalizedType) {
+      case "webinar":
+      case "virtual":
         return <Video className="w-4 h-4" />;
-      case "Hybrid":
+      case "conference":
+      case "hybrid":
+        return <Users className="w-4 h-4" />;
+      case "workshop":
+        return <GraduationCap className="w-4 h-4" />;
+      case "career_fair":
+      case "career fair":
+        return <Building className="w-4 h-4" />;
+      case "reunion":
+      case "meetup":
         return <Users className="w-4 h-4" />;
       default:
-        return <MapPin className="w-4 h-4" />;
+        return <Calendar className="w-4 h-4" />;
     }
   };
 
   const getEventTypeBadge = (type: string) => {
-    switch (type) {
-      case "Virtual":
+    // Normalize type for comparison
+    const normalizedType = type.toLowerCase();
+    switch (normalizedType) {
+      case "webinar":
+      case "virtual":
         return "secondary";
-      case "Hybrid":
+      case "conference":
+      case "workshop":
+        return "default";
+      case "career_fair":
+      case "career fair":
         return "warning";
+      case "reunion":
+      case "meetup":
+        return "default";
       default:
         return "default";
     }
   };
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -1188,11 +1286,11 @@ const EventsMeetups = () => {
       {/* Left Sidebar */}
       <div
         className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
       `}
       >
-        <div className="sticky top-0 h-screen overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto p-4 sm:p-6">
           <Card className="h-fit">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1251,15 +1349,11 @@ const EventsMeetups = () => {
                       <SelectValue placeholder="Select event type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Events</SelectItem>
-                      <SelectItem value="meetup">Meetup</SelectItem>
-                      <SelectItem value="workshop">Workshop</SelectItem>
-                      <SelectItem value="webinar">Webinar</SelectItem>
-                      <SelectItem value="conference">Conference</SelectItem>
-                      <SelectItem value="career_fair">Career Fair</SelectItem>
-                      <SelectItem value="reunion">Reunion</SelectItem>
-                      <SelectItem value="networking">Networking</SelectItem>
-                      <SelectItem value="seminar">Seminar</SelectItem>
+                      {eventTypeOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1275,21 +1369,11 @@ const EventsMeetups = () => {
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Locations</SelectItem>
-                      <SelectItem value="online">Online/Virtual</SelectItem>
-                      <SelectItem value="hybrid">Hybrid</SelectItem>
-                      <SelectItem value="campus">Campus</SelectItem>
-                      <SelectItem value="San Francisco">
-                        San Francisco
-                      </SelectItem>
-                      <SelectItem value="New York">New York</SelectItem>
-                      <SelectItem value="Seattle">Seattle</SelectItem>
-                      <SelectItem value="Los Angeles">Los Angeles</SelectItem>
-                      <SelectItem value="Chicago">Chicago</SelectItem>
-                      <SelectItem value="Boston">Boston</SelectItem>
-                      <SelectItem value="Austin">Austin</SelectItem>
-                      <SelectItem value="London">London</SelectItem>
-                      <SelectItem value="Toronto">Toronto</SelectItem>
+                      {locationOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1305,12 +1389,11 @@ const EventsMeetups = () => {
                       <SelectValue placeholder="Select price range" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Prices</SelectItem>
-                      <SelectItem value="free">Free</SelectItem>
-                      <SelectItem value="0-25">$0 - $25</SelectItem>
-                      <SelectItem value="25-50">$25 - $50</SelectItem>
-                      <SelectItem value="50-100">$50 - $100</SelectItem>
-                      <SelectItem value="100+">$100+</SelectItem>
+                      {priceOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1419,30 +1502,34 @@ const EventsMeetups = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+        <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden">
             <Button
               variant="outline"
               size="sm"
-              className="lg:hidden"
               onClick={() => setSidebarOpen(true)}
+              className="flex items-center gap-2"
             >
-              <Menu className="w-4 h-4 mr-2" />
+              <Menu className="w-4 h-4" />
               Filters
             </Button>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">
-                Events & Meetups
-              </h1>
-              <p className="text-muted-foreground text-sm lg:text-base">
-                Connect, learn, and grow with our alumni community •{" "}
-                {events.length} events
-              </p>
+          </div>
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold">
+                  Events & Meetups
+                </h1>
+                <p className="text-muted-foreground text-sm lg:text-base">
+                  Connect, learn, and grow with our alumni community •{" "}
+                  {events.length} events
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Loading State */}
         {isLoading && (
@@ -1740,9 +1827,13 @@ const EventsMeetups = () => {
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
+      <Footer />
 
       {/* Dialogs */}
+      <>
       <CreateEventDialog
         open={isCreateEventOpen}
         onOpenChange={setIsCreateEventOpen}
@@ -1938,6 +2029,7 @@ const EventsMeetups = () => {
           </div>
         </DialogContent>
       </Dialog>
+      </>
     </div>
   );
 };

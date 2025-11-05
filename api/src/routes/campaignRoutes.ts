@@ -34,6 +34,37 @@ router.get(
   asyncHandler(campaignController.getCampaignStats)
 );
 
+// Donor routes must be defined BEFORE /:id route to avoid conflicts
+// @route   GET /api/v1/campaigns/:id/donors
+// @desc    Get campaign donors
+// @access  Private/Admin
+router.get(
+  "/:id/donors",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(campaignController.getCampaignDonors)
+);
+
+// @route   GET /api/v1/campaigns/:id/donor-stats
+// @desc    Get campaign donor statistics
+// @access  Private/Admin
+router.get(
+  "/:id/donor-stats",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(campaignController.getCampaignDonorStats)
+);
+
+// @route   GET /api/v1/campaigns/:id/donors/export
+// @desc    Export campaign donors
+// @access  Private/Admin
+router.get(
+  "/:id/donors/export",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(campaignController.exportCampaignDonors)
+);
+
 // @route   GET /api/v1/campaigns/:id
 // @desc    Get campaign by ID
 // @access  Private

@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { categoryAPI } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -10,13 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// duplicate Select import removed
 import {
   Dialog,
   DialogContent,
@@ -51,8 +53,11 @@ interface AlumniProfile {
     lastName: string;
     email: string;
     role: string;
+    profileImage?: string;
+    profilePicture?: string;
   };
   graduationYear: number;
+  experience?: number;
   currentCompany?: string;
   currentPosition?: string;
   currentLocation?: string;
@@ -80,6 +85,11 @@ const AlumniManagement = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [alumniPage, setAlumniPage] = useState(1);
+  const [alumniLimit] = useState(10);
+  const [totalAlumni, setTotalAlumni] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -91,6 +101,7 @@ const AlumniManagement = () => {
     password: "",
     collegeId: "",
     department: "",
+    role: "alumni", // Default to alumni, can be changed to "student"
     graduationYear: new Date().getFullYear(),
     currentCompany: "",
     currentPosition: "",
@@ -100,6 +111,30 @@ const AlumniManagement = () => {
   });
 
   const [colleges, setColleges] = useState<College[]>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "department",
+          isActive: "true",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setDepartmentOptions(names);
+      } catch (_) {
+        if (mounted) setDepartmentOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Fetch colleges on component mount (only for Super Admin)
   useEffect(() => {
@@ -118,6 +153,11 @@ const AlumniManagement = () => {
               location: "",
             },
           ]);
+          // Preselect college for non-super admins
+          setNewAlumni((prev) => ({
+            ...prev,
+            collegeId: (user as any).tenantId,
+          }));
         }
         return;
       }
@@ -153,15 +193,21 @@ const AlumniManagement = () => {
   }, [user]);
 
   // Validation function
-  const validateForm = () => {
+  const computeErrors = () => {
     const errors: Record<string, string> = {};
 
-    if (!newAlumni.firstName.trim()) {
+    const first = newAlumni.firstName.trim();
+    if (!first) {
       errors.firstName = "First name is required";
+    } else if (first.length < 2 || first.length > 50) {
+      errors.firstName = "First name must be between 2 and 50 characters";
     }
 
-    if (!newAlumni.lastName.trim()) {
+    const last = newAlumni.lastName.trim();
+    if (!last) {
       errors.lastName = "Last name is required";
+    } else if (last.length < 2 || last.length > 50) {
+      errors.lastName = "Last name must be between 2 and 50 characters";
     }
 
     if (!newAlumni.email.trim()) {
@@ -184,7 +230,16 @@ const AlumniManagement = () => {
       errors.department = "Department is required";
     }
 
-    if (
+    // Validate graduationYear - required for students
+    if (newAlumni.role === "student") {
+      if (
+        !newAlumni.graduationYear ||
+        newAlumni.graduationYear < 1900 ||
+        newAlumni.graduationYear > new Date().getFullYear() + 10
+      ) {
+        errors.graduationYear = "Please enter a valid graduation year";
+      }
+    } else if (
       !newAlumni.graduationYear ||
       newAlumni.graduationYear < 1900 ||
       newAlumni.graduationYear > new Date().getFullYear() + 10
@@ -192,15 +247,50 @@ const AlumniManagement = () => {
       errors.graduationYear = "Please enter a valid graduation year";
     }
 
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    return errors;
   };
+
+  const validateForm = (): boolean => {
+    const errors = computeErrors();
+    setHasInteracted(true);
+    setFormErrors(errors);
+    const valid = Object.keys(errors).length === 0;
+    setIsFormValid(valid);
+    return valid;
+  };
+
+  // Inline auto-validation (debounced) as the user types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const errors = computeErrors();
+      setIsFormValid(Object.keys(errors).length === 0);
+      // Only show inline errors after interaction; otherwise keep the UI clean
+      if (hasInteracted) {
+        setFormErrors(errors);
+      } else {
+        setFormErrors({});
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+    // Revalidate whenever any field changes
+  }, [
+    newAlumni.firstName,
+    newAlumni.lastName,
+    newAlumni.email,
+    newAlumni.password,
+    newAlumni.collegeId,
+    newAlumni.department,
+    newAlumni.graduationYear,
+    hasInteracted,
+  ]);
 
   const fetchAlumni = useCallback(async () => {
     try {
       setLoading(true);
       const alumniData = await alumniAPI.getAllAlumni({
         tenantId: user?.tenantId,
+        page: alumniPage,
+        limit: alumniLimit,
       });
 
       // Ensure alumni is always an array
@@ -212,10 +302,18 @@ const AlumniManagement = () => {
         ? (alumniData.data as any).profiles
         : [];
       setAlumni(alumniArray as AlumniProfile[]);
+
+      // Get total count from pagination response
+      const total =
+        (alumniData.data as any)?.pagination?.total ||
+        (alumniData.data as any)?.total ||
+        (alumniData as any)?.pagination?.total ||
+        alumniArray.length;
+      setTotalAlumni(total);
     } catch (error) {
       console.error("Error fetching alumni:", error);
-      console.error("Error details:", error.response?.data);
-      console.error("Error status:", error.response?.status);
+      console.error("Error details:", (error as any).response?.data);
+      console.error("Error status:", (error as any).response?.status);
       setAlumni([]); // Set empty array on error
       toast({
         title: "Error",
@@ -225,11 +323,16 @@ const AlumniManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, user?.tenantId]);
+  }, [toast, user?.tenantId, alumniPage, alumniLimit]);
 
   useEffect(() => {
     fetchAlumni();
   }, [fetchAlumni]);
+
+  // Reset page when search term changes
+  useEffect(() => {
+    setAlumniPage(1);
+  }, [searchTerm]);
 
   const handleAlumniClick = (alumni: AlumniProfile) => {
     navigate(`/alumni/${alumni.userId._id}`);
@@ -252,15 +355,20 @@ const AlumniManagement = () => {
       }
 
       // Create actual user account directly (no approval needed)
-      const userData = {
+      const userData: any = {
         firstName: newAlumni.firstName.trim(),
         lastName: newAlumni.lastName.trim(),
         email: newAlumni.email.trim(),
         password: newAlumni.password,
-        role: "alumni",
+        role: newAlumni.role || "alumni",
         tenantId: newAlumni.collegeId,
         department: newAlumni.department,
       };
+
+      // Add graduationYear if role is student
+      if (newAlumni.role === "student") {
+        userData.graduationYear = newAlumni.graduationYear;
+      }
 
       // Import the userAPI to create user directly
       const { userAPI } = await import("@/lib/api");
@@ -275,9 +383,10 @@ const AlumniManagement = () => {
       }
 
       // Show success message for account creation
+      const roleLabel = newAlumni.role === "student" ? "Student" : "Alumni";
       toast({
         title: "Success",
-        description: "Alumni account created successfully!",
+        description: `${roleLabel} account created successfully!`,
       });
 
       // Reset form
@@ -288,6 +397,7 @@ const AlumniManagement = () => {
         password: "",
         collegeId: "",
         department: "",
+        role: "alumni",
         graduationYear: new Date().getFullYear(),
         currentCompany: "",
         currentPosition: "",
@@ -314,205 +424,304 @@ const AlumniManagement = () => {
     }
   };
 
+  const filteredAlumni = (Array.isArray(alumni) ? alumni : []).filter(
+    (alumnus) =>
+      `${alumnus.userId?.firstName || ""} ${alumnus.userId?.lastName || ""}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      alumnus.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      alumnus.currentCompany?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Build pagination display text to keep JSX simple
+  const paginationText: string = searchTerm
+    ? `Showing ${filteredAlumni.length} result${
+        filteredAlumni.length !== 1 ? "s" : ""
+      }` +
+      (filteredAlumni.length !== alumni.length
+        ? ` (filtered from ${alumni.length} on this page)`
+        : "") +
+      ` - Total: ${totalAlumni} alumni`
+    : `Showing ${(alumniPage - 1) * alumniLimit + 1} to ${Math.min(
+        alumniPage * alumniLimit,
+        totalAlumni
+      )} of ${totalAlumni} alumni`;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Enhanced Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Alumni Management</h1>
-          <p className="text-muted-foreground">
-            Create and manage alumni accounts
+          <h2 className="text-2xl font-semibold">Alumni Management</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Create and manage alumni accounts for your college
           </p>
         </div>
-        <div className="flex space-x-2">
-          <BulkUploadAlumni />
-          <ExportAlumniData />
-          <Dialog
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Alumni Account
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Alumni Account</DialogTitle>
-                <DialogDescription>
-                  Create a new alumni account with profile information. Make
-                  sure to use a unique email address that hasn't been registered
-                  before.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateAlumni} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-sm">
+            Total: {totalAlumni}
+          </Badge>
+          {filteredAlumni.length !== alumni.length && (
+            <Badge variant="secondary" className="text-sm">
+              Filtered: {filteredAlumni.length}
+            </Badge>
+          )}
+          <div className="flex space-x-2">
+            <BulkUploadAlumni />
+            <ExportAlumniData />
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create User Account
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New User Account</DialogTitle>
+                  <DialogDescription>
+                    Create a new user account (Student or Alumni) with profile
+                    information. Make sure to use a unique email address that
+                    hasn't been registered before. Students with graduation
+                    year ≤ current year will be eligible for alumni promotion.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateAlumni} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input
+                        id="firstName"
+                        value={newAlumni.firstName}
+                        onChange={(e) =>
+                          setNewAlumni({
+                            ...newAlumni,
+                            firstName: e.target.value,
+                          })
+                        }
+                        placeholder="Enter first name"
+                        className={formErrors.firstName ? "border-red-500" : ""}
+                      />
+                      {formErrors.firstName && (
+                        <p className="text-sm text-red-500">
+                          {formErrors.firstName}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        value={newAlumni.lastName}
+                        onChange={(e) =>
+                          setNewAlumni({
+                            ...newAlumni,
+                            lastName: e.target.value,
+                          })
+                        }
+                        placeholder="Enter last name"
+                        className={formErrors.lastName ? "border-red-500" : ""}
+                      />
+                      {formErrors.lastName && (
+                        <p className="text-sm text-red-500">
+                          {formErrors.lastName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name *</Label>
+                    <Label htmlFor="email">Email Address *</Label>
                     <Input
-                      id="firstName"
-                      value={newAlumni.firstName}
+                      id="email"
+                      type="email"
+                      value={newAlumni.email}
                       onChange={(e) =>
-                        setNewAlumni({
-                          ...newAlumni,
-                          firstName: e.target.value,
-                        })
+                        setNewAlumni({ ...newAlumni, email: e.target.value })
                       }
-                      placeholder="Enter first name"
-                      className={formErrors.firstName ? "border-red-500" : ""}
+                      placeholder="Enter email address"
+                      className={formErrors.email ? "border-red-500" : ""}
                     />
-                    {formErrors.firstName && (
+                    {formErrors.email && (
+                      <p className="text-sm text-red-500">{formErrors.email}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={newAlumni.password}
+                      onChange={(e) =>
+                        setNewAlumni({ ...newAlumni, password: e.target.value })
+                      }
+                      placeholder="Enter password"
+                      className={formErrors.password ? "border-red-500" : ""}
+                    />
+                    {formErrors.password && (
                       <p className="text-sm text-red-500">
-                        {formErrors.firstName}
+                        {formErrors.password}
                       </p>
                     )}
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name *</Label>
-                    <Input
-                      id="lastName"
-                      value={newAlumni.lastName}
-                      onChange={(e) =>
-                        setNewAlumni({ ...newAlumni, lastName: e.target.value })
-                      }
-                      placeholder="Enter last name"
-                      className={formErrors.lastName ? "border-red-500" : ""}
-                    />
-                    {formErrors.lastName && (
-                      <p className="text-sm text-red-500">
-                        {formErrors.lastName}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newAlumni.email}
-                    onChange={(e) =>
-                      setNewAlumni({ ...newAlumni, email: e.target.value })
-                    }
-                    placeholder="Enter email address"
-                    className={formErrors.email ? "border-red-500" : ""}
-                  />
-                  {formErrors.email && (
-                    <p className="text-sm text-red-500">{formErrors.email}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newAlumni.password}
-                    onChange={(e) =>
-                      setNewAlumni({ ...newAlumni, password: e.target.value })
-                    }
-                    placeholder="Enter password"
-                    className={formErrors.password ? "border-red-500" : ""}
-                  />
-                  {formErrors.password && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.password}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="college">College *</Label>
+                    <Label htmlFor="role">Role *</Label>
                     <Select
-                      value={newAlumni.collegeId}
-                      onValueChange={(value) =>
-                        setNewAlumni({ ...newAlumni, collegeId: value })
-                      }
+                      value={newAlumni.role}
+                      onValueChange={(value) => {
+                        setHasInteracted(true);
+                        setNewAlumni({ ...newAlumni, role: value });
+                      }}
                     >
                       <SelectTrigger
-                        className={formErrors.collegeId ? "border-red-500" : ""}
+                        className={formErrors.role ? "border-red-500" : ""}
                       >
-                        <SelectValue placeholder="Select college" />
+                        <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {colleges.map((college) => (
-                          <SelectItem key={college._id} value={college._id}>
-                            {college.name}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="alumni">Alumni</SelectItem>
+                        <SelectItem value="student">Student</SelectItem>
                       </SelectContent>
                     </Select>
-                    {formErrors.collegeId && (
-                      <p className="text-sm text-red-500">
-                        {formErrors.collegeId}
-                      </p>
+                    {formErrors.role && (
+                      <p className="text-sm text-red-500">{formErrors.role}</p>
                     )}
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {user?.role === "super_admin" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="college">College *</Label>
+                        <Select
+                          value={newAlumni.collegeId}
+                          onValueChange={(value) => {
+                            setHasInteracted(true);
+                            setNewAlumni({ ...newAlumni, collegeId: value });
+                          }}
+                        >
+                          <SelectTrigger
+                            className={
+                              formErrors.collegeId ? "border-red-500" : ""
+                            }
+                          >
+                            <SelectValue placeholder="Select college" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {colleges.map((college) => (
+                              <SelectItem key={college._id} value={college._id}>
+                                {college.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {formErrors.collegeId && (
+                          <p className="text-sm text-red-500">
+                            {formErrors.collegeId}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Department *</Label>
+                      <Select
+                        value={newAlumni.department}
+                        onValueChange={(v) => {
+                          setHasInteracted(true);
+                          setNewAlumni({ ...newAlumni, department: v });
+                        }}
+                      >
+                        <SelectTrigger
+                          className={
+                            formErrors.department ? "border-red-500" : ""
+                          }
+                        >
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departmentOptions.length === 0 ? (
+                            <SelectItem value="__noopts__" disabled>
+                              No saved departments
+                            </SelectItem>
+                          ) : (
+                            departmentOptions.map((name) => (
+                              <SelectItem key={name} value={name}>
+                                {name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {formErrors.department && (
+                        <p className="text-sm text-red-500">
+                          {formErrors.department}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department *</Label>
+                    <Label htmlFor="graduationYear">
+                      Graduation Year {newAlumni.role === "student" ? "*" : ""}
+                    </Label>
                     <Input
-                      id="department"
-                      value={newAlumni.department}
+                      id="graduationYear"
+                      type="number"
+                      value={newAlumni.graduationYear}
                       onChange={(e) =>
                         setNewAlumni({
                           ...newAlumni,
-                          department: e.target.value,
+                          graduationYear:
+                            parseInt(e.target.value) ||
+                            new Date().getFullYear(),
                         })
                       }
-                      placeholder="Enter department"
-                      className={formErrors.department ? "border-red-500" : ""}
+                      placeholder="Enter graduation year"
+                      className={
+                        formErrors.graduationYear ? "border-red-500" : ""
+                      }
                     />
-                    {formErrors.department && (
+                    {formErrors.graduationYear && (
                       <p className="text-sm text-red-500">
-                        {formErrors.department}
+                        {formErrors.graduationYear}
+                      </p>
+                    )}
+                    {newAlumni.role === "student" && (
+                      <p className="text-xs text-muted-foreground">
+                        Required for students. Students with graduation year ≤
+                        current year will be eligible for alumni promotion.
                       </p>
                     )}
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="graduationYear">Graduation Year *</Label>
-                  <Input
-                    id="graduationYear"
-                    type="number"
-                    value={newAlumni.graduationYear}
-                    onChange={(e) =>
-                      setNewAlumni({
-                        ...newAlumni,
-                        graduationYear:
-                          parseInt(e.target.value) || new Date().getFullYear(),
-                      })
-                    }
-                    placeholder="Enter graduation year"
-                    className={
-                      formErrors.graduationYear ? "border-red-500" : ""
-                    }
-                  />
-                  {formErrors.graduationYear && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.graduationYear}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createLoading}>
-                    {createLoading ? "Creating..." : "Create Alumni"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createLoading || !isFormValid}
+                      onClick={() => setHasInteracted(true)}
+                    >
+                      {createLoading
+                        ? "Creating..."
+                        : newAlumni.role === "student"
+                        ? "Create Student"
+                        : "Create Alumni"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </div>
 
@@ -529,128 +738,175 @@ const AlumniManagement = () => {
         </div>
       </div>
 
-      {/* Alumni List */}
+      {/* Enhanced Alumni List */}
       <div className="grid gap-4">
         {loading ? (
-          <div className="flex items-center justify-center p-8">
-            <div className="text-muted-foreground">Loading alumni...</div>
-          </div>
-        ) : (Array.isArray(alumni) ? alumni : []).filter(
-            (alumnus) =>
-              `${alumnus.userId?.firstName || ""} ${
-                alumnus.userId?.lastName || ""
-              }`
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              alumnus.userId?.email
-                ?.toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              alumnus.currentCompany
-                ?.toLowerCase()
-                .includes(searchTerm.toLowerCase())
-          ).length === 0 ? (
-          <div className="flex items-center justify-center p-8">
-            <div className="text-muted-foreground">
-              {searchTerm
-                ? "No alumni found matching your search."
-                : "No alumni found."}
+          <div className="flex items-center justify-center p-12">
+            <div className="text-center">
+              <GraduationCap className="h-12 w-12 mx-auto text-muted-foreground mb-4 animate-pulse" />
+              <div className="text-muted-foreground">Loading alumni...</div>
             </div>
           </div>
+        ) : filteredAlumni.length === 0 ? (
+          <Card>
+            <CardContent className="p-12">
+              <div className="text-center">
+                <GraduationCap className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {searchTerm
+                    ? "No alumni found matching your search"
+                    : "No alumni found"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {searchTerm
+                    ? "Try adjusting your search terms"
+                    : "Create your first alumni account to get started"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
-          (Array.isArray(alumni) ? alumni : [])
-            .filter(
-              (alumnus) =>
-                `${alumnus.userId?.firstName || ""} ${
-                  alumnus.userId?.lastName || ""
-                }`
-                  .toLowerCase()
-                  .includes(searchTerm.toLowerCase()) ||
-                alumnus.userId?.email
-                  ?.toLowerCase()
-                  .includes(searchTerm.toLowerCase()) ||
-                alumnus.currentCompany
-                  ?.toLowerCase()
-                  .includes(searchTerm.toLowerCase())
-            )
-            .map((alumni) => (
-              <Card
-                key={alumni._id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => handleAlumniClick(alumni)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4">
-                      <div className="relative">
-                        <img
-                          src={
-                            alumni.userId?.profileImage
-                              ? alumni.userId.profileImage.startsWith("http")
-                                ? alumni.userId.profileImage
-                                : alumni.userId.profileImage
-                              : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  `${alumni.userId?.firstName || ""} ${
-                                    alumni.userId?.lastName || ""
-                                  }`
-                                )}&background=random&color=fff`
-                          }
-                          alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
-                          className="w-12 h-12 rounded-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          filteredAlumni.map((alumni) => (
+            <Card
+              key={alumni._id}
+              className="hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 border-l-blue-500"
+              onClick={() => handleAlumniClick(alumni)}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="relative flex-shrink-0">
+                    <img
+                      src={
+                        alumni.userId?.profileImage ||
+                        alumni.userId?.profilePicture
+                          ? (
+                              alumni.userId.profileImage ||
+                              alumni.userId.profilePicture
+                            ).startsWith("http")
+                            ? alumni.userId.profileImage ||
+                              alumni.userId.profilePicture
+                            : `${(
+                                import.meta.env.VITE_API_BASE_URL ||
+                                "http://localhost:3000/api/v1"
+                              ).replace("/api/v1", "")}${
+                                alumni.userId.profileImage ||
+                                alumni.userId.profilePicture
+                              }`
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                               `${alumni.userId?.firstName || ""} ${
                                 alumni.userId?.lastName || ""
                               }`
-                            )}&background=random&color=fff`;
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="text-lg font-semibold">
+                            )}&background=0ea5e9&color=fff&size=128`
+                      }
+                      alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-blue-100 shadow-md"
+                      onError={(e) => {
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          `${alumni.userId?.firstName || ""} ${
+                            alumni.userId?.lastName || ""
+                          }`
+                        )}&background=0ea5e9&color=fff&size=128`;
+                      }}
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-xl font-semibold">
                             {alumni.userId.firstName} {alumni.userId.lastName}
                           </h3>
-                          <Badge variant="secondary">Alumni</Badge>
+                          <Badge variant="secondary" className="font-normal">
+                            Alumni
+                          </Badge>
                         </div>
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-2">
-                            <Mail className="h-4 w-4" />
-                            <span>{alumni.userId.email}</span>
-                          </div>
-                          {alumni.currentCompany && (
-                            <div className="flex items-center space-x-2">
-                              <Building className="h-4 w-4" />
-                              <span>{alumni.currentCompany}</span>
-                              {alumni.currentPosition && (
-                                <span>• {alumni.currentPosition}</span>
-                              )}
-                            </div>
-                          )}
-                          {alumni.currentLocation && (
-                            <div className="flex items-center space-x-2">
-                              <MapPin className="h-4 w-4" />
-                              <span>{alumni.currentLocation}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center space-x-2">
-                            <GraduationCap className="h-4 w-4" />
-                            <span>Class of {alumni.graduationYear}</span>
-                          </div>
-                          {alumni.experience && alumni.experience > 0 && (
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="h-4 w-4" />
-                              <span>{alumni.experience} years experience</span>
-                            </div>
-                          )}
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">
+                            {alumni.userId.email}
+                          </span>
                         </div>
                       </div>
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {alumni.currentCompany && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Building className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground truncate">
+                            {alumni.currentCompany}
+                            {alumni.currentPosition &&
+                              ` • ${alumni.currentPosition}`}
+                          </span>
+                        </div>
+                      )}
+                      {alumni.currentLocation && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground truncate">
+                            {alumni.currentLocation}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm">
+                        <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Class of {alumni.graduationYear}
+                        </span>
+                      </div>
+                      {alumni.experience && alumni.experience > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            {alumni.experience} years experience
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && totalAlumni > 0 && (
+        <div className="flex items-center justify-between pt-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            <span>{paginationText}</span>
+          </div>
+          {!searchTerm && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={alumniPage <= 1 || loading}
+                onClick={() => setAlumniPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground px-2">
+                  Page {alumniPage} of{" "}
+                  {Math.max(1, Math.ceil(totalAlumni / alumniLimit))}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={
+                  alumniPage >= Math.ceil(totalAlumni / alumniLimit) || loading
+                }
+                onClick={() => setAlumniPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

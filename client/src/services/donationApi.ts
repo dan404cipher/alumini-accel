@@ -160,11 +160,27 @@ class DonationApiService {
     status?: string;
     category?: string;
     search?: string;
-  }): Promise<{ success: boolean; data: Campaign[]; count: number }> {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    success: boolean;
+    data: {
+      campaigns: Campaign[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
+    count: number;
+  }> {
     const queryParams = new URLSearchParams();
     if (params?.status) queryParams.append("status", params.status);
     if (params?.category) queryParams.append("category", params.category);
     if (params?.search) queryParams.append("search", params.search);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
 
     const queryString = queryParams.toString();
     const endpoint = queryString ? `/campaigns?${queryString}` : "/campaigns";
@@ -293,12 +309,32 @@ class DonationApiService {
     });
   }
 
-  async getMyDonations(): Promise<{
+  async getMyDonations(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
     success: boolean;
-    data: Donation[];
+    data: {
+      donations: Donation[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
     count: number;
   }> {
-    return this.makeRequest("/donations/my-donations");
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString
+      ? `/donations/my-donations?${queryString}`
+      : "/donations/my-donations";
+
+    return this.makeRequest(endpoint);
   }
 
   async getDonationStats(): Promise<{ success: boolean; data: any }> {

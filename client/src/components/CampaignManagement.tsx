@@ -44,8 +44,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { campaignAPI } from "@/lib/api";
+import { campaignAPI, categoryAPI } from "@/lib/api";
 import { useForm } from "react-hook-form";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -60,8 +62,12 @@ import {
   TrendingUp,
   MoreHorizontal,
   Eye,
-  Heart,
-  Share2,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  IndianRupee,
+  Download,
+  User,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -102,6 +108,7 @@ interface Campaign {
   startDate: string;
   endDate: string;
   status: string;
+  imageUrl?: string;
   images: string[];
   documents: string[];
   allowAnonymous: boolean;
@@ -145,7 +152,118 @@ const CampaignManagement: React.FC = () => {
     null
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignLimit] = useState(6);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Donor management state
+  const [selectedCampaignForDonors, setSelectedCampaignForDonors] =
+    useState<Campaign | null>(null);
+  const [isDonorsDialogOpen, setIsDonorsDialogOpen] = useState(false);
+  const [donors, setDonors] = useState<
+    Array<{
+      _id: string;
+      donorName: string;
+      donorEmail?: string | null;
+      donorPhone?: string | null;
+      donorProfile?: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone?: string;
+        profilePicture?: string;
+      } | null;
+      amount: number;
+      currency: string;
+      paymentMethod: string;
+      transactionId?: string;
+      anonymous: boolean;
+      message?: string;
+      createdAt: string;
+    }>
+  >([]);
+  const [donorStats, setDonorStats] = useState<{
+    totalDonors?: number;
+    totalAmount?: number;
+    totalDonations?: number;
+    averageAmount?: number;
+    topDonors?: Array<{
+      donor: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        profilePicture?: string;
+      };
+      totalAmount: number;
+      donationCount: number;
+      lastDonation: string;
+    }>;
+  } | null>(null);
+  const [donorsLoading, setDonorsLoading] = useState(false);
+  const [donorsPage, setDonorsPage] = useState(1);
+  const [donorsLimit] = useState(20);
+  const [donorsTotal, setDonorsTotal] = useState(0);
+
+  // Form state for Create Campaign (Donations page style)
+  const [createFormData, setCreateFormData] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: null as File | null,
+    imagePreviewUrl: "",
+  });
+  const [createFormErrors, setCreateFormErrors] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: "",
+  });
+  // Form state for Edit Campaign (Donations page style)
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: null as File | null,
+    imagePreviewUrl: "",
+  });
+  const [editFormErrors, setEditFormErrors] = useState({
+    title: "",
+    description: "",
+    category: "",
+    amount: "",
+    endDate: "",
+    imageFile: "",
+  });
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "donation_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as Array<{ name?: string }>)
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        setCategoryOptions(names);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const form = useForm<CampaignFormData>({
     resolver: zodResolver(campaignSchema),
@@ -169,8 +287,201 @@ const CampaignManagement: React.FC = () => {
     },
   });
 
+  // Prefill edit form when opening edit dialog
+  useEffect(() => {
+    if (isEditDialogOpen && selectedCampaign) {
+      setEditFormData({
+        title: selectedCampaign.title || "",
+        description: selectedCampaign.description || "",
+        category: selectedCampaign.category || "",
+        amount: selectedCampaign.targetAmount?.toString() || "",
+        endDate: selectedCampaign.endDate
+          ? new Date(selectedCampaign.endDate).toISOString().split("T")[0]
+          : "",
+        imageFile: null,
+        imagePreviewUrl:
+          selectedCampaign.imageUrl || selectedCampaign.images?.[0] || "",
+      });
+      setEditFormErrors({
+        title: "",
+        description: "",
+        category: "",
+        amount: "",
+        endDate: "",
+        imageFile: "",
+      });
+    } else if (!isEditDialogOpen) {
+      // Reset form when dialog closes
+      setEditFormData({
+        title: "",
+        description: "",
+        category: "",
+        amount: "",
+        endDate: "",
+        imageFile: null,
+        imagePreviewUrl: "",
+      });
+    }
+  }, [isEditDialogOpen, selectedCampaign]);
+
+  // Validate edit form (Donations page style)
+  const validateEditForm = () => {
+    const newErrors = {
+      title: "",
+      description: "",
+      category: "",
+      amount: "",
+      endDate: "",
+      imageFile: "",
+    };
+
+    if (!editFormData.title.trim()) {
+      newErrors.title = "Campaign title is required";
+    } else if (editFormData.title.trim().length < 5) {
+      newErrors.title = "Campaign title must be at least 5 characters";
+    } else if (editFormData.title.trim().length > 100) {
+      newErrors.title = "Campaign title must be less than 100 characters";
+    }
+
+    if (!editFormData.description.trim()) {
+      newErrors.description = "Campaign description is required";
+    } else if (editFormData.description.trim().length < 20) {
+      newErrors.description =
+        "Campaign description must be at least 20 characters";
+    } else if (editFormData.description.trim().length > 1000) {
+      newErrors.description =
+        "Campaign description must be less than 1000 characters";
+    }
+
+    if (!editFormData.category) {
+      newErrors.category = "Please select a category";
+    }
+
+    if (!editFormData.amount) {
+      newErrors.amount = "Target amount is required";
+    } else if (isNaN(Number(editFormData.amount))) {
+      newErrors.amount = "Please enter a valid number";
+    } else if (Number(editFormData.amount) <= 0) {
+      newErrors.amount = "Target amount must be greater than 0";
+    } else if (Number(editFormData.amount) < 1000) {
+      newErrors.amount = "Target amount must be at least ₹1,000";
+    } else if (Number(editFormData.amount) > 100000000) {
+      newErrors.amount = "Target amount cannot exceed ₹10,00,00,000";
+    }
+
+    if (!editFormData.endDate) {
+      newErrors.endDate = "End date is required";
+    } else {
+      const endDate = new Date(editFormData.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (endDate <= today) {
+        newErrors.endDate = "End date must be in the future";
+      } else if (
+        endDate > new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000)
+      ) {
+        newErrors.endDate = "End date cannot be more than 1 year from now";
+      }
+    }
+
+    if (editFormData.imageFile) {
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (editFormData.imageFile.size > maxSize) {
+        newErrors.imageFile = "Image size must be less than 5MB";
+      }
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(editFormData.imageFile.type)) {
+        newErrors.imageFile =
+          "Please upload a valid image (JPEG, PNG, GIF, WebP)";
+      }
+    }
+
+    setEditFormErrors(newErrors);
+    return Object.values(newErrors).every((error) => !error);
+  };
+
+  const handleUpdateCampaign = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (!selectedCampaign?._id) return;
+    if (!validateEditForm()) return;
+
+    try {
+      const campaignData = {
+        title: editFormData.title,
+        description: editFormData.description,
+        category: editFormData.category,
+        targetAmount: parseInt(editFormData.amount),
+        currency: "INR",
+        endDate: editFormData.endDate,
+      };
+
+      const response = await campaignAPI.updateCampaign(
+        selectedCampaign._id,
+        campaignData
+      );
+
+      if (response.success) {
+        // Upload image if provided
+        if (editFormData.imageFile) {
+          try {
+            const imageFormData = new FormData();
+            imageFormData.append("image", editFormData.imageFile);
+            if (campaignAPI.uploadCampaignImage) {
+              await campaignAPI.uploadCampaignImage(
+                selectedCampaign._id,
+                imageFormData
+              );
+            }
+          } catch (imageError) {
+            console.error("Error uploading image:", imageError);
+            // Don't fail the entire update if image upload fails
+          }
+        }
+
+        toast({
+          title: "Success",
+          description: "Campaign updated successfully",
+        });
+        setIsEditDialogOpen(false);
+        setSelectedCampaign(null);
+        setEditFormData({
+          title: "",
+          description: "",
+          category: "",
+          amount: "",
+          endDate: "",
+          imageFile: null,
+          imagePreviewUrl: "",
+        });
+        fetchCampaigns();
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to update campaign",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating campaign:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update campaign",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchCampaigns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCampaigns = async () => {
@@ -217,37 +528,151 @@ const CampaignManagement: React.FC = () => {
     }
   };
 
-  const handleCreateCampaign = async (data: CampaignFormData) => {
+  // Validate create form (Donations page style)
+  const validateCreateForm = () => {
+    const newErrors = {
+      title: "",
+      description: "",
+      category: "",
+      amount: "",
+      endDate: "",
+      imageFile: "",
+    };
+
+    if (!createFormData.title.trim()) {
+      newErrors.title = "Campaign title is required";
+    } else if (createFormData.title.trim().length < 5) {
+      newErrors.title = "Campaign title must be at least 5 characters";
+    } else if (createFormData.title.trim().length > 100) {
+      newErrors.title = "Campaign title must be less than 100 characters";
+    }
+
+    if (!createFormData.description.trim()) {
+      newErrors.description = "Campaign description is required";
+    } else if (createFormData.description.trim().length < 20) {
+      newErrors.description =
+        "Campaign description must be at least 20 characters";
+    } else if (createFormData.description.trim().length > 1000) {
+      newErrors.description =
+        "Campaign description must be less than 1000 characters";
+    }
+
+    if (!createFormData.category) {
+      newErrors.category = "Please select a category";
+    }
+
+    if (!createFormData.amount) {
+      newErrors.amount = "Target amount is required";
+    } else if (isNaN(Number(createFormData.amount))) {
+      newErrors.amount = "Please enter a valid number";
+    } else if (Number(createFormData.amount) <= 0) {
+      newErrors.amount = "Target amount must be greater than 0";
+    } else if (Number(createFormData.amount) < 1000) {
+      newErrors.amount = "Target amount must be at least ₹1,000";
+    } else if (Number(createFormData.amount) > 100000000) {
+      newErrors.amount = "Target amount cannot exceed ₹10,00,00,000";
+    }
+
+    if (!createFormData.endDate) {
+      newErrors.endDate = "End date is required";
+    } else {
+      const endDate = new Date(createFormData.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (endDate <= today) {
+        newErrors.endDate = "End date must be in the future";
+      } else if (
+        endDate > new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000)
+      ) {
+        newErrors.endDate = "End date cannot be more than 1 year from now";
+      }
+    }
+
+    if (createFormData.imageFile) {
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (createFormData.imageFile.size > maxSize) {
+        newErrors.imageFile = "Image size must be less than 5MB";
+      }
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(createFormData.imageFile.type)) {
+        newErrors.imageFile =
+          "Please upload a valid image (JPEG, PNG, GIF, WebP)";
+      }
+    }
+
+    setCreateFormErrors(newErrors);
+    return Object.values(newErrors).every((error) => !error);
+  };
+
+  const handleCreateCampaign = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (!validateCreateForm()) return;
+
     try {
-      // Ensure all required fields are provided with defaults
       const campaignData = {
-        title: data.title!,
-        description: data.description!,
-        category: data.category!,
-        targetAmount: data.targetAmount!,
-        currency: data.currency || "INR",
-        startDate: data.startDate!,
-        endDate: data.endDate!,
-        allowAnonymous: data.allowAnonymous ?? true,
-        featured: data.featured ?? false,
-        tags: data.tags || [],
-        location: data.location,
+        title: createFormData.title,
+        description: createFormData.description,
+        category: createFormData.category,
+        targetAmount: parseInt(createFormData.amount),
+        currency: "INR",
+        startDate: new Date().toISOString(),
+        endDate: createFormData.endDate,
         contactInfo: {
-          email: data.contactInfo!.email!,
-          phone: data.contactInfo!.phone,
-          person: data.contactInfo!.person,
+          email: "admin@alma-mater.edu",
         },
       };
 
       const response = await campaignAPI.createCampaign(campaignData);
 
       if (response.success) {
+        // Upload image if provided
+        const campaignId =
+          (response.data as { _id?: string; id?: string })?._id ||
+          (response.data as { _id?: string; id?: string })?.id;
+        if (createFormData.imageFile && campaignId) {
+          try {
+            const imageFormData = new FormData();
+            imageFormData.append("image", createFormData.imageFile);
+            // Check if uploadCampaignImage exists, otherwise skip
+            if (campaignAPI.uploadCampaignImage) {
+              await campaignAPI.uploadCampaignImage(campaignId, imageFormData);
+            }
+          } catch (imageError) {
+            console.error("Error uploading campaign image:", imageError);
+            // Don't fail the entire operation if image upload fails
+          }
+        }
+
         toast({
           title: "Success",
           description: "Campaign created successfully",
         });
         setIsCreateDialogOpen(false);
-        form.reset();
+        setCreateFormData({
+          title: "",
+          description: "",
+          category: "",
+          amount: "",
+          endDate: "",
+          imageFile: null,
+          imagePreviewUrl: "",
+        });
+        setCreateFormErrors({
+          title: "",
+          description: "",
+          category: "",
+          amount: "",
+          endDate: "",
+          imageFile: "",
+        });
         fetchCampaigns();
       } else {
         toast({
@@ -266,6 +691,58 @@ const CampaignManagement: React.FC = () => {
     }
   };
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      setCreateFormData((prev) => ({
+        ...prev,
+        imageFile: null,
+        imagePreviewUrl: "",
+      }));
+      setCreateFormErrors((prev) => ({ ...prev, imageFile: "" }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const url = (evt.target?.result as string) || "";
+      setCreateFormData((prev) => ({
+        ...prev,
+        imageFile: file,
+        imagePreviewUrl: url,
+      }));
+      setCreateFormErrors((prev) => ({ ...prev, imageFile: "" }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditImageFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      setEditFormData((prev) => ({
+        ...prev,
+        imageFile: null,
+        imagePreviewUrl: "",
+      }));
+      setEditFormErrors((prev) => ({ ...prev, imageFile: "" }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const url = (evt.target?.result as string) || "";
+      setEditFormData((prev) => ({
+        ...prev,
+        imageFile: file,
+        imagePreviewUrl: url,
+      }));
+      setEditFormErrors((prev) => ({ ...prev, imageFile: "" }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDeleteCampaign = async (campaignId: string) => {
     if (!confirm("Are you sure you want to delete this campaign?")) return;
 
@@ -275,7 +752,10 @@ const CampaignManagement: React.FC = () => {
       if (response.success) {
         toast({
           title: "Success",
-          description: "Campaign deleted successfully",
+          description: response.message || "Campaign deleted successfully",
+          variant: response.message?.includes("Warning")
+            ? "default"
+            : "default",
         });
         fetchCampaigns();
       } else {
@@ -285,11 +765,150 @@ const CampaignManagement: React.FC = () => {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error deleting campaign:", error);
+      const errorMessage =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : undefined;
       toast({
         title: "Error",
-        description: "Failed to delete campaign",
+        description: errorMessage || "Failed to delete campaign",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Donor management functions
+  const handleViewDonors = async (campaign: Campaign) => {
+    setSelectedCampaignForDonors(campaign);
+    setIsDonorsDialogOpen(true);
+    await fetchCampaignDonors(campaign._id, 1);
+    await fetchCampaignDonorStats(campaign._id);
+  };
+
+  const fetchCampaignDonors = async (campaignId: string, page: number = 1) => {
+    try {
+      setDonorsLoading(true);
+      const response = await campaignAPI.getCampaignDonors(campaignId, {
+        page,
+        limit: donorsLimit,
+      });
+
+      if (response.success && response.data) {
+        const data = response.data as {
+          donors?: Array<{
+            _id: string;
+            donorName: string;
+            donorEmail?: string | null;
+            donorPhone?: string | null;
+            donorProfile?: {
+              _id: string;
+              firstName: string;
+              lastName: string;
+              email: string;
+              phone?: string;
+              profilePicture?: string;
+            } | null;
+            amount: number;
+            currency: string;
+            paymentMethod: string;
+            transactionId?: string;
+            anonymous: boolean;
+            message?: string;
+            createdAt: string;
+          }>;
+          pagination?: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+          };
+        };
+        setDonors(data.donors || []);
+        setDonorsTotal(data.pagination?.total || 0);
+        setDonorsPage(page);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch donors",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching donors:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch donors",
+        variant: "destructive",
+      });
+    } finally {
+      setDonorsLoading(false);
+    }
+  };
+
+  const fetchCampaignDonorStats = async (campaignId: string) => {
+    try {
+      const response = await campaignAPI.getCampaignDonorStats(campaignId);
+      if (response.success && response.data) {
+        setDonorStats(
+          response.data as {
+            totalDonors?: number;
+            totalAmount?: number;
+            totalDonations?: number;
+            averageAmount?: number;
+            topDonors?: Array<{
+              donor: {
+                _id: string;
+                firstName: string;
+                lastName: string;
+                email: string;
+                profilePicture?: string;
+              };
+              totalAmount: number;
+              donationCount: number;
+              lastDonation: string;
+            }>;
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching donor stats:", error);
+    }
+  };
+
+  const handleExportDonors = async () => {
+    if (!selectedCampaignForDonors) return;
+
+    try {
+      const response = await campaignAPI.exportCampaignDonors(
+        selectedCampaignForDonors._id,
+        "csv"
+      );
+
+      // Create blob and download
+      const blob = new Blob([response], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `campaign-${
+        selectedCampaignForDonors._id
+      }-donors-${Date.now()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Donors exported successfully",
+      });
+    } catch (error) {
+      console.error("Error exporting donors:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export donors",
         variant: "destructive",
       });
     }
@@ -329,320 +948,297 @@ const CampaignManagement: React.FC = () => {
     const matchesSearch =
       campaign.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       campaign.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "all" || campaign.category === categoryFilter;
+    const matchesStatus =
+      statusFilter === "all" || campaign.status === statusFilter;
 
-    return matchesSearch;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading campaigns...</p>
-        </div>
-      </div>
-    );
-  }
+  // Pagination for filtered campaigns
+  const totalCampaigns = filteredCampaigns.length;
+  const totalPages = Math.max(1, Math.ceil(totalCampaigns / campaignLimit));
+  const paginatedCampaigns = filteredCampaigns.slice(
+    (campaignPage - 1) * campaignLimit,
+    campaignPage * campaignLimit
+  );
+
+  // Statistics
+  const totalAmount = campaigns.reduce(
+    (sum, c) => sum + (c.currentAmount || 0),
+    0
+  );
+  const totalTarget = campaigns.reduce(
+    (sum, c) => sum + (c.targetAmount || 0),
+    0
+  );
+  const activeCount = campaigns.filter((c) => c.status === "active").length;
+  const completedCount = campaigns.filter(
+    (c) => c.status === "completed"
+  ).length;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCampaignPage(1);
+  }, [searchTerm, categoryFilter, statusFilter]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Enhanced Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Campaign Management
-          </h2>
-          <p className="text-gray-600">Manage fundraising campaigns</p>
+          <h2 className="text-2xl font-semibold">Campaign Management</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage and track fundraising campaigns for your college
+          </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Campaign
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Campaign</DialogTitle>
-              <DialogDescription>
-                Create a new fundraising campaign
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(handleCreateCampaign)}
-                className="space-y-6"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Basic Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Basic Information</h3>
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campaign Title</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter campaign title"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="scholarship">
-                                Scholarship
-                              </SelectItem>
-                              <SelectItem value="infrastructure">
-                                Infrastructure
-                              </SelectItem>
-                              <SelectItem value="research">Research</SelectItem>
-                              <SelectItem value="event">Event</SelectItem>
-                              <SelectItem value="emergency">
-                                Emergency
-                              </SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Enter campaign description"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+        <div className="flex items-center gap-3">
+          {!loading && campaigns.length > 0 && (
+            <>
+              <Badge variant="outline" className="text-sm">
+                Total: {campaigns.length}
+              </Badge>
+              {activeCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-sm bg-green-50 text-green-700"
+                >
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Active: {activeCount}
+                </Badge>
+              )}
+              {completedCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-sm bg-blue-50 text-blue-700"
+                >
+                  <Target className="w-3 h-3 mr-1" />
+                  Completed: {completedCount}
+                </Badge>
+              )}
+              {totalAmount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-sm bg-purple-50 text-purple-700"
+                >
+                  <IndianRupee className="w-3 h-3 mr-1" />
+                  Raised: ₹{totalAmount.toLocaleString()}
+                </Badge>
+              )}
+            </>
+          )}
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Campaign
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Campaign</DialogTitle>
+                <DialogDescription>
+                  Create a new fundraising campaign
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateCampaign} className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Campaign Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={createFormData.title}
+                    onChange={(e) =>
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter campaign title"
+                    className={`mt-1 w-full border ${
+                      createFormErrors.title
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                  />
+                  {createFormErrors.title && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.title}
+                    </p>
+                  )}
+                </div>
 
-                  {/* Financial Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">
-                      Financial Information
-                    </h3>
-                    <FormField
-                      control={form.control}
-                      name="targetAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Target Amount</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="Enter target amount"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseFloat(e.target.value) || 0)
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Description *
+                  </label>
+                  <textarea
+                    name="description"
+                    value={createFormData.description}
+                    onChange={(e) =>
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="Describe your campaign goals and impact"
+                    rows={3}
+                    className={`mt-1 w-full border ${
+                      createFormErrors.description
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                  />
+                  {createFormErrors.description && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Category & Amount */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Category *
+                    </label>
+                    <Select
+                      value={createFormData.category}
+                      onValueChange={(value) =>
+                        setCreateFormData((prev) => ({
+                          ...prev,
+                          category: value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger
+                        className={`mt-1 ${
+                          createFormErrors.category ? "border-red-500" : ""
+                        }`}
+                      >
+                        <SelectValue placeholder="Select an option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoryOptions.length === 0 ? (
+                          <SelectItem value="__noopts__" disabled>
+                            No saved categories
+                          </SelectItem>
+                        ) : (
+                          categoryOptions.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {createFormErrors.category && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {createFormErrors.category}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Target Amount (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      name="amount"
+                      value={createFormData.amount}
+                      onChange={(e) =>
+                        setCreateFormData((prev) => ({
+                          ...prev,
+                          amount: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter target amount"
+                      className={`mt-1 w-full border ${
+                        createFormErrors.amount
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
                     />
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Currency</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select currency" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="INR">INR (₹)</SelectItem>
-                              <SelectItem value="USD">USD ($)</SelectItem>
-                              <SelectItem value="EUR">EUR (€)</SelectItem>
-                              <SelectItem value="GBP">GBP (£)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Start Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>End Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {createFormErrors.amount && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {createFormErrors.amount}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Contact Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Contact Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="contactInfo.email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="contact@example.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="contactInfo.phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone</FormLabel>
-                          <FormControl>
-                            <Input placeholder="+1 (555) 123-4567" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="contactInfo.person"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Person</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Contact person name"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Campaign location" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                {/* End Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Campaign End Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={createFormData.endDate}
+                    onChange={(e) =>
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        endDate: e.target.value,
+                      }))
+                    }
+                    className={`mt-1 w-full border ${
+                      createFormErrors.endDate
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                  />
+                  {createFormErrors.endDate && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.endDate}
+                    </p>
+                  )}
                 </div>
 
-                {/* Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="allowAnonymous"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Anonymous Donations
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Allow donors to donate anonymously
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="featured"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Featured Campaign
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Highlight this campaign as featured
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Campaign Image (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                    className={`mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+                      createFormErrors.imageFile
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload a JPG or PNG image. A preview will appear below.
+                  </p>
+                  {createFormErrors.imageFile && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {createFormErrors.imageFile}
+                    </p>
+                  )}
+                  {createFormData.imagePreviewUrl && (
+                    <div className="mt-2">
+                      <img
+                        src={createFormData.imagePreviewUrl}
+                        alt="Preview"
+                        className="w-full h-40 object-cover rounded-lg border"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex justify-end space-x-2">
+                {/* Buttons */}
+                <div className="flex justify-end gap-3 mt-4">
                   <Button
                     type="button"
                     variant="outline"
@@ -650,179 +1246,763 @@ const CampaignManagement: React.FC = () => {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">Create Campaign</Button>
+                  <Button type="submit">+ Create Campaign</Button>
                 </div>
               </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Search campaigns..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      {/* Edit Campaign Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Edit Campaign</DialogTitle>
+            <DialogDescription>
+              Update the details of this fundraising campaign
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleUpdateCampaign}>
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Campaign Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={editFormData.title}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({
+                    ...prev,
+                    title: e.target.value,
+                  }))
+                }
+                placeholder="Enter campaign title"
+                className={`mt-1 w-full border ${
+                  editFormErrors.title ? "border-red-500" : "border-gray-300"
+                } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+              />
+              {editFormErrors.title && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.title}
+                </p>
+              )}
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Description *
+              </label>
+              <textarea
+                name="description"
+                value={editFormData.description}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                placeholder="Describe your campaign goals and impact"
+                rows={3}
+                className={`mt-1 w-full border ${
+                  editFormErrors.description
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+              />
+              {editFormErrors.description && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.description}
+                </p>
+              )}
+            </div>
+
+            {/* Category & Amount */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Category *
+                </label>
+                <Select
+                  value={editFormData.category}
+                  onValueChange={(value) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      category: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger
+                    className={`mt-1 ${
+                      editFormErrors.category ? "border-red-500" : ""
+                    }`}
+                  >
+                    <SelectValue placeholder="Select an option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved categories
+                      </SelectItem>
+                    ) : (
+                      categoryOptions.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {editFormErrors.category && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {editFormErrors.category}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Target Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  name="amount"
+                  value={editFormData.amount}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      amount: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter target amount"
+                  className={`mt-1 w-full border ${
+                    editFormErrors.amount ? "border-red-500" : "border-gray-300"
+                  } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+                />
+                {editFormErrors.amount && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {editFormErrors.amount}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* End Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Campaign End Date *
+              </label>
+              <input
+                type="date"
+                name="endDate"
+                value={editFormData.endDate}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }))
+                }
+                className={`mt-1 w-full border ${
+                  editFormErrors.endDate ? "border-red-500" : "border-gray-300"
+                } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+              />
+              {editFormErrors.endDate && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.endDate}
+                </p>
+              )}
+            </div>
+
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Campaign Image (Optional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleEditImageFileChange}
+                className={`mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
+                  editFormErrors.imageFile
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Upload a JPG or PNG image. A preview will appear below.
+              </p>
+              {editFormErrors.imageFile && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editFormErrors.imageFile}
+                </p>
+              )}
+              {editFormData.imagePreviewUrl && (
+                <div className="mt-2">
+                  <img
+                    src={editFormData.imagePreviewUrl}
+                    alt="Preview"
+                    className="w-full h-40 object-cover rounded-lg border"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-3 mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enhanced Filters */}
+      {!loading && (
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search campaigns..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="scholarship">Scholarship</SelectItem>
+              <SelectItem value="infrastructure">Infrastructure</SelectItem>
+              <SelectItem value="research">Research</SelectItem>
+              <SelectItem value="event">Event</SelectItem>
+              <SelectItem value="emergency">Emergency</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+          {(searchTerm ||
+            categoryFilter !== "all" ||
+            statusFilter !== "all") && (
+            <Badge variant="secondary" className="text-sm">
+              {filteredCampaigns.length} result
+              {filteredCampaigns.length !== 1 ? "s" : ""}
+            </Badge>
+          )}
         </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="scholarship">Scholarship</SelectItem>
-            <SelectItem value="infrastructure">Infrastructure</SelectItem>
-            <SelectItem value="research">Research</SelectItem>
-            <SelectItem value="event">Event</SelectItem>
-            <SelectItem value="emergency">Emergency</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="paused">Paused</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      )}
 
       {/* Campaigns Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCampaigns.map((campaign) => (
-          <Card key={campaign._id} className="relative">
-            {campaign.featured && (
-              <div className="absolute top-2 right-2 z-10">
-                <Badge className="bg-yellow-100 text-yellow-800">
-                  Featured
-                </Badge>
-              </div>
-            )}
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg line-clamp-2">
-                    {campaign.title}
-                  </CardTitle>
-                  <CardDescription className="line-clamp-2 mt-1">
-                    {campaign.description}
-                  </CardDescription>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDeleteCampaign(campaign._id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                {getCategoryBadge(campaign.category)}
-                {getStatusBadge(campaign.status)}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Progress</span>
-                  <span className="font-medium">
-                    {campaign.progressPercentage}%
-                  </span>
-                </div>
-                <Progress value={campaign.progressPercentage} className="h-2" />
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>₹{campaign.currentAmount.toLocaleString()}</span>
-                  <span>₹{campaign.targetAmount.toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <span>{campaign.statistics.totalDonors} donors</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span>{campaign.daysRemaining} days left</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t">
-                <div className="text-sm text-gray-600">
-                  Created by {campaign.createdBy.firstName}{" "}
-                  {campaign.createdBy.lastName}
-                </div>
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline">
-                    <Heart className="w-4 h-4 mr-1" />
-                    {campaign.statistics.totalDonations}
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    <Share2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredCampaigns.length === 0 && (
+      {loading ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No campaigns found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || categoryFilter !== "all" || statusFilter !== "all"
-                ? "Try adjusting your search or filters"
-                : "Create your first fundraising campaign to get started"}
-            </p>
-            {!searchTerm &&
-              categoryFilter === "all" &&
-              statusFilter === "all" && (
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Campaign
-                </Button>
-              )}
+          <CardContent className="p-12">
+            <div className="flex flex-col items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
+              <div className="text-muted-foreground">Loading campaigns...</div>
+            </div>
           </CardContent>
         </Card>
+      ) : filteredCampaigns.length === 0 ? (
+        <Card>
+          <CardContent className="p-12">
+            <div className="text-center">
+              <Target className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {searchTerm ||
+                categoryFilter !== "all" ||
+                statusFilter !== "all"
+                  ? "No campaigns found matching your filters"
+                  : "No campaigns found"}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {searchTerm ||
+                categoryFilter !== "all" ||
+                statusFilter !== "all"
+                  ? "Try adjusting your search or filters"
+                  : "Create your first fundraising campaign to get started"}
+              </p>
+              {!searchTerm &&
+                categoryFilter === "all" &&
+                statusFilter === "all" && (
+                  <Button onClick={() => setIsCreateDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Campaign
+                  </Button>
+                )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedCampaigns.map((campaign) => (
+              <Card key={campaign._id} className="relative">
+                {campaign.featured && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <Badge className="bg-yellow-100 text-yellow-800">
+                      Featured
+                    </Badge>
+                  </div>
+                )}
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg line-clamp-2">
+                        {campaign.title}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-2 mt-1">
+                        {campaign.description}
+                      </CardDescription>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={() => handleViewDonors(campaign)}
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          View Donors
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            setSelectedCampaign(campaign);
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            handleDeleteCampaign(campaign._id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    {getCategoryBadge(campaign.category)}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Progress</span>
+                      <span className="font-medium">
+                        {campaign.progressPercentage}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={campaign.progressPercentage || 0}
+                      className="h-2"
+                    />
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <IndianRupee className="w-3 h-3" />
+                        {campaign.currentAmount.toLocaleString()}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <IndianRupee className="w-3 h-3" />
+                        {campaign.targetAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-4 h-4 text-gray-400" />
+                      <span>{campaign.statistics.totalDonors} donors</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span>{campaign.daysRemaining} days left</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="text-xs text-muted-foreground truncate pr-2">
+                      Created by {campaign.createdBy.firstName}{" "}
+                      {campaign.createdBy.lastName}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {filteredCampaigns.length > 0 && (
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {(campaignPage - 1) * campaignLimit + 1} to{" "}
+                {Math.min(campaignPage * campaignLimit, totalCampaigns)} of{" "}
+                {totalCampaigns} campaigns
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={campaignPage <= 1 || loading}
+                  onClick={() => setCampaignPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground px-2">
+                    Page {campaignPage} of {totalPages}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={campaignPage >= totalPages || loading}
+                  onClick={() => setCampaignPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
+
+      {/* Donors Dialog */}
+      <Dialog open={isDonorsDialogOpen} onOpenChange={setIsDonorsDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Campaign Donors - {selectedCampaignForDonors?.title}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportDonors}
+                disabled={!donors.length}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </DialogTitle>
+            <DialogDescription>
+              View and manage all donors who contributed to this campaign
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Donor Stats */}
+          {donorStats && (
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Donors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {donorStats.totalDonors || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Raised
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ₹{donorStats.totalAmount?.toLocaleString() || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Average Donation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    ₹
+                    {Math.round(donorStats.averageAmount || 0).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Total Donations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {donorStats.totalDonations || 0}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Top Donors */}
+          {donorStats?.topDonors && donorStats.topDonors.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="text-lg">Top Donors</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {donorStats.topDonors.map((topDonor, index: number) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                          {index + 1}
+                        </div>
+                        {topDonor.donor?.profilePicture ? (
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={topDonor.donor.profilePicture} />
+                            <AvatarFallback>
+                              {topDonor.donor.firstName?.[0]}
+                              {topDonor.donor.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200">
+                            <User className="w-4 h-4 text-gray-600" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium">
+                            {topDonor.donor?.firstName}{" "}
+                            {topDonor.donor?.lastName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {topDonor.donationCount} donation
+                            {topDonor.donationCount !== 1 ? "s" : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg">
+                          ₹{topDonor.totalAmount.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {topDonor.donor?.email}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Donors Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">All Donors</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {donorsLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mr-2" />
+                  <span className="text-muted-foreground">
+                    Loading donors...
+                  </span>
+                </div>
+              ) : donors.length === 0 ? (
+                <div className="text-center p-8">
+                  <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    No donors found for this campaign
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Donor</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Payment Method</TableHead>
+                          <TableHead>Transaction ID</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Message</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {donors.map((donor) => (
+                          <TableRow key={donor._id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {donor.donorProfile?.profilePicture ? (
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage
+                                      src={donor.donorProfile.profilePicture}
+                                    />
+                                    <AvatarFallback>
+                                      {donor.donorName?.[0] || "A"}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ) : (
+                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200">
+                                    <User className="w-4 h-4 text-gray-600" />
+                                  </div>
+                                )}
+                                <div className="font-medium">
+                                  {donor.donorName}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {donor.anonymous ? (
+                                <span className="text-muted-foreground text-sm">
+                                  Anonymous
+                                </span>
+                              ) : (
+                                <span className="text-sm">
+                                  {donor.donorEmail ||
+                                    donor.donorProfile?.email ||
+                                    "-"}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {donor.anonymous ? (
+                                <span className="text-muted-foreground text-sm">
+                                  -
+                                </span>
+                              ) : (
+                                <span className="text-sm">
+                                  {donor.donorPhone ||
+                                    donor.donorProfile?.phone ||
+                                    "-"}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-semibold">
+                                ₹{donor.amount.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {donor.currency}
+                              </div>
+                            </TableCell>
+                            <TableCell>{donor.paymentMethod}</TableCell>
+                            <TableCell>
+                              <span className="text-xs font-mono">
+                                {donor.transactionId || "N/A"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(donor.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {donor.message ? (
+                                <span className="text-sm line-clamp-2">
+                                  {donor.message}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">
+                                  -
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Donors Pagination */}
+                  {donorsTotal > donorsLimit && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {(donorsPage - 1) * donorsLimit + 1} to{" "}
+                        {Math.min(donorsPage * donorsLimit, donorsTotal)} of{" "}
+                        {donorsTotal} donors
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={donorsPage <= 1}
+                          onClick={() => {
+                            if (selectedCampaignForDonors) {
+                              fetchCampaignDonors(
+                                selectedCampaignForDonors._id,
+                                donorsPage - 1
+                              );
+                            }
+                          }}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground px-2">
+                          Page {donorsPage} of{" "}
+                          {Math.ceil(donorsTotal / donorsLimit)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            donorsPage >= Math.ceil(donorsTotal / donorsLimit)
+                          }
+                          onClick={() => {
+                            if (selectedCampaignForDonors) {
+                              fetchCampaignDonors(
+                                selectedCampaignForDonors._id,
+                                donorsPage + 1
+                              );
+                            }
+                          }}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

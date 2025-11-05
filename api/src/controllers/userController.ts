@@ -1,11 +1,14 @@
 import { Request, Response } from "express";
 import User from "../models/User";
+import Tenant from "../models/Tenant";
 import { logger } from "../utils/logger";
 import { UserRole, UserStatus } from "../types";
 import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
 import { updateProfileCompletion } from "../utils/profileCompletion";
+import { emailService } from "../services/emailService";
+import crypto from "crypto";
 
 // Get all users (admin only)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -156,6 +159,43 @@ export const createUser = async (req: Request, res: Response) => {
     delete (userResponse as any).password;
 
     logger.info(`User created: ${email} with role: ${role}`);
+
+    // Send welcome email for alumni users
+    if (role === UserRole.ALUMNI && tenantId) {
+      try {
+        const tenant = await Tenant.findById(tenantId);
+        const collegeName = tenant?.name || "College";
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+        const activationToken = crypto.randomBytes(32).toString("hex");
+
+        // Update user with activation token
+        await User.findByIdAndUpdate(user._id, {
+          emailVerificationToken: activationToken,
+        });
+
+        const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+        const portalUrl = frontendUrl;
+
+        await emailService.sendAlumniWelcomeEmail({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          collegeName: collegeName,
+          activationLink: activationLink,
+          portalUrl: portalUrl,
+          password: password, // Send password for new accounts
+          senderName: "Alumni Relations Team",
+          senderTitle: "Alumni Relations Manager",
+          senderEmail: tenant?.contactInfo?.email || "alumni@college.edu",
+          senderPhone: tenant?.contactInfo?.phone,
+        });
+
+        logger.info(`Welcome email sent to ${email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send welcome email to ${email}:`, emailError);
+        // Don't fail the user creation if email fails
+      }
+    }
 
     return res.status(201).json({
       success: true,
@@ -560,6 +600,136 @@ export const bulkUpdateUsers = async (req: Request, res: Response) => {
   }
 };
 
+// Get eligible students (admin only)
+export const getEligibleStudents = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    // Find students who are eligible for alumni promotion
+    const eligibleStudents = await User.find({
+      role: UserRole.STUDENT,
+      eligibleForAlumni: true,
+    })
+      .select(
+        "firstName lastName email graduationYear department profilePicture status createdAt"
+      )
+      .sort({ graduationYear: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalCount = await User.countDocuments({
+      role: UserRole.STUDENT,
+      eligibleForAlumni: true,
+    });
+
+    return res.json({
+      success: true,
+      message: "Eligible students retrieved successfully",
+      data: {
+        students: eligibleStudents,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalCount,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPrevPage: page > 1,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get eligible students error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch eligible students",
+    });
+  }
+};
+
+// Promote student to alumni (admin only)
+export const promoteStudentToAlumni = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Check if user has permission (admin roles)
+    if (
+      !["super_admin", "college_admin", "hod", "staff"].includes(
+        currentUser.role
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to promote students",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Validate that user is a student
+    if (user.role !== UserRole.STUDENT) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not a student",
+      });
+    }
+
+    // Validate that student is eligible
+    if (!user.eligibleForAlumni) {
+      return res.status(400).json({
+        success: false,
+        message: "Student is not eligible for alumni promotion",
+      });
+    }
+
+    // Promote to alumni
+    user.role = UserRole.ALUMNI;
+    user.eligibleForAlumni = false;
+
+    await user.save();
+
+    logger.info(
+      `Student ${user.email} promoted to alumni by ${currentUser.email}`
+    );
+
+    return res.json({
+      success: true,
+      message: "Student promoted to alumni successfully",
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          graduationYear: user.graduationYear,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Promote student to alumni error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to promote student to alumni",
+    });
+  }
+};
+
 // Upload profile image
 export const uploadProfileImage = async (req: Request, res: Response) => {
   try {
@@ -660,10 +830,10 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
       });
     }
 
-    if (alumniData.length > 100) {
+    if (alumniData.length > 1000) {
       return res.status(400).json({
         success: false,
-        message: "Cannot create more than 100 alumni at once",
+        message: "Cannot create more than 1000 alumni at once",
       });
     }
 
@@ -739,6 +909,31 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
           tenantId = currentUser.tenantId;
         }
 
+        // Normalize gender field to match enum values
+        let normalizedGender: string | undefined = undefined;
+        if (alumniRecord.gender) {
+          const genderLower = alumniRecord.gender.toLowerCase().trim();
+          // Map common gender values to enum values
+          const genderMap: Record<string, string> = {
+            male: "male",
+            female: "female",
+            "m": "male",
+            "f": "female",
+            "other": "other",
+            "o": "other",
+            "prefer not to say": "other",
+            "not specified": "other",
+            "unspecified": "other",
+          };
+          normalizedGender = genderMap[genderLower];
+          if (!normalizedGender) {
+            // If no mapping found, try to match enum values directly
+            if (["male", "female", "other"].includes(genderLower)) {
+              normalizedGender = genderLower;
+            }
+          }
+        }
+
         // Create user data
         const userData = {
           firstName: alumniRecord.firstName.trim(),
@@ -763,12 +958,51 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
           dateOfBirth: alumniRecord.dateOfBirth
             ? new Date(alumniRecord.dateOfBirth)
             : undefined,
-          gender: alumniRecord.gender || undefined,
+          gender: normalizedGender,
         };
 
         // Create the user
         const newUser = new User(userData);
         await newUser.save();
+
+        // Send welcome email for bulk created alumni
+        try {
+          const tenant = await Tenant.findById(tenantId);
+          const collegeName = tenant?.name || "College";
+          const frontendUrl =
+            process.env.FRONTEND_URL || "http://localhost:8080";
+          const activationToken = crypto.randomBytes(32).toString("hex");
+
+          // Update user with activation token
+          await User.findByIdAndUpdate(newUser._id, {
+            emailVerificationToken: activationToken,
+          });
+
+          const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+          const portalUrl = frontendUrl;
+
+          await emailService.sendAlumniWelcomeEmail({
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            email: newUser.email,
+            collegeName: collegeName,
+            activationLink: activationLink,
+            portalUrl: portalUrl,
+            password: password, // Send generated password
+            senderName: "Alumni Relations Team",
+            senderTitle: "Alumni Relations Manager",
+            senderEmail: tenant?.contactInfo?.email || "alumni@college.edu",
+            senderPhone: tenant?.contactInfo?.phone,
+          });
+
+          logger.info(`Welcome email sent to ${newUser.email}`);
+        } catch (emailError) {
+          logger.error(
+            `Failed to send welcome email to ${newUser.email}:`,
+            emailError
+          );
+          // Don't fail the user creation if email fails
+        }
 
         results.successful.push({
           row: rowNumber,
@@ -1117,4 +1351,6 @@ export default {
   bulkCreateAlumni,
   exportAlumniData,
   testExport,
+  getEligibleStudents,
+  promoteStudentToAlumni,
 };

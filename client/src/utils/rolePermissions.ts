@@ -4,6 +4,7 @@ export enum UserRole {
   COLLEGE_ADMIN = "college_admin",
   HOD = "hod",
   STAFF = "staff",
+  STUDENT = "student",
   ALUMNI = "alumni",
 }
 
@@ -41,6 +42,9 @@ export interface RolePermissions {
   canCreateFundraisers?: boolean;
   canEditFundraisers?: boolean;
   canDeleteFundraisers?: boolean;
+  canViewAllCampaigns?: boolean;
+  canManageAllCampaigns?: boolean;
+  canApproveCampaigns?: boolean;
 
   // Analytics & Reports
   canViewAnalytics: boolean;
@@ -58,6 +62,7 @@ export const ROLE_HIERARCHY = {
   [UserRole.HOD]: 3,
   [UserRole.STAFF]: 2,
   [UserRole.ALUMNI]: 1,
+  [UserRole.STUDENT]: 1, // Same level as alumni
 };
 
 // Permission definitions for each role
@@ -127,6 +132,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canEditAllJobs: true,
     canDeleteJobs: true,
 
+    // Fundraising Management
+    canCreateFundraisers: true,
+    canEditFundraisers: true,
+    canDeleteFundraisers: true,
+    canViewAllCampaigns: true,
+    canManageAllCampaigns: true,
+    canApproveCampaigns: true,
+
     // Analytics & Reports
     canViewAnalytics: true,
     canExportData: true,
@@ -167,12 +180,15 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
 
     // Fundraising Management
     canCreateFundraisers: true,
-    canEditFundraisers: true, // Can edit their own fundraisers
-    canDeleteFundraisers: false, // Can only delete their own fundraisers
+    canEditFundraisers: true, // All admin roles have same permissions
+    canDeleteFundraisers: true, // All admin roles have same permissions
+    canViewAllCampaigns: true,
+    canManageAllCampaigns: true,
+    canApproveCampaigns: true,
 
     // Analytics & Reports
     canViewAnalytics: true,
-    canExportData: false,
+    canExportData: true,
 
     // System Administration
     canManageSystem: false,
@@ -210,12 +226,15 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
 
     // Fundraising Management
     canCreateFundraisers: true,
-    canEditFundraisers: true, // Can edit their own fundraisers
-    canDeleteFundraisers: false, // Can only delete their own fundraisers
+    canEditFundraisers: true, // All admin roles have same permissions
+    canDeleteFundraisers: true, // All admin roles have same permissions
+    canViewAllCampaigns: true,
+    canManageAllCampaigns: true,
+    canApproveCampaigns: true,
 
     // Analytics & Reports
-    canViewAnalytics: false,
-    canExportData: false,
+    canViewAnalytics: true,
+    canExportData: true,
 
     // System Administration
     canManageSystem: false,
@@ -249,6 +268,43 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canCreateJobs: true, // Only alumni can post jobs
     canEditAllJobs: false, // Can only edit their own jobs
     canDeleteJobs: false, // Can only delete their own jobs
+
+    // Analytics & Reports
+    canViewAnalytics: false,
+    canExportData: false,
+
+    // System Administration
+    canManageSystem: false,
+    canViewLogs: false,
+  },
+
+  [UserRole.STUDENT]: {
+    // User Management
+    canCreateUsers: false,
+    canEditUsers: false,
+    canDeleteUsers: false,
+    canViewAllUsers: false,
+
+    // College Management
+    canManageColleges: false,
+    canViewAllColleges: false,
+
+    // Content Management
+    canCreatePosts: true,
+    canEditAllPosts: false, // Can only edit their own posts
+    canDeletePosts: false, // Can only delete their own posts
+    canPinPosts: false,
+    canFeaturePosts: false,
+
+    // Events Management
+    canCreateEvents: false, // Students cannot create events
+    canEditAllEvents: false,
+    canDeleteEvents: false,
+
+    // Job Management
+    canCreateJobs: false, // Students cannot post jobs
+    canEditAllJobs: false,
+    canDeleteJobs: false,
 
     // Analytics & Reports
     canViewAnalytics: false,
@@ -354,6 +410,7 @@ export const getRoleDisplayName = (role: string): string => {
     [UserRole.HOD]: "Head of Department",
     [UserRole.STAFF]: "Staff",
     [UserRole.ALUMNI]: "Alumni",
+    [UserRole.STUDENT]: "Student",
   };
 
   return roleNames[role as UserRole] || role;
@@ -366,7 +423,8 @@ export const getRoleColor = (role: string): string => {
     [UserRole.COLLEGE_ADMIN]: "bg-purple-100 text-purple-800",
     [UserRole.HOD]: "bg-blue-100 text-blue-800",
     [UserRole.STAFF]: "bg-green-100 text-green-800",
-    [UserRole.ALUMNI]: "bg-gray-100 text-gray-800",
+    [UserRole.ALUMNI]: "bg-orange-100 text-orange-800",
+    [UserRole.STUDENT]: "bg-blue-100 text-blue-800",
   };
 
   return roleColors[role as UserRole] || "bg-gray-100 text-gray-800";

@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -25,7 +26,6 @@ import EventsMeetups from "./components/EventsMeetups";
 import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";
 import NewsDetail from "./pages/NewsDetail";
-import AdminDashboard from "./components/AdminDashboard";
 import AlumniProfile from "./components/AlumniProfile";
 import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
@@ -34,6 +34,7 @@ import Messages from "./pages/Messages";
 import CommunityDetailNew from "./pages/CommunityDetailNew";
 import SocketTest from "./pages/SocketTest";
 import SocketDebug from "./pages/SocketDebug";
+import TestWelcomeEmail from "./pages/TestWelcomeEmail";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => {
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/about" element={<AboutUs />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
@@ -293,15 +295,6 @@ const App = () => {
                   />
 
                   <Route
-                    path="/admin"
-                    element={
-                      <ProtectedRoute>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
                     path="/socket-test"
                     element={
                       <ProtectedRoute>
@@ -315,6 +308,15 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <SocketDebug />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/test-welcome-email"
+                    element={
+                      <ProtectedRoute>
+                        <TestWelcomeEmail />
                       </ProtectedRoute>
                     }
                   />

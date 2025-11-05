@@ -23,6 +23,61 @@ export const getAllNews = async (req: Request, res: Response) => {
       filter.isShared = req.query.isShared === "true";
     }
 
+    // Search filter
+    if (req.query.search) {
+      filter.$or = [
+        { title: { $regex: req.query.search, $options: "i" } },
+        { summary: { $regex: req.query.search, $options: "i" } },
+      ];
+    }
+
+    // Date range filter
+    if (req.query.dateRange && req.query.dateRange !== "all") {
+      const now = new Date();
+      const today = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const thisWeekStart = new Date(today);
+      thisWeekStart.setDate(today.getDate() - today.getDay());
+      const lastWeekStart = new Date(thisWeekStart);
+      lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+      const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastMonthStart = new Date(
+        today.getFullYear(),
+        today.getMonth() - 1,
+        1
+      );
+      const thisYearStart = new Date(today.getFullYear(), 0, 1);
+
+      switch (req.query.dateRange) {
+        case "today":
+          filter.createdAt = { $gte: today };
+          break;
+        case "yesterday":
+          filter.createdAt = { $gte: yesterday, $lt: today };
+          break;
+        case "this_week":
+          filter.createdAt = { $gte: thisWeekStart };
+          break;
+        case "last_week":
+          filter.createdAt = { $gte: lastWeekStart, $lt: thisWeekStart };
+          break;
+        case "this_month":
+          filter.createdAt = { $gte: thisMonthStart };
+          break;
+        case "last_month":
+          filter.createdAt = { $gte: lastMonthStart, $lt: thisMonthStart };
+          break;
+        case "this_year":
+          filter.createdAt = { $gte: thisYearStart };
+          break;
+      }
+    }
+
     const news = await News.find(filter)
       .populate("author", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })

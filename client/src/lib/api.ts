@@ -13,7 +13,7 @@ const API_BASE_URL =
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 300000, // 5 minutes for bulk operations
   headers: {
     "Content-Type": "application/json",
   },
@@ -43,6 +43,12 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // If data is FormData, remove Content-Type to let browser set it with boundary
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-Type"];
+    }
+
     return config;
   },
   (error) => {
@@ -436,6 +442,26 @@ export const userAPI = {
     });
   },
 
+  // Get eligible students for alumni promotion (admin only)
+  getEligibleStudents: async (params?: {
+    page?: number;
+    limit?: number;
+  }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/users/eligible-students",
+      params,
+    });
+  },
+
+  // Promote student to alumni (admin only)
+  promoteStudentToAlumni: async (userId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/users/${userId}/promote-to-alumni`,
+    });
+  },
+
   // Get pending approvals
   getPendingApprovals: async () => {
     try {
@@ -716,6 +742,7 @@ export const userAPI = {
       method: "POST",
       url: "/users/bulk-alumni",
       data: { alumniData },
+      timeout: 600000, // 10 minutes for bulk uploads (can handle up to 1000 records)
     });
   },
 
@@ -758,6 +785,11 @@ export const alumniAPI = {
     limit?: number;
     userType?: "student" | "alumni" | "all";
     tenantId?: string;
+    search?: string;
+    department?: string;
+    graduationYear?: string;
+    location?: string;
+    role?: string;
   }) => {
     return apiRequest({
       method: "GET",
@@ -1289,6 +1321,9 @@ export const eventAPI = {
     limit?: number;
     type?: string;
     location?: string;
+    search?: string;
+    dateRange?: string;
+    price?: string;
     tenantId?: string;
   }) => {
     try {
@@ -1451,7 +1486,7 @@ export const eventAPI = {
       url: "/events/with-image",
       data: formData,
       headers: {
-        "Content-Type": undefined, // Remove Content-Type to let browser set multipart/form-data
+        "Content-Type": "multipart/form-data",
       },
     });
   },
@@ -1954,6 +1989,9 @@ export const galleryAPI = {
     page?: number;
     limit?: number;
     category?: string;
+    search?: string;
+    dateRange?: string;
+    sortBy?: string;
     tenantId?: string;
   }) => {
     try {
@@ -1962,6 +2000,9 @@ export const galleryAPI = {
       if (params?.page) queryParams.append("page", params.page.toString());
       if (params?.limit) queryParams.append("limit", params.limit.toString());
       if (params?.category) queryParams.append("category", params.category);
+      if (params?.search) queryParams.append("search", params.search);
+      if (params?.dateRange) queryParams.append("dateRange", params.dateRange);
+      if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
       if (params?.tenantId) queryParams.append("tenantId", params.tenantId);
 
       const response = await apiRequest({
@@ -2074,7 +2115,7 @@ export const galleryAPI = {
       url: "/gallery/upload-images",
       data: formData,
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": undefined, // Let browser set multipart/form-data with boundary
       },
     });
   },
@@ -2660,6 +2701,59 @@ export const campaignAPI = {
       url: `/campaigns/${id}/stats`,
     });
   },
+
+  // Get campaign donors
+  getCampaignDonors: async (
+    id: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/campaigns/${id}/donors?${queryParams.toString()}`,
+    });
+  },
+
+  // Get campaign donor statistics
+  getCampaignDonorStats: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/campaigns/${id}/donor-stats`,
+    });
+  },
+
+  // Export campaign donors
+  exportCampaignDonors: async (id: string, format: "csv" | "json" = "csv") => {
+    if (format === "csv") {
+      const response = await api.get(`/campaigns/${id}/donors/export?format=csv`, {
+        responseType: "blob",
+      });
+      return response.data;
+    } else {
+      return apiRequest({
+        method: "GET",
+        url: `/campaigns/${id}/donors/export?format=json`,
+      });
+    }
+  },
+
+  // Upload campaign image
+  uploadCampaignImage: async (id: string, formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: `/campaigns/${id}/image`,
+      data: formData,
+      headers: {
+        "Content-Type": undefined, // Let browser set multipart/form-data with boundary
+      },
+    });
+  },
 };
 
 // Community API functions
@@ -2732,6 +2826,67 @@ export const communityAPI = {
     return apiRequest({
       method: "GET",
       url: `/communities/top?limit=${limit}`,
+    });
+  },
+};
+
+// Category API functions
+export const categoryAPI = {
+  // Get all categories
+  getAll: async (params?: { isActive?: string; entityType?: string }) => {
+    const queryParams = params
+      ? `?${new URLSearchParams(params as Record<string, string>).toString()}`
+      : "";
+    return apiRequest({
+      method: "GET",
+      url: `/categories${queryParams}`,
+    });
+  },
+
+  // Get category by ID
+  getById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/categories/${id}`,
+    });
+  },
+
+  // Create category
+  create: async (data: {
+    name: string;
+    description?: string;
+    order?: number;
+    entityType: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/categories",
+      data,
+    });
+  },
+
+  // Update category
+  update: async (
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      isActive?: boolean;
+      order?: number;
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/categories/${id}`,
+      data,
+    });
+  },
+
+  // Delete category
+  delete: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/categories/${id}`,
     });
   },
 };

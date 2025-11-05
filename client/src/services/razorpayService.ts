@@ -1,9 +1,7 @@
 import { getAuthTokenOrNull } from "@/utils/auth";
-import Razorpay from "razorpay";
 
 // Razorpay Service
-const RAZORPAY_KEY_ID =
-  import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_RUU9Bp4fN23nvp";
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined;
 
 // API base URL
 const API_BASE_URL =
@@ -26,6 +24,10 @@ export interface RazorpayPaymentData {
   orderId: string;
   paymentId: string;
   signature: string;
+  // Optional context
+  type?: string;
+  eventId?: string;
+  userId?: string;
 }
 
 export interface RazorpayOptions {
@@ -147,6 +149,52 @@ class RazorpayService {
     }
   }
 
+  public async createEventOrder(params: {
+    amount: number;
+    eventId: string;
+    userId: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      orderId: string;
+      amount: number; // paise
+      currency: string;
+      receipt: string;
+      keyId: string;
+    };
+  }> {
+    try {
+      const token = this.getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/payments/event/order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: params.amount,
+          eventId: params.eventId,
+          userId: params.userId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Event order creation error:", errorText);
+        throw new Error(
+          `HTTP error! status: ${response.status} - ${errorText}`
+        );
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("Error creating Razorpay event order:", error);
+      throw error;
+    }
+  }
+
   public async verifyPayment(
     paymentData: RazorpayPaymentData
   ): Promise<{ success: boolean; message?: string; data?: unknown }> {
@@ -182,8 +230,13 @@ class RazorpayService {
     try {
       await this.loadRazorpayScript();
 
+      const effectiveKey = options.key || RAZORPAY_KEY_ID;
+      if (!effectiveKey) {
+        throw new Error("Razorpay key is not configured. Set VITE_RAZORPAY_KEY_ID or provide key.");
+      }
+
       const razorpayOptions = {
-        key: RAZORPAY_KEY_ID,
+        key: effectiveKey,
         amount: options.amount,
         currency: options.currency,
         name: options.name,

@@ -132,6 +132,21 @@ const Layout = () => {
   // All dashboards should be full-screen
   const isDashboardPage = activeTab === "dashboard";
 
+  // Pages that should hide the footer (full-screen pages)
+  const shouldHideFooter =
+    isDashboardPage ||
+    isJobBoard ||
+    isEventsPage ||
+    isNewsPage ||
+    isGalleryPage ||
+    isMediaPage ||
+    isAlumniPage ||
+    isCommunityPage ||
+    isDonationsPage ||
+    isMentorshipPage ||
+    isMessagesPage ||
+    isConnectionsPage;
+
   return (
     <div
       className={`min-h-screen bg-background flex flex-col ${
@@ -142,18 +157,7 @@ const Layout = () => {
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
         className={`flex-1 w-full pt-16 ${isMessagesPage ? "h-full" : ""} ${
-          isDashboardPage ||
-          isJobBoard ||
-          isEventsPage ||
-          isNewsPage ||
-          isGalleryPage ||
-          isMediaPage ||
-          isAlumniPage ||
-          isCommunityPage ||
-          isDonationsPage ||
-          isMentorshipPage ||
-          isMessagesPage ||
-          isConnectionsPage
+          shouldHideFooter
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
@@ -161,18 +165,7 @@ const Layout = () => {
         {/* Content */}
         <div
           className={
-            isDashboardPage ||
-            isJobBoard ||
-            isEventsPage ||
-            isNewsPage ||
-            isGalleryPage ||
-            isMediaPage ||
-            isAlumniPage ||
-            isCommunityPage ||
-            isDonationsPage ||
-            isMentorshipPage ||
-            isMessagesPage ||
-            isConnectionsPage
+            shouldHideFooter
               ? isMessagesPage
                 ? "h-full flex flex-col"
                 : ""
@@ -182,7 +175,7 @@ const Layout = () => {
           {renderContent()}
         </div>
       </main>
-      <Footer />
+      {!shouldHideFooter && <Footer />}
     </div>
   );
 };

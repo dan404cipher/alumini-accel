@@ -181,15 +181,26 @@ export const useMentorshipManagement = (
           page: mentorsPage,
           limit: mentorsLimit,
         });
+        
+        console.log("Mentors API Response:", response); // Debug log
+        
         if (response.success && response.data) {
           const mentorsData = response.data.alumni || [];
+          console.log("Mentors Data:", mentorsData); // Debug log
+          
           const transformedMentors = mentorsData.map(transformMentorFromApi);
+          console.log("Transformed Mentors:", transformedMentors); // Debug log
+          
           setMentors(transformedMentors);
           if (response.data.pagination) {
             setMentorsPagination(response.data.pagination);
           }
+        } else {
+          console.warn("API response not successful:", response);
+          setMentors([]);
         }
       } else {
+        console.warn("API not available, using fallback");
         // Fallback to initial mentors if API is not available
         setMentors(initialMentors);
       }

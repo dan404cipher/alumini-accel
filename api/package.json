@@ -18,7 +18,8 @@
     "generate-test-data": "ts-node -r tsconfig-paths/register src/scripts/generateTestData.ts",
     "generate-campaign-data": "ts-node -r tsconfig-paths/register src/scripts/generateCampaignData.ts",
     "create-missing-alumni-profiles": "ts-node -r tsconfig-paths/register src/scripts/createMissingAlumniProfiles.ts",
-    "create-sample-notifications": "ts-node -r tsconfig-paths/register src/scripts/createSampleNotifications.ts"
+    "create-sample-notifications": "ts-node -r tsconfig-paths/register src/scripts/createSampleNotifications.ts",
+    "seed:mentorship-donations": "ts-node -r tsconfig-paths/register src/scripts/seedMentorshipDonations.ts"
   },
   "keywords": [
     "alumni",

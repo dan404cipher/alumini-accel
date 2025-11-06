@@ -308,25 +308,60 @@ export const validateJobPost = [
     .isLength({ min: 2, max: 100 })
     .withMessage("Location must be between 2 and 100 characters"),
   body("type")
-    .isIn(["full-time", "part-time", "internship", "contract"])
+    .custom((value) => {
+      // Check if it's a valid enum value
+      const validEnums = ["full-time", "part-time", "internship", "contract"];
+      if (validEnums.includes(value)) {
+        return true;
+      }
+      // Check if it's a valid ObjectId (24 hex characters)
+      if (typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      throw new Error("Job type must be a valid enum value or ObjectId");
+    })
     .withMessage("Invalid job type"),
   body("experience")
     .optional()
-    .isIn(["entry", "mid", "senior", "lead"])
+    .custom((value) => {
+      if (!value) return true; // Optional field
+      // Check if it's a valid enum value
+      const validEnums = ["entry", "mid", "senior", "lead"];
+      if (validEnums.includes(value)) {
+        return true;
+      }
+      // Check if it's a valid ObjectId (24 hex characters)
+      if (typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      throw new Error("Experience level must be a valid enum value or ObjectId");
+    })
     .withMessage("Invalid experience level"),
   body("industry")
     .optional()
-    .isIn([
-      "technology",
-      "finance",
-      "healthcare",
-      "education",
-      "consulting",
-      "marketing",
-      "sales",
-      "operations",
-      "other",
-    ])
+    .custom((value) => {
+      if (!value) return true; // Optional field
+      // Check if it's a valid enum value
+      const validEnums = [
+        "technology",
+        "finance",
+        "healthcare",
+        "education",
+        "consulting",
+        "marketing",
+        "sales",
+        "operations",
+        "other",
+      ];
+      if (validEnums.includes(value)) {
+        return true;
+      }
+      // Check if it's a valid ObjectId (24 hex characters)
+      if (typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      throw new Error("Industry must be a valid enum value or ObjectId");
+    })
     .withMessage("Invalid industry"),
   body("remote").optional().isBoolean().withMessage("Remote must be a boolean"),
   body("salary.min")

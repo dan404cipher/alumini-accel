@@ -43,14 +43,22 @@ const jobPostSchema = new Schema<IJobPost>(
       required: true,
       validate: {
         validator: function (value: any) {
+          if (!value) return false;
+          // Check if it's a valid enum value
           if (typeof value === "string") {
-            return [
+            const validEnums = [
               "full-time",
               "part-time",
               "internship",
               "contract",
-            ].includes(value);
+            ];
+            if (validEnums.includes(value)) {
+              return true;
+            }
+            // If not an enum, check if it's a valid ObjectId string
+            return mongoose.Types.ObjectId.isValid(value);
           }
+          // If not a string, check if it's a valid ObjectId
           return mongoose.Types.ObjectId.isValid(value);
         },
         message: "Job type must be a valid enum value or ObjectId",
@@ -66,9 +74,17 @@ const jobPostSchema = new Schema<IJobPost>(
       default: "mid",
       validate: {
         validator: function (value: any) {
+          if (!value) return true; // Optional with default
+          // Check if it's a valid enum value
           if (typeof value === "string") {
-            return ["entry", "mid", "senior", "lead"].includes(value);
+            const validEnums = ["entry", "mid", "senior", "lead"];
+            if (validEnums.includes(value)) {
+              return true;
+            }
+            // If not an enum, check if it's a valid ObjectId string
+            return mongoose.Types.ObjectId.isValid(value);
           }
+          // If not a string, check if it's a valid ObjectId
           return mongoose.Types.ObjectId.isValid(value);
         },
         message: "Experience must be a valid enum value or ObjectId",
@@ -84,8 +100,10 @@ const jobPostSchema = new Schema<IJobPost>(
       default: "technology",
       validate: {
         validator: function (value: any) {
+          if (!value) return true; // Optional with default
+          // Check if it's a valid enum value
           if (typeof value === "string") {
-            return [
+            const validEnums = [
               "technology",
               "finance",
               "healthcare",
@@ -95,8 +113,14 @@ const jobPostSchema = new Schema<IJobPost>(
               "sales",
               "operations",
               "other",
-            ].includes(value);
+            ];
+            if (validEnums.includes(value)) {
+              return true;
+            }
+            // If not an enum, check if it's a valid ObjectId string
+            return mongoose.Types.ObjectId.isValid(value);
           }
+          // If not a string, check if it's a valid ObjectId
           return mongoose.Types.ObjectId.isValid(value);
         },
         message: "Industry must be a valid enum value or ObjectId",

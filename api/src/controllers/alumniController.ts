@@ -886,7 +886,7 @@ export const getHiringAlumni = async (req: Request, res: Response) => {
 export const getMentors = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || 12;
     const skip = (page - 1) * limit;
 
     // Build user filter for multi-tenant filtering
@@ -901,27 +901,28 @@ export const getMentors = async (req: Request, res: Response) => {
       userFilter.tenantId = req.user.tenantId;
     }
 
-    // Get alumni users first
+    // First, get all alumni users from the tenant
     const alumniUsers = await User.find(userFilter)
       .select("_id firstName lastName email profilePicture")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      .sort({ createdAt: -1 });
 
-    // Get total count of alumni users
-    const totalUsers = await User.countDocuments(userFilter);
+    const alumniUserIds = alumniUsers.map((user) => user._id);
 
-    // Get alumni profiles for mentors from these users
+    // Build alumni profile filter for mentors
     const alumniProfileFilter: any = {
-      userId: { $in: alumniUsers.map((user) => user._id) },
+      userId: { $in: alumniUserIds },
       availableForMentorship: true,
     };
 
+    // Get total count of mentors
+    const total = await AlumniProfile.countDocuments(alumniProfileFilter);
+
+    // Get paginated mentors
     const alumni = await AlumniProfile.find(alumniProfileFilter)
       .populate("userId", "firstName lastName email profilePicture")
-      .sort({ createdAt: -1 });
-
-    const total = await AlumniProfile.countDocuments(alumniProfileFilter);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     res.json({
       success: true,

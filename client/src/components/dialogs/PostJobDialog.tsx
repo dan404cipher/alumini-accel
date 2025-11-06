@@ -19,8 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { categoryAPI } from "@/lib/api";
-import { jobAPI } from "@/lib/api";
+import { jobAPI, categoryAPI } from "@/lib/api";
 import {
   Briefcase,
   DollarSign,
@@ -201,6 +200,33 @@ export const PostJobDialog = ({
   // Load category-based options
   useEffect(() => {
     const load = async () => {
+      // Default enum values that match backend validation (used as fallback)
+      const defaultJobTypes = [
+        { value: "full-time", label: "Full-Time" },
+        { value: "part-time", label: "Part-Time" },
+        { value: "internship", label: "Internship" },
+        { value: "contract", label: "Contract" },
+      ];
+
+      const defaultExperience = [
+        { value: "entry", label: "Entry Level" },
+        { value: "mid", label: "Mid Level" },
+        { value: "senior", label: "Senior Level" },
+        { value: "lead", label: "Lead/Principal" },
+      ];
+
+      const defaultIndustry = [
+        { value: "technology", label: "Technology" },
+        { value: "finance", label: "Finance" },
+        { value: "healthcare", label: "Healthcare" },
+        { value: "education", label: "Education" },
+        { value: "consulting", label: "Consulting" },
+        { value: "marketing", label: "Marketing" },
+        { value: "sales", label: "Sales" },
+        { value: "operations", label: "Operations" },
+        { value: "other", label: "Other" },
+      ];
+
       try {
         const [typesRes, expRes, indRes] = await Promise.all([
           categoryAPI.getAll({ entityType: "job_type", isActive: "true" }),
@@ -210,29 +236,102 @@ export const PostJobDialog = ({
           }),
           categoryAPI.getAll({ entityType: "job_industry", isActive: "true" }),
         ]);
-        if (typesRes.success && Array.isArray(typesRes.data)) {
-          const custom = typesRes.data.map((c: { name: string }) => ({
-            value: c.name,
-            label: c.name,
-          }));
-          setJobTypeOptions(custom);
+
+        // Process job types from categories
+        if (typesRes.success && Array.isArray(typesRes.data) && typesRes.data.length > 0) {
+          const categoryTypes = typesRes.data.map((c: { name: string; _id: string }) => {
+            // Normalize category name to match enum format
+            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
+            
+            // Check if normalized name matches enum values
+            const enumMatch = defaultJobTypes.find(
+              (d) => d.value === normalizedName
+            );
+            
+            if (enumMatch) {
+              // Use enum value if it matches
+              return { value: enumMatch.value, label: c.name };
+            } else {
+              // Use ObjectId for custom categories
+              return { value: c._id, label: c.name };
+            }
+          });
+          
+          // Merge with defaults, prioritizing enum values
+          const mergedTypes = [
+            ...defaultJobTypes,
+            ...categoryTypes.filter(
+              (c: { value: string }) =>
+                !defaultJobTypes.some((d) => d.value === c.value)
+            ),
+          ];
+          
+          setJobTypeOptions(mergedTypes);
+        } else {
+          setJobTypeOptions(defaultJobTypes);
         }
-        if (expRes.success && Array.isArray(expRes.data)) {
-          const custom = expRes.data.map((c: { name: string }) => ({
-            value: c.name,
-            label: c.name,
-          }));
-          setExperienceOptions(custom);
+
+        // Process experience from categories
+        if (expRes.success && Array.isArray(expRes.data) && expRes.data.length > 0) {
+          const categoryExp = expRes.data.map((c: { name: string; _id: string }) => {
+            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
+            const enumMatch = defaultExperience.find(
+              (d) => d.value === normalizedName
+            );
+            
+            if (enumMatch) {
+              return { value: enumMatch.value, label: c.name };
+            } else {
+              return { value: c._id, label: c.name };
+            }
+          });
+          
+          const mergedExp = [
+            ...defaultExperience,
+            ...categoryExp.filter(
+              (c: { value: string }) =>
+                !defaultExperience.some((d) => d.value === c.value)
+            ),
+          ];
+          
+          setExperienceOptions(mergedExp);
+        } else {
+          setExperienceOptions(defaultExperience);
         }
-        if (indRes.success && Array.isArray(indRes.data)) {
-          const custom = indRes.data.map((c: { name: string }) => ({
-            value: c.name,
-            label: c.name,
-          }));
-          setIndustryOptions(custom);
+
+        // Process industry from categories
+        if (indRes.success && Array.isArray(indRes.data) && indRes.data.length > 0) {
+          const categoryInd = indRes.data.map((c: { name: string; _id: string }) => {
+            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
+            const enumMatch = defaultIndustry.find(
+              (d) => d.value === normalizedName
+            );
+            
+            if (enumMatch) {
+              return { value: enumMatch.value, label: c.name };
+            } else {
+              return { value: c._id, label: c.name };
+            }
+          });
+          
+          const mergedInd = [
+            ...defaultIndustry,
+            ...categoryInd.filter(
+              (c: { value: string }) =>
+                !defaultIndustry.some((d) => d.value === c.value)
+            ),
+          ];
+          
+          setIndustryOptions(mergedInd);
+        } else {
+          setIndustryOptions(defaultIndustry);
         }
       } catch (e) {
         console.warn("Failed to load job category options", e);
+        // Use defaults on error
+        setJobTypeOptions(defaultJobTypes);
+        setExperienceOptions(defaultExperience);
+        setIndustryOptions(defaultIndustry);
       }
     };
     if (open) load();
@@ -294,6 +393,8 @@ export const PostJobDialog = ({
         position: formData.title.trim(),
         location: formData.location.trim(),
         type: formData.type,
+        experience: formData.experience || undefined,
+        industry: formData.industry || undefined,
         remote: formData.location.toLowerCase().includes("remote"),
         salary: salaryRange,
         numberOfVacancies: parseInt(formData.numberOfVacancies),

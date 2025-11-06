@@ -18,6 +18,10 @@ import {
   Edit,
   Trash2,
   MoreVertical,
+  Menu,
+  X,
+  Maximize2,
+  Newspaper,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,6 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { newsAPI } from "@/lib/api";
@@ -58,6 +63,8 @@ const NewsDetail = () => {
   const [isDeleteNewsOpen, setIsDeleteNewsOpen] = useState(false);
   const [isShareNewsOpen, setIsShareNewsOpen] = useState(false);
   const [selectedNews, setSelectedNews] = useState<News | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   // Fetch news data
   const {
@@ -71,6 +78,36 @@ const NewsDetail = () => {
   });
 
   const news = newsResponse?.data?.news;
+
+  // Fetch suggested news (after news is loaded)
+  const {
+    data: suggestedNewsResponse,
+    isLoading: isLoadingSuggested,
+    error: suggestedNewsError,
+  } = useQuery({
+    queryKey: ["suggestedNews", news?._id],
+    queryFn: () =>
+      newsAPI.getAllNews({
+        limit: 10,
+        page: 1,
+      }),
+    enabled: !!news?._id,
+  });
+
+  // Filter and prepare suggested news (exclude current news, prioritize recent)
+  const allNews = ((suggestedNewsResponse?.data as { news?: News[] })
+    ?.news ||
+    (suggestedNewsResponse?.data as News[]) ||
+    []) as News[];
+  const suggestedNews = allNews
+    .filter((n: News) => n._id !== news?._id)
+    .sort((a: News, b: News) => {
+      // Sort by date (newest first)
+      return (
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    })
+    .slice(0, 5);
 
   // Set selected news for dialogs
   useEffect(() => {
@@ -150,9 +187,10 @@ const NewsDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background" style={{ overflowY: "auto" }}>
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 container mx-auto px-4 py-8">
             <div className="animate-pulse space-y-6">
               <div className="h-8 bg-gray-200 rounded w-1/4"></div>
               <div className="h-64 bg-gray-200 rounded-lg"></div>
@@ -170,9 +208,11 @@ const NewsDetail = () => {
 
   if (error || !news) {
     return (
-      <div className="min-h-screen bg-background" style={{ overflowY: "auto" }}>
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto text-center">
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 container mx-auto px-4 py-8">
+            <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
               News Not Found
             </h1>
@@ -184,22 +224,165 @@ const NewsDetail = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to News
             </Button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+  const imageUrl = getImageUrl(news.image);
+
   return (
-    <div className="min-h-screen bg-background" style={{ overflowY: "auto" }}>
+    <div className="min-h-screen bg-background flex flex-col">
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar - Suggested News */}
+        <aside
+          className={`
+            ${
+              sidebarOpen
+                ? "fixed inset-y-0 left-0 z-50"
+                : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
+            }
+            top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${
+              sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem)]"
+            } border-r transition-transform duration-300 ease-in-out
+          `}
+        >
+          <div className="h-full overflow-y-auto p-4 sm:p-6">
+            {/* Close button for mobile */}
+            {sidebarOpen && (
+              <div className="flex justify-end mb-4 lg:hidden">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidebarOpen(false)}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            <Card className="h-fit">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-base sm:text-lg">
+                  <Newspaper className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                  Suggested News
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Other news articles you might be interested in
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingSuggested ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="h-28 sm:h-32 bg-gray-200 rounded-lg"></div>
+                        <div className="h-4 bg-gray-200 rounded mt-2 w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded mt-1 w-1/2"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : suggestedNewsError ? (
+                  <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <Newspaper className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs sm:text-sm">Unable to load news</p>
+                  </div>
+                ) : suggestedNews.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-3">
+                      {suggestedNews.map((suggestedItem: News) => (
+                        <div
+                          key={suggestedItem._id}
+                          onClick={() => {
+                            navigate(`/news/${suggestedItem._id}`);
+                            setSidebarOpen(false);
+                          }}
+                          className="group cursor-pointer border rounded-lg overflow-hidden hover:shadow-md transition-all hover:border-blue-300"
+                        >
+                          {suggestedItem.image &&
+                            getImageUrl(suggestedItem.image) && (
+                              <div className="aspect-video overflow-hidden bg-gray-100">
+                                <img
+                                  src={getImageUrl(suggestedItem.image)!}
+                                  alt={suggestedItem.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              </div>
+                            )}
+                          <div className="p-3">
+                            <h3 className="font-semibold text-sm sm:text-base line-clamp-2 group-hover:text-blue-600 transition-colors">
+                              {suggestedItem.title}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                              <Calendar className="w-3 h-3" />
+                              <span>
+                                {new Date(
+                                  suggestedItem.createdAt
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <Newspaper className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs sm:text-sm">
+                      No suggested news at the moment
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 lg:ml-80 overflow-y-auto">
+          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            {/* Mobile Sidebar Toggle */}
+            <div className="lg:hidden mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Menu className="w-4 h-4" />
+                <span>Suggested News</span>
+              </Button>
+            </div>
+
           {/* Back Button and Share Button */}
-          <div className="flex items-center justify-between mb-6">
-            <Button variant="ghost" onClick={() => navigate("/news")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to News
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/news")}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back to News</span>
+                <span className="sm:hidden">Back</span>
             </Button>
             <Button variant="outline" onClick={handleShareNews}>
               <Share2 className="w-4 h-4 mr-2" />
@@ -207,29 +390,37 @@ const NewsDetail = () => {
             </Button>
           </div>
 
-          {/* News Article */}
-          <Card className="overflow-hidden">
             {/* News Image */}
-            {news.image && getImageUrl(news.image) && (
-              <div className="aspect-video overflow-hidden">
+            {imageUrl && (
+              <div className="mb-6 sm:mb-8 relative group cursor-pointer">
+                <div className="aspect-video overflow-hidden rounded-lg bg-gray-100">
                 <img
-                  src={getImageUrl(news.image)!}
+                    src={imageUrl}
                   alt={news.title}
                   className="w-full h-full object-cover"
+                    onClick={() => setIsImageModalOpen(true)}
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                   }}
                 />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                    <Maximize2 className="w-8 h-8 sm:w-10 sm:h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
               </div>
             )}
 
+            {/* News Title and Meta Info */}
+            <Card className="mb-4 sm:mb-6">
             <CardHeader>
-              <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <CardTitle className="text-3xl mb-4">{news.title}</CardTitle>
+                    <CardTitle className="text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6">
+                      {news.title}
+                    </CardTitle>
 
                   {/* Author and Date Info */}
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-sm text-gray-500 mb-4">
                     <div className="flex items-center space-x-2">
                       <User className="w-4 h-4" />
                       <span>
@@ -284,13 +475,42 @@ const NewsDetail = () => {
                 )}
               </div>
             </CardHeader>
+            </Card>
 
-            <CardContent>
-              <CardDescription className="text-base leading-relaxed whitespace-pre-wrap">
+            {/* News Summary */}
+            <Card>
+              <CardContent className="pt-6">
+                <CardDescription className="text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
                 {news.summary}
               </CardDescription>
             </CardContent>
           </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Image Modal */}
+      {imageUrl && (
+        <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+          <DialogContent className="max-w-7xl w-full h-[90vh] p-0">
+            <div className="relative w-full h-full flex items-center justify-center bg-black">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
+                onClick={() => setIsImageModalOpen(false)}
+              >
+                <X className="h-6 w-6" />
+              </Button>
+              <img
+                src={imageUrl}
+                alt={news.title}
+                className="max-w-full max-h-full w-auto h-auto object-contain"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
           {/* Edit News Dialog */}
           {selectedNews && (
@@ -320,8 +540,6 @@ const NewsDetail = () => {
               news={selectedNews}
             />
           )}
-        </div>
-      </div>
     </div>
   );
 };

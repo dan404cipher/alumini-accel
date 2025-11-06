@@ -33,6 +33,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  Maximize2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { eventAPI, categoryAPI } from "@/lib/api";
@@ -47,6 +48,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface Event {
   _id: string;
@@ -97,6 +99,7 @@ const EventDetail = () => {
   const [typeLabel, setTypeLabel] = useState<string>("");
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   // Fetch event data
   const {
@@ -623,11 +626,14 @@ const EventDetail = () => {
             {/* Event Image */}
             {event.image && getImageUrl(event.image) && (
               <Card className="mb-6 overflow-hidden p-0">
-                <div className="relative w-full aspect-video max-h-[500px] overflow-hidden bg-gray-100">
+                <div
+                  className="relative w-full aspect-video max-h-[500px] overflow-hidden bg-gray-100 cursor-pointer group"
+                  onClick={() => setIsImageModalOpen(true)}
+                >
                   <img
                     src={getImageUrl(event.image)!}
                     alt={event.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                     style={{
                       imageRendering: "-webkit-optimize-contrast",
                     }}
@@ -635,6 +641,11 @@ const EventDetail = () => {
                       e.currentTarget.style.display = "none";
                     }}
                   />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 rounded-full p-2 shadow-lg">
+                      <Maximize2 className="w-6 h-6 text-gray-900" />
+                    </div>
+                  </div>
                 </div>
               </Card>
             )}
@@ -1151,6 +1162,27 @@ const EventDetail = () => {
             window.location.reload();
           }}
         />
+      )}
+
+      {/* Image Modal */}
+      {event.image && getImageUrl(event.image) && (
+        <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 bg-transparent border-0">
+            <div className="relative w-full h-full flex items-center justify-center">
+              <img
+                src={getImageUrl(event.image)!}
+                alt={event.title}
+                className="max-w-full max-h-[95vh] w-auto h-auto object-contain rounded-lg"
+                style={{
+                  imageRendering: "-webkit-optimize-contrast",
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

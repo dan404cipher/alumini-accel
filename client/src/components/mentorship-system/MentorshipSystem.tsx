@@ -63,7 +63,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { mentorshipApi } from "@/services/mentorshipApi";
 import { useToast } from "@/hooks/use-toast";
 import Footer from "../Footer";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/pagination";
 
 // Sample mentor data for demonstration
 const sampleMentors: Mentor[] = [

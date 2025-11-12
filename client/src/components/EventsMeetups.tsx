@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/pagination";
 import { categoryAPI } from "@/lib/api";
 import Footer from "./Footer";
 import {
@@ -144,7 +144,9 @@ const EventsMeetups = () => {
   const [priceOptions, setPriceOptions] = useState<
     Array<{ value: string; label: string }>
   >([{ value: "all", label: "All Prices" }]);
-  const [locationCategoryOptions, setLocationCategoryOptions] = useState<string[]>([]);
+  const [locationCategoryOptions, setLocationCategoryOptions] = useState<
+    string[]
+  >([]);
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
@@ -378,7 +380,9 @@ const EventsMeetups = () => {
 
   // Extract pagination info from API response
   const paginationInfo = (
-    eventsResponse?.data as { pagination?: { totalPages: number; total: number } } | undefined
+    eventsResponse?.data as
+      | { pagination?: { totalPages: number; total: number } }
+      | undefined
   )?.pagination;
   useEffect(() => {
     if (paginationInfo) {
@@ -401,12 +405,17 @@ const EventsMeetups = () => {
   }, [myRegsResponse]);
 
   // Helper function to get user's registration status for an event
-  const getUserRegistrationStatus = (eventId: string): "registered" | "pending_payment" | null => {
+  const getUserRegistrationStatus = (
+    eventId: string
+  ): "registered" | "pending_payment" | null => {
     if (!user) return null;
     const originalEvent = apiEvents.find((e: Event) => e._id === eventId);
     if (!originalEvent || !originalEvent.attendees) return null;
     const myAttendee = originalEvent.attendees.find((attendee: any) => {
-      const userId = typeof attendee.userId === "string" ? attendee.userId : attendee.userId?._id;
+      const userId =
+        typeof attendee.userId === "string"
+          ? attendee.userId
+          : attendee.userId?._id;
       return userId === user._id;
     });
     if (!myAttendee) return null;
@@ -461,8 +470,14 @@ const EventsMeetups = () => {
       try {
         const [typesRes, locRes, priceRes] = await Promise.all([
           categoryAPI.getAll({ entityType: "event_type", isActive: "true" }),
-          categoryAPI.getAll({ entityType: "event_location", isActive: "true" }),
-          categoryAPI.getAll({ entityType: "event_price_range", isActive: "true" }),
+          categoryAPI.getAll({
+            entityType: "event_location",
+            isActive: "true",
+          }),
+          categoryAPI.getAll({
+            entityType: "event_price_range",
+            isActive: "true",
+          }),
         ]);
         if (mounted) {
           const mapNames = (res: any) =>
@@ -472,7 +487,10 @@ const EventsMeetups = () => {
                   .map((c) => String(c.name))
               : [];
           const types = mapNames(typesRes).map((n) => ({ value: n, label: n }));
-          setEventTypeOptions([{ value: "all", label: "All Events" }, ...types]);
+          setEventTypeOptions([
+            { value: "all", label: "All Events" },
+            ...types,
+          ]);
           setLocationCategoryOptions(mapNames(locRes));
           const price = mapNames(priceRes).map((n) => ({ value: n, label: n }));
           setPriceOptions([{ value: "all", label: "All Prices" }, ...price]);
@@ -932,47 +950,51 @@ const EventsMeetups = () => {
                           ? "Event Full"
                           : "Registration Closed"}
                       </Button>
-                    ) : (() => {
-                      const registrationStatus = getUserRegistrationStatus(event.id);
-                      if (registrationStatus === "registered") {
-                        return (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="flex-1 text-xs lg:text-sm"
-                            onClick={() => navigate(`/events/${event.id}`)}
-                          >
-                            Registered
-                          </Button>
+                    ) : (
+                      (() => {
+                        const registrationStatus = getUserRegistrationStatus(
+                          event.id
                         );
-                      }
-                      if (registrationStatus === "pending_payment") {
+                        if (registrationStatus === "registered") {
+                          return (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="flex-1 text-xs lg:text-sm"
+                              onClick={() => navigate(`/events/${event.id}`)}
+                            >
+                              Registered
+                            </Button>
+                          );
+                        }
+                        if (registrationStatus === "pending_payment") {
+                          return (
+                            <Button
+                              size="sm"
+                              className="flex-1 text-xs lg:text-sm bg-yellow-600 hover:bg-yellow-700"
+                              onClick={() => {
+                                setSelectedEventForRegistration(event);
+                                setIsRegistrationOpen(true);
+                              }}
+                            >
+                              Complete Payment
+                            </Button>
+                          );
+                        }
                         return (
                           <Button
                             size="sm"
-                            className="flex-1 text-xs lg:text-sm bg-yellow-600 hover:bg-yellow-700"
+                            className="flex-1 text-xs lg:text-sm"
                             onClick={() => {
                               setSelectedEventForRegistration(event);
                               setIsRegistrationOpen(true);
                             }}
                           >
-                            Complete Payment
+                            Register
                           </Button>
                         );
-                      }
-                      return (
-                        <Button
-                          size="sm"
-                          className="flex-1 text-xs lg:text-sm"
-                          onClick={() => {
-                            setSelectedEventForRegistration(event);
-                            setIsRegistrationOpen(true);
-                          }}
-                        >
-                          Register
-                        </Button>
-                      );
-                    })()}
+                      })()
+                    )}
                     {canManageEvents && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1275,558 +1297,578 @@ const EventsMeetups = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex flex-1 overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Left Sidebar */}
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Left Sidebar */}
-      <div
-        className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"}
-        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"}
+          className={`
+        ${
+          sidebarOpen
+            ? "fixed inset-y-0 left-0 z-50"
+            : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
+        }
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${
+          sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"
+        }
       `}
-      >
-        <div className="h-full overflow-y-auto p-4 sm:p-6">
-          <Card className="h-fit">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Filter className="w-5 h-5 mr-2" />
-                  Events & Meetups
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <CardDescription>Find events that interest you</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Search Events */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search Events</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search events, workshops, meetups..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-10"
-                  />
-                  {searchQuery && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1 h-8 w-8 p-0"
-                      onClick={() => setSearchQuery("")}
+        >
+          <div className="h-full overflow-y-auto p-4 sm:p-6">
+            <Card className="h-fit">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center">
+                    <Filter className="w-5 h-5 mr-2" />
+                    Events & Meetups
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <CardDescription>Find events that interest you</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Search Events */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Search Events</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search events, workshops, meetups..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-10"
+                    />
+                    {searchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1 h-8 w-8 p-0"
+                        onClick={() => setSearchQuery("")}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filters */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">Filters</h3>
+
+                  {/* Event Type */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Event Type</label>
+                    <Select
+                      value={selectedEventType}
+                      onValueChange={setSelectedEventType}
                     >
-                      <X className="h-4 w-4" />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select event type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {eventTypeOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Location */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Location</label>
+                    <Select
+                      value={selectedLocation}
+                      onValueChange={setSelectedLocation}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locationOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Price */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Price</label>
+                    <Select
+                      value={selectedPrice}
+                      onValueChange={setSelectedPrice}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select price range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priceOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Date Range */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Date Range</label>
+                    <Select
+                      value={selectedDateRange}
+                      onValueChange={setSelectedDateRange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select date range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Dates</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="tomorrow">Tomorrow</SelectItem>
+                        <SelectItem value="this_week">This Week</SelectItem>
+                        <SelectItem value="next_week">Next Week</SelectItem>
+                        <SelectItem value="this_month">This Month</SelectItem>
+                        <SelectItem value="next_month">Next Month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Clear Filters */}
+                  {(searchQuery ||
+                    (selectedEventType && selectedEventType !== "all") ||
+                    (selectedLocation && selectedLocation !== "all") ||
+                    (selectedPrice && selectedPrice !== "all") ||
+                    (selectedDateRange && selectedDateRange !== "all")) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedEventType("all");
+                        setSelectedLocation("all");
+                        setSelectedPrice("all");
+                        setSelectedDateRange("all");
+                      }}
+                      className="w-full"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Clear Filters
                     </Button>
                   )}
                 </div>
-              </div>
 
-              {/* Filters */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Filters</h3>
-
-                {/* Event Type */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Event Type</label>
-                  <Select
-                    value={selectedEventType}
-                    onValueChange={setSelectedEventType}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select event type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eventTypeOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Location */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Location</label>
-                  <Select
-                    value={selectedLocation}
-                    onValueChange={setSelectedLocation}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locationOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Price */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Price</label>
-                  <Select
-                    value={selectedPrice}
-                    onValueChange={setSelectedPrice}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select price range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {priceOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Date Range */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date Range</label>
-                  <Select
-                    value={selectedDateRange}
-                    onValueChange={setSelectedDateRange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select date range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Dates</SelectItem>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="tomorrow">Tomorrow</SelectItem>
-                      <SelectItem value="this_week">This Week</SelectItem>
-                      <SelectItem value="next_week">Next Week</SelectItem>
-                      <SelectItem value="this_month">This Month</SelectItem>
-                      <SelectItem value="next_month">Next Month</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Clear Filters */}
-                {(searchQuery ||
-                  (selectedEventType && selectedEventType !== "all") ||
-                  (selectedLocation && selectedLocation !== "all") ||
-                  (selectedPrice && selectedPrice !== "all") ||
-                  (selectedDateRange && selectedDateRange !== "all")) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedEventType("all");
-                      setSelectedLocation("all");
-                      setSelectedPrice("all");
-                      setSelectedDateRange("all");
-                    }}
-                    className="w-full"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-
-              {/* Quick Actions */}
-              <div className="space-y-3 pt-4 border-t">
-                <h3 className="text-sm font-semibold">Quick Actions</h3>
-                <div className="space-y-2">
-                  {canCreateEvents && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setIsCreateEventOpen(true)}
-                      className="w-full justify-start"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Event
-                    </Button>
-                  )}
-                  <Button
-                    variant={
-                      showMyEvents && !showSavedEvents ? "default" : "outline"
-                    }
-                    size="sm"
-                    onClick={handleShowRegisteredQuick}
-                    className="w-full justify-start"
-                  >
-                    <Bookmark className="w-4 h-4 mr-2" />
-                    {user?.role === "alumni"
-                      ? "Registered Events"
-                      : "My Events"}
-                  </Button>
-                  {user?.role === "alumni" && (
+                {/* Quick Actions */}
+                <div className="space-y-3 pt-4 border-t">
+                  <h3 className="text-sm font-semibold">Quick Actions</h3>
+                  <div className="space-y-2">
+                    {canCreateEvents && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setIsCreateEventOpen(true)}
+                        className="w-full justify-start"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Event
+                      </Button>
+                    )}
                     <Button
                       variant={
-                        showMyEvents && showSavedEvents ? "default" : "outline"
+                        showMyEvents && !showSavedEvents ? "default" : "outline"
                       }
                       size="sm"
-                      onClick={handleShowSavedQuick}
+                      onClick={handleShowRegisteredQuick}
                       className="w-full justify-start"
                     >
                       <Bookmark className="w-4 h-4 mr-2" />
-                      Saved Events
+                      {user?.role === "alumni"
+                        ? "Registered Events"
+                        : "My Events"}
                     </Button>
-                  )}
-                  <Button
-                    variant={showCalendarView ? "default" : "outline"}
-                    size="sm"
-                    onClick={handleCalendarView}
-                    className="w-full justify-start"
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Calendar View
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
-        <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Menu className="w-4 h-4" />
-              Filters
-            </Button>
-          </div>
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">
-                  Events & Meetups
-                </h1>
-                <p className="text-muted-foreground text-sm lg:text-base">
-                  Connect, learn, and grow with our alumni community •{" "}
-                  {events.length} events
-                </p>
-              </div>
-            </div>
-          </div>
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="text-center py-8">
-            <div className="text-muted-foreground">Loading events...</div>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="text-center py-8">
-            <div className="text-destructive">
-              Failed to load events. Please try again later.
-            </div>
-          </div>
-        )}
-
-        {/* Events Tabs */}
-        {!showCalendarView && events.length === 0 && !isLoading && !error ? (
-          <div className="text-center py-12">
-            <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No Events Found</h3>
-            <p className="text-muted-foreground mb-4">
-              There are no events scheduled at the moment.
-            </p>
-            {canCreateEvents && (
-              <Button onClick={() => setIsCreateEventOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create First Event
-              </Button>
-            )}
-          </div>
-        ) : !showCalendarView ? (
-          <Tabs defaultValue="upcoming" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="upcoming" className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Upcoming ({filteredUpcomingEvents.length})
-              </TabsTrigger>
-              <TabsTrigger value="today" className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Today ({filteredTodayEvents.length})
-              </TabsTrigger>
-              <TabsTrigger value="past" className="flex items-center gap-2">
-                <Star className="w-4 h-4" />
-                Past ({filteredPastEvents.length})
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="upcoming" className="mt-6">
-              {renderEventGrid(
-                filteredUpcomingEvents,
-                showMyEvents
-                  ? user?.role === "alumni"
-                    ? showSavedEvents
-                      ? "No Upcoming Saved Events"
-                      : "No Upcoming Registered Events"
-                    : "No Upcoming My Events"
-                  : "No Upcoming Events"
-              )}
-            </TabsContent>
-
-            <TabsContent value="today" className="mt-6">
-              {renderEventGrid(
-                filteredTodayEvents,
-                showMyEvents
-                  ? user?.role === "alumni"
-                    ? showSavedEvents
-                      ? "No Saved Events Today"
-                      : "No Registered Events Today"
-                    : "No My Events Today"
-                  : "No Events Today"
-              )}
-            </TabsContent>
-
-            <TabsContent value="past" className="mt-6">
-              {renderEventGrid(
-                filteredPastEvents,
-                showMyEvents
-                  ? user?.role === "alumni"
-                    ? showSavedEvents
-                      ? "No Past Saved Events"
-                      : "No Past Registered Events"
-                    : "No Past My Events"
-                  : "No Past Events"
-              )}
-            </TabsContent>
-          </Tabs>
-        ) : null}
-
-        {/* Calendar View */}
-        {showCalendarView && (
-          <div className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    <CardTitle>Calendar View</CardTitle>
-                  </div>
-                  <div className="flex items-center gap-2">
+                    {user?.role === "alumni" && (
+                      <Button
+                        variant={
+                          showMyEvents && showSavedEvents
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={handleShowSavedQuick}
+                        className="w-full justify-start"
+                      >
+                        <Bookmark className="w-4 h-4 mr-2" />
+                        Saved Events
+                      </Button>
+                    )}
                     <Button
-                      variant="outline"
+                      variant={showCalendarView ? "default" : "outline"}
                       size="sm"
-                      onClick={handlePreviousMonth}
-                      title="Previous Month"
+                      onClick={handleCalendarView}
+                      className="w-full justify-start"
                     >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleToday}
-                      title="Go to Current Month"
-                    >
-                      Today
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNextMonth}
-                      title="Next Month"
-                    >
-                      <ChevronRight className="w-4 h-4" />
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Calendar View
                     </Button>
                   </div>
-                </div>
-                <CardDescription>
-                  {currentMonth.toLocaleDateString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  })}{" "}
-                  - View events in a calendar format
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-7 gap-2 mb-4">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (day) => (
-                      <div
-                        key={day}
-                        className="text-center text-sm font-medium text-muted-foreground p-2"
-                      >
-                        {day}
-                      </div>
-                    )
-                  )}
-                </div>
-                <div className="grid grid-cols-7 gap-2">
-                  {Array.from({ length: 35 }, (_, i) => {
-                    const firstDay = new Date(
-                      currentMonth.getFullYear(),
-                      currentMonth.getMonth(),
-                      1
-                    );
-                    const startDate = new Date(firstDay);
-                    startDate.setDate(
-                      startDate.getDate() - firstDay.getDay() + i
-                    );
-
-                    const dayEvents = events.filter((event) => {
-                      const eventDate = new Date(event.startDate);
-                      return (
-                        eventDate.toDateString() === startDate.toDateString()
-                      );
-                    });
-
-                    const isToday =
-                      startDate.toDateString() === new Date().toDateString();
-                    const isCurrentMonth =
-                      startDate.getMonth() === currentMonth.getMonth();
-
-                    return (
-                      <div
-                        key={i}
-                        className={`min-h-[80px] p-2 border rounded-lg cursor-pointer hover:bg-muted/50 ${
-                          isCurrentMonth ? "bg-background" : "bg-muted/30"
-                        } ${isToday ? "ring-2 ring-blue-500" : ""}`}
-                        onClick={() => handleDayClick(startDate, dayEvents)}
-                      >
-                        <div
-                          className={`text-sm font-medium mb-1 ${
-                            isToday ? "text-blue-600 font-bold" : ""
-                          }`}
-                        >
-                          {startDate.getDate()}
-                        </div>
-                        <div className="space-y-1">
-                          {dayEvents.slice(0, 2).map((event) => (
-                            <div
-                              key={event.id}
-                              className="text-xs p-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewEvent(event);
-                              }}
-                            >
-                              {event.title}
-                            </div>
-                          ))}
-                          {dayEvents.length > 2 && (
-                            <div className="text-xs text-muted-foreground font-medium">
-                              +{dayEvents.length - 2} more
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </CardContent>
             </Card>
           </div>
-        )}
+        </div>
 
-        {/* Day Events Modal */}
-        {showDayModal && selectedDate && (
-          <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-lg w-full max-w-md max-h-[80vh] overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="font-semibold text-gray-900">
-                  Events on{" "}
-                  {selectedDate.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </h3>
-                <button
-                  onClick={() => setShowDayModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  <X size={16} className="text-gray-600" />
-                </button>
-              </div>
-              <div className="p-4 overflow-y-auto max-h-[60vh]">
-                {(() => {
-                  const dayEvents = events.filter((event) => {
-                    const eventDate = new Date(event.startDate);
-                    return (
-                      eventDate.toDateString() === selectedDate.toDateString()
-                    );
-                  });
-
-                  if (dayEvents.length === 0) {
-                    return (
-                      <div className="text-center py-8">
-                        <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-500">
-                          No events scheduled for this day
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-3">
-                      {dayEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
-                          onClick={() => {
-                            setShowDayModal(false);
-                            handleViewEvent(event);
-                          }}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 mb-1">
-                                {event.title}
-                              </h4>
-                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                                {event.description}
-                              </p>
-                              <div className="flex items-center gap-4 text-xs text-gray-500">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {event.time}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {event.location}
-                                </div>
-                              </div>
-                            </div>
-                            <ExternalLink className="w-4 h-4 text-gray-400" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+          <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+            {/* Mobile Menu Button */}
+            <div className="lg:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Menu className="w-4 h-4" />
+                Filters
+              </Button>
+            </div>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold">
+                    Events & Meetups
+                  </h1>
+                  <p className="text-muted-foreground text-sm lg:text-base">
+                    Connect, learn, and grow with our alumni community •{" "}
+                    {events.length} events
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="text-center py-8">
+                <div className="text-muted-foreground">Loading events...</div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="text-center py-8">
+                <div className="text-destructive">
+                  Failed to load events. Please try again later.
+                </div>
+              </div>
+            )}
+
+            {/* Events Tabs */}
+            {!showCalendarView &&
+            events.length === 0 &&
+            !isLoading &&
+            !error ? (
+              <div className="text-center py-12">
+                <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Events Found</h3>
+                <p className="text-muted-foreground mb-4">
+                  There are no events scheduled at the moment.
+                </p>
+                {canCreateEvents && (
+                  <Button onClick={() => setIsCreateEventOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Event
+                  </Button>
+                )}
+              </div>
+            ) : !showCalendarView ? (
+              <Tabs defaultValue="upcoming" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger
+                    value="upcoming"
+                    className="flex items-center gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Upcoming ({filteredUpcomingEvents.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="today"
+                    className="flex items-center gap-2"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Today ({filteredTodayEvents.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="past" className="flex items-center gap-2">
+                    <Star className="w-4 h-4" />
+                    Past ({filteredPastEvents.length})
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="upcoming" className="mt-6">
+                  {renderEventGrid(
+                    filteredUpcomingEvents,
+                    showMyEvents
+                      ? user?.role === "alumni"
+                        ? showSavedEvents
+                          ? "No Upcoming Saved Events"
+                          : "No Upcoming Registered Events"
+                        : "No Upcoming My Events"
+                      : "No Upcoming Events"
+                  )}
+                </TabsContent>
+
+                <TabsContent value="today" className="mt-6">
+                  {renderEventGrid(
+                    filteredTodayEvents,
+                    showMyEvents
+                      ? user?.role === "alumni"
+                        ? showSavedEvents
+                          ? "No Saved Events Today"
+                          : "No Registered Events Today"
+                        : "No My Events Today"
+                      : "No Events Today"
+                  )}
+                </TabsContent>
+
+                <TabsContent value="past" className="mt-6">
+                  {renderEventGrid(
+                    filteredPastEvents,
+                    showMyEvents
+                      ? user?.role === "alumni"
+                        ? showSavedEvents
+                          ? "No Past Saved Events"
+                          : "No Past Registered Events"
+                        : "No Past My Events"
+                      : "No Past Events"
+                  )}
+                </TabsContent>
+              </Tabs>
+            ) : null}
+
+            {/* Calendar View */}
+            {showCalendarView && (
+              <div className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        <CardTitle>Calendar View</CardTitle>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePreviousMonth}
+                          title="Previous Month"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleToday}
+                          title="Go to Current Month"
+                        >
+                          Today
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNextMonth}
+                          title="Next Month"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      {currentMonth.toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })}{" "}
+                      - View events in a calendar format
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-7 gap-2 mb-4">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                        (day) => (
+                          <div
+                            key={day}
+                            className="text-center text-sm font-medium text-muted-foreground p-2"
+                          >
+                            {day}
+                          </div>
+                        )
+                      )}
+                    </div>
+                    <div className="grid grid-cols-7 gap-2">
+                      {Array.from({ length: 35 }, (_, i) => {
+                        const firstDay = new Date(
+                          currentMonth.getFullYear(),
+                          currentMonth.getMonth(),
+                          1
+                        );
+                        const startDate = new Date(firstDay);
+                        startDate.setDate(
+                          startDate.getDate() - firstDay.getDay() + i
+                        );
+
+                        const dayEvents = events.filter((event) => {
+                          const eventDate = new Date(event.startDate);
+                          return (
+                            eventDate.toDateString() ===
+                            startDate.toDateString()
+                          );
+                        });
+
+                        const isToday =
+                          startDate.toDateString() ===
+                          new Date().toDateString();
+                        const isCurrentMonth =
+                          startDate.getMonth() === currentMonth.getMonth();
+
+                        return (
+                          <div
+                            key={i}
+                            className={`min-h-[80px] p-2 border rounded-lg cursor-pointer hover:bg-muted/50 ${
+                              isCurrentMonth ? "bg-background" : "bg-muted/30"
+                            } ${isToday ? "ring-2 ring-blue-500" : ""}`}
+                            onClick={() => handleDayClick(startDate, dayEvents)}
+                          >
+                            <div
+                              className={`text-sm font-medium mb-1 ${
+                                isToday ? "text-blue-600 font-bold" : ""
+                              }`}
+                            >
+                              {startDate.getDate()}
+                            </div>
+                            <div className="space-y-1">
+                              {dayEvents.slice(0, 2).map((event) => (
+                                <div
+                                  key={event.id}
+                                  className="text-xs p-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewEvent(event);
+                                  }}
+                                >
+                                  {event.title}
+                                </div>
+                              ))}
+                              {dayEvents.length > 2 && (
+                                <div className="text-xs text-muted-foreground font-medium">
+                                  +{dayEvents.length - 2} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Day Events Modal */}
+            {showDayModal && selectedDate && (
+              <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-lg w-full max-w-md max-h-[80vh] overflow-hidden">
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <h3 className="font-semibold text-gray-900">
+                      Events on{" "}
+                      {selectedDate.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </h3>
+                    <button
+                      onClick={() => setShowDayModal(false)}
+                      className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <X size={16} className="text-gray-600" />
+                    </button>
+                  </div>
+                  <div className="p-4 overflow-y-auto max-h-[60vh]">
+                    {(() => {
+                      const dayEvents = events.filter((event) => {
+                        const eventDate = new Date(event.startDate);
+                        return (
+                          eventDate.toDateString() ===
+                          selectedDate.toDateString()
+                        );
+                      });
+
+                      if (dayEvents.length === 0) {
+                        return (
+                          <div className="text-center py-8">
+                            <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                            <p className="text-gray-500">
+                              No events scheduled for this day
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-3">
+                          {dayEvents.map((event) => (
+                            <div
+                              key={event.id}
+                              className="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
+                              onClick={() => {
+                                setShowDayModal(false);
+                                handleViewEvent(event);
+                              }}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 mb-1">
+                                    {event.title}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                                    {event.description}
+                                  </p>
+                                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {event.time}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <MapPin className="w-3 h-3" />
+                                      {event.location}
+                                    </div>
+                                  </div>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-gray-400" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1834,201 +1876,205 @@ const EventsMeetups = () => {
 
       {/* Dialogs */}
       <>
-      <CreateEventDialog
-        open={isCreateEventOpen}
-        onOpenChange={setIsCreateEventOpen}
-        onEventCreated={handleEventCreated}
-      />
-      <EditEventDialog
-        open={isEditEventOpen}
-        onOpenChange={setIsEditEventOpen}
-        event={
-          selectedEvent
-            ? {
-                _id: selectedEvent.id,
-                title: selectedEvent.title,
-                description: selectedEvent.description,
-                type: selectedEvent.type,
-                startDate: selectedEvent.startDate,
-                endDate: selectedEvent.startDate, // Using startDate as fallback since MappedEvent doesn't have endDate
-                location: selectedEvent.location,
-                isOnline: selectedEvent.type === "webinar",
-                maxAttendees: selectedEvent.maxAttendees,
-                currentAttendees: selectedEvent.attendees,
-                price: parseFloat(selectedEvent.price) || 0,
-                tags: selectedEvent.tags,
-                image: selectedEvent.image,
-                registrationDeadline: selectedEvent.registrationDeadline,
-                organizer: {
-                  _id: "unknown",
-                  firstName: selectedEvent.organizer.split(" ")[0] || "Unknown",
-                  lastName:
-                    selectedEvent.organizer.split(" ").slice(1).join(" ") ||
-                    "Organizer",
-                },
-              }
-            : null
-        }
-        onEventUpdated={handleEventUpdated}
-      />
-      <DeleteEventDialog
-        open={isDeleteEventOpen}
-        onOpenChange={setIsDeleteEventOpen}
-        event={
-          selectedEvent
-            ? {
-                _id: selectedEvent.id,
-                title: selectedEvent.title,
-                description: selectedEvent.description,
-                startDate: selectedEvent.startDate,
-                endDate: selectedEvent.startDate, // Using startDate as fallback since MappedEvent doesn't have endDate
-                location: selectedEvent.location,
-                currentAttendees: selectedEvent.attendees,
-              }
-            : null
-        }
-        onEventDeleted={handleEventDeleted}
-      />
+        <CreateEventDialog
+          open={isCreateEventOpen}
+          onOpenChange={setIsCreateEventOpen}
+          onEventCreated={handleEventCreated}
+        />
+        <EditEventDialog
+          open={isEditEventOpen}
+          onOpenChange={setIsEditEventOpen}
+          event={
+            selectedEvent
+              ? {
+                  _id: selectedEvent.id,
+                  title: selectedEvent.title,
+                  description: selectedEvent.description,
+                  type: selectedEvent.type,
+                  startDate: selectedEvent.startDate,
+                  endDate: selectedEvent.startDate, // Using startDate as fallback since MappedEvent doesn't have endDate
+                  location: selectedEvent.location,
+                  isOnline: selectedEvent.type === "webinar",
+                  maxAttendees: selectedEvent.maxAttendees,
+                  currentAttendees: selectedEvent.attendees,
+                  price: parseFloat(selectedEvent.price) || 0,
+                  tags: selectedEvent.tags,
+                  image: selectedEvent.image,
+                  registrationDeadline: selectedEvent.registrationDeadline,
+                  organizer: {
+                    _id: "unknown",
+                    firstName:
+                      selectedEvent.organizer.split(" ")[0] || "Unknown",
+                    lastName:
+                      selectedEvent.organizer.split(" ").slice(1).join(" ") ||
+                      "Organizer",
+                  },
+                }
+              : null
+          }
+          onEventUpdated={handleEventUpdated}
+        />
+        <DeleteEventDialog
+          open={isDeleteEventOpen}
+          onOpenChange={setIsDeleteEventOpen}
+          event={
+            selectedEvent
+              ? {
+                  _id: selectedEvent.id,
+                  title: selectedEvent.title,
+                  description: selectedEvent.description,
+                  startDate: selectedEvent.startDate,
+                  endDate: selectedEvent.startDate, // Using startDate as fallback since MappedEvent doesn't have endDate
+                  location: selectedEvent.location,
+                  currentAttendees: selectedEvent.attendees,
+                }
+              : null
+          }
+          onEventDeleted={handleEventDeleted}
+        />
 
-      {/* Registration Form Dialog */}
-      <RegistrationFormDialog
-        isOpen={isRegistrationOpen}
-        onClose={() => {
-          setIsRegistrationOpen(false);
-          setSelectedEventForRegistration(null);
-        }}
-        event={selectedEventForRegistration}
-        onRegistrationSuccess={() => {
-          // Refresh events list or show success message
-          setRefreshKey((prev) => prev + 1);
-        }}
-      />
-      {/* Participants Dialog */}
-      <Dialog open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Registered Participants</span>
-              {participants.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportParticipantsToCSV}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Export CSV
-                </Button>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-            {participantsLoading ? (
-              <div className="text-sm text-muted-foreground">Loading...</div>
-            ) : participants.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                No participants yet.
-              </div>
-            ) : (
-              <div className="divide-y">
-                {participants.map((p, idx) => {
-                  const firstName = p.user?.firstName || "";
-                  const lastName = p.user?.lastName || "";
-                  const email = p.user?.email || "";
-                  const phone = p.phone || p.phoneNumber || p.user?.phone || "";
-                  const registeredAtStr = p.registeredAt
-                    ? new Date(p.registeredAt).toLocaleString()
-                    : "";
-                  const dietaryRaw = p.dietaryRequirements ?? p.dietary;
-                  const dietary = Array.isArray(dietaryRaw)
-                    ? dietaryRaw.filter(Boolean).join(", ")
-                    : dietaryRaw || "";
-                  let emergencyName = p.emergencyContactName || "";
-                  let emergencyPhone = p.emergencyContactPhone || "";
-                  if (
-                    typeof p.emergencyContact === "object" &&
-                    p.emergencyContact
-                  ) {
-                    emergencyName =
-                      emergencyName || p.emergencyContact.name || "";
-                    emergencyPhone =
-                      emergencyPhone || p.emergencyContact.phone || "";
-                  } else if (typeof p.emergencyContact === "string") {
-                    // If backend stored a single string, show as name/phone combined
-                    emergencyName = emergencyName || p.emergencyContact;
-                  }
-                  const notes = p.additionalNotes || p.notes || "";
-                  const statusText =
-                    typeof p.status === "string" ? p.status : "registered";
-                  return (
-                    <div key={idx} className="py-2 text-sm flex flex-col">
-                      <div className="font-medium">
-                        {firstName} {lastName}
-                      </div>
-                      <div className="text-muted-foreground">{email}</div>
-                      {registeredAtStr && (
-                        <div className="text-muted-foreground text-xs">
-                          Registered on {registeredAtStr}
+        {/* Registration Form Dialog */}
+        <RegistrationFormDialog
+          isOpen={isRegistrationOpen}
+          onClose={() => {
+            setIsRegistrationOpen(false);
+            setSelectedEventForRegistration(null);
+          }}
+          event={selectedEventForRegistration}
+          onRegistrationSuccess={() => {
+            // Refresh events list or show success message
+            setRefreshKey((prev) => prev + 1);
+          }}
+        />
+        {/* Participants Dialog */}
+        <Dialog open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Registered Participants</span>
+                {participants.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportParticipantsToCSV}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </Button>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+              {participantsLoading ? (
+                <div className="text-sm text-muted-foreground">Loading...</div>
+              ) : participants.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  No participants yet.
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {participants.map((p, idx) => {
+                    const firstName = p.user?.firstName || "";
+                    const lastName = p.user?.lastName || "";
+                    const email = p.user?.email || "";
+                    const phone =
+                      p.phone || p.phoneNumber || p.user?.phone || "";
+                    const registeredAtStr = p.registeredAt
+                      ? new Date(p.registeredAt).toLocaleString()
+                      : "";
+                    const dietaryRaw = p.dietaryRequirements ?? p.dietary;
+                    const dietary = Array.isArray(dietaryRaw)
+                      ? dietaryRaw.filter(Boolean).join(", ")
+                      : dietaryRaw || "";
+                    let emergencyName = p.emergencyContactName || "";
+                    let emergencyPhone = p.emergencyContactPhone || "";
+                    if (
+                      typeof p.emergencyContact === "object" &&
+                      p.emergencyContact
+                    ) {
+                      emergencyName =
+                        emergencyName || p.emergencyContact.name || "";
+                      emergencyPhone =
+                        emergencyPhone || p.emergencyContact.phone || "";
+                    } else if (typeof p.emergencyContact === "string") {
+                      // If backend stored a single string, show as name/phone combined
+                      emergencyName = emergencyName || p.emergencyContact;
+                    }
+                    const notes = p.additionalNotes || p.notes || "";
+                    const statusText =
+                      typeof p.status === "string" ? p.status : "registered";
+                    return (
+                      <div key={idx} className="py-2 text-sm flex flex-col">
+                        <div className="font-medium">
+                          {firstName} {lastName}
                         </div>
-                      )}
-                      <div className="flex gap-2 mt-1 text-xs">
-                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">
-                          {statusText}
-                        </span>
-                        {p.paymentStatus && (
-                          <span className="px-2 py-0.5 rounded bg-green-50 text-green-700">
-                            {p.paymentStatus}
-                          </span>
+                        <div className="text-muted-foreground">{email}</div>
+                        {registeredAtStr && (
+                          <div className="text-muted-foreground text-xs">
+                            Registered on {registeredAtStr}
+                          </div>
                         )}
+                        <div className="flex gap-2 mt-1 text-xs">
+                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                            {statusText}
+                          </span>
+                          {p.paymentStatus && (
+                            <span className="px-2 py-0.5 rounded bg-green-50 text-green-700">
+                              {p.paymentStatus}
+                            </span>
+                          )}
+                        </div>
+                        {/* Detailed fields */}
+                        <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                          <div>
+                            <span className="font-semibold">First Name *</span>:{" "}
+                            {firstName || "-"}
+                          </div>
+                          <div>
+                            <span className="font-semibold">Last Name *</span>:{" "}
+                            {lastName || "-"}
+                          </div>
+                          <div>
+                            <span className="font-semibold">Email *</span>:{" "}
+                            {email || "-"}
+                          </div>
+                          <div>
+                            <span className="font-semibold">
+                              Phone Number *
+                            </span>
+                            : {phone || "-"}
+                          </div>
+                          <div>
+                            <span className="font-semibold">
+                              Dietary Requirements
+                            </span>
+                            : {dietary || "-"}
+                          </div>
+                          <div>
+                            <span className="font-semibold">
+                              Emergency Contact
+                            </span>
+                            :{" "}
+                            {[emergencyName, emergencyPhone]
+                              .filter(Boolean)
+                              .join(" ") || "-"}
+                          </div>
+                          <div>
+                            <span className="font-semibold">
+                              Additional Notes
+                            </span>
+                            : {notes || "-"}
+                          </div>
+                        </div>
                       </div>
-                      {/* Detailed fields */}
-                      <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
-                        <div>
-                          <span className="font-semibold">First Name *</span>:{" "}
-                          {firstName || "-"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Last Name *</span>:{" "}
-                          {lastName || "-"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Email *</span>:{" "}
-                          {email || "-"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Phone Number *</span>:{" "}
-                          {phone || "-"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">
-                            Dietary Requirements
-                          </span>
-                          : {dietary || "-"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">
-                            Emergency Contact
-                          </span>
-                          :{" "}
-                          {[emergencyName, emergencyPhone]
-                            .filter(Boolean)
-                            .join(" ") || "-"}
-                        </div>
-                        <div>
-                          <span className="font-semibold">
-                            Additional Notes
-                          </span>
-                          : {notes || "-"}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </>
     </div>
   );

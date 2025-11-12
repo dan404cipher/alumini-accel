@@ -4,7 +4,7 @@ import Navigation from "@/components/Navigation";
 import { galleryAPI, categoryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/pagination";
 import EditGalleryDialog from "@/components/dialogs/EditGalleryDialog";
 import DeleteGalleryDialog from "@/components/dialogs/DeleteGalleryDialog";
 import GalleryActionMenu from "@/components/gallery/GalleryActionMenu";

@@ -11,9 +11,10 @@ export const handleValidationErrors = (
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const errorMessages = errors.array().map((error) => error.msg);
+    const firstError = errors.array()[0]?.msg || "Validation failed";
     return res.status(400).json({
       success: false,
-      message: "Validation failed",
+      message: firstError,
       errors: errorMessages,
     });
   }
@@ -486,6 +487,504 @@ export const validateMentorship = [
   handleValidationErrors,
 ];
 
+// Mentoring Program validation
+export const validateMentoringProgram = [
+  body("category")
+    .trim()
+    .notEmpty()
+    .withMessage("Program category is required"),
+  body("name")
+    .trim()
+    .isLength({ min: 1, max: 75 })
+    .withMessage("Name must be between 1 and 75 characters")
+    .matches(/^[a-zA-Z0-9\s\-]+$/)
+    .withMessage(
+      "Name can only contain letters, numbers, spaces, and hyphens"
+    ),
+  body("shortDescription")
+    .trim()
+    .isLength({ min: 1, max: 250 })
+    .withMessage("Short description must be between 1 and 250 characters")
+    .matches(/^[a-zA-Z0-9\s\-.,!?()]+$/)
+    .withMessage("Short description contains invalid characters"),
+  body("longDescription")
+    .optional()
+    .trim(),
+  body("programSchedule")
+    .isIn(["One-time", "Recurring"])
+    .withMessage("Program schedule must be either 'One-time' or 'Recurring'"),
+  body("programDuration.startDate")
+    .isISO8601()
+    .withMessage("Program start date must be a valid date"),
+  body("programDuration.endDate")
+    .isISO8601()
+    .withMessage("Program end date must be a valid date")
+    .custom((value, { req }) => {
+      const startDate = new Date(req.body.programDuration?.startDate);
+      const endDate = new Date(value);
+      if (endDate <= startDate) {
+        throw new Error("Program end date must be after start date");
+      }
+      return true;
+    }),
+  body("skillsRequired")
+    .optional()
+    .isArray()
+    .withMessage("Skills required must be an array"),
+  body("areasOfMentoring.mentor")
+    .optional()
+    .isArray()
+    .withMessage("Mentor areas must be an array"),
+  body("areasOfMentoring.mentee")
+    .optional()
+    .isArray()
+    .withMessage("Mentee areas must be an array"),
+  body("areasOfMentoring")
+    .custom((value) => {
+      if (!value) {
+        throw new Error("Areas of mentoring is required");
+      }
+      const mentorAreas = value.mentor || [];
+      const menteeAreas = value.mentee || [];
+      if (mentorAreas.length === 0 && menteeAreas.length === 0) {
+        throw new Error(
+          "At least one area of mentoring is required for mentor or mentee"
+        );
+      }
+      return true;
+    })
+    .withMessage(
+      "At least one area of mentoring is required for mentor or mentee"
+    ),
+  body("entryCriteriaRules")
+    .optional()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage("Entry criteria rules cannot exceed 2000 characters")
+    .custom((value) => {
+      if (!value || value.trim().length === 0) {
+        return true; // Optional field
+      }
+      // Basic XSS prevention - check for script tags and dangerous patterns
+      const dangerousPatterns = [
+        /<script[^>]*>.*?<\/script>/gi,
+        /javascript:/gi,
+        /on\w+\s*=/gi,
+        /<iframe[^>]*>.*?<\/iframe>/gi,
+      ];
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(value)) {
+          throw new Error("Entry criteria contains invalid characters or potentially unsafe content");
+        }
+      }
+      return true;
+    })
+    .withMessage("Entry criteria contains invalid characters"),
+  body("registrationEndDateMentee")
+    .isISO8601()
+    .withMessage("Mentee registration end date must be a valid date")
+    .custom((value, { req }) => {
+      const date = new Date(value);
+      const programStart = req.body.programDuration?.startDate 
+        ? new Date(req.body.programDuration.startDate)
+        : null;
+      
+      if (programStart && date <= programStart) {
+        throw new Error(
+          "Mentee registration end date must be after program start date"
+        );
+      }
+      return true;
+    }),
+  body("registrationEndDateMentor")
+    .isISO8601()
+    .withMessage("Mentor registration end date must be a valid date")
+    .custom((value, { req }) => {
+      const date = new Date(value);
+      const programStart = req.body.programDuration?.startDate 
+        ? new Date(req.body.programDuration.startDate)
+        : null;
+      
+      if (programStart && date <= programStart) {
+        throw new Error(
+          "Mentor registration end date must be after program start date"
+        );
+      }
+      return true;
+    }),
+  body("matchingEndDate")
+    .isISO8601()
+    .withMessage("Matching end date must be a valid date")
+    .custom((value, { req }) => {
+      const menteeRegEnd = new Date(req.body.registrationEndDateMentee);
+      const mentorRegEnd = new Date(req.body.registrationEndDateMentor);
+      const matchEnd = new Date(value);
+      if (matchEnd <= menteeRegEnd || matchEnd <= mentorRegEnd) {
+        throw new Error(
+          "Matching end date must be after both registration end dates"
+        );
+      }
+      return true;
+    }),
+  body("manager")
+    .isMongoId()
+    .withMessage("Manager must be a valid user ID"),
+  body("coordinators")
+    .optional()
+    .isArray()
+    .withMessage("Coordinators must be an array"),
+  body("coordinators.*")
+    .optional()
+    .isMongoId()
+    .withMessage("Each coordinator must be a valid user ID"),
+  body("reportsEscalationsTo")
+    .optional()
+    .isArray()
+    .withMessage("Reports/Escalations to must be an array"),
+  body("reportsEscalationsTo.*")
+    .optional()
+    .isMongoId()
+    .withMessage(
+      "Each reports/escalations user must be a valid user ID"
+    ),
+  body("registrationApprovalBy")
+    .isMongoId()
+    .withMessage("Registration approval by must be a valid user ID"),
+  body("emailTemplateMentorInvitation")
+    .optional()
+    .isMongoId()
+    .withMessage(
+      "Email template for mentor invitation must be a valid ID"
+    ),
+  body("emailTemplateMenteeInvitation")
+    .optional()
+    .isMongoId()
+    .withMessage(
+      "Email template for mentee invitation must be a valid ID"
+    ),
+  handleValidationErrors,
+];
+
+// Mentor Registration validation
+export const validateMentorRegistration = [
+  body("programId")
+    .isMongoId()
+    .withMessage("Program ID must be a valid MongoDB ID"),
+  body("title")
+    .isIn(["Mr", "Mrs", "Ms", "Dr"])
+    .withMessage("Title must be one of: Mr, Mrs, Ms, Dr"),
+  body("firstName")
+    .trim()
+    .isLength({ min: 1, max: 30 })
+    .withMessage("First name must be between 1 and 30 characters")
+    .matches(/^[a-zA-Z0-9\s\-_]+$/)
+    .withMessage(
+      "First name can only contain letters, numbers, spaces, hyphens, and underscores"
+    ),
+  body("lastName")
+    .trim()
+    .isLength({ min: 1, max: 30 })
+    .withMessage("Last name must be between 1 and 30 characters")
+    .matches(/^[a-zA-Z0-9\s\-_]+$/)
+    .withMessage(
+      "Last name can only contain letters, numbers, spaces, hyphens, and underscores"
+    ),
+  body("preferredName")
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Preferred name must be between 1 and 100 characters")
+    .matches(/^[a-zA-Z0-9\s\-_]+$/)
+    .withMessage(
+      "Preferred name can only contain letters, numbers, spaces, hyphens, and underscores"
+    ),
+  body("mobileNumber")
+    .optional()
+    .trim()
+    .custom((value) => {
+      if (!value) return true;
+      // Basic phone validation
+      return /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/.test(
+        value
+      );
+    })
+    .withMessage("Please enter a valid phone number with country code"),
+  body("dateOfBirth")
+    .isISO8601()
+    .withMessage("Date of birth must be a valid date")
+    .custom((value) => {
+      const dob = new Date(value);
+      const today = new Date();
+      const minDate = new Date(
+        today.getFullYear() - 16,
+        today.getMonth(),
+        today.getDate()
+      );
+      if (dob > minDate) {
+        throw new Error("You must be at least 16 years old");
+      }
+      return true;
+    }),
+  body("personalEmail")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Personal email must be a valid email address"),
+  body("sitEmail")
+    .optional()
+    .isEmail()
+    .normalizeEmail()
+    .custom((value) => {
+      // Only validate if provided (removed from form)
+      if (!value) return true;
+      const sitDomains = [
+        "@sit.edu",
+        "@sit.sg",
+        process.env.SIT_EMAIL_DOMAIN || "@sit.edu",
+      ];
+      return sitDomains.some((domain) => value.toLowerCase().endsWith(domain));
+    })
+    .withMessage("SIT email must be a valid email with SIT domain"),
+  body("classOf")
+    .isInt({ min: 1950, max: new Date().getFullYear() })
+    .withMessage("Class of year must be a valid year between 1950 and current year"),
+  body("sitStudentId")
+    .optional()
+    .trim()
+    .isLength({ max: 10 })
+    .withMessage("SIT Student ID cannot exceed 10 characters")
+    .matches(/^[a-zA-Z0-9]+$/)
+    .withMessage("SIT Student ID must be alphanumeric"),
+  body("sitMatricNumber")
+    .optional()
+    .trim()
+    .isLength({ max: 10 })
+    .withMessage("SIT Matric Number cannot exceed 10 characters")
+    .matches(/^[a-zA-Z0-9]+$/)
+    .withMessage("SIT Matric Number must be alphanumeric"),
+  body("areasOfMentoring")
+    .isArray({ min: 1 })
+    .withMessage("At least one area of mentoring is required"),
+  body("areasOfMentoring.*")
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Each area of mentoring must be between 1 and 100 characters"),
+  body("fbPreference")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("F&B Preference cannot exceed 100 characters"),
+  body("dietaryRestrictions")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Dietary restrictions cannot exceed 100 characters"),
+  body("optionToReceiveFB")
+    .optional()
+    .isBoolean(),
+  body("preferredMailingAddress")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Preferred mailing address must be a valid email address"),
+  body("eventSlotPreference.startDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Event slot start date must be a valid date"),
+  body("eventSlotPreference.endDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Event slot end date must be a valid date"),
+  body("eventSlotPreference")
+    .optional()
+    .custom((value) => {
+      if (!value) return true;
+      if (value.endDate && value.startDate) {
+        const start = new Date(value.startDate);
+        const end = new Date(value.endDate);
+        if (end <= start) {
+          throw new Error("Event slot end date must be after start date");
+        }
+      }
+      return true;
+    }),
+  body("eventMeetupPreference")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Event meetup preference cannot exceed 100 characters"),
+  body("pdpaConsent")
+    .custom((value) => {
+      if (value !== true && value !== "true") {
+        throw new Error("PDPA consent must be accepted");
+      }
+      return true;
+    }),
+  body("recaptchaToken")
+    .trim()
+    .notEmpty()
+    .withMessage("reCAPTCHA token is required"),
+  handleValidationErrors,
+];
+
+// Mentee Registration validation
+export const validateMenteeRegistration = [
+  body("programId")
+    .isMongoId()
+    .withMessage("Program ID must be a valid MongoDB ID"),
+  body("title")
+    .isIn(["Mr", "Mrs", "Ms"])
+    .withMessage("Title must be one of: Mr, Mrs, Ms"),
+  body("firstName")
+    .trim()
+    .isLength({ min: 1, max: 30 })
+    .withMessage("First name must be between 1 and 30 characters")
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage(
+      "First name can only contain letters (a-z, A-Z) and spaces"
+    ),
+  body("lastName")
+    .trim()
+    .isLength({ min: 1, max: 30 })
+    .withMessage("Last name must be between 1 and 30 characters")
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage(
+      "Last name can only contain letters (a-z, A-Z) and spaces"
+    ),
+  body("mobileNumber")
+    .optional()
+    .trim()
+    .custom((value) => {
+      if (!value || !value.trim()) return true;
+      
+      // Remove all spaces, dashes, and parentheses for validation
+      const cleanedNumber = value.replace(/[\s\-\(\)]/g, "");
+      
+      // Indian mobile number validation: 10 digits starting with 9, 8, 7, or 6
+      let digits = cleanedNumber;
+      
+      // Remove country code if present (+91 or 91)
+      if (cleanedNumber.startsWith("+91")) {
+        digits = cleanedNumber.substring(3);
+      } else if (cleanedNumber.startsWith("91") && cleanedNumber.length === 12) {
+        digits = cleanedNumber.substring(2);
+      }
+      
+      // Validate: exactly 10 digits starting with 9, 8, 7, or 6
+      const indianMobileRegex = /^[6789]\d{9}$/;
+      
+      if (!indianMobileRegex.test(digits)) {
+        throw new Error("Please enter a valid Indian mobile number (10 digits starting with 9, 8, 7, or 6). Example: 9876543210 or +91 9876543210");
+      }
+      
+      return true;
+    }),
+  body("dateOfBirth")
+    .isISO8601()
+    .withMessage("Date of birth must be a valid date")
+    .custom((value) => {
+      const dob = new Date(value);
+      const today = new Date();
+      const minDate = new Date(
+        today.getFullYear() - 16,
+        today.getMonth(),
+        today.getDate()
+      );
+      if (dob > minDate) {
+        throw new Error("You must be at least 16 years old");
+      }
+      return true;
+    }),
+  body("personalEmail")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Personal email must be a valid email address"),
+  body("classOf")
+    .custom((value) => {
+      const classOfNumber = parseInt(value);
+      if (isNaN(classOfNumber) || classOfNumber < 1950 || classOfNumber > new Date().getFullYear()) {
+        throw new Error(`Class of year must be a valid year between 1950 and ${new Date().getFullYear()}`);
+      }
+      return true;
+    })
+    .withMessage("Class of year must be a valid year between 1950 and current year"),
+  body("sitStudentId")
+    .optional()
+    .trim()
+    .isLength({ max: 10 })
+    .withMessage("SIT Student ID cannot exceed 10 characters")
+    .matches(/^[a-zA-Z0-9]+$/)
+    .withMessage("SIT Student ID must be alphanumeric"),
+  body("sitMatricNumber")
+    .optional()
+    .trim()
+    .isLength({ max: 10 })
+    .withMessage("SIT Matric Number cannot exceed 10 characters")
+    .matches(/^[a-zA-Z0-9]+$/)
+    .withMessage("SIT Matric Number must be alphanumeric"),
+  body("areasOfMentoring")
+    .custom((value) => {
+      // Handle FormData array format (areasOfMentoring[] or comma-separated)
+      let areasArray: string[] = [];
+      if (Array.isArray(value)) {
+        areasArray = value;
+      } else if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value);
+          areasArray = Array.isArray(parsed) ? parsed : [value];
+        } catch {
+          areasArray = value.includes(",")
+            ? value.split(",").map((a: string) => a.trim())
+            : [value];
+        }
+      }
+      
+      if (!areasArray || areasArray.length === 0) {
+        throw new Error("At least one area of mentoring is required");
+      }
+      
+      // Validate each area
+      for (const area of areasArray) {
+        const trimmed = String(area).trim();
+        if (trimmed.length === 0 || trimmed.length > 100) {
+          throw new Error("Each area of mentoring must be between 1 and 100 characters");
+        }
+      }
+      
+      return true;
+    })
+    .withMessage("At least one area of mentoring is required"),
+  body("fbPreference")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("F&B Preference cannot exceed 100 characters"),
+  body("dietaryRestrictions")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Dietary restrictions cannot exceed 100 characters"),
+  body("preferredMailingAddress")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Preferred mailing address must be a valid email address"),
+  body("eventSlotPreference")
+    .isIn(["Weekend afternoon", "Weekday evenings"])
+    .withMessage("Event slot preference must be either 'Weekend afternoon' or 'Weekday evenings'"),
+  body("eventMeetupPreference")
+    .isIn(["Virtual", "Physical"])
+    .withMessage("Event meetup preference must be either 'Virtual' or 'Physical'"),
+  body("pdpaConsent")
+    .custom((value) => {
+      if (value !== true && value !== "true") {
+        throw new Error("PDPA consent must be accepted");
+      }
+      return true;
+    }),
+  body("recaptchaToken")
+    .trim()
+    .notEmpty()
+    .withMessage("reCAPTCHA token is required"),
+  handleValidationErrors,
+];
+
 // Pagination validation
 export const validatePagination = [
   query("page")
@@ -536,6 +1035,12 @@ export const validatePostId = [
 // Comment ID parameter validation
 export const validateCommentId = [
   param("commentId").isMongoId().withMessage("Invalid comment ID format"),
+  handleValidationErrors,
+];
+
+// Program ID parameter validation
+export const validateProgramId = [
+  param("programId").isMongoId().withMessage("Invalid ID format"),
   handleValidationErrors,
 ];
 

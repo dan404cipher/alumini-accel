@@ -37,7 +37,9 @@ const connectDB = async (): Promise<void> => {
     });
   } catch (error) {
     logger.error("MongoDB connection failed:", error);
-    process.exit(1);
+    // Don't exit process - let server continue and try to reconnect
+    // Don't throw error - let server start without database connection
+    logger.warn("Server will continue without database connection. Some features may not work.");
   }
 };
 

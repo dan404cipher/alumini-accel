@@ -29,6 +29,16 @@ import Gallery from "./pages/Gallery";
 import Connections from "./pages/Connections";
 import Messages from "./pages/Messages";
 import CommunityDetailNew from "./pages/CommunityDetailNew";
+import MenteeRegistration from "./pages/MenteeRegistration";
+import { ApprovalWorkflow } from "./components/mentorship-system/ApprovalWorkflow";
+import { MatchingDashboard } from "./components/mentorship-system/MatchingDashboard";
+import { MenteeMentorSelection } from "./components/mentorship-system/MenteeMentorSelection";
+import { MentorMatchRequests } from "./components/mentorship-system/MentorMatchRequests";
+import { ProgramMentorRegistration } from "./components/mentorship-system/ProgramMentorRegistration";
+import { PublishedMentors } from "./pages/PublishedMentors";
+import { MentoringPrograms } from "./pages/MentoringPrograms";
+import SendInvitationsPage from "./pages/SendInvitations";
+import { YourMentees } from "./pages/YourMentees";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +78,26 @@ const App = () => {
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/cookies" element={<CookiePolicy />} />
+              <Route
+                path="/mentee-registration"
+                element={<MenteeRegistration />}
+              />
+              <Route
+                path="/mentor-registration"
+                element={
+                  <ProtectedRoute>
+                    <ProgramMentorRegistration />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/your-mentees"
+                element={
+                  <ProtectedRoute>
+                    <YourMentees />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected routes */}
               <Route
@@ -211,6 +241,62 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Layout />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mentoring-approvals"
+                element={
+                  <ProtectedRoute>
+                    <ApprovalWorkflow />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/matching-dashboard"
+                element={
+                  <ProtectedRoute>
+                    <MatchingDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mentee-mentor-selection"
+                element={<MenteeMentorSelection />}
+              />
+              <Route
+                path="/mentor-match-requests"
+                element={
+                  <ProtectedRoute>
+                    <MentorMatchRequests />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/published-mentors/:programId"
+                element={<PublishedMentors />}
+              />
+              <Route
+                path="/mentoring-programs"
+                element={
+                  <ProtectedRoute>
+                    <MentoringPrograms />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mentoring-programs/:id"
+                element={
+                  <ProtectedRoute>
+                    <MentoringPrograms />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/send-invitations"
+                element={
+                  <ProtectedRoute>
+                    <SendInvitationsPage />
                   </ProtectedRoute>
                 }
               />

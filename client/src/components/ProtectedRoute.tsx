@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -15,13 +15,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Handle navigation in useEffect to avoid setState during render
   useEffect(() => {
     if (!loading) {
-      // If user is not authenticated, redirect to login
+      // If user is not authenticated, redirect to login with return URL
       if (!user) {
-        navigate("/login", { replace: true });
+        const returnUrl = `${location.pathname}${location.search}`;
+        navigate(`/login?returnUrl=${encodeURIComponent(returnUrl)}`, { replace: true });
         return;
       }
 

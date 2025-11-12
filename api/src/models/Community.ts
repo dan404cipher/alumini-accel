@@ -143,6 +143,17 @@ const CommunitySchema = new Schema<ICommunity>(
         type: Boolean,
         default: true,
       },
+      // Mentorship-specific settings
+      mentorshipMatchId: {
+        type: Schema.Types.ObjectId,
+        ref: "MentorMenteeMatching",
+        default: null,
+      },
+      mentorshipProgramId: {
+        type: Schema.Types.ObjectId,
+        ref: "MentoringProgram",
+        default: null,
+      },
     },
     status: {
       type: String,

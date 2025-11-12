@@ -31,6 +31,7 @@ import {
   GraduationCap,
   Heart,
   ChevronDown,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -60,6 +61,9 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const isAdmin = user ? canAccessAdmin(user.role) : false;
   const canManageUsersAccess = user ? canManageUsers(user.role) : false;
   const canManageContentAccess = user ? canManageContent(user.role) : false;
+  
+  // Check if user is not Alumni (Alumni cannot see mentoring programs management)
+  const canViewMentoringPrograms = user && user.role !== "alumni";
 
   // All navigation items in a single array
   const allNavItems = [
@@ -111,8 +115,14 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       ],
     },
     { id: "community", name: "Community", icon: Users2, count: null },
-    { id: "mentorship", name: "Mentorship", icon: GraduationCap, count: null },
     { id: "donations", name: "Donations", icon: Heart, count: null },
+    // Mentorship - visible to all roles including Alumni
+    {
+      id: "mentoring-programs",
+      name: "Mentorship",
+      icon: BookOpen,
+      count: null,
+    },
   ];
 
   const handleLogout = async () => {
@@ -323,18 +333,24 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
                   // Render regular items
                   return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        onTabChange(item.id);
-                        navigate(`/${item.id}`);
-                      }}
-                      className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
-                        isActive
-                          ? "text-white bg-blue-600 shadow-lg transform scale-105"
-                          : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
-                      }`}
-                    >
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          onTabChange(item.id);
+                          if (item.id === "mentoring-approvals") {
+                            navigate("/mentoring-approvals");
+                          } else if (item.id === "mentoring-programs") {
+                            navigate("/mentoring-programs");
+                          } else {
+                            navigate(`/${item.id}`);
+                          }
+                        }}
+                        className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
+                          isActive
+                            ? "text-white bg-blue-600 shadow-lg transform scale-105"
+                            : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
+                        }`}
+                      >
                       {/* Background animation for active state */}
                       {isActive && (
                         <div className="absolute inset-0 bg-blue-600 rounded-xl"></div>
@@ -459,7 +475,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     key={item.id}
                     onClick={() => {
                       onTabChange(item.id);
-                      navigate(`/${item.id}`);
+                      if (item.id === "mentoring-approvals") {
+                        navigate("/mentoring-approvals");
+                      } else {
+                        navigate(`/${item.id}`);
+                      }
                     }}
                     className={`group flex items-center px-2 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                       isActive
@@ -739,7 +759,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                         <button
                           onClick={() => {
                             onTabChange(item.id);
-                            navigate(`/${item.id}`);
+                            if (item.id === "mentoring-approvals") {
+                              navigate("/mentoring-approvals");
+                            } else {
+                              navigate(`/${item.id}`);
+                            }
                             setMobileMenuOpen(false);
                           }}
                           className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 ${

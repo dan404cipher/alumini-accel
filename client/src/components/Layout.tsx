@@ -85,7 +85,9 @@ const Layout = () => {
       case "donations":
         return <Donations />;
       case "mentorship":
-        return <Mentorship />;
+        // Redirect all users to dashboard if they try to access mentorship page
+        navigate("/dashboard");
+        return null;
       case "about":
         // Redirect to the public About Us page
         navigate("/about");

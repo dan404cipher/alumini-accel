@@ -1,0 +1,232 @@
+import React, { useState, useEffect } from "react";
+import { X, Search, User, Check } from "lucide-react";
+import api from "@/lib/api";
+
+interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role?: string;
+}
+
+interface UserMultiSelectProps {
+  selectedUsers: string[];
+  onUsersChange: (userIds: string[]) => void;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  roles?: string[]; // Filter by roles if provided
+}
+
+export const UserMultiSelect: React.FC<UserMultiSelectProps> = ({
+  selectedUsers,
+  onUsersChange,
+  label,
+  placeholder = "Search and select users...",
+  required = false,
+  roles,
+}) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUserDetails, setSelectedUserDetails] = useState<User[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (selectedUsers.length > 0) {
+      fetchSelectedUserDetails();
+    } else {
+      setSelectedUserDetails([]);
+    }
+  }, [selectedUsers]);
+
+  const fetchSelectedUserDetails = async () => {
+    try {
+      const response = await api.get("/users", {
+        params: {
+          limit: 100,
+          status: "active",
+          ...(roles && roles.length > 0 ? { roles: roles.join(",") } : {}),
+        },
+      });
+
+      if (response.data.success && response.data.data?.users) {
+        // Filter out alumni
+        const validUsers = response.data.data.users.filter(
+          (u: User) => u.role !== "alumni"
+        );
+        const selected = validUsers.filter((user: User) =>
+          selectedUsers.includes(user._id)
+        );
+        setSelectedUserDetails(selected);
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch user details:", error);
+      if (error.response?.status === 403) {
+        console.error("Permission denied: You don't have access to fetch users");
+      }
+    }
+  };
+
+  const searchUsers = async (term: string) => {
+    if (term.length < 1) {
+      setUsers([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const params: any = {
+        search: term,
+        limit: 20,
+        status: "active", // Only show active users
+      };
+      if (roles && roles.length > 0) {
+        params.roles = roles.join(",");
+      }
+
+      const response = await api.get("/users", { params });
+
+      if (response.data.success && response.data.data?.users) {
+        // Filter out alumni and ensure only allowed roles are shown
+        let filteredUsers = response.data.data.users;
+        
+        // Exclude alumni explicitly
+        filteredUsers = filteredUsers.filter((user: User) => user.role !== "alumni");
+        
+        // If roles are specified, ensure only those roles are shown
+        if (roles && roles.length > 0) {
+          filteredUsers = filteredUsers.filter((user: User) => 
+            user.role && roles.includes(user.role)
+          );
+        }
+        
+        // Exclude already selected users
+        filteredUsers = filteredUsers.filter(
+          (user: User) => !selectedUsers.includes(user._id)
+        );
+        
+        setUsers(filteredUsers);
+      } else {
+        setUsers([]);
+      }
+    } catch (error: any) {
+      console.error("Failed to search users:", error);
+      setUsers([]);
+      // Show error message to user
+      if (error.response?.status === 403) {
+        console.error("Permission denied: You don't have access to search users");
+      } else if (error.response?.status === 401) {
+        console.error("Authentication required");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    searchUsers(term);
+  };
+
+  const handleSelectUser = (user: User) => {
+    if (!selectedUsers.includes(user._id)) {
+      onUsersChange([...selectedUsers, user._id]);
+      setSelectedUserDetails([...selectedUserDetails, user]);
+    }
+    setSearchTerm("");
+    setUsers([]);
+    setIsOpen(false);
+  };
+
+  const handleRemoveUser = (userId: string) => {
+    onUsersChange(selectedUsers.filter((id) => id !== userId));
+    setSelectedUserDetails(
+      selectedUserDetails.filter((user) => user._id !== userId)
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+
+      {/* Selected Users */}
+      {selectedUserDetails.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {selectedUserDetails.map((user) => (
+            <div
+              key={user._id}
+              className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+            >
+              <User className="w-4 h-4" />
+              <span>
+                {user.firstName} {user.lastName}
+              </span>
+              <button
+                onClick={() => handleRemoveUser(user._id)}
+                className="ml-1 hover:text-blue-900"
+                type="button"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
+        {/* Dropdown */}
+        {isOpen && searchTerm.length >= 1 && (
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+            {loading ? (
+              <div className="p-4 text-center text-gray-500">Loading...</div>
+            ) : users.length > 0 ? (
+              users.map((user) => (
+                <button
+                  key={user._id}
+                  type="button"
+                  onClick={() => handleSelectUser(user)}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {user.firstName} {user.lastName}
+                    </div>
+                    <div className="text-sm text-gray-500">{user.email}</div>
+                  </div>
+                  {selectedUsers.includes(user._id) && (
+                    <Check className="w-4 h-4 text-blue-600" />
+                  )}
+                </button>
+              ))
+            ) : searchTerm.length >= 2 ? (
+              <div className="p-4 text-center text-gray-500">
+                No users found{roles && roles.length > 0 ? ` with roles: ${roles.join(", ")}` : ""}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-gray-500">
+                Type at least 2 characters to search
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+

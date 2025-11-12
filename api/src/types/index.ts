@@ -458,6 +458,171 @@ export interface IMentorship extends Document {
   updatedAt: Date;
 }
 
+// Mentoring Program Status
+export enum MentoringProgramStatus {
+  DRAFT = "draft",
+  PUBLISHED = "published",
+  ARCHIVED = "archived",
+}
+
+// Mentoring Program Schedule
+export enum ProgramSchedule {
+  ONETIME = "One-time",
+  RECURRING = "Recurring",
+}
+
+// Mentoring Program Interface
+export interface IMentoringProgram extends Document {
+  _id: string;
+  category: string; // Dropdown - Single Select
+  name: string; // Max 75 chars
+  shortDescription: string; // Max 250 chars
+  longDescription?: string;
+  programSchedule: ProgramSchedule; // "One-time" or "Recurring"
+  programDuration: {
+    startDate: Date;
+    endDate: Date;
+  };
+  skillsRequired: string[]; // Multiple Values
+  areasOfMentoring: {
+    mentor: string[]; // Multiple Values for Mentor
+    mentee: string[]; // Multiple Values for Mentee
+  };
+  entryCriteriaRules?: string;
+  registrationEndDateMentee: Date; // Registration End Date for Mentee
+  registrationEndDateMentor: Date; // Registration End Date for Mentor
+  matchingEndDate: Date; // Mentor and Mentee Matching End Date
+  mentoringAgreementForm?: string; // File path reference
+  manager: mongoose.Types.ObjectId; // User Master Reference
+  coordinators: mongoose.Types.ObjectId[]; // Multiple User References
+  reportsEscalationsTo: mongoose.Types.ObjectId[]; // Multiple User Master References
+  registrationApprovalBy: mongoose.Types.ObjectId; // User Master Reference
+  emailTemplateMentorInvitation?: mongoose.Types.ObjectId; // Email template reference
+  emailTemplateMenteeInvitation?: mongoose.Types.ObjectId; // Email template reference
+  status: MentoringProgramStatus; // "draft" | "published" | "archived"
+  mentorsPublished: boolean; // Whether mentors list is published
+  mentorsPublishedAt?: Date; // Date when mentors were published
+  publishedMentorsCount: number; // Count of published mentors
+  publishedMentorIds?: mongoose.Types.ObjectId[]; // IDs of published mentor registrations
+  menteeSelectionEmailsSent: boolean; // Whether mentee selection emails have been sent
+  matchingProcessStartDate?: Date; // Optional date when matching process should begin
+  createdBy: mongoose.Types.ObjectId;
+  tenantId: mongoose.Types.ObjectId; // Multi-tenant support
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Mentor Registration Status
+export enum MentorRegistrationStatus {
+  SUBMITTED = "submitted",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
+// Mentor Registration Interface
+export interface IMentorRegistration extends Document {
+  _id: string;
+  programId: mongoose.Types.ObjectId; // Reference to MentoringProgram
+  userId: mongoose.Types.ObjectId; // Reference to User (the alumni)
+  status: MentorRegistrationStatus; // "submitted" | "approved" | "rejected"
+  title: "Mr" | "Mrs" | "Ms" | "Dr"; // Dropdown
+  firstName: string; // Max 30 chars
+  lastName: string; // Max 30 chars
+  preferredName: string; // Max 100 chars
+  mobileNumber?: string; // Optional, with country code
+  dateOfBirth: Date; // Min age 16 years
+  personalEmail: string; // Email, domain validation
+  sitEmail: string; // SIT domain check
+  classOf: number; // Year/Number
+  sitStudentId?: string; // Max 10 chars, mandatory for post-2017
+  sitMatricNumber?: string; // Max 10 chars, mandatory for pre-2017
+  mentorCV?: string; // File path reference
+  areasOfMentoring: string[]; // Array of strings, max 100 chars each
+  fbPreference?: string; // Max 100 chars, optional
+  dietaryRestrictions?: string; // Max 100 chars, optional
+  optionToReceiveFB: boolean; // Checkbox
+  preferredMailingAddress: string; // Email, defaulted to registered email
+  eventSlotPreference?: {
+    startDate: Date;
+    endDate: Date;
+    startTime?: string;
+    endTime?: string;
+  }; // Date and Time Range
+  eventMeetupPreference?: string; // Max 100 chars, optional
+  pdpaConsent: boolean; // Mandatory
+  recaptchaToken: string; // Mandatory
+  rejectionReason?: string; // Optional, for rejected registrations
+  approvedBy?: mongoose.Types.ObjectId; // User Reference
+  approvedAt?: Date;
+  rejectedBy?: mongoose.Types.ObjectId; // User Reference
+  rejectedAt?: Date;
+  submittedAt: Date; // Auto-generated
+  approvalHistory?: Array<{
+    action: "approve" | "reject" | "reconsider" | "disapprove";
+    performedBy: mongoose.Types.ObjectId;
+    performedAt: Date;
+    notes?: string;
+    reason?: string;
+  }>; // Approval history for audit
+  canReconsider: boolean; // Flag to allow reconsideration
+  tenantId: mongoose.Types.ObjectId; // Multi-tenant support
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Mentee Registration Status (same as mentor)
+export enum MenteeRegistrationStatus {
+  SUBMITTED = "submitted",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
+// Mentee Registration Interface
+export interface IMenteeRegistration extends Document {
+  _id: string;
+  programId: mongoose.Types.ObjectId; // Reference to MentoringProgram
+  registrationToken: string; // Unique token for public access
+  status: MenteeRegistrationStatus; // "submitted" | "approved" | "rejected"
+  title: "Mr" | "Mrs" | "Ms"; // Dropdown
+  firstName: string; // Max 30 chars
+  lastName: string; // Max 30 chars
+  mobileNumber?: string; // Optional, with country code
+  dateOfBirth: Date; // Min age 16 years
+  personalEmail: string; // Email, domain validation
+  sitEmail: string; // SIT domain check
+  classOf: number; // Year/Number
+  sitStudentId?: string; // Max 10 chars, mandatory for post-2017
+  sitMatricNumber?: string; // Max 10 chars, mandatory for pre-2017
+  menteeCV?: string; // File path reference
+  areasOfMentoring: string[]; // Array of strings, mandatory
+  fbPreference?: string; // Max 100 chars, optional
+  dietaryRestrictions?: string; // Max 100 chars, optional
+  preferredMailingAddress: string; // Email, mandatory
+  eventSlotPreference: "Weekend afternoon" | "Weekday evenings"; // Dropdown, mandatory
+  eventMeetupPreference: "Virtual" | "Physical"; // Dropdown, mandatory
+  pdpaConsent: boolean; // Mandatory
+  recaptchaToken: string; // Mandatory
+  validatedStudentId?: string; // Student ID validated via token
+  preferredMentors?: mongoose.Types.ObjectId[]; // Array of 3 mentor IDs in preference order
+  rejectionReason?: string; // Optional
+  approvedBy?: mongoose.Types.ObjectId; // User Reference
+  approvedAt?: Date;
+  rejectedBy?: mongoose.Types.ObjectId; // User Reference
+  rejectedAt?: Date;
+  submittedAt: Date;
+  approvalHistory?: Array<{
+    action: "approve" | "reject" | "reconsider" | "disapprove";
+    performedBy: mongoose.Types.ObjectId;
+    performedAt: Date;
+    notes?: string;
+    reason?: string;
+  }>; // Approval history for audit
+  canReconsider: boolean; // Flag to allow reconsideration
+  tenantId: mongoose.Types.ObjectId; // Multi-tenant support
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Donation Interface
 export interface IDonation extends Document {
   _id: string;
@@ -683,6 +848,117 @@ export enum CommunityCommentStatus {
   DELETED = "deleted",
 }
 
+// Email Template Types
+export enum EmailTemplateType {
+  MENTOR_INVITATION = "mentor_invitation",
+  MENTEE_INVITATION = "mentee_invitation",
+  REGISTRATION_ACKNOWLEDGEMENT = "registration_acknowledgement",
+  WELCOME_MENTEE = "welcome_mentee",
+  MENTOR_MATCH_REQUEST = "mentor_match_request",
+  REJECTION_NOTIFICATION = "rejection_notification",
+  APPROVAL_NOTIFICATION = "approval_notification",
+}
+
+// Email Template Interface
+export interface IEmailTemplate extends Document {
+  _id: string;
+  name: string; // Template Name
+  templateType: EmailTemplateType; // Template Type
+  subject: string; // Email Subject
+  body: string; // HTML Body
+  variables: string[]; // Available variables/placeholders
+  createdBy: mongoose.Types.ObjectId; // User Reference
+  updatedBy?: mongoose.Types.ObjectId; // User Reference
+  isActive: boolean; // Is Active
+  tenantId: mongoose.Types.ObjectId; // Multi-tenant support
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Email Tracking Interface
+export interface IEmailTracking extends Document {
+  _id: string;
+  templateId?: mongoose.Types.ObjectId; // Reference to EmailTemplate
+  recipientEmail: string;
+  subject: string;
+  sentAt: Date;
+  openedAt?: Date;
+  clickedAt?: Date;
+  status: "sent" | "delivered" | "opened" | "clicked" | "failed";
+  errorMessage?: string;
+  retryCount: number;
+  metadata?: Record<string, any>;
+  tenantId: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Matching Status Enum
+export enum MatchingStatus {
+  PENDING_MENTOR_ACCEPTANCE = "pending_mentor_acceptance",
+  ACCEPTED = "accepted",
+  REJECTED = "rejected",
+  EXPIRED = "expired",
+  AUTO_REJECTED = "auto_rejected",
+}
+
+// Match Type Enum
+export enum MatchType {
+  ALGORITHM = "algorithm",
+  PREFERRED = "preferred",
+  MANUAL = "manual",
+}
+
+// Mentor-Mentee Matching Interface
+export interface IMentorMenteeMatching extends Document {
+  _id: string;
+  programId: mongoose.Types.ObjectId; // Reference to MentoringProgram
+  menteeId: mongoose.Types.ObjectId; // Reference to User
+  menteeRegistrationId: mongoose.Types.ObjectId; // Reference to MenteeRegistration
+  mentorId: mongoose.Types.ObjectId; // Reference to User
+  mentorRegistrationId: mongoose.Types.ObjectId; // Reference to MentorRegistration
+  matchScore: number; // Calculated algorithm score (0-100)
+  matchType: MatchType; // "algorithm" | "preferred" | "manual"
+  preferredChoiceOrder?: number; // 1-3 if in mentee's preferred list
+  status: MatchingStatus; // Matching status
+  menteeSelectedMentors: mongoose.Types.ObjectId[]; // Array of 3 mentor IDs in preference order
+  matchedAt: Date;
+  mentorResponseAt?: Date;
+  autoRejectAt?: Date; // 3 days after match request sent
+  rejectionReason?: string;
+  matchedBy?: mongoose.Types.ObjectId; // User Reference (if manual matching)
+  mentorshipCommunityId?: mongoose.Types.ObjectId; // Reference to Community
+  scoreBreakdown?: {
+    industryScore: number;
+    programmeScore: number;
+    skillsScore: number;
+    preferenceScore: number;
+  };
+  tenantId: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Mentorship Communication Interface
+export interface IMentorshipCommunication extends Document {
+  _id: string;
+  communityId: mongoose.Types.ObjectId; // Reference to Community
+  fromUserId: mongoose.Types.ObjectId; // Reference to User (sender)
+  toUserId: mongoose.Types.ObjectId; // Reference to User (recipient)
+  subject: string; // Email subject
+  body: string; // HTML email body
+  attachments: string[]; // Array of file paths
+  sentAt: Date; // Auto-generated
+  readAt?: Date; // Optional
+  isRead: boolean; // Default: false
+  relatedMentorshipId?: mongoose.Types.ObjectId; // Reference to MentorMenteeMatching
+  relatedProgramId?: mongoose.Types.ObjectId; // Reference to MentoringProgram
+  replyToId?: mongoose.Types.ObjectId; // Reference to parent communication (for threading)
+  tenantId: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Community Interface
 export interface ICommunity extends Document {
   _id: string;
@@ -699,6 +975,8 @@ export interface ICommunity extends Document {
     allowMediaUploads: boolean;
     allowComments: boolean;
     allowPolls: boolean;
+    mentorshipMatchId?: mongoose.Types.ObjectId;
+    mentorshipProgramId?: mongoose.Types.ObjectId;
   };
   status: CommunityStatus;
   tags: string[];

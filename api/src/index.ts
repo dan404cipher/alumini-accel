@@ -44,6 +44,13 @@ import uploadRoutes from "./routes/upload";
 import likesRoutes from "./routes/likes";
 import commentsRoutes from "./routes/comments";
 import sharesRoutes from "./routes/shares";
+import mentoringProgramRoutes from "./routes/mentoringProgram";
+import mentorRegistrationRoutes from "./routes/mentorRegistration";
+import menteeRegistrationRoutes from "./routes/menteeRegistration";
+import mentoringApprovalRoutes from "./routes/mentoringApproval";
+import emailTemplateRoutes from "./routes/emailTemplate";
+import matchingRoutes from "./routes/matching";
+import mentorshipCommunicationRoutes from "./routes/mentorshipCommunication";
 
 // Load environment variables
 dotenv.config();
@@ -55,7 +62,11 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 // Connect to database
 const startServer = async () => {
   try {
-    await connectDB();
+    // Try to connect to database, but don't block server startup if it fails
+    connectDB().catch((error) => {
+      logger.error("MongoDB connection failed, but continuing server startup:", error);
+      logger.warn("Server will start without database connection. Some features may not work.");
+    });
 
     // Start server
     app.listen(PORT, () => {
@@ -68,6 +79,14 @@ const startServer = async () => {
       logger.info(
         `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
       );
+    }).on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EADDRINUSE") {
+        logger.error(`Port ${PORT} is already in use. Please kill the process using this port or use a different port.`);
+        logger.info(`To find and kill the process: lsof -ti:${PORT} | xargs kill -9`);
+      } else {
+        logger.error("Failed to start server:", error);
+      }
+      process.exit(1);
     });
   } catch (error) {
     logger.error("Failed to start server:", error);
@@ -99,6 +118,8 @@ app.use(
         : [
             "http://localhost:8080",
             "http://localhost:8081",
+            "http://localhost:8082",
+            "http://localhost:8083",
             "http://localhost:3000",
           ], // Explicitly allow frontend and backend origins
     credentials: true,
@@ -225,6 +246,13 @@ app.use("/api/v1/community-posts", communityPostsRoutes);
 app.use("/api/v1/community-memberships", communityMembershipsRoutes);
 app.use("/api/v1/community-comments", communityCommentsRoutes);
 app.use("/api/v1/upload", uploadRoutes);
+app.use("/api/v1/mentoring-programs", mentoringProgramRoutes);
+app.use("/api/v1/mentor-registrations", mentorRegistrationRoutes);
+app.use("/api/v1/mentee-registrations", menteeRegistrationRoutes);
+app.use("/api/v1/mentoring-approvals", mentoringApprovalRoutes);
+app.use("/api/v1/email-templates", emailTemplateRoutes);
+app.use("/api/v1/matching", matchingRoutes);
+app.use("/api/v1/mentorship-communications", mentorshipCommunicationRoutes);
 app.use("/api/v1", likesRoutes);
 app.use("/api/v1", commentsRoutes);
 app.use("/api/v1", sharesRoutes);
@@ -283,7 +311,51 @@ process.on("uncaughtException", (err: Error) => {
   process.exit(1);
 });
 
+// Setup cron job for auto-rejecting expired matches
+const setupMatchingCronJob = () => {
+  // Run every hour to check for expired matches
+  setInterval(async () => {
+    try {
+      const { autoRejectExpiredMatches } = await import("./controllers/matchingController");
+      const count = await autoRejectExpiredMatches();
+      if (count > 0) {
+        logger.info(`Auto-rejected ${count} expired match requests`);
+      }
+    } catch (error) {
+      logger.error("Cron job error:", error);
+    }
+  }, 60 * 60 * 1000); // Every hour
+
+  logger.info("Matching cron job scheduled (runs every hour)");
+};
+
+// Setup cron job for auto-sending mentee selection emails
+const setupMenteeSelectionEmailCronJob = () => {
+  // Run every 6 hours to check for programs where registration end dates have passed
+  setInterval(async () => {
+    try {
+      const { autoSendMenteeSelectionEmails } = await import("./controllers/matchingController");
+      const result = await autoSendMenteeSelectionEmails();
+      if (result.programsProcessed > 0) {
+        logger.info(
+          `Auto-sent mentee selection emails: ${result.programsProcessed} programs processed, ${result.emailsSent} emails sent, ${result.errors} errors`
+        );
+      }
+    } catch (error) {
+      logger.error("Mentee selection email cron job error:", error);
+    }
+  }, 6 * 60 * 60 * 1000); // Every 6 hours
+
+  logger.info("Mentee selection email cron job scheduled (runs every 6 hours)");
+};
+
 // Start the server
-startServer();
+startServer().then(() => {
+  // Setup cron jobs after server starts (with delay to ensure DB is connected)
+  setTimeout(() => {
+    setupMatchingCronJob();
+    setupMenteeSelectionEmailCronJob();
+  }, 5000); // 5 second delay to ensure everything is initialized
+});
 
 export default app;

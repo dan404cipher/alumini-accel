@@ -144,13 +144,6 @@ export const requireUserCreation = authorize(
   UserRole.STAFF
 );
 
-export const requireStaff = authorize(
-  UserRole.SUPER_ADMIN,
-  UserRole.COLLEGE_ADMIN,
-  UserRole.HOD,
-  UserRole.STAFF
-);
-
 export const requireAlumni = authorize(
   UserRole.SUPER_ADMIN,
   UserRole.COLLEGE_ADMIN,
@@ -166,6 +159,9 @@ export const requireAdmin = authorize(
   UserRole.HOD,
   UserRole.STAFF
 );
+
+// Require STAFF role only (for approve/disapprove actions)
+export const requireStaff = authorize(UserRole.STAFF);
 
 // Optional authentication middleware (doesn't fail if no token)
 export const optionalAuth = async (
@@ -350,8 +346,8 @@ export default {
   requireSuperAdmin,
   requireCollegeAdmin,
   requireHOD,
-  requireStaff,
   requireAdmin,
+  requireStaff,
   requireAlumni,
   requireCoordinator,
   optionalAuth,

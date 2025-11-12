@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ const Login = () => {
   const { login, error, clearError } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Fetch college information on component mount
   useEffect(() => {
@@ -91,7 +92,9 @@ const Login = () => {
         title: "Login successful",
         description: "Welcome back!",
       });
-      navigate("/dashboard");
+      // Redirect to returnUrl if present, otherwise go to dashboard
+      const returnUrl = searchParams.get("returnUrl");
+      navigate(returnUrl || "/dashboard");
     } else {
       toast({
         title: "Login failed",

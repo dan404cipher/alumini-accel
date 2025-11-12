@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/pagination";
 import { useDonationManagement } from "./hooks/useDonationManagement";
 import DonationCard from "./components/DonationCard";
 import EnhancedDonationTable from "./components/EnhancedDonationTable";

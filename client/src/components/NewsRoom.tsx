@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,

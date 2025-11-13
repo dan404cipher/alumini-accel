@@ -10,7 +10,8 @@ export interface IGallery extends Document {
   updatedAt: Date;
   isActive: boolean;
   tags?: string[];
-  category?: string;
+  category?: string | mongoose.Types.ObjectId;
+  customCategory?: mongoose.Types.ObjectId;
 }
 
 const GallerySchema = new Schema<IGallery>(
@@ -54,10 +55,41 @@ const GallerySchema = new Schema<IGallery>(
       },
     ],
     category: {
-      type: String,
-      trim: true,
-      enum: ["Events", "Campus", "Sports", "Academic", "Cultural", "Other"],
+      type: Schema.Types.Mixed, // Can be String (enum) or ObjectId (custom)
+      required: false,
+      validate: {
+        validator: function (value: any) {
+          if (!value) return true; // Optional field
+          
+          // Check if it's a valid ObjectId (as string or ObjectId)
+          if (mongoose.Types.ObjectId.isValid(value)) {
+            return true;
+          }
+          
+          // If not ObjectId, check if it's a valid enum value
+          if (typeof value === "string") {
+            const validEnums = [
+              "Events",
+              "Campus",
+              "Sports",
+              "Academic",
+              "Cultural",
+              "Other",
+            ];
+            return validEnums.includes(value);
+          }
+          
+          return false;
+        },
+        message: "Category must be a valid enum value or ObjectId",
+      },
       default: "Other",
+    },
+    customCategory: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: undefined,
+      required: false,
     },
   },
   {

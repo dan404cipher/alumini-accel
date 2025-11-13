@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Gallery, { IGallery } from "../models/Gallery";
+import Category from "../models/Category";
 import { asyncHandler } from "../middleware/errorHandler";
 
 // Get all galleries (public access)
@@ -165,14 +167,40 @@ export const createGallery = asyncHandler(
       });
     }
 
+    // Handle category: check if it's a custom category name or ObjectId
+    let categoryValue = category || "Other";
+    const tenantId = (req as any).user?.tenantId;
+    
+    // If category is provided and not a valid enum, check if it's a custom category
+    const validEnums = ["Events", "Campus", "Sports", "Academic", "Cultural", "Other"];
+    if (category && !validEnums.includes(category) && !mongoose.Types.ObjectId.isValid(category)) {
+      // Try to find custom category by name
+      const customCategory = await Category.findOne({
+        name: category,
+        entityType: "gallery_category",
+        tenantId: tenantId ? new mongoose.Types.ObjectId(tenantId) : undefined,
+        isActive: true,
+      });
+      
+      if (customCategory) {
+        categoryValue = (customCategory._id as mongoose.Types.ObjectId).toString();
+      } else {
+        // If custom category not found, default to "Other"
+        categoryValue = "Other";
+      }
+    }
+
     const gallery = new Gallery({
       title,
       description,
       images,
       createdBy: userId,
-      tenantId: (req as any).user?.tenantId, // Add tenantId for multi-tenant support
+      tenantId: tenantId, // Add tenantId for multi-tenant support
       tags: tags || [],
-      category: category || "Other",
+      category: categoryValue,
+      customCategory: mongoose.Types.ObjectId.isValid(categoryValue) 
+        ? new mongoose.Types.ObjectId(categoryValue) 
+        : undefined,
     });
 
     await gallery.save();
@@ -221,7 +249,39 @@ export const updateGallery = asyncHandler(
     if (description !== undefined) gallery.description = description;
     if (images) gallery.images = images;
     if (tags) gallery.tags = tags;
-    if (category) gallery.category = category;
+    
+    // Handle category update: check if it's a custom category name or ObjectId
+    if (category !== undefined) {
+      let categoryValue = category;
+      const tenantId = (req as any).user?.tenantId;
+      
+      // If category is provided and not a valid enum, check if it's a custom category
+      const validEnums = ["Events", "Campus", "Sports", "Academic", "Cultural", "Other"];
+      if (category && !validEnums.includes(category) && !mongoose.Types.ObjectId.isValid(category)) {
+        // Try to find custom category by name
+        const customCategory = await Category.findOne({
+          name: category,
+          entityType: "gallery_category",
+          tenantId: tenantId ? new mongoose.Types.ObjectId(tenantId) : undefined,
+          isActive: true,
+        });
+        
+        if (customCategory) {
+          categoryValue = (customCategory._id as mongoose.Types.ObjectId).toString();
+          gallery.customCategory = customCategory._id as mongoose.Types.ObjectId;
+        } else {
+          // If custom category not found, default to "Other"
+          categoryValue = "Other";
+          gallery.customCategory = undefined;
+        }
+      } else if (mongoose.Types.ObjectId.isValid(category)) {
+        gallery.customCategory = new mongoose.Types.ObjectId(category);
+      } else {
+        gallery.customCategory = undefined;
+      }
+      
+      gallery.category = categoryValue;
+    }
 
     await gallery.save();
 

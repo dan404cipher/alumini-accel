@@ -2764,7 +2764,7 @@ const CollegeAdminDashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {departmentOptions.length === 0 ? (
-                              <SelectItem value="" disabled>
+                              <SelectItem value="__noopts__" disabled>
                                 No departments available
                               </SelectItem>
                             ) : (
@@ -2923,7 +2923,7 @@ const CollegeAdminDashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {departmentOptions.length === 0 ? (
-                              <SelectItem value="" disabled>
+                              <SelectItem value="__noopts__" disabled>
                                 No departments available
                               </SelectItem>
                             ) : (

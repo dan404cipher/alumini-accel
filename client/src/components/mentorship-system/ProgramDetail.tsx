@@ -18,6 +18,7 @@ import {
   Check,
   RefreshCw,
   ArrowRight,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -521,7 +522,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
         )}
 
         {/* Registration Buttons - At the bottom of program information */}
-        {program.status === "published" && (
+        {program.status === "published" && !isStaff && (
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-2">
@@ -537,7 +538,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                           onClick={() => navigate(`/mentor-registration?programId=${programId}`)}
                           className="bg-blue-600 hover:bg-blue-700"
                           size="lg"
-                          disabled={isAlumni && hasMenteeRegistration}
+                          disabled={
+                            (isAlumni && hasMenteeRegistration) ||
+                            !isRegistrationOpen(program.registrationEndDateMentor)
+                          }
                         >
                           <UserPlus className="w-5 h-5 mr-2" />
                           Mentor Registration
@@ -547,6 +551,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                     {isAlumni && hasMenteeRegistration && (
                       <TooltipContent>
                         <p>You have already registered as a mentee for this program</p>
+                      </TooltipContent>
+                    )}
+                    {!isRegistrationOpen(program.registrationEndDateMentor) && (
+                      <TooltipContent>
+                        <p>Mentor registration has ended for this program</p>
                       </TooltipContent>
                     )}
                   </Tooltip>
@@ -560,7 +569,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                           variant="outline"
                           className="border-blue-600 text-blue-600 hover:bg-blue-50"
                           size="lg"
-                          disabled={isAlumni && hasMentorRegistration}
+                          disabled={
+                            (isAlumni && hasMentorRegistration) ||
+                            !isRegistrationOpen(program.registrationEndDateMentee)
+                          }
                         >
                           <Users className="w-5 h-5 mr-2" />
                           Mentee Registration
@@ -570,6 +582,11 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                     {isAlumni && hasMentorRegistration && (
                       <TooltipContent>
                         <p>You have already registered as a mentor for this program</p>
+                      </TooltipContent>
+                    )}
+                    {!isRegistrationOpen(program.registrationEndDateMentee) && (
+                      <TooltipContent>
+                        <p>Mentee registration has ended for this program</p>
                       </TooltipContent>
                     )}
                   </Tooltip>
@@ -746,6 +763,14 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               View Statistics
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/registered-program-detail?programId=${programId}`)}
+              className="justify-start"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Chat
             </Button>
           </div>
         </div>

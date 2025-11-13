@@ -51,6 +51,7 @@ import mentoringApprovalRoutes from "./routes/mentoringApproval";
 import emailTemplateRoutes from "./routes/emailTemplate";
 import matchingRoutes from "./routes/matching";
 import mentorshipCommunicationRoutes from "./routes/mentorshipCommunication";
+import programChatRoutes from "./routes/programChat";
 
 // Load environment variables
 dotenv.config();
@@ -83,14 +84,23 @@ const startServer = async () => {
       if (error.code === "EADDRINUSE") {
         logger.error(`Port ${PORT} is already in use. Please kill the process using this port or use a different port.`);
         logger.info(`To find and kill the process: lsof -ti:${PORT} | xargs kill -9`);
+        process.exit(1);
       } else {
         logger.error("Failed to start server:", error);
+        process.exit(1);
       }
-      process.exit(1);
     });
-  } catch (error) {
-    logger.error("Failed to start server:", error);
-    process.exit(1);
+  } catch (error: any) {
+    logger.error("Failed to start server:", {
+      error: error?.message || error,
+      stack: error?.stack,
+    });
+    // Only exit if it's a critical startup error
+    if (error?.code === "EADDRINUSE" || error?.code === "ECONNREFUSED") {
+      process.exit(1);
+    }
+    // For other errors, log and try to continue
+    logger.warn("Non-critical startup error, attempting to continue...");
   }
 };
 
@@ -253,6 +263,7 @@ app.use("/api/v1/mentoring-approvals", mentoringApprovalRoutes);
 app.use("/api/v1/email-templates", emailTemplateRoutes);
 app.use("/api/v1/matching", matchingRoutes);
 app.use("/api/v1/mentorship-communications", mentorshipCommunicationRoutes);
+app.use("/api/v1/program-chat", programChatRoutes);
 app.use("/api/v1", likesRoutes);
 app.use("/api/v1", commentsRoutes);
 app.use("/api/v1", sharesRoutes);
@@ -300,15 +311,34 @@ process.on("SIGINT", () => {
 });
 
 // Unhandled promise rejections
-process.on("unhandledRejection", (err: Error) => {
-  logger.error("Unhandled Promise Rejection:", err);
-  process.exit(1);
+process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logger.error("Unhandled Promise Rejection:", {
+    error: err.message,
+    stack: err.stack,
+    reason: String(reason),
+  });
+  // Don't exit immediately - log and continue
+  // Only exit if it's a critical error
+  if (err.message?.includes("ECONNREFUSED") || err.message?.includes("EADDRINUSE")) {
+    logger.error("Critical error detected, exiting...");
+    process.exit(1);
+  }
 });
 
 // Uncaught exceptions
 process.on("uncaughtException", (err: Error) => {
-  logger.error("Uncaught Exception:", err);
-  process.exit(1);
+  logger.error("Uncaught Exception:", {
+    error: err.message,
+    stack: err.stack,
+  });
+  // Only exit for critical errors
+  if (err.message?.includes("ECONNREFUSED") || err.message?.includes("EADDRINUSE")) {
+    logger.error("Critical error detected, exiting...");
+    process.exit(1);
+  }
+  // For other errors, log and continue
+  logger.warn("Non-critical error, continuing...");
 });
 
 // Setup cron job for auto-rejecting expired matches

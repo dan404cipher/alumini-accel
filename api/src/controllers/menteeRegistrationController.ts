@@ -833,18 +833,52 @@ export const getMyMenteeRegistrations = async (
     const limit = parseInt(req.query.limit as string) || 100; // High limit to get all
     const skip = (page - 1) * limit;
 
-    // Find all mentee registrations with the user's email
-    const allRegistrations = await MenteeRegistration.find({
+    // Find mentee registrations by email
+    const registrationsByEmail = await MenteeRegistration.find({
       personalEmail: userEmail.toLowerCase(),
       tenantId,
     })
       .populate("programId", "name category status programDuration registrationEndDateMentee")
       .sort({ submittedAt: -1 });
 
-    // Filter to only include registrations where:
-    // 1. The email matches the logged-in user's email (already done above)
-    // 2. AND verify that a User exists with this email and it's the same user
-    // This prevents showing registrations where someone else used the user's email
+    // Also check if user is matched as a mentee (via MentorMenteeMatching)
+    // This covers cases where the user registered and was matched
+    const MentorMenteeMatching = (await import("../models/MentorMenteeMatching")).default;
+    const matches = await MentorMenteeMatching.find({
+      menteeId: userId,
+      tenantId,
+    })
+      .populate({
+        path: "menteeRegistrationId",
+        model: "MenteeRegistration",
+        populate: {
+          path: "programId",
+          select: "name category status programDuration registrationEndDateMentee",
+        },
+      })
+      .select("menteeRegistrationId");
+
+    // Get unique registration IDs from matches
+    const matchedRegistrationIds = new Set(
+      matches
+        .map((m: any) => m.menteeRegistrationId?._id?.toString())
+        .filter(Boolean)
+    );
+
+    // Combine registrations from email match and matches
+    const allRegistrations = [...registrationsByEmail];
+    
+    // Add registrations from matches that aren't already in the list
+    matches.forEach((match: any) => {
+      if (match.menteeRegistrationId) {
+        const regId = match.menteeRegistrationId._id.toString();
+        if (!allRegistrations.some((r) => r._id.toString() === regId)) {
+          allRegistrations.push(match.menteeRegistrationId);
+        }
+      }
+    });
+
+    // Verify user exists
     const User = (await import("../models/User")).default;
     const user = await User.findById(userId).select("email firstName lastName");
     
@@ -869,42 +903,50 @@ export const getMyMenteeRegistrations = async (
       });
     }
 
-    // Additional verification: 
-    // 1. Check if the registration email matches the user's email exactly
-    // 2. Verify that the registration name matches the user's name (if available)
-    // This ensures we only show registrations that truly belong to this user
-    // This prevents showing registrations where someone else used the user's email
+    // Filter registrations:
+    // 1. Email must match (for email-based registrations)
+    // 2. OR registration must be in matches (for matched mentees)
+    // 3. Name matching is optional - only exclude if names are clearly different AND email doesn't match
     const verifiedRegistrations = allRegistrations.filter((reg) => {
       const emailMatches = reg.personalEmail.toLowerCase() === userEmail.toLowerCase();
+      const isMatched = matchedRegistrationIds.has(reg._id.toString());
       
-      if (!emailMatches) {
-        return false;
-      }
-      
-      // Additional check: If user has firstName/lastName, verify it matches registration
-      // This prevents showing registrations where someone else used the user's email
-      if (user.firstName && user.lastName) {
-        const userFullName = `${user.firstName} ${user.lastName}`.toLowerCase().trim();
-        const regFullName = `${reg.firstName} ${reg.lastName}`.toLowerCase().trim();
-        
-        // If names don't match, exclude this registration
-        // This prevents showing registrations where someone else registered with the user's email
-        if (userFullName !== regFullName) {
-          logger.warn("Mentee registration excluded due to name mismatch", {
-            userId: userId,
-            userEmail: userEmail,
-            userFullName: userFullName,
-            registrationId: reg._id,
-            registrationEmail: reg.personalEmail,
-            registrationFullName: regFullName,
-            programId: reg.programId?._id || reg.programId,
-            note: "Email matches but name doesn't - registration excluded to prevent showing someone else's registration"
-          });
-          return false;
+      // If email matches or it's a matched registration, include it
+      if (emailMatches || isMatched) {
+        // Only do name check if email doesn't match (extra verification for matched registrations)
+        if (!emailMatches && user.firstName && user.lastName) {
+          const userFullName = `${user.firstName} ${user.lastName}`.toLowerCase().trim();
+          const regFullName = `${reg.firstName} ${reg.lastName}`.toLowerCase().trim();
+          
+          // Only exclude if names are significantly different (more than just spacing/casing)
+          // Allow minor differences (e.g., "John Doe" vs "John  Doe" or "john doe")
+          const normalizedUser = userFullName.replace(/\s+/g, " ");
+          const normalizedReg = regFullName.replace(/\s+/g, " ");
+          
+          if (normalizedUser !== normalizedReg) {
+            // Check if it's just a minor difference (like extra spaces or case)
+            const userWords = normalizedUser.split(" ").sort();
+            const regWords = normalizedReg.split(" ").sort();
+            
+            // If the words are the same (just different order or spacing), allow it
+            if (JSON.stringify(userWords) !== JSON.stringify(regWords)) {
+              logger.warn("Mentee registration excluded due to significant name mismatch", {
+                userId: userId,
+                userEmail: userEmail,
+                userFullName: userFullName,
+                registrationId: reg._id,
+                registrationEmail: reg.personalEmail,
+                registrationFullName: regFullName,
+                programId: reg.programId?._id || reg.programId,
+              });
+              return false;
+            }
+          }
         }
+        return true;
       }
       
-      return true;
+      return false;
     });
 
     // Apply pagination

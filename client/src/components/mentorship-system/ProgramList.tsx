@@ -9,6 +9,7 @@ interface ProgramListProps {
   onViewModeChange: (mode: "grid" | "list") => void;
   onProgramClick: (program: MentoringProgram) => void;
   loading?: boolean;
+  userRole?: string;
 }
 
 export const ProgramList: React.FC<ProgramListProps> = ({
@@ -17,7 +18,17 @@ export const ProgramList: React.FC<ProgramListProps> = ({
   onViewModeChange,
   onProgramClick,
   loading = false,
+  userRole,
 }) => {
+  // Check if program has ended (for alumni users)
+  const isProgramEnded = (program: MentoringProgram) => {
+    if (userRole !== "alumni") return false;
+    const endDate = new Date(program.programDuration.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+    return endDate < today;
+  };
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "published":
@@ -75,11 +86,21 @@ export const ProgramList: React.FC<ProgramListProps> = ({
   if (viewMode === "grid") {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {programs.map((program) => (
+        {programs.map((program) => {
+          const programEnded = isProgramEnded(program);
+          return (
           <div
             key={program._id}
-            onClick={() => onProgramClick(program)}
-            className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => {
+              if (!programEnded) {
+                onProgramClick(program);
+              }
+            }}
+            className={`bg-white rounded-lg border border-gray-200 p-6 transition-shadow ${
+              programEnded
+                ? "opacity-60 cursor-not-allowed bg-gray-50"
+                : "hover:shadow-lg cursor-pointer"
+            }`}
           >
             <div className="flex justify-between items-start mb-3">
               <div className="flex-1">
@@ -107,20 +128,36 @@ export const ProgramList: React.FC<ProgramListProps> = ({
                   {program.publishedMentorsCount} published mentors
                 </div>
               )}
+              {programEnded && (
+                <div className="mt-2 px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
+                  Program Ended
+                </div>
+              )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {programs.map((program) => (
+      {programs.map((program) => {
+        const programEnded = isProgramEnded(program);
+        return (
         <div
           key={program._id}
-          onClick={() => onProgramClick(program)}
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+          onClick={() => {
+            if (!programEnded) {
+              onProgramClick(program);
+            }
+          }}
+          className={`bg-white rounded-lg border border-gray-200 p-6 transition-shadow ${
+            programEnded
+              ? "opacity-60 cursor-not-allowed bg-gray-50"
+              : "hover:shadow-md cursor-pointer"
+          }`}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1">
@@ -151,10 +188,16 @@ export const ProgramList: React.FC<ProgramListProps> = ({
                   </div>
                 )}
               </div>
+              {programEnded && (
+                <div className="mt-3 px-3 py-1 bg-red-100 text-red-800 rounded text-xs font-medium inline-block">
+                  Program Ended
+                </div>
+              )}
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

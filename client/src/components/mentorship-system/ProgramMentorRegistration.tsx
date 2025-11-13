@@ -1096,7 +1096,7 @@ export const ProgramMentorRegistration: React.FC<
           </div>
 
           {/* F&B Preferences */}
-          <div>
+          {/* <div>
             <h3 className="text-base font-semibold mb-3">F&B Preferences</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -1148,7 +1148,7 @@ export const ProgramMentorRegistration: React.FC<
                 </label>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Event Preferences */}
           <div>

@@ -1260,11 +1260,17 @@ export const getMyMentees = async (
       });
     }
 
-    // Get all accepted matches for this mentor in this program
+    // Get all matches for this mentor in this program (including pending and accepted)
+    // This shows all mentees that have been selected/matched to this mentor
     const matches = await MentorMenteeMatching.find({
       programId,
       mentorId: userId,
-      status: MatchingStatus.ACCEPTED,
+      status: {
+        $in: [
+          MatchingStatus.ACCEPTED,
+          MatchingStatus.PENDING_MENTOR_ACCEPTANCE,
+        ],
+      },
       tenantId,
     })
       .populate("menteeId", "firstName lastName email profilePicture")

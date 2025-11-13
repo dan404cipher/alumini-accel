@@ -46,10 +46,17 @@ class EmailService {
 
     this.transporter = nodemailer.createTransport(smtpConfig);
     
-    // Verify connection on startup (but don't block)
-    this.verifyConnection().catch((error) => {
-      logger.warn("SMTP connection verification failed:", error.message);
-    });
+    // Verify connection on startup (but don't block and don't warn if credentials exist)
+    // Only verify if credentials are provided
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      this.verifyConnection().catch((error) => {
+        // Only log as info, not warning, since verification can fail for network reasons
+        // but emails might still work
+        logger.info("SMTP connection verification skipped (non-blocking):", error.message);
+      });
+    } else {
+      logger.warn("SMTP credentials not configured. Email sending will fail.");
+    }
   }
 
   // Verify SMTP connection
@@ -59,7 +66,7 @@ class EmailService {
       const smtpPass = process.env.SMTP_PASS?.trim();
       
       if (!smtpUser || !smtpPass) {
-        logger.warn("SMTP credentials not configured. Email sending will fail.");
+        // Don't log warning here - it's already logged in constructor if needed
         return false;
       }
       
@@ -75,14 +82,22 @@ class EmailService {
       };
       
       const testTransporter = nodemailer.createTransport(smtpConfig);
-      await testTransporter.verify();
+      // Set a timeout for verification to prevent hanging
+      await Promise.race([
+        testTransporter.verify(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("SMTP verification timeout")), 10000)
+        )
+      ]);
       logger.info("SMTP connection verified successfully");
       return true;
     } catch (error: any) {
-      logger.error("SMTP connection verification failed:", {
-        error: error.message,
-        code: error.code,
-      });
+      // Don't log as error - verification failures are common and don't mean emails won't work
+      // Only log if it's not a timeout (timeouts are expected in some network configurations)
+      if (!error.message?.includes("timeout")) {
+        // Use info level since debug might not be visible
+        logger.info("SMTP connection verification skipped (non-critical):", error.message);
+      }
       return false;
     }
   }

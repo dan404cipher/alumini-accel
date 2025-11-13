@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Calendar, Clock, BookOpen, User, GraduationCap, Users } from "lucide-react";
+import { Calendar, Clock, BookOpen, User, GraduationCap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
 import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
 
 interface AlumniRegisteredProps {
   onClose?: () => void;
@@ -128,11 +127,12 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
     }
   };
 
-  const handleViewMentees = (programId: string, programName: string) => {
-    // Navigate to full-screen mentees page with return URL to preserve Registered tab state
+  const handleProgramClick = (programId: string, registrationType: "mentor" | "mentee") => {
     const currentPath = window.location.pathname;
     const returnUrl = `${currentPath}?view=registered`;
-    navigate(`/your-mentees?programId=${programId}&programName=${encodeURIComponent(programName)}&returnUrl=${encodeURIComponent(returnUrl)}`);
+    navigate(
+      `/registered-program-detail?programId=${programId}&type=${registrationType}&returnUrl=${encodeURIComponent(returnUrl)}`
+    );
   };
 
   return (
@@ -198,7 +198,8 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
             mentorRegistrations.map((registration) => (
               <div
                 key={registration._id}
-                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
+                onClick={() => registration.programId?._id && handleProgramClick(registration.programId._id, "mentor")}
+                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -274,23 +275,6 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
                       </div>
                     </div>
                   )}
-
-                {/* Your Mentees Button - Only show for approved registrations */}
-                {registration.status === "approved" && registration.programId?._id && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <Button
-                      onClick={() => handleViewMentees(
-                        registration.programId._id,
-                        registration.programId.name || "Program"
-                      )}
-                      variant="outline"
-                      className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
-                    >
-                      <Users className="w-4 h-4 mr-2" />
-                      Your Mentees
-                    </Button>
-                  </div>
-                )}
               </div>
             ))
           )}
@@ -306,7 +290,8 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
             menteeRegistrations.map((registration) => (
               <div
                 key={registration._id}
-                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
+                onClick={() => registration.programId?._id && handleProgramClick(registration.programId._id, "mentee")}
+                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">

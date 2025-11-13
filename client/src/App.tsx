@@ -39,6 +39,7 @@ import { PublishedMentors } from "./pages/PublishedMentors";
 import { MentoringPrograms } from "./pages/MentoringPrograms";
 import SendInvitationsPage from "./pages/SendInvitations";
 import { YourMentees } from "./pages/YourMentees";
+import { RegisteredProgramDetail } from "./pages/RegisteredProgramDetail";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +96,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <YourMentees />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/registered-program-detail"
+                element={
+                  <ProtectedRoute>
+                    <RegisteredProgramDetail />
                   </ProtectedRoute>
                 }
               />

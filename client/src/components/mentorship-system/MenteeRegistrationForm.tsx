@@ -977,7 +977,7 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
       </div>
 
       {/* F&B Preferences */}
-      <div>
+      {/* <div>
         <h3 className="text-lg font-semibold mb-4">F&B Preferences</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -1014,7 +1014,7 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
             </p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Event Preferences */}
       <div>

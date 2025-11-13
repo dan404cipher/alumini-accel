@@ -402,6 +402,7 @@ export const MentoringPrograms: React.FC = () => {
             onViewModeChange={setViewMode}
             onProgramClick={handleProgramClick}
             loading={loading}
+            userRole={user?.role}
           />
 
           {/* Pagination */}

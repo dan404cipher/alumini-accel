@@ -97,11 +97,12 @@ interface ApplicationManagementDashboardProps {
   jobId: string;
   jobTitle: string;
   companyName: string;
+  refreshTrigger?: number;
 }
 
 const ApplicationManagementDashboard: React.FC<
   ApplicationManagementDashboardProps
-> = ({ jobId, jobTitle, companyName }) => {
+> = ({ jobId, jobTitle, companyName, refreshTrigger }) => {
   const { toast } = useToast();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,15 +120,17 @@ const ApplicationManagementDashboard: React.FC<
     try {
       setLoading(true);
       const response = await jobApplicationAPI.getJobApplications(jobId);
+
       if (
         response.success &&
         response.data &&
         typeof response.data === "object" &&
         "applications" in response.data
       ) {
-        setApplications(
-          (response.data as { applications: Application[] }).applications || []
-        );
+        const applicationsData = (response.data as { applications: Application[] }).applications || [];
+        setApplications(applicationsData);
+      } else {
+        setApplications([]);
       }
     } catch (error: unknown) {
       console.error("Error fetching applications:", error);
@@ -143,7 +146,7 @@ const ApplicationManagementDashboard: React.FC<
 
   useEffect(() => {
     fetchApplications();
-  }, [fetchApplications]);
+  }, [fetchApplications, refreshTrigger]);
 
   const handleStatusUpdate = async () => {
     if (!selectedApplication) return;

@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import JobPost from "../models/JobPost";
+import JobApplication from "../models/JobApplication";
 import User from "../models/User";
 import { logger } from "../utils/logger";
-import { JobPostStatus } from "../types";
+import { JobPostStatus, AuthenticatedRequest } from "../types";
 
 // Helper function to transform job object, replacing ObjectId strings with category names
 const transformJob = (job: any) => {
@@ -28,7 +29,7 @@ const transformJob = (job: any) => {
 };
 
 // Get all job posts
-export const getAllJobs = async (req: Request, res: Response) => {
+export const getAllJobs = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -73,10 +74,61 @@ export const getAllJobs = async (req: Request, res: Response) => {
     // Transform jobs to replace ObjectId strings with category names
     const transformedJobs = jobs.map(transformJob);
 
+    // Check if current user has applied to each job (if user is authenticated)
+    let jobsWithApplicationStatus = transformedJobs;
+    if (req.user?.id || req.user?._id) {
+      try {
+        const userId = req.user.id || req.user._id;
+        const tenantId = req.user?.tenantId;
+
+        // Convert all job IDs to strings for comparison
+        const jobIdStrings = transformedJobs.map((job: any) => {
+          const id = job._id || job.id;
+          return id?.toString ? id.toString() : String(id);
+        });
+
+        // Query JobApplication collection - simple query by applicantId and tenantId
+        const applicationQuery: any = {
+          applicantId: new mongoose.Types.ObjectId(userId),
+        };
+        
+        if (tenantId) {
+          applicationQuery.tenantId = new mongoose.Types.ObjectId(tenantId);
+        }
+        
+        // Get all applications for this user
+        const userApplications = await JobApplication.find(applicationQuery).lean();
+
+        // Create a set of applied job IDs as strings
+        const appliedJobIds = new Set<string>();
+        userApplications.forEach((app: any) => {
+          const jobId = app.jobId;
+          // Convert to string - handle ObjectId, string, or object with _id
+          const jobIdStr = jobId?.toString ? jobId.toString() : (jobId?._id ? jobId._id.toString() : String(jobId));
+          appliedJobIds.add(jobIdStr);
+        });
+
+        // Add hasApplied flag to each job
+        jobsWithApplicationStatus = transformedJobs.map((job: any) => {
+          const jobId = job._id || job.id;
+          const jobIdStr = jobId?.toString ? jobId.toString() : String(jobId);
+          const hasApplied = appliedJobIds.has(jobIdStr);
+          
+          return {
+            ...job,
+            hasApplied,
+          };
+        });
+      } catch (error) {
+        logger.error("Error checking application status:", error);
+        // Continue without application status if there's an error
+      }
+    }
+
     return res.json({
       success: true,
       data: {
-        jobs: transformedJobs,
+        jobs: jobsWithApplicationStatus,
         pagination: {
           page,
           limit,
@@ -412,7 +464,7 @@ export const applyForJob = async (req: Request, res: Response) => {
 };
 
 // Search jobs
-export const searchJobs = async (req: Request, res: Response) => {
+export const searchJobs = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
       q,
@@ -461,10 +513,61 @@ export const searchJobs = async (req: Request, res: Response) => {
     // Transform jobs to replace ObjectId strings with category names
     const transformedJobs = jobs.map(transformJob);
 
+    // Check if current user has applied to each job (if user is authenticated)
+    let jobsWithApplicationStatus = transformedJobs;
+    if (req.user?.id || req.user?._id) {
+      try {
+        const userId = req.user.id || req.user._id;
+        const tenantId = req.user.tenantId;
+
+        // Get all job IDs - handle both ObjectId and string formats
+        const jobIds = transformedJobs.map((job: any) => {
+          const id = job._id || job.id;
+          return id instanceof mongoose.Types.ObjectId ? id : new mongoose.Types.ObjectId(id);
+        });
+
+        // Query JobApplication collection to find which jobs the user has applied to
+        const applicationQuery: any = {
+          applicantId: new mongoose.Types.ObjectId(userId),
+          jobId: { $in: jobIds },
+        };
+        
+        if (tenantId) {
+          applicationQuery.tenantId = new mongoose.Types.ObjectId(tenantId);
+        }
+        
+        // Get all applications for this user (simpler - get all, then filter)
+        const userApplications = await JobApplication.find(applicationQuery).lean();
+        
+        // Create a set of applied job IDs as strings
+        const appliedJobIds = new Set<string>();
+        userApplications.forEach((app: any) => {
+          const jobId = app.jobId;
+          const jobIdStr = jobId?.toString ? jobId.toString() : (jobId?._id ? jobId._id.toString() : String(jobId));
+          appliedJobIds.add(jobIdStr);
+        });
+
+        // Add hasApplied flag to each job
+        jobsWithApplicationStatus = transformedJobs.map((job: any) => {
+          const jobId = job._id || job.id;
+          const jobIdStr = jobId?.toString ? jobId.toString() : String(jobId);
+          const hasApplied = appliedJobIds.has(jobIdStr);
+          
+          return {
+            ...job,
+            hasApplied,
+          };
+        });
+      } catch (error) {
+        logger.error("Error checking application status in searchJobs:", error);
+        // Continue without application status if there's an error
+      }
+    }
+
     res.json({
       success: true,
       data: {
-        jobs: transformedJobs,
+        jobs: jobsWithApplicationStatus,
         pagination: {
           page: parseInt(page as string),
           limit: parseInt(limit as string),

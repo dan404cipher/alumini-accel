@@ -93,7 +93,11 @@ interface Application {
   reviewNotes?: string;
 }
 
-const ApplicationStatusTracking: React.FC = () => {
+interface ApplicationStatusTrackingProps {
+  refreshTrigger?: number;
+}
+
+const ApplicationStatusTracking: React.FC<ApplicationStatusTrackingProps> = ({ refreshTrigger }) => {
   const { toast } = useToast();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +109,7 @@ const ApplicationStatusTracking: React.FC = () => {
 
   useEffect(() => {
     fetchApplications();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchApplications = async () => {
     try {
@@ -113,7 +117,8 @@ const ApplicationStatusTracking: React.FC = () => {
       const response = await jobApplicationAPI.getUserApplications();
 
       if (response.success) {
-        setApplications(response.data.applications || []);
+        const applicationsData = response.data?.applications || response.data || [];
+        setApplications(Array.isArray(applicationsData) ? applicationsData : []);
       } else {
         toast({
           title: "Error",
@@ -190,10 +195,19 @@ const ApplicationStatusTracking: React.FC = () => {
   };
 
   const filteredApplications = applications.filter((app) => {
+    // Check if jobId is populated and has required properties
+    if (!app.jobId || typeof app.jobId !== "object") {
+      return false;
+    }
+
+    const jobTitle = app.jobId.title || app.jobId.position || "";
+    const jobCompany = app.jobId.company || "";
+    const jobPosition = app.jobId.position || "";
+
     const matchesSearch =
-      app.jobId.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.jobId.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.jobId.position.toLowerCase().includes(searchQuery.toLowerCase());
+      jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      jobCompany.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      jobPosition.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
 
@@ -372,28 +386,39 @@ const ApplicationStatusTracking: React.FC = () => {
                   <TableRow key={application._id}>
                     <TableCell>
                       <div className="space-y-1">
-                        <p className="font-medium">{application.jobId.title}</p>
-                        <p className="text-sm text-gray-500">
-                          {application.jobId.position}
+                        <p className="font-medium">
+                          {application.jobId?.title || application.jobId?.position || "N/A"}
                         </p>
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                          <MapPin className="w-3 h-3" />
-                          {application.jobId.location}
-                        </div>
+                        {application.jobId?.position && application.jobId?.title && (
+                          <p className="text-sm text-gray-500">
+                            {application.jobId.position}
+                          </p>
+                        )}
+                        {application.jobId?.location && (
+                          <div className="flex items-center gap-1 text-sm text-gray-500">
+                            <MapPin className="w-3 h-3" />
+                            {application.jobId.location}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="w-3 h-3 text-gray-500" />
-                          <span className="font-medium">
-                            {application.jobId.company}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          Posted by {application.jobId.postedBy.firstName}{" "}
-                          {application.jobId.postedBy.lastName}
-                        </p>
+                        {application.jobId?.company && (
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3 text-gray-500" />
+                            <span className="font-medium">
+                              {application.jobId.company}
+                            </span>
+                          </div>
+                        )}
+                        {application.jobId?.postedBy && (
+                          <p className="text-sm text-gray-500">
+                            Posted by{" "}
+                            {application.jobId.postedBy.firstName || ""}{" "}
+                            {application.jobId.postedBy.lastName || ""}
+                          </p>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -477,33 +502,43 @@ const ApplicationStatusTracking: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="font-medium">Job Title:</p>
-                    <p>{selectedApplication.jobId.title}</p>
+                    <p>{selectedApplication.jobId?.title || selectedApplication.jobId?.position || "N/A"}</p>
                   </div>
-                  <div>
-                    <p className="font-medium">Position:</p>
-                    <p>{selectedApplication.jobId.position}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Company:</p>
-                    <p>{selectedApplication.jobId.company}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Location:</p>
-                    <p>{selectedApplication.jobId.location}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Job Type:</p>
-                    <p className="capitalize">
-                      {selectedApplication.jobId.type}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Posted By:</p>
-                    <p>
-                      {selectedApplication.jobId.postedBy.firstName}{" "}
-                      {selectedApplication.jobId.postedBy.lastName}
-                    </p>
-                  </div>
+                  {selectedApplication.jobId?.position && selectedApplication.jobId?.title && (
+                    <div>
+                      <p className="font-medium">Position:</p>
+                      <p>{selectedApplication.jobId.position}</p>
+                    </div>
+                  )}
+                  {selectedApplication.jobId?.company && (
+                    <div>
+                      <p className="font-medium">Company:</p>
+                      <p>{selectedApplication.jobId.company}</p>
+                    </div>
+                  )}
+                  {selectedApplication.jobId?.location && (
+                    <div>
+                      <p className="font-medium">Location:</p>
+                      <p>{selectedApplication.jobId.location}</p>
+                    </div>
+                  )}
+                  {selectedApplication.jobId?.type && (
+                    <div>
+                      <p className="font-medium">Job Type:</p>
+                      <p className="capitalize">
+                        {selectedApplication.jobId.type}
+                      </p>
+                    </div>
+                  )}
+                  {selectedApplication.jobId?.postedBy && (
+                    <div>
+                      <p className="font-medium">Posted By:</p>
+                      <p>
+                        {selectedApplication.jobId.postedBy.firstName || ""}{" "}
+                        {selectedApplication.jobId.postedBy.lastName || ""}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

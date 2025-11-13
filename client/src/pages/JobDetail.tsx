@@ -38,6 +38,13 @@ import { useToast } from "@/hooks/use-toast";
 import { EditJobDialog } from "@/components/dialogs/EditJobDialog";
 import { ShareJobDialog } from "@/components/dialogs/ShareJobDialog";
 import { hasPermission } from "@/utils/rolePermissions";
+import JobApplicationForm from "@/components/JobApplicationForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Job {
   _id: string;
@@ -68,6 +75,10 @@ interface Job {
   applicationUrl?: string;
   companyWebsite?: string;
   contactEmail?: string;
+  hasApplied?: boolean;
+  applications?: Array<{
+    applicantId?: string | { _id?: string; toString?: () => string };
+  }>;
 }
 
 const JobDetail = () => {
@@ -79,6 +90,8 @@ const JobDetail = () => {
   const [isShareJobOpen, setIsShareJobOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
 
   // Fetch job data
   const {
@@ -100,7 +113,13 @@ const JobDetail = () => {
     isLoading: isLoadingSuggested,
     error: suggestedJobsError,
   } = useQuery({
-    queryKey: ["suggestedJobs", job?._id, job?.company, job?.type, job?.location],
+    queryKey: [
+      "suggestedJobs",
+      job?._id,
+      job?.company,
+      job?.type,
+      job?.location,
+    ],
     queryFn: () =>
       jobAPI.getAllJobs({
         limit: 15,
@@ -133,9 +152,7 @@ const JobDetail = () => {
       if (!aIsSameLocation && bIsSameLocation) return 1;
 
       // Finally sort by date (newest first)
-      return (
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     })
     .slice(0, 6);
 
@@ -146,6 +163,43 @@ const JobDetail = () => {
       setSavedJobs(new Set(JSON.parse(saved)));
     }
   }, []);
+
+  // Load applied job IDs from localStorage
+  useEffect(() => {
+    const applied = localStorage.getItem("appliedJobs");
+    if (applied) {
+      setAppliedJobIds(new Set(JSON.parse(applied)));
+    }
+  }, []);
+
+  // Check if user has applied to this job
+  const isJobApplied = () => {
+    if (!job || !user) return false;
+    
+    // First check the hasApplied flag from backend (most reliable)
+    if (job.hasApplied === true) {
+      return true;
+    }
+    
+    // Fallback: check if the job has applications data from backend
+    if (user._id && job.applications?.length) {
+      const hasApplied = job.applications.some((a) => {
+        const idLike = a?.applicantId as any;
+        if (!idLike) return false;
+        // If populated user object
+        if (typeof idLike === "object" && idLike._id) {
+          return idLike._id === user._id;
+        }
+        // If ObjectId or string
+        const val = idLike?.toString ? idLike.toString() : (idLike as string);
+        return val === user._id;
+      });
+      if (hasApplied) return true;
+    }
+    
+    // Final fallback to cached applied job IDs (for immediate UI update after applying)
+    return appliedJobIds.has(job._id);
+  };
 
   // Check if user can edit jobs
   const canEditAllJobs = user?.role
@@ -184,16 +238,7 @@ const JobDetail = () => {
   // Handle apply job
   const handleApply = () => {
     if (!job) return;
-
-    if (job.applicationUrl) {
-      window.open(job.applicationUrl, "_blank");
-    } else {
-      const email = job.contactEmail || "contact@company.com";
-      window.open(
-        `mailto:${email}?subject=Application for ${job.position}`,
-        "_blank"
-      );
-    }
+    setShowApplicationForm(true);
   };
 
   // Handle edit job
@@ -252,13 +297,13 @@ const JobDetail = () => {
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-            <div className="space-y-4">
-              <div className="h-4 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-              <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+                <div className="space-y-4">
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                  <div className="h-4 bg-gray-200 rounded w-4/6"></div>
                 </div>
               </div>
             </div>
@@ -275,16 +320,16 @@ const JobDetail = () => {
           <div className="flex-1">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
               <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Job Not Found
-          </h1>
-          <p className="text-gray-600 mb-6">
-            The job you're looking for doesn't exist or has been removed.
-          </p>
-          <Button onClick={() => navigate("/jobs")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Job Board
-          </Button>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                  Job Not Found
+                </h1>
+                <p className="text-gray-600 mb-6">
+                  The job you're looking for doesn't exist or has been removed.
+                </p>
+                <Button onClick={() => navigate("/jobs")}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Job Board
+                </Button>
               </div>
             </div>
           </div>
@@ -377,12 +422,16 @@ const JobDetail = () => {
                           </p>
                           <div className="flex items-center text-xs text-gray-500 mb-1">
                             <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
-                            <span className="truncate">{suggestedJob.location}</span>
+                            <span className="truncate">
+                              {suggestedJob.location}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <div className="flex items-center text-xs text-gray-500">
                               <Briefcase className="w-3 h-3 mr-1 flex-shrink-0" />
-                              <span className="truncate">{suggestedJob.type}</span>
+                              <span className="truncate">
+                                {suggestedJob.type}
+                              </span>
                             </div>
                             {suggestedJob.remote && (
                               <Badge variant="secondary" className="text-xs">
@@ -438,14 +487,14 @@ const JobDetail = () => {
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/jobs")}
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/jobs")}
                   className="hidden sm:flex"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Job Board
-        </Button>
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Job Board
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -457,143 +506,171 @@ const JobDetail = () => {
               </div>
             </div>
 
-        {/* Job Header */}
-        <Card className="mb-6">
+            {/* Job Header */}
+            <Card className="mb-6">
               <CardHeader className="pb-4">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
                     <CardTitle className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                  {job.position}
-                </CardTitle>
+                      {job.position}
+                    </CardTitle>
                     <CardDescription className="text-base sm:text-lg lg:text-xl text-gray-600 mb-4">
-                  {job.company}
-                </CardDescription>
+                      {job.company}
+                    </CardDescription>
 
-                {/* Job Meta Info */}
+                    {/* Job Meta Info */}
                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-4">
-                  <div className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-1" />
-                    {job.location}
-                  </div>
-                  <div className="flex items-center">
-                    <Briefcase className="w-4 h-4 mr-1" />
-                    {job.type}
-                  </div>
-                  {job.remote && (
-                    <div className="flex items-center">
-                      <Globe className="w-4 h-4 mr-1" />
-                      Remote
+                      <div className="flex items-center">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        {job.location}
+                      </div>
+                      <div className="flex items-center">
+                        <Briefcase className="w-4 h-4 mr-1" />
+                        {job.type}
+                      </div>
+                      {job.remote && (
+                        <div className="flex items-center">
+                          <Globe className="w-4 h-4 mr-1" />
+                          Remote
+                        </div>
+                      )}
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {formatDate(job.createdAt)}
+                      </div>
+                      {job.postedBy && (
+                        <div className="flex items-center">
+                          <Users className="w-4 h-4 mr-1" />
+                          Posted by {job.postedBy.firstName}{" "}
+                          {job.postedBy.lastName}
+                        </div>
+                      )}
+                      {job.deadline && (
+                        <div className="flex items-center text-orange-600">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          Deadline: {formatDate(job.deadline)}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    {formatDate(job.createdAt)}
-                  </div>
-                  {job.postedBy && (
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-1" />
-                      Posted by {job.postedBy.firstName} {job.postedBy.lastName}
-                    </div>
-                  )}
-                  {job.deadline && (
-                    <div className="flex items-center text-orange-600">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      Deadline: {formatDate(job.deadline)}
-                    </div>
-                  )}
-                </div>
 
-                {/* Salary */}
-                {job.salary && (
-                  <div className="flex items-center text-green-600 font-semibold mb-4">
-                    <DollarSign className="w-4 h-4 mr-1" />
-                        <span className="text-base sm:text-lg">{formatSalary(job.salary)}</span>
-                  </div>
-                )}
+                    {/* Salary */}
+                    {job.salary && (
+                      <div className="flex items-center text-green-600 font-semibold mb-4">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        <span className="text-base sm:text-lg">
+                          {formatSalary(job.salary)}
+                        </span>
+                      </div>
+                    )}
 
-                {/* Action Buttons */}
+                    {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-2">
+                      {/* Don't show Apply button if user posted this job */}
+                      {job.postedBy?._id === user?._id ? (
+                        <Button
+                          disabled
+                          variant="secondary"
+                          className="w-full sm:w-auto"
+                        >
+                          <Briefcase className="w-4 h-4 mr-2" />
+                          Your Job Post
+                        </Button>
+                      ) : isJobApplied() ? (
+                        <Button
+                          disabled
+                          variant="secondary"
+                          className="w-full sm:w-auto"
+                        >
+                          <Briefcase className="w-4 h-4 mr-2" />
+                          Applied
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleApply}
+                          className="w-full sm:w-auto"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Apply Now
+                        </Button>
+                      )}
                       <Button
-                        onClick={handleApply}
-                        className="w-full sm:w-auto"
-                      >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Apply Now
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleSaveJob}
+                        variant="outline"
+                        onClick={handleSaveJob}
                         className={`w-full sm:w-auto ${
                           savedJobs.has(job._id) ? "text-yellow-600" : ""
                         }`}
-                  >
-                    <Bookmark
-                      className={`w-4 h-4 mr-2 ${
-                        savedJobs.has(job._id) ? "fill-current" : ""
-                      }`}
-                    />
-                    {savedJobs.has(job._id) ? "Saved" : "Save Job"}
-                  </Button>
+                      >
+                        <Bookmark
+                          className={`w-4 h-4 mr-2 ${
+                            savedJobs.has(job._id) ? "fill-current" : ""
+                          }`}
+                        />
+                        {savedJobs.has(job._id) ? "Saved" : "Save Job"}
+                      </Button>
                       <Button
                         variant="outline"
                         onClick={handleShareJob}
                         className="w-full sm:w-auto"
                       >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Share
-                  </Button>
-                  {canEditJob() && (
+                        <Mail className="w-4 h-4 mr-2" />
+                        Share
+                      </Button>
+                      {canEditJob() && (
                         <Button
                           variant="outline"
                           onClick={handleEditJob}
                           className="w-full sm:w-auto"
                         >
-                      <Briefcase className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                  )}
+                          <Briefcase className="w-4 h-4 mr-2" />
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* Job Details */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Main Content */}
-              <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Description */}
-            <Card>
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Job Description</CardTitle>
               </CardHeader>
+            </Card>
+
+            {/* Job Details */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+              {/* Main Content */}
+              <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+                {/* Description */}
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg sm:text-xl">
+                      Job Description
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="pt-0">
-                <div className="prose max-w-none">
-                  {job.description?.split("\n").map((paragraph, index) => (
+                    <div className="prose max-w-none">
+                      {job.description?.split("\n").map((paragraph, index) => (
                         <p
                           key={index}
                           className="mb-3 sm:mb-4 text-sm sm:text-base text-gray-700 leading-relaxed"
                         >
-                      {paragraph}
-                    </p>
+                          {paragraph}
+                        </p>
                       )) || (
                         <p className="text-sm sm:text-base text-gray-500">
                           No description available
                         </p>
                       )}
-                </div>
-              </CardContent>
-            </Card>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            {/* Requirements */}
-            {job.requirements && job.requirements.length > 0 && (
-              <Card>
+                {/* Requirements */}
+                {job.requirements && job.requirements.length > 0 && (
+                  <Card>
                     <CardHeader className="pb-4">
-                      <CardTitle className="text-lg sm:text-xl">Requirements</CardTitle>
-                </CardHeader>
+                      <CardTitle className="text-lg sm:text-xl">
+                        Requirements
+                      </CardTitle>
+                    </CardHeader>
                     <CardContent className="pt-0">
                       <ul className="space-y-2 sm:space-y-3">
-                    {job.requirements.map((requirement, index) => (
+                        {job.requirements.map((requirement, index) => (
                           <li
                             key={index}
                             className="flex items-start text-sm sm:text-base"
@@ -602,22 +679,24 @@ const JobDetail = () => {
                             <span className="text-gray-700 leading-relaxed">
                               {requirement}
                             </span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
 
-            {/* Benefits */}
-            {job.benefits && job.benefits.length > 0 && (
-              <Card>
+                {/* Benefits */}
+                {job.benefits && job.benefits.length > 0 && (
+                  <Card>
                     <CardHeader className="pb-4">
-                      <CardTitle className="text-lg sm:text-xl">Benefits</CardTitle>
-                </CardHeader>
+                      <CardTitle className="text-lg sm:text-xl">
+                        Benefits
+                      </CardTitle>
+                    </CardHeader>
                     <CardContent className="pt-0">
                       <ul className="space-y-2 sm:space-y-3">
-                    {job.benefits.map((benefit, index) => (
+                        {job.benefits.map((benefit, index) => (
                           <li
                             key={index}
                             className="flex items-start text-sm sm:text-base"
@@ -626,141 +705,167 @@ const JobDetail = () => {
                             <span className="text-gray-700 leading-relaxed">
                               {benefit}
                             </span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
 
-            {/* Tags */}
-            {job.tags && job.tags.length > 0 && (
-              <Card>
+                {/* Tags */}
+                {job.tags && job.tags.length > 0 && (
+                  <Card>
                     <CardHeader className="pb-4">
                       <CardTitle className="text-lg sm:text-xl">Tags</CardTitle>
-                </CardHeader>
+                    </CardHeader>
                     <CardContent className="pt-0">
-                  <div className="flex flex-wrap gap-2">
-                    {job.tags.map((tag, index) => (
+                      <div className="flex flex-wrap gap-2">
+                        {job.tags.map((tag, index) => (
                           <Badge
                             key={index}
                             variant="secondary"
                             className="text-xs sm:text-sm"
                           >
-                        #{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                            #{tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
 
               {/* Company Info Sidebar */}
               <div className="space-y-4 sm:space-y-6">
-            {/* Company Info */}
-            <Card>
+                {/* Company Info */}
+                <Card>
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Company Information</CardTitle>
-              </CardHeader>
+                    <CardTitle className="text-lg sm:text-xl">
+                      Company Information
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="pt-0 space-y-3 sm:space-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs sm:text-sm text-gray-600">Company</span>
+                      <span className="text-xs sm:text-sm text-gray-600">
+                        Company
+                      </span>
                       <span className="text-xs sm:text-sm font-medium text-right max-w-[50%] break-words">
                         {job.company}
                       </span>
-                </div>
+                    </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs sm:text-sm text-gray-600">Location</span>
+                      <span className="text-xs sm:text-sm text-gray-600">
+                        Location
+                      </span>
                       <span className="text-xs sm:text-sm font-medium text-right max-w-[50%] break-words">
                         {job.location}
                       </span>
-                </div>
+                    </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs sm:text-sm text-gray-600">Remote</span>
+                      <span className="text-xs sm:text-sm text-gray-600">
+                        Remote
+                      </span>
                       <span className="text-xs sm:text-sm font-medium">
                         {job.remote ? "Yes" : "No"}
                       </span>
-                </div>
-                {job.deadline && (
+                    </div>
+                    {job.deadline && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm text-gray-600">Deadline</span>
+                        <span className="text-xs sm:text-sm text-gray-600">
+                          Deadline
+                        </span>
                         <span className="text-xs sm:text-sm font-medium text-right max-w-[50%] break-words">
                           {formatDate(job.deadline)}
                         </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-            {/* Contact Information */}
-            <Card>
+                {/* Contact Information */}
+                <Card>
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Contact Information</CardTitle>
-              </CardHeader>
+                    <CardTitle className="text-lg sm:text-xl">
+                      Contact Information
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="pt-0 space-y-3 sm:space-4">
-                {job.companyWebsite && (
+                    {job.companyWebsite && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm text-gray-600">Website</span>
-                    <a
-                      href={job.companyWebsite}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                        <span className="text-xs sm:text-sm text-gray-600">
+                          Website
+                        </span>
+                        <a
+                          href={job.companyWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-primary hover:underline flex items-center text-xs sm:text-sm"
-                    >
+                        >
                           <Globe className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
-                          <span className="truncate max-w-[120px] sm:max-w-none">Visit</span>
-                    </a>
-                  </div>
-                )}
-                {job.applicationUrl && (
+                          <span className="truncate max-w-[120px] sm:max-w-none">
+                            Visit
+                          </span>
+                        </a>
+                      </div>
+                    )}
+                    {job.applicationUrl && (
                       <div className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm text-gray-600">Apply URL</span>
-                    <a
-                      href={job.applicationUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                        <span className="text-xs sm:text-sm text-gray-600">
+                          Apply URL
+                        </span>
+                        <a
+                          href={job.applicationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-primary hover:underline flex items-center text-xs sm:text-sm"
-                    >
+                        >
                           <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
-                          <span className="truncate max-w-[120px] sm:max-w-none">Apply</span>
-                    </a>
-                  </div>
-                )}
-                {job.contactEmail && (
+                          <span className="truncate max-w-[120px] sm:max-w-none">
+                            Apply
+                          </span>
+                        </a>
+                      </div>
+                    )}
+                    {job.contactEmail && (
                       <div className="flex justify-between items-start">
-                        <span className="text-xs sm:text-sm text-gray-600">Email</span>
-                    <a
-                      href={`mailto:${job.contactEmail}`}
+                        <span className="text-xs sm:text-sm text-gray-600">
+                          Email
+                        </span>
+                        <a
+                          href={`mailto:${job.contactEmail}`}
                           className="text-primary hover:underline flex items-center text-xs sm:text-sm text-right max-w-[60%] break-words"
-                    >
+                        >
                           <Mail className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0 mt-0.5" />
                           <span className="break-all">{job.contactEmail}</span>
-                    </a>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        </a>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-            {/* Posted By */}
-            <Card>
+                {/* Posted By */}
+                <Card>
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Posted By</CardTitle>
-              </CardHeader>
+                    <CardTitle className="text-lg sm:text-xl">
+                      Posted By
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="pt-0">
-                <div className="flex items-center">
+                    <div className="flex items-center">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mr-3">
                         <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                  </div>
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm sm:text-base truncate">
-                      {job.postedBy.firstName} {job.postedBy.lastName}
-                    </p>
-                        <p className="text-xs sm:text-sm text-gray-600">Alumni</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                          {job.postedBy.firstName} {job.postedBy.lastName}
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          Alumni
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>
@@ -783,6 +888,38 @@ const JobDetail = () => {
             onOpenChange={setIsShareJobOpen}
             job={job as any}
           />
+        )}
+
+        {/* Job Application Form Dialog */}
+        {job && (
+          <Dialog open={showApplicationForm} onOpenChange={setShowApplicationForm}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Apply for Job</DialogTitle>
+              </DialogHeader>
+              <JobApplicationForm
+                jobId={job._id}
+                jobTitle={job.position}
+                companyName={job.company}
+                onSuccess={() => {
+                  setShowApplicationForm(false);
+                  // Mark job as applied in UI
+                  setAppliedJobIds((prev) => {
+                    const next = new Set(prev).add(job._id);
+                    localStorage.setItem("appliedJobs", JSON.stringify([...next]));
+                    return next;
+                  });
+                  toast({
+                    title: "Application Submitted",
+                    description: "Your application has been submitted successfully!",
+                  });
+                }}
+                onCancel={() => {
+                  setShowApplicationForm(false);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </div>

@@ -50,6 +50,14 @@ export const applyForJob = async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    // Prevent users from applying to their own jobs
+    if (job.postedBy.toString() === userId) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot apply to your own job post",
+      });
+    }
+
     // Check if user already applied
     const existingApplication = await JobApplication.findOne({
       jobId: new mongoose.Types.ObjectId(jobId),

@@ -38,6 +38,13 @@ import { useToast } from "@/hooks/use-toast";
 import { EditJobDialog } from "@/components/dialogs/EditJobDialog";
 import { ShareJobDialog } from "@/components/dialogs/ShareJobDialog";
 import { hasPermission } from "@/utils/rolePermissions";
+import JobApplicationForm from "@/components/JobApplicationForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Job {
   _id: string;
@@ -68,6 +75,10 @@ interface Job {
   applicationUrl?: string;
   companyWebsite?: string;
   contactEmail?: string;
+  hasApplied?: boolean;
+  applications?: Array<{
+    applicantId?: string | { _id?: string; toString?: () => string };
+  }>;
 }
 
 const JobDetail = () => {
@@ -79,6 +90,8 @@ const JobDetail = () => {
   const [isShareJobOpen, setIsShareJobOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
 
   // Fetch job data
   const {
@@ -151,6 +164,43 @@ const JobDetail = () => {
     }
   }, []);
 
+  // Load applied job IDs from localStorage
+  useEffect(() => {
+    const applied = localStorage.getItem("appliedJobs");
+    if (applied) {
+      setAppliedJobIds(new Set(JSON.parse(applied)));
+    }
+  }, []);
+
+  // Check if user has applied to this job
+  const isJobApplied = () => {
+    if (!job || !user) return false;
+    
+    // First check the hasApplied flag from backend (most reliable)
+    if (job.hasApplied === true) {
+      return true;
+    }
+    
+    // Fallback: check if the job has applications data from backend
+    if (user._id && job.applications?.length) {
+      const hasApplied = job.applications.some((a) => {
+        const idLike = a?.applicantId as any;
+        if (!idLike) return false;
+        // If populated user object
+        if (typeof idLike === "object" && idLike._id) {
+          return idLike._id === user._id;
+        }
+        // If ObjectId or string
+        const val = idLike?.toString ? idLike.toString() : (idLike as string);
+        return val === user._id;
+      });
+      if (hasApplied) return true;
+    }
+    
+    // Final fallback to cached applied job IDs (for immediate UI update after applying)
+    return appliedJobIds.has(job._id);
+  };
+
   // Check if user can edit jobs
   const canEditAllJobs = user?.role
     ? hasPermission(user.role, "canEditAllJobs")
@@ -188,16 +238,7 @@ const JobDetail = () => {
   // Handle apply job
   const handleApply = () => {
     if (!job) return;
-
-    if (job.applicationUrl) {
-      window.open(job.applicationUrl, "_blank");
-    } else {
-      const email = job.contactEmail || "contact@company.com";
-      window.open(
-        `mailto:${email}?subject=Application for ${job.position}`,
-        "_blank"
-      );
-    }
+    setShowApplicationForm(true);
   };
 
   // Handle edit job
@@ -534,6 +575,15 @@ const JobDetail = () => {
                           <Briefcase className="w-4 h-4 mr-2" />
                           Your Job Post
                         </Button>
+                      ) : isJobApplied() ? (
+                        <Button
+                          disabled
+                          variant="secondary"
+                          className="w-full sm:w-auto"
+                        >
+                          <Briefcase className="w-4 h-4 mr-2" />
+                          Applied
+                        </Button>
                       ) : (
                         <Button
                           onClick={handleApply}
@@ -838,6 +888,38 @@ const JobDetail = () => {
             onOpenChange={setIsShareJobOpen}
             job={job as any}
           />
+        )}
+
+        {/* Job Application Form Dialog */}
+        {job && (
+          <Dialog open={showApplicationForm} onOpenChange={setShowApplicationForm}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Apply for Job</DialogTitle>
+              </DialogHeader>
+              <JobApplicationForm
+                jobId={job._id}
+                jobTitle={job.position}
+                companyName={job.company}
+                onSuccess={() => {
+                  setShowApplicationForm(false);
+                  // Mark job as applied in UI
+                  setAppliedJobIds((prev) => {
+                    const next = new Set(prev).add(job._id);
+                    localStorage.setItem("appliedJobs", JSON.stringify([...next]));
+                    return next;
+                  });
+                  toast({
+                    title: "Application Submitted",
+                    description: "Your application has been submitted successfully!",
+                  });
+                }}
+                onCancel={() => {
+                  setShowApplicationForm(false);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </div>

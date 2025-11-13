@@ -92,6 +92,7 @@ interface Job {
   applicationUrl?: string;
   companyWebsite?: string;
   contactEmail?: string;
+  hasApplied?: boolean;
 }
 
 const JobBoard = () => {
@@ -195,6 +196,7 @@ const JobBoard = () => {
     [jobs, user?._id]
   );
   const [activeTab, setActiveTab] = useState("jobs");
+  const [applicationsRefreshTrigger, setApplicationsRefreshTrigger] = useState(0);
   const observerRef = useRef<HTMLDivElement>(null);
   const fetchJobsRef = useRef<typeof fetchJobs>();
 
@@ -238,7 +240,12 @@ const JobBoard = () => {
   // Determine if current user applied to a job (from payload or cached ids)
   const isJobApplied = useCallback(
     (job: Job) => {
-      // First check if the job has applications data from backend
+      // First check the hasApplied flag from backend (most reliable)
+      if (job.hasApplied === true) {
+        return true;
+      }
+      
+      // Fallback: check if the job has applications data from backend
       if (user?._id && (job as any)?.applications?.length) {
         const apps = (job as any).applications as Array<{
           applicantId?: string | { _id?: string; toString?: () => string };
@@ -256,7 +263,8 @@ const JobBoard = () => {
         });
         if (hasApplied) return true;
       }
-      // Fallback to cached applied job IDs
+      
+      // Final fallback to cached applied job IDs (for immediate UI update after applying)
       return appliedJobIds.has(job._id);
     },
     [appliedJobIds, user?._id]
@@ -1002,7 +1010,17 @@ const JobBoard = () => {
               </div>
             </div>
           </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(value) => {
+            setActiveTab(value);
+            // Refresh applications when switching to my-applications or received-applications tabs
+            if (value === "my-applications" || value === "received-applications") {
+              setApplicationsRefreshTrigger((prev) => prev + 1);
+            }
+          }} 
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="jobs" className="flex items-center gap-2">
               <Building className="w-4 h-4" />
@@ -1552,7 +1570,7 @@ const JobBoard = () => {
           <TabsContent value="my-applications" className="space-y-6">
             <Card className="shadow-medium">
               <CardContent className="p-6">
-                <ApplicationStatusTracking />
+                <ApplicationStatusTracking refreshTrigger={applicationsRefreshTrigger} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -1569,7 +1587,7 @@ const JobBoard = () => {
                 </div>
 
                 {/* Show jobs posted by current user */}
-                {jobs.filter((job) => job.postedBy._id === user?._id).length ===
+                {jobs.filter((job) => job.postedBy?._id === user?._id).length ===
                 0 ? (
                   <div className="text-center py-8">
                     <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -1595,7 +1613,7 @@ const JobBoard = () => {
                     {/* Job Selection */}
                     <div className="grid gap-4">
                       {jobs
-                        .filter((job) => job.postedBy._id === user?._id)
+                        .filter((job) => job.postedBy?._id === user?._id)
                         .map((job) => (
                           <Card
                             key={job._id}
@@ -1676,6 +1694,7 @@ const JobBoard = () => {
                                   jobs.find((j) => j._id === expandedJobId)
                                     ?.company || ""
                                 }
+                                refreshTrigger={applicationsRefreshTrigger}
                               />
                             </div>
                           </div>
@@ -1734,6 +1753,8 @@ const JobBoard = () => {
                 setSelectedJobForApplication(null);
                 // Refresh jobs to update applications count
                 fetchJobsRef.current?.(1, false);
+                // Refresh applications list
+                setApplicationsRefreshTrigger((prev) => prev + 1);
                 // Mark job as applied in UI
                 if (selectedJobForApplication?._id) {
                   setAppliedJobIds((prev) => {

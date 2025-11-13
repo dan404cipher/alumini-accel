@@ -493,7 +493,15 @@ const CampaignManagement: React.FC = () => {
       });
 
       if (response.success) {
-        const campaignsWithProgress = (response.data as Campaign[]).map(
+        // Handle both response formats: { campaigns: [...] } or direct array
+        const campaignsData = response.data as
+          | { campaigns?: Campaign[]; pagination?: any }
+          | Campaign[];
+        const campaignsArray = Array.isArray(campaignsData)
+          ? campaignsData
+          : campaignsData?.campaigns || [];
+
+        const campaignsWithProgress = campaignsArray.map(
           (campaign: Campaign) => ({
             ...campaign,
             progressPercentage: Math.round(

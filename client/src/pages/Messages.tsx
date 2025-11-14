@@ -402,16 +402,60 @@ const Messages = () => {
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  const getDateLabel = (
+    dateString: string,
+    previousDate?: string
+  ): string | null => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const messageDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+
+    // Check if this message is on the same day as the previous one
+    if (previousDate) {
+      const prevDate = new Date(previousDate);
+      const prevMessageDate = new Date(
+        prevDate.getFullYear(),
+        prevDate.getMonth(),
+        prevDate.getDate()
+      );
+      if (messageDate.getTime() === prevMessageDate.getTime()) {
+        return null; // Same day, don't show label
+      }
+    }
+
+    // Calculate days difference
+    const diffTime = today.getTime() - messageDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return "Today";
+    } else if (diffDays === 1) {
+      return "Yesterday";
+    } else if (diffDays >= 2 && diffDays <= 7) {
+      return "This week";
+    } else if (diffDays > 7 && diffDays <= 14) {
+      return "Last week";
     } else {
-      return date.toLocaleDateString();
+      // Show date for older messages
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+      });
     }
   };
 
@@ -606,142 +650,158 @@ const Messages = () => {
                       </p>
                     </div>
                   ) : (
-                    messages.map((message) => {
+                    messages.map((message, index) => {
                       const isOwnMessage =
                         message.sender.id === currentUser?._id;
                       const isEditing = editingMessageId === message.id;
+                      const previousMessage =
+                        index > 0 ? messages[index - 1] : null;
+                      const dateLabel = getDateLabel(
+                        message.createdAt,
+                        previousMessage?.createdAt
+                      );
 
                       return (
-                        <div
-                          key={message.id}
-                          className={`flex ${
-                            isOwnMessage ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          <div className="group relative">
-                            {/* Reply indicator */}
-                            {message.replyTo && (
+                        <div key={message.id} className="w-full">
+                          {/* Date Label */}
+                          {dateLabel && (
+                            <div className="flex justify-center my-4">
+                              <span className="px-3 py-1 bg-gray-200/80 text-gray-600 text-xs font-medium rounded-full">
+                                {dateLabel}
+                              </span>
+                            </div>
+                          )}
+                          <div
+                            className={`flex ${
+                              isOwnMessage ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div className="group relative">
+                              {/* Reply indicator */}
+                              {message.replyTo && (
+                                <div
+                                  className={`mb-2 p-2 rounded-lg border-l-4 ${
+                                    isOwnMessage
+                                      ? "bg-blue-50 border-blue-300"
+                                      : "bg-gray-50 border-gray-300"
+                                  }`}
+                                >
+                                  <p className="text-xs text-gray-600 mb-1">
+                                    Replying to{" "}
+                                    {message.replyTo.sender.firstName}{" "}
+                                    {message.replyTo.sender.lastName}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {message.replyTo.content}
+                                  </p>
+                                </div>
+                              )}
+
                               <div
-                                className={`mb-2 p-2 rounded-lg border-l-4 ${
+                                className={`max-w-xs lg:max-w-md xl:max-w-lg px-4 py-2.5 rounded-2xl shadow-sm ${
                                   isOwnMessage
-                                    ? "bg-blue-50 border-blue-300"
-                                    : "bg-gray-50 border-gray-300"
+                                    ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-sm"
+                                    : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
                                 }`}
                               >
-                                <p className="text-xs text-gray-600 mb-1">
-                                  Replying to {message.replyTo.sender.firstName}{" "}
-                                  {message.replyTo.sender.lastName}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">
-                                  {message.replyTo.content}
-                                </p>
+                                {isEditing ? (
+                                  <div className="space-y-2">
+                                    <textarea
+                                      value={editingContent}
+                                      onChange={(e) =>
+                                        setEditingContent(e.target.value)
+                                      }
+                                      className="w-full p-2 rounded border text-gray-900 text-sm resize-none"
+                                      rows={2}
+                                      maxLength={1000}
+                                    />
+                                    <div className="flex space-x-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleEditMessage(message.id)
+                                        }
+                                        disabled={!editingContent.trim()}
+                                        className="text-xs"
+                                      >
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={cancelEditing}
+                                        className="text-xs"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-sm">{message.content}</p>
+                                    {message.isEdited && (
+                                      <p className="text-xs opacity-70 italic">
+                                        (edited)
+                                      </p>
+                                    )}
+                                    <div className="flex items-center justify-end mt-1 space-x-1">
+                                      <span className="text-xs opacity-70">
+                                        {formatTime(message.createdAt)}
+                                      </span>
+                                      {isOwnMessage && (
+                                        <div className="text-xs opacity-70">
+                                          {message.isRead ? (
+                                            <CheckCheck className="h-3 w-3" />
+                                          ) : (
+                                            <Check className="h-3 w-3" />
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
                               </div>
-                            )}
 
-                            <div
-                              className={`max-w-xs lg:max-w-md xl:max-w-lg px-4 py-2.5 rounded-2xl shadow-sm ${
-                                isOwnMessage
-                                  ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-sm"
-                                  : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
-                              }`}
-                            >
-                              {isEditing ? (
-                                <div className="space-y-2">
-                                  <textarea
-                                    value={editingContent}
-                                    onChange={(e) =>
-                                      setEditingContent(e.target.value)
-                                    }
-                                    className="w-full p-2 rounded border text-gray-900 text-sm resize-none"
-                                    rows={2}
-                                    maxLength={1000}
-                                  />
-                                  <div className="flex space-x-2">
+                              {/* Action buttons - only show on hover for own messages */}
+                              {isOwnMessage && !isEditing && (
+                                <div className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="flex space-x-1 bg-white rounded-lg shadow-lg p-1">
                                     <Button
                                       size="sm"
-                                      onClick={() =>
-                                        handleEditMessage(message.id)
-                                      }
-                                      disabled={!editingContent.trim()}
-                                      className="text-xs"
+                                      variant="ghost"
+                                      onClick={() => startEditing(message)}
+                                      className="h-6 w-6 p-0"
                                     >
-                                      Save
+                                      <Edit className="h-3 w-3" />
                                     </Button>
                                     <Button
                                       size="sm"
-                                      variant="outline"
-                                      onClick={cancelEditing}
-                                      className="text-xs"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        handleDeleteMessage(message.id)
+                                      }
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
                                     >
-                                      Cancel
+                                      <Trash2 className="h-3 w-3" />
                                     </Button>
                                   </div>
                                 </div>
-                              ) : (
-                                <>
-                                  <p className="text-sm">{message.content}</p>
-                                  {message.isEdited && (
-                                    <p className="text-xs opacity-70 italic">
-                                      (edited)
-                                    </p>
-                                  )}
-                                  <div className="flex items-center justify-end mt-1 space-x-1">
-                                    <span className="text-xs opacity-70">
-                                      {formatTime(message.createdAt)}
-                                    </span>
-                                    {isOwnMessage && (
-                                      <div className="text-xs opacity-70">
-                                        {message.isRead ? (
-                                          <CheckCheck className="h-3 w-3" />
-                                        ) : (
-                                          <Check className="h-3 w-3" />
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </>
+                              )}
+
+                              {/* Reply button - show for all messages */}
+                              {!isEditing && (
+                                <div className="absolute -left-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => startReply(message)}
+                                    className="h-6 w-6 p-0 bg-white rounded-lg shadow-lg"
+                                  >
+                                    <Reply className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               )}
                             </div>
-
-                            {/* Action buttons - only show on hover for own messages */}
-                            {isOwnMessage && !isEditing && (
-                              <div className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="flex space-x-1 bg-white rounded-lg shadow-lg p-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => startEditing(message)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      handleDeleteMessage(message.id)
-                                    }
-                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Reply button - show for all messages */}
-                            {!isEditing && (
-                              <div className="absolute -left-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => startReply(message)}
-                                  className="h-6 w-6 p-0 bg-white rounded-lg shadow-lg"
-                                >
-                                  <Reply className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
                           </div>
                         </div>
                       );
@@ -873,37 +933,55 @@ const Messages = () => {
                   </p>
                 </div>
               ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.sender.id === currentUser?._id
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[75%] sm:max-w-xs px-4 py-2.5 rounded-2xl shadow-sm ${
-                        message.sender.id === currentUser?._id
-                          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-sm"
-                          : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
-                      }`}
-                    >
-                      <p className="text-sm leading-relaxed">
-                        {message.content}
-                      </p>
-                      <p
-                        className={`text-xs mt-1.5 ${
+                messages.map((message, index) => {
+                  const previousMessage =
+                    index > 0 ? messages[index - 1] : null;
+                  const dateLabel = getDateLabel(
+                    message.createdAt,
+                    previousMessage?.createdAt
+                  );
+
+                  return (
+                    <div key={message.id} className="w-full">
+                      {/* Date Label */}
+                      {dateLabel && (
+                        <div className="flex justify-center my-4">
+                          <span className="px-3 py-1 bg-gray-200/80 text-gray-600 text-xs font-medium rounded-full">
+                            {dateLabel}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className={`flex ${
                           message.sender.id === currentUser?._id
-                            ? "text-blue-100"
-                            : "text-gray-500"
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
-                        {formatTime(message.createdAt)}
-                      </p>
+                        <div
+                          className={`max-w-[75%] sm:max-w-xs px-4 py-2.5 rounded-2xl shadow-sm ${
+                            message.sender.id === currentUser?._id
+                              ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-sm"
+                              : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">
+                            {message.content}
+                          </p>
+                          <p
+                            className={`text-xs mt-1.5 ${
+                              message.sender.id === currentUser?._id
+                                ? "text-blue-100"
+                                : "text-gray-500"
+                            }`}
+                          >
+                            {formatTime(message.createdAt)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               <div ref={messagesEndRef} />
             </div>

@@ -576,6 +576,39 @@ const TenantManagement: React.FC = () => {
                         </FormItem>
                       )}
                     />
+
+                    {/* Default Password Display */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Default Password
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value="TempPassword123!"
+                          readOnly
+                          className="bg-gray-50 text-gray-600 font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText("TempPassword123!");
+                            toast({
+                              title: "Password Copied",
+                              description:
+                                "Default password copied to clipboard",
+                            });
+                          }}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        This will be the initial password for the College Admin.
+                        They should change it after first login.
+                      </p>
+                    </div>
                   </div>
                 </div>
 

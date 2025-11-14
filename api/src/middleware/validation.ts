@@ -83,8 +83,21 @@ export const validateUserCreation = [
     .isLength({ min: 2, max: 50 })
     .withMessage("Last name must be between 2 and 50 characters"),
   body("role")
-    .isIn(["super_admin", "college_admin", "hod", "staff", "alumni"])
+    .isIn(["super_admin", "college_admin", "hod", "staff", "student", "alumni"])
     .withMessage("Invalid role"),
+  body("graduationYear")
+    .optional()
+    .isInt({ min: 1950, max: new Date().getFullYear() + 5 })
+    .withMessage("Graduation year must be a valid year"),
+  body("graduationYear")
+    .custom((value, { req }) => {
+      const role = req.body.role;
+      // If role is "student", graduationYear is required
+      if (role === "student" && !value) {
+        throw new Error("Graduation year is required when role is student");
+      }
+      return true;
+    }),
   body("tenantId").custom((value, { req }) => {
     const role = req.body.role;
     if (role && role !== "super_admin") {
@@ -296,25 +309,60 @@ export const validateJobPost = [
     .isLength({ min: 2, max: 100 })
     .withMessage("Location must be between 2 and 100 characters"),
   body("type")
-    .isIn(["full-time", "part-time", "internship", "contract"])
+    .custom((value) => {
+      // Check if it's a valid enum value
+      const validEnums = ["full-time", "part-time", "internship", "contract"];
+      if (validEnums.includes(value)) {
+        return true;
+      }
+      // Check if it's a valid ObjectId (24 hex characters)
+      if (typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      throw new Error("Job type must be a valid enum value or ObjectId");
+    })
     .withMessage("Invalid job type"),
   body("experience")
     .optional()
-    .isIn(["entry", "mid", "senior", "lead"])
+    .custom((value) => {
+      if (!value) return true; // Optional field
+      // Check if it's a valid enum value
+      const validEnums = ["entry", "mid", "senior", "lead"];
+      if (validEnums.includes(value)) {
+        return true;
+      }
+      // Check if it's a valid ObjectId (24 hex characters)
+      if (typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      throw new Error("Experience level must be a valid enum value or ObjectId");
+    })
     .withMessage("Invalid experience level"),
   body("industry")
     .optional()
-    .isIn([
-      "technology",
-      "finance",
-      "healthcare",
-      "education",
-      "consulting",
-      "marketing",
-      "sales",
-      "operations",
-      "other",
-    ])
+    .custom((value) => {
+      if (!value) return true; // Optional field
+      // Check if it's a valid enum value
+      const validEnums = [
+        "technology",
+        "finance",
+        "healthcare",
+        "education",
+        "consulting",
+        "marketing",
+        "sales",
+        "operations",
+        "other",
+      ];
+      if (validEnums.includes(value)) {
+        return true;
+      }
+      // Check if it's a valid ObjectId (24 hex characters)
+      if (typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value)) {
+        return true;
+      }
+      throw new Error("Industry must be a valid enum value or ObjectId");
+    })
     .withMessage("Invalid industry"),
   body("remote").optional().isBoolean().withMessage("Remote must be a boolean"),
   body("salary.min")
@@ -1020,6 +1068,12 @@ export const validateId = [
   handleValidationErrors,
 ];
 
+// Membership ID parameter validation
+export const validateMembershipId = [
+  param("membershipId").isMongoId().withMessage("Invalid membership ID format"),
+  handleValidationErrors,
+];
+
 // Community ID parameter validation
 export const validateCommunityId = [
   param("communityId").isMongoId().withMessage("Invalid ID format"),
@@ -1055,10 +1109,6 @@ export const validateEmail = [
 
 // Password reset validation
 export const validatePasswordReset = [
-  body("email")
-    .isEmail()
-    .normalizeEmail()
-    .withMessage("Please provide a valid email address"),
   body("token")
     .isString()
     .isLength({ min: 1 })
@@ -1469,6 +1519,8 @@ export default {
   validatePagination,
   validateSearch,
   validateId,
+  validateMembershipId,
+  validateCommunityId,
   validatePostId,
   validateCommentId,
   validateEmail,

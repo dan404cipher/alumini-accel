@@ -56,8 +56,7 @@ router.post(
     UserRole.SUPER_ADMIN,
     UserRole.COLLEGE_ADMIN,
     UserRole.HOD,
-    UserRole.STAFF,
-    UserRole.ALUMNI
+    UserRole.STAFF
   ),
   asyncHandler(newsController.createNews)
 );
@@ -73,8 +72,7 @@ router.post(
     UserRole.SUPER_ADMIN,
     UserRole.COLLEGE_ADMIN,
     UserRole.HOD,
-    UserRole.STAFF,
-    UserRole.ALUMNI
+    UserRole.STAFF
   ),
   asyncHandler(newsController.createNewsWithImage)
 );

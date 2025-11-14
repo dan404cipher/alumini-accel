@@ -1,8 +1,31 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import JobPost from "../models/JobPost";
 import User from "../models/User";
 import { logger } from "../utils/logger";
 import { JobPostStatus } from "../types";
+
+// Helper function to transform job object, replacing ObjectId strings with category names
+const transformJob = (job: any) => {
+  const jobObj = job.toObject ? job.toObject() : job;
+
+  // Replace type ObjectId with category name if it exists
+  if (jobObj.customJobType && jobObj.customJobType.name) {
+    jobObj.type = jobObj.customJobType.name;
+  }
+
+  // Replace experience ObjectId with category name if it exists
+  if (jobObj.customExperience && jobObj.customExperience.name) {
+    jobObj.experience = jobObj.customExperience.name;
+  }
+
+  // Replace industry ObjectId with category name if it exists
+  if (jobObj.customIndustry && jobObj.customIndustry.name) {
+    jobObj.industry = jobObj.customIndustry.name;
+  }
+
+  return jobObj;
+};
 
 // Get all job posts
 export const getAllJobs = async (req: Request, res: Response) => {
@@ -34,16 +57,26 @@ export const getAllJobs = async (req: Request, res: Response) => {
 
     const jobs = await JobPost.find(filter)
       .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .populate({
+        path: "applications.applicantId",
+        select: "firstName lastName email",
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await JobPost.countDocuments(filter);
 
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = jobs.map(transformJob);
+
     return res.json({
       success: true,
       data: {
-        jobs,
+        jobs: transformedJobs,
         pagination: {
           page,
           limit,
@@ -64,10 +97,15 @@ export const getAllJobs = async (req: Request, res: Response) => {
 // Get job post by ID
 export const getJobById = async (req: Request, res: Response) => {
   try {
-    const job = await JobPost.findById(req.params.id).populate(
-      "poster",
-      "firstName lastName email profilePicture"
-    );
+    const job = await JobPost.findById(req.params.id)
+      .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .populate({
+        path: "applications.applicantId",
+        select: "firstName lastName email",
+      });
 
     if (!job) {
       return res.status(404).json({
@@ -76,9 +114,12 @@ export const getJobById = async (req: Request, res: Response) => {
       });
     }
 
+    // Transform job to replace ObjectId strings with category names
+    const transformedJob = transformJob(job);
+
     return res.json({
       success: true,
-      data: { job },
+      data: { job: transformedJob },
     });
   } catch (error) {
     logger.error("Get job by ID error:", error);
@@ -94,11 +135,15 @@ export const createJob = async (req: Request, res: Response) => {
   try {
     const {
       company,
+      title,
       position,
       location,
       type,
+      experience,
+      industry,
       remote,
       salary,
+      numberOfVacancies,
       description,
       requirements,
       benefits,
@@ -109,15 +154,30 @@ export const createJob = async (req: Request, res: Response) => {
       applicationUrl,
     } = req.body;
 
-    const job = new JobPost({
+    // Check if type is a custom category (ObjectId) or default enum
+    const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+
+    // Check if experience is a custom category (ObjectId) or default enum
+    const isCustomExperience =
+      experience && mongoose.Types.ObjectId.isValid(experience);
+
+    // Check if industry is a custom category (ObjectId) or default enum
+    const isCustomIndustry =
+      industry && mongoose.Types.ObjectId.isValid(industry);
+
+    const jobData: any = {
       postedBy: req.user.id,
-      tenantId: req.user.tenantId, // Add tenantId for multi-tenant filtering
+      tenantId: req.user.tenantId,
       company,
-      position,
+      title: title || position,
+      position: position || title,
       location,
-      type,
+      type: type, // Keep as string/ObjectId string, Mongoose validation will handle it
+      experience: experience || "mid",
+      industry: industry || "technology",
       remote: remote || false,
       salary,
+      numberOfVacancies: numberOfVacancies || 1,
       description,
       requirements: requirements || [],
       benefits: benefits || [],
@@ -127,7 +187,20 @@ export const createJob = async (req: Request, res: Response) => {
       companyWebsite,
       applicationUrl,
       status: JobPostStatus.PENDING,
-    });
+    };
+
+    // Set custom fields only if using ObjectIds (convert to ObjectId for these fields)
+    if (isCustomType) {
+      jobData.customJobType = new mongoose.Types.ObjectId(type);
+    }
+    if (isCustomExperience) {
+      jobData.customExperience = new mongoose.Types.ObjectId(experience);
+    }
+    if (isCustomIndustry) {
+      jobData.customIndustry = new mongoose.Types.ObjectId(industry);
+    }
+
+    const job = new JobPost(jobData);
 
     await job.save();
 
@@ -138,9 +211,15 @@ export const createJob = async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error("Create job error:", error);
+    // Log the full error for debugging
+    if (error instanceof Error) {
+      logger.error("Error message:", error.message);
+      logger.error("Error stack:", error.stack);
+    }
     return res.status(500).json({
       success: false,
       message: "Failed to create job post",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
@@ -170,6 +249,8 @@ export const updateJob = async (req: Request, res: Response) => {
       position,
       location,
       type,
+      experience,
+      industry,
       remote,
       salary,
       description,
@@ -184,7 +265,35 @@ export const updateJob = async (req: Request, res: Response) => {
     if (company !== undefined) job.company = company;
     if (position !== undefined) job.position = position;
     if (location !== undefined) job.location = location;
-    if (type !== undefined) job.type = type;
+    if (type !== undefined) {
+      const isCustomType = type && mongoose.Types.ObjectId.isValid(type);
+      job.type = type; // Keep as string/ObjectId string, Mongoose will handle conversion
+      if (isCustomType) {
+        (job as any).customJobType = new mongoose.Types.ObjectId(type);
+      } else {
+        (job as any).customJobType = undefined;
+      }
+    }
+    if (experience !== undefined) {
+      const isCustomExperience =
+        experience && mongoose.Types.ObjectId.isValid(experience);
+      job.experience = experience;
+      if (isCustomExperience) {
+        (job as any).customExperience = new mongoose.Types.ObjectId(experience);
+      } else {
+        (job as any).customExperience = undefined;
+      }
+    }
+    if (industry !== undefined) {
+      const isCustomIndustry =
+        industry && mongoose.Types.ObjectId.isValid(industry);
+      job.industry = industry;
+      if (isCustomIndustry) {
+        (job as any).customIndustry = new mongoose.Types.ObjectId(industry);
+      } else {
+        (job as any).customIndustry = undefined;
+      }
+    }
     if (remote !== undefined) job.remote = remote;
     if (salary !== undefined) job.salary = salary;
     if (description !== undefined) job.description = description;
@@ -336,16 +445,26 @@ export const searchJobs = async (req: Request, res: Response) => {
 
     const jobs = await JobPost.find(filter)
       .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .populate({
+        path: "applications.applicantId",
+        select: "firstName lastName email",
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit as string));
 
     const total = await JobPost.countDocuments(filter);
 
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = jobs.map(transformJob);
+
     res.json({
       success: true,
       data: {
-        jobs,
+        jobs: transformedJobs,
         pagination: {
           page: parseInt(page as string),
           limit: parseInt(limit as string),
@@ -376,6 +495,13 @@ export const getJobsByCompany = async (req: Request, res: Response) => {
       status: JobPostStatus.ACTIVE,
     })
       .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .populate({
+        path: "applications.applicantId",
+        select: "firstName lastName email",
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -385,10 +511,13 @@ export const getJobsByCompany = async (req: Request, res: Response) => {
       status: JobPostStatus.ACTIVE,
     });
 
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = jobs.map(transformJob);
+
     res.json({
       success: true,
       data: {
-        jobs,
+        jobs: transformedJobs,
         pagination: {
           page,
           limit,
@@ -419,6 +548,13 @@ export const getJobsByLocation = async (req: Request, res: Response) => {
       status: JobPostStatus.ACTIVE,
     })
       .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .populate({
+        path: "applications.applicantId",
+        select: "firstName lastName email",
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -428,10 +564,13 @@ export const getJobsByLocation = async (req: Request, res: Response) => {
       status: JobPostStatus.ACTIVE,
     });
 
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = jobs.map(transformJob);
+
     res.json({
       success: true,
       data: {
-        jobs,
+        jobs: transformedJobs,
         pagination: {
           page,
           limit,
@@ -462,6 +601,13 @@ export const getJobsByType = async (req: Request, res: Response) => {
       status: JobPostStatus.ACTIVE,
     })
       .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .populate({
+        path: "applications.applicantId",
+        select: "firstName lastName email",
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -471,10 +617,13 @@ export const getJobsByType = async (req: Request, res: Response) => {
       status: JobPostStatus.ACTIVE,
     });
 
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = jobs.map(transformJob);
+
     res.json({
       success: true,
       data: {
-        jobs,
+        jobs: transformedJobs,
         pagination: {
           page,
           limit,
@@ -501,16 +650,26 @@ export const getMyJobPosts = async (req: Request, res: Response) => {
 
     const jobs = await JobPost.find({ postedBy: req.user.id })
       .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .populate({
+        path: "applications.applicantId",
+        select: "firstName lastName email",
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await JobPost.countDocuments({ postedBy: req.user.id });
 
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = jobs.map(transformJob);
+
     res.json({
       success: true,
       data: {
-        jobs,
+        jobs: transformedJobs,
         pagination: {
           page,
           limit,
@@ -591,6 +750,173 @@ export const getJobStats = async (req: Request, res: Response) => {
   }
 };
 
+// Save a job
+export const saveJob = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user._id;
+
+    // Check if job exists
+    const job = await JobPost.findById(id);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Check if user has already saved this job
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.savedJobs?.includes(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Job already saved",
+      });
+    }
+
+    // Add job to user's saved jobs
+    if (!user.savedJobs) {
+      user.savedJobs = [];
+    }
+    user.savedJobs.push(id);
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Job saved successfully",
+    });
+  } catch (error) {
+    logger.error("Save job error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save job",
+    });
+  }
+};
+
+// Unsave a job
+export const unsaveJob = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user._id;
+
+    // Check if job exists
+    const job = await JobPost.findById(id);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Remove job from user's saved jobs
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.savedJobs?.includes(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Job not saved",
+      });
+    }
+
+    user.savedJobs = user.savedJobs.filter((jobId: string) => jobId !== id);
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Job unsaved successfully",
+    });
+  } catch (error) {
+    logger.error("Unsave job error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to unsave job",
+    });
+  }
+};
+
+// Get saved jobs for current user
+export const getSavedJobs = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user._id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findById(userId).populate({
+      path: "savedJobs",
+      match: { status: { $in: [JobPostStatus.ACTIVE, JobPostStatus.PENDING] } },
+      populate: [
+        {
+          path: "postedBy",
+          select: "firstName lastName email profilePicture",
+        },
+        {
+          path: "customJobType",
+          select: "name",
+        },
+        {
+          path: "customExperience",
+          select: "name",
+        },
+        {
+          path: "customIndustry",
+          select: "name",
+        },
+        {
+          path: "applications.applicantId",
+          select: "firstName lastName email",
+        },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const savedJobs = user.savedJobs || [];
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = savedJobs.map((job: any) => transformJob(job));
+    const paginatedJobs = transformedJobs.slice(skip, skip + limit);
+    const total = transformedJobs.length;
+
+    return res.json({
+      success: true,
+      data: {
+        jobs: paginatedJobs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get saved jobs error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch saved jobs",
+    });
+  }
+};
+
 export default {
   getAllJobs,
   getJobById,
@@ -604,4 +930,7 @@ export default {
   getJobsByType,
   getMyJobPosts,
   getJobStats,
+  saveJob,
+  unsaveJob,
+  getSavedJobs,
 };

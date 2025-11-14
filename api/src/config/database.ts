@@ -3,8 +3,13 @@ import { logger } from "../utils/logger";
 
 const connectDB = async (): Promise<void> => {
   try {
-    const mongoURI =
-      process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/alumni-accel";
+    const mongoURI = process.env.MONGODB_URI;
+
+    if (!mongoURI) {
+      logger.error("MONGODB_URI environment variable is not set");
+      logger.error("Please set MONGODB_URI in your .env file");
+      process.exit(1);
+    }
 
     await mongoose.connect(mongoURI, {
       maxPoolSize: 10,

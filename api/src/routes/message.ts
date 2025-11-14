@@ -2,6 +2,10 @@ import express from "express";
 import { asyncHandler } from "../middleware/errorHandler";
 import { authenticateToken } from "../middleware/auth";
 import messageController from "../controllers/messageController";
+import {
+  testSocketMessage,
+  checkSocketRooms,
+} from "../controllers/socketTestController";
 
 const router = express.Router();
 
@@ -37,5 +41,14 @@ router.patch("/:messageId/read", asyncHandler(messageController.markAsRead));
 // @desc    Delete a message
 // @access  Private
 router.delete("/:messageId", asyncHandler(messageController.deleteMessage));
+
+// @route   PUT /api/v1/messages/:messageId
+// @desc    Edit a message
+// @access  Private
+router.put("/:messageId", asyncHandler(messageController.editMessage));
+
+// Test routes for socket debugging
+router.post("/test-socket", asyncHandler(testSocketMessage));
+router.get("/test-rooms", asyncHandler(checkSocketRooms));
 
 export default router;

@@ -14,6 +14,9 @@ import Mentorship from "./mentorship";
 import JobDetail from "../pages/JobDetail";
 import EventDetail from "../pages/EventDetail";
 import CommunityDetailNew from "../pages/CommunityDetailNew";
+import Messages from "../pages/Messages";
+import Gallery from "../pages/Gallery";
+import Connections from "../pages/Connections";
 import RoleBasedDashboard from "./RoleBasedDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -35,6 +38,15 @@ const Layout = () => {
       setActiveTab("dashboard");
     }
   }, [location]);
+
+  // Handle navigation redirects
+  useEffect(() => {
+    if (activeTab === "media") {
+      navigate("/news");
+    } else if (activeTab === "about") {
+      navigate("/about");
+    }
+  }, [activeTab, navigate]);
 
   const renderContent = () => {
     // Handle job detail pages
@@ -58,7 +70,6 @@ const Layout = () => {
       location.pathname.startsWith("/community/") &&
       location.pathname !== "/community"
     ) {
-      console.log("Routing to CommunityDetailNew for:", location.pathname);
       return <CommunityDetailNew />;
     }
 
@@ -76,7 +87,6 @@ const Layout = () => {
         return <EventsMeetups />;
       case "media":
         // Redirect to news by default, or could create a media landing page
-        navigate("/news");
         return null;
       case "news":
         return <NewsRoom />;
@@ -88,22 +98,16 @@ const Layout = () => {
         // Redirect all users to dashboard if they try to access mentorship page
         navigate("/dashboard");
         return null;
+        return <Mentorship />;
+      case "messages":
+        return <Messages />;
+      case "connections":
+        return <Connections />;
       case "about":
         // Redirect to the public About Us page
-        navigate("/about");
         return null;
       case "gallery":
-        // Redirect to the public Gallery page
-        navigate("/gallery");
-        return null;
-      case "connections":
-        // Redirect to the Connections page
-        navigate("/connections");
-        return null;
-      case "messages":
-        // Redirect to the Messages page
-        navigate("/messages");
-        return null;
+        return <Gallery />;
       case "more":
         // More dropdown doesn't navigate to a page
         return <RoleBasedDashboard />;
@@ -131,26 +135,32 @@ const Layout = () => {
   // All dashboards should be full-screen
   const isDashboardPage = activeTab === "dashboard";
 
+  // Pages that should hide the footer (full-screen pages)
+  const shouldHideFooter =
+    isDashboardPage ||
+    isJobBoard ||
+    isEventsPage ||
+    isNewsPage ||
+    isGalleryPage ||
+    isMediaPage ||
+    isAlumniPage ||
+    isCommunityPage ||
+    isDonationsPage ||
+    isMentorshipPage ||
+    isMessagesPage ||
+    isConnectionsPage;
+
   return (
     <div
-      className="min-h-screen bg-background flex flex-col"
-      style={{ overflowY: "auto" }}
+      className={`min-h-screen bg-background flex flex-col ${
+        isMessagesPage ? "h-screen overflow-hidden" : ""
+      }`}
+      style={isMessagesPage ? {} : { overflowY: "auto" }}
     >
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       <main
-        className={`flex-1 w-full pt-16 ${
-          isDashboardPage ||
-          isJobBoard ||
-          isEventsPage ||
-          isNewsPage ||
-          isGalleryPage ||
-          isMediaPage ||
-          isAlumniPage ||
-          isCommunityPage ||
-          isDonationsPage ||
-          isMentorshipPage ||
-          isMessagesPage ||
-          isConnectionsPage
+        className={`flex-1 w-full pt-16 ${isMessagesPage ? "h-full" : ""} ${
+          shouldHideFooter
             ? ""
             : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
         }`}
@@ -158,37 +168,17 @@ const Layout = () => {
         {/* Content */}
         <div
           className={
-            isDashboardPage ||
-            isJobBoard ||
-            isEventsPage ||
-            isNewsPage ||
-            isGalleryPage ||
-            isMediaPage ||
-            isAlumniPage ||
-            isCommunityPage ||
-            isDonationsPage ||
-            isMentorshipPage ||
-            isMessagesPage ||
-            isConnectionsPage
-              ? ""
+            shouldHideFooter
+              ? isMessagesPage
+                ? "h-full flex flex-col"
+                : ""
               : "animate-fade-in-up"
           }
         >
           {renderContent()}
         </div>
       </main>
-      {!isDashboardPage &&
-        !isJobBoard &&
-        !isEventsPage &&
-        !isNewsPage &&
-        !isGalleryPage &&
-        !isMediaPage &&
-        !isAlumniPage &&
-        !isCommunityPage &&
-        !isDonationsPage &&
-        !isMentorshipPage &&
-        !isMessagesPage &&
-        !isConnectionsPage && <Footer />}
+      {!shouldHideFooter && <Footer />}
     </div>
   );
 };

@@ -3,7 +3,7 @@
 // Page: Refactored from monolithic mentorship.tsx (1327 lines) into structured system
 // Purpose: Main orchestrator for the mentorship management system
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Users,
   UserCheck,
@@ -13,6 +13,7 @@ import {
   ChevronDown,
   X,
   Filter,
+  Menu,
 } from "lucide-react";
 import {
   Card,
@@ -24,6 +25,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMentorshipManagement } from "./hooks/useMentorshipManagement";
+import { categoryAPI } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MentorCard } from "./components/MentorCard";
 import { RequestCard } from "./components/RequestCard";
 import { MentorModal } from "./modals/MentorModal";
@@ -31,6 +40,30 @@ import { RequestModal } from "./modals/RequestModal";
 import { MentorDetailsModal } from "./modals/MentorDetailsModal";
 import { filterMentors, truncateText } from "./utils";
 import type { Mentor } from "./types";
+
+// Define mentorship interface locally
+interface IMentorship {
+  _id: string;
+  domain: string;
+  description: string;
+  status: string;
+  mentor: { _id: string; firstName: string; lastName: string };
+  mentee: { _id: string; firstName: string; lastName: string };
+  duration: number;
+  goals: string[];
+  startDate: string;
+  endDate: string;
+}
+import MentorshipActionMenu from "../mentorship/MentorshipActionMenu";
+import EditMentorshipDialog from "../dialogs/EditMentorshipDialog";
+import DeleteMentorshipDialog from "../dialogs/DeleteMentorshipDialog";
+import EditMentorDialog from "../dialogs/EditMentorDialog";
+import DeleteMentorDialog from "../dialogs/DeleteMentorDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { mentorshipApi } from "@/services/mentorshipApi";
+import { useToast } from "@/hooks/use-toast";
+import Footer from "../Footer";
+import Pagination from "@/components/ui/pagination";
 
 // Sample mentor data for demonstration
 const sampleMentors: Mentor[] = [
@@ -52,7 +85,7 @@ const sampleMentors: Mentor[] = [
     testimonial:
       "I have mentored 15+ developers over the years, helping them land roles at top tech companies. My approach is to understand each mentee's unique goals and create customized learning plans.",
     rating: 4.9,
-    mentores: 15,
+    mentees: 15,
   },
   {
     name: "Michael Rodriguez",
@@ -72,7 +105,7 @@ const sampleMentors: Mentor[] = [
     testimonial:
       "Passionate about helping others transition into product management roles. I focus on practical skills and real-world projects.",
     rating: 4.8,
-    mentores: 10,
+    mentees: 10,
   },
   {
     name: "Dr. Lisa Johnson",
@@ -92,7 +125,7 @@ const sampleMentors: Mentor[] = [
     testimonial:
       "I specialize in mentoring graduate students and early-career researchers. My track record includes several successful PhD completions.",
     rating: 5.0,
-    mentores: 8,
+    mentees: 8,
   },
 ];
 
@@ -119,6 +152,33 @@ const sampleMentors: Mentor[] = [
 
 const MentorshipSystem: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+
+  // Mentorship management state
+  const [myMentorships, setMyMentorships] = useState<IMentorship[]>([]);
+  const [loadingMentorships, setLoadingMentorships] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedMentorship, setSelectedMentorship] =
+    useState<IMentorship | null>(null);
+
+  // Pagination state
+  const [mentorshipsPage, setMentorshipsPage] = useState(1);
+  const [mentorshipsLimit] = useState(10); // 10 mentorships per page
+  const [mentorshipsPagination, setMentorshipsPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+
+  // Mentor management state
+  const [showEditMentorDialog, setShowEditMentorDialog] = useState(false);
+  const [showDeleteMentorDialog, setShowDeleteMentorDialog] = useState(false);
+  const [selectedMentorForEdit, setSelectedMentorForEdit] =
+    useState<Mentor | null>(null);
 
   // Mentor details modal state
   const [mentorDetailsModal, setMentorDetailsModal] = useState<{
@@ -143,6 +203,127 @@ const MentorshipSystem: React.FC = () => {
     });
   };
 
+  // Load user's mentorships
+  const loadMyMentorships = useCallback(async () => {
+    if (!user?._id) return;
+
+    setLoadingMentorships(true);
+    try {
+      const response = await mentorshipApi.getMyMentorships({
+        page: mentorshipsPage,
+        limit: mentorshipsLimit,
+      });
+
+      if (response.success && response.data) {
+        // Handle paginated response structure
+        const mentorships = response.data.mentorships || [];
+        setMyMentorships(mentorships);
+        if (response.data.pagination) {
+          setMentorshipsPagination(response.data.pagination);
+        }
+      } else {
+        setMyMentorships([]);
+      }
+    } catch (error) {
+      console.error("Error loading mentorships:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load mentorships",
+        variant: "destructive",
+      });
+      setMyMentorships([]);
+    } finally {
+      setLoadingMentorships(false);
+    }
+  }, [user?._id, toast, mentorshipsPage, mentorshipsLimit]);
+
+  // Handle edit mentorship
+  const handleEditMentorship = (mentorship: IMentorship) => {
+    setSelectedMentorship(mentorship);
+    setShowEditDialog(true);
+  };
+
+  // Handle delete mentorship
+  const handleDeleteMentorship = (mentorship: IMentorship) => {
+    setSelectedMentorship(mentorship);
+    setShowDeleteDialog(true);
+  };
+
+  // Handle edit success
+  const handleEditSuccess = () => {
+    loadMyMentorships();
+    setShowEditDialog(false);
+    setSelectedMentorship(null);
+  };
+
+  // Handle delete success
+  const handleDeleteSuccess = () => {
+    loadMyMentorships();
+    setShowDeleteDialog(false);
+    setSelectedMentorship(null);
+  };
+
+  // Handle edit mentor
+  const handleEditMentor = (mentor: Mentor) => {
+    setSelectedMentorForEdit(mentor);
+    setShowEditMentorDialog(true);
+  };
+
+  // Handle delete mentor
+  const handleDeleteMentor = (mentor: Mentor) => {
+    setSelectedMentorForEdit(mentor);
+    setShowDeleteMentorDialog(true);
+  };
+
+  // Handle mentor edit success
+  const handleMentorEditSuccess = () => {
+    // TODO: Refresh mentors list
+    setShowEditMentorDialog(false);
+    setSelectedMentorForEdit(null);
+  };
+
+  // Handle mentor delete success
+  const handleMentorDeleteSuccess = () => {
+    // Remove the deleted mentor from the mentors list
+    if (selectedMentorForEdit) {
+      setMentors((prevMentors) =>
+        prevMentors.filter(
+          (mentor) => mentor.userId !== selectedMentorForEdit.userId
+        )
+      );
+    }
+    setShowDeleteMentorDialog(false);
+    setSelectedMentorForEdit(null);
+  };
+
+  // Load mentorships on component mount
+  useEffect(() => {
+    loadMyMentorships();
+  }, [loadMyMentorships]);
+
+  // Load mentorship industries from categories
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "mentorship_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setIndustryOptions(names);
+      } catch (_e) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const {
     // State: mentors, requests, activeTab, openForm, openRequestForm, selectedMentor, contentModal, filters
     mentors,
@@ -155,6 +336,12 @@ const MentorshipSystem: React.FC = () => {
     filters,
     loading,
     error,
+    mentorsPage,
+    setMentorsPage,
+    mentorsPagination,
+
+    // Setters
+    setMentors,
 
     // Actions
     handleAddMentor,
@@ -175,115 +362,167 @@ const MentorshipSystem: React.FC = () => {
   const filteredMentors = filterMentors(mentors, filters);
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Left Sidebar */}
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Left Sidebar */}
-      <div
-        className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+          className={`
+        ${
+          sidebarOpen
+            ? "fixed inset-y-0 left-0 z-50"
+            : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
+        }
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${
+          sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"
+        }
       `}
-      >
-        <div className="sticky top-0 h-screen overflow-y-auto p-6">
-          <Card className="h-fit">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Filter className="w-5 h-5 mr-2" />
-                  Mentorship
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <CardDescription>Connect with professionals</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Search Mentors */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search Mentors</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search mentors, companies, skills..."
-                    value={filters.searchTerm}
-                    onChange={(e) =>
-                      updateFilters({ searchTerm: e.target.value })
-                    }
-                    className="pl-10"
-                  />
+        >
+          <div className="h-full overflow-y-auto p-4 sm:p-6">
+            <Card className="h-fit">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center">
+                    <Filter className="w-5 h-5 mr-2" />
+                    Mentorship
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
-              </div>
+                <CardDescription>Connect with professionals</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Search Mentors */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Search Mentors</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search mentors, companies, skills..."
+                      value={filters.searchTerm}
+                      onChange={(e) =>
+                        updateFilters({ searchTerm: e.target.value })
+                      }
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
 
-              {/* Industry Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Industry</label>
-                <select
-                  value={filters.selectedIndustry}
-                  onChange={(e) =>
-                    updateFilters({ selectedIndustry: e.target.value })
-                  }
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All Industries</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Education">Education</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Healthcare">Healthcare</option>
-                </select>
-              </div>
+                {/* Industry Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Industry</label>
+                  <Select
+                    value={filters.selectedIndustry || "__all__"}
+                    onValueChange={(v) =>
+                      updateFilters({
+                        selectedIndustry: v === "__all__" ? "" : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Industries" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Industries</SelectItem>
+                      {industryOptions.length === 0
+                        ? null
+                        : industryOptions.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {opt}
+                            </SelectItem>
+                          ))}
+                      {industryOptions.length === 0 && (
+                        <SelectItem value="__noopts__" disabled>
+                          No saved categories
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Experience Level */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Experience Level</label>
-                <select
-                  value={filters.selectedExperienceLevel}
-                  onChange={(e) =>
-                    updateFilters({ selectedExperienceLevel: e.target.value })
-                  }
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All Levels</option>
-                  <option value="Entry Level">Entry Level</option>
-                  <option value="Mid Level">Mid Level</option>
-                  <option value="Senior Level">Senior Level</option>
-                  <option value="Expert Level">Expert Level</option>
-                </select>
-              </div>
+                {/* Experience Level */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Experience Level
+                  </label>
+                  <Select
+                    value={filters.selectedExperienceLevel || "__all__"}
+                    onValueChange={(v) =>
+                      updateFilters({
+                        selectedExperienceLevel: v === "__all__" ? "" : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Levels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Levels</SelectItem>
+                      <SelectItem value="Entry Level">Entry Level</SelectItem>
+                      <SelectItem value="Mid Level">Mid Level</SelectItem>
+                      <SelectItem value="Senior Level">Senior Level</SelectItem>
+                      <SelectItem value="Expert Level">Expert Level</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Register as Mentor Button */}
-              <Button
-                onClick={() => setOpenForm(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <UserCheck className="w-4 h-4 mr-2" />
-                Register as Mentor
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Register as Mentor Button */}
+                {user?.role !== "student" ? (
+                  <Button
+                    onClick={() => setOpenForm(true)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Register as Mentor
+                  </Button>
+                ) : (
+                  <Button
+                    disabled
+                    className="w-full bg-gray-300 text-gray-500 cursor-not-allowed"
+                    title="Students cannot register as mentors"
+                  >
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Register as Mentor
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="py-4 px-2 sm:py-6 sm:px-4 lg:px-6">
-          {/* Header */}
-          <div className="bg-white rounded-lg shadow-sm mb-4 sm:mb-6">
-            <div className="p-4 sm:p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 lg:mb-6 gap-4">
-                <div className="flex-1">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+          <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+            {/* Mobile Menu Button */}
+            <div className="lg:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Menu className="w-4 h-4" />
+                Filters
+              </Button>
+            </div>
+            {/* Header */}
+            <div className="bg-white rounded-lg shadow-sm mb-4 sm:mb-6">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 lg:mb-6 gap-4">
+                  {/* <div className="flex-1">
                   <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
                     <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
                     <span className="break-words">Mentorship Program</span>
@@ -292,292 +531,464 @@ const MentorshipSystem: React.FC = () => {
                     Connect with experienced professionals and accelerate your
                     career growth
                   </p>
-                </div>
+                </div> */}
 
-                <div className="flex-shrink-0 lg:hidden">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSidebarOpen(true)}
-                    className="lg:hidden"
-                  >
-                    <Filter className="w-4 h-4 mr-2" />
-                    Filters
-                  </Button>
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
-                <div className="flex items-center gap-3 p-3 sm:p-4 bg-blue-50 rounded-lg">
-                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                      {mentors.length}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 truncate">
-                      Available Mentors
-                    </p>
+                  <div className="flex-shrink-0 lg:hidden">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSidebarOpen(true)}
+                      className="lg:hidden"
+                    >
+                      <Filter className="w-4 h-4 mr-2" />
+                      Filters
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 sm:p-4 bg-green-50 rounded-lg">
-                  <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 flex-shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                      {requests.length}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 truncate">
-                      Mentorship Requests
-                    </p>
+                {/* Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+                  <div className="flex items-center gap-3 p-3 sm:p-4 bg-blue-50 rounded-lg">
+                    <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                        {mentors.length}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">
+                        Available Mentors
+                      </p>
+                      {mentorsPagination.total > 0 && (
+                        <p className="text-xs text-gray-500 truncate">
+                          Showing {mentors.length} of {mentorsPagination.total}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3 p-3 sm:p-4 bg-purple-50 rounded-lg">
-                  <Star className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 flex-shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                      {requests.filter((r) => r.status === "Approved").length}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 truncate">
-                      Active Mentorships
-                    </p>
+                  <div className="flex items-center gap-3 p-3 sm:p-4 bg-green-50 rounded-lg">
+                    <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                        {requests.length}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">
+                        Mentorship Requests
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 sm:p-4 bg-purple-50 rounded-lg">
+                    <Star className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                        {requests.filter((r) => r.status === "Approved").length}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">
+                        Active Mentorships
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Mobile Tabs */}
-          <div className="md:hidden bg-white rounded-lg shadow-sm mb-4">
-            <div className="flex">
-              <button
-                onClick={() => setActiveTab("discover")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
-                  activeTab === "discover"
-                    ? "bg-blue-100 text-blue-700"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                Discover Mentors
-              </button>
-              <button
-                onClick={() => setActiveTab("requests")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
-                  activeTab === "requests"
-                    ? "bg-blue-100 text-blue-700"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                Requests
-              </button>
-              <button
-                onClick={() => setActiveTab("active")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition ${
-                  activeTab === "active"
-                    ? "bg-blue-100 text-blue-700"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                Active
-              </button>
-            </div>
-          </div>
-
-          {/* Desktop Tabs */}
-          <div className="hidden md:block bg-white rounded-lg shadow-sm mb-6">
-            <div className="border-b">
-              <nav className="flex">
+            {/* Mobile Tabs */}
+            <div className="md:hidden bg-white rounded-lg shadow-sm mb-4">
+              <div className="flex">
                 <button
                   onClick={() => setActiveTab("discover")}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition ${
                     activeTab === "discover"
-                      ? "border-blue-600 text-blue-600"
-                      : "text-gray-600 hover:text-gray-900 border-transparent"
+                      ? "bg-blue-100 text-blue-700"
+                      : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   Discover Mentors
                 </button>
                 <button
                   onClick={() => setActiveTab("requests")}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition ${
                     activeTab === "requests"
-                      ? "border-blue-600 text-blue-600"
-                      : "text-gray-600 hover:text-gray-900 border-transparent"
+                      ? "bg-blue-100 text-blue-700"
+                      : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  Mentorship Requests
+                  Requests
                 </button>
                 <button
                   onClick={() => setActiveTab("active")}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition ${
                     activeTab === "active"
-                      ? "border-blue-600 text-blue-600"
-                      : "text-gray-600 hover:text-gray-900 border-transparent"
+                      ? "bg-blue-100 text-blue-700"
+                      : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  Active Mentorships
+                  Active
                 </button>
-              </nav>
+              </div>
             </div>
-          </div>
 
-          {/* Tab Content */}
-          {activeTab === "discover" && (
-            <div>
-              {/* Loading State */}
-              {loading && (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600 text-lg">Loading mentors...</p>
-                </div>
-              )}
-
-              {/* Error State */}
-              {error && !loading && (
-                <div className="text-center py-12">
-                  <div className="text-red-600 text-6xl mb-4">⚠️</div>
-                  <p className="text-red-600 text-lg mb-2">
-                    Failed to load mentors
-                  </p>
-                  <p className="text-gray-500 mb-4">{error}</p>
+            {/* Desktop Tabs */}
+            <div className="hidden md:block bg-white rounded-lg shadow-sm mb-6">
+              <div className="border-b">
+                <nav className="flex">
                   <button
-                    onClick={refreshData}
-                    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    onClick={() => setActiveTab("discover")}
+                    className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
+                      activeTab === "discover"
+                        ? "border-blue-600 text-blue-600"
+                        : "text-gray-600 hover:text-gray-900 border-transparent"
+                    }`}
                   >
-                    Try Again
+                    Discover Mentors
                   </button>
-                </div>
-              )}
+                  <button
+                    onClick={() => setActiveTab("requests")}
+                    className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
+                      activeTab === "requests"
+                        ? "border-blue-600 text-blue-600"
+                        : "text-gray-600 hover:text-gray-900 border-transparent"
+                    }`}
+                  >
+                    Mentorship Requests
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("active")}
+                    className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
+                      activeTab === "active"
+                        ? "border-blue-600 text-blue-600"
+                        : "text-gray-600 hover:text-gray-900 border-transparent"
+                    }`}
+                  >
+                    Active Mentorships
+                  </button>
+                </nav>
+              </div>
+            </div>
 
-              {/* Mentor Grid */}
-              {!loading && !error && (
-                <div>
-                  {filteredMentors.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 text-lg">
-                        No mentors found matching your criteria
-                      </p>
-                      <p className="text-gray-500 mt-2">
-                        Try adjusting your search or filters
+            {/* Tab Content */}
+            {activeTab === "discover" && (
+              <div>
+                {/* Loading State */}
+                {loading && (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600 text-lg">Loading mentors...</p>
+                  </div>
+                )}
+
+                {/* Error State */}
+                {error && !loading && (
+                  <div className="text-center py-12">
+                    <div className="text-red-600 text-6xl mb-4">⚠️</div>
+                    <p className="text-red-600 text-lg mb-2">
+                      Failed to load mentors
+                    </p>
+                    <p className="text-gray-500 mb-4">{error}</p>
+                    <button
+                      onClick={refreshData}
+                      className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+
+                {/* Mentor Grid */}
+                {!loading && !error && (
+                  <div>
+                    {filteredMentors.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 text-lg">
+                          No mentors found matching your criteria
+                        </p>
+                        <p className="text-gray-500 mt-2">
+                          Try adjusting your search or filters
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                          {filteredMentors.map((mentor, index) => (
+                            <MentorCard
+                              key={index}
+                              mentor={mentor}
+                              onShowStyle={(style) =>
+                                handleOpenContentModal("Mentoring Style", style)
+                              }
+                              onShowTestimonial={(testimonial) =>
+                                handleOpenContentModal(
+                                  "Success Story",
+                                  testimonial
+                                )
+                              }
+                              onRequestMentorship={() =>
+                                handleRequestMentorship(mentor)
+                              }
+                              onViewDetails={handleViewMentorDetails}
+                              onEdit={handleEditMentor}
+                              onDelete={handleDeleteMentor}
+                            />
+                          ))}
+                        </div>
+                        {/* Pagination */}
+                        {mentorsPagination.totalPages > 1 && (
+                          <Pagination
+                            currentPage={mentorsPage}
+                            totalPages={mentorsPagination.totalPages}
+                            onPageChange={setMentorsPage}
+                            className="mt-6"
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "requests" && (
+              <div className="bg-white border rounded-lg shadow-sm">
+                <div className="p-4">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                    Mentorship Requests
+                  </h2>
+                  {requests.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-600">
+                        No mentorship requests yet.
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredMentors.map((mentor, index) => (
-                        <MentorCard
-                          key={index}
-                          mentor={mentor}
-                          onShowStyle={(style) =>
-                            handleOpenContentModal("Mentoring Style", style)
-                          }
-                          onShowTestimonial={(testimonial) =>
-                            handleOpenContentModal("Success Story", testimonial)
-                          }
-                          onRequestMentorship={() =>
-                            handleRequestMentorship(mentor)
-                          }
-                          onViewDetails={handleViewMentorDetails}
+                    <div>
+                      {requests.map((request) => (
+                        <RequestCard
+                          key={request.id}
+                          request={request}
+                          onApprove={handleApproveRequest}
+                          onReject={handleRejectRequest}
                         />
                       ))}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "requests" && (
-            <div className="bg-white border rounded-lg shadow-sm">
-              <div className="p-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Mentorship Requests
-                </h2>
-                {requests.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-600">No mentorship requests yet.</p>
-                  </div>
-                ) : (
-                  <div>
-                    {requests.map((request) => (
-                      <RequestCard
-                        key={request.id}
-                        request={request}
-                        onApprove={handleApproveRequest}
-                        onReject={handleRejectRequest}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === "active" && (
-            <div className="bg-white border rounded-lg shadow-sm">
-              <div className="p-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Active Mentorships
-                </h2>
-                <p className="text-gray-600">No active mentorships yet.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Modals */}
-          <MentorModal
-            isOpen={openForm}
-            onClose={() => setOpenForm(false)}
-            onSave={handleAddMentor}
-          />
-
-          <RequestModal
-            isOpen={openRequestForm}
-            onClose={() => setOpenRequestForm(false)}
-            onSubmit={(formData) =>
-              selectedMentor && handleSubmitRequest(formData, selectedMentor)
-            }
-            selectedMentor={selectedMentor}
-          />
-
-          {/* Full Content Modal */}
-          {contentModal.open && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[65] p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 relative max-h-[80vh] overflow-y-auto">
-                <button
-                  onClick={handleCloseContentModal}
-                  className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-                >
-                  <X size={20} />
-                </button>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  {contentModal.title}
-                </h3>
-                <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {contentModal.content}
+            {activeTab === "active" && (
+              <div className="bg-white border rounded-lg shadow-sm">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      My Mentorships
+                    </h2>
+                    {mentorshipsPagination.total > 0 && (
+                      <div className="text-sm text-gray-600">
+                        Showing {myMentorships.length} of{" "}
+                        {mentorshipsPagination.total} mentorships
+                      </div>
+                    )}
+                  </div>
+                  {loadingMentorships ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2">
+                        Loading mentorships...
+                      </p>
+                    </div>
+                  ) : !Array.isArray(myMentorships) ||
+                    myMentorships.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-600">No mentorships found.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                        {myMentorships.map((mentorship) => (
+                          <div
+                            key={mentorship._id}
+                            className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-semibold text-gray-900">
+                                    {mentorship.domain}
+                                  </h3>
+                                  <span
+                                    className={`px-2 py-1 text-xs rounded-full ${
+                                      mentorship.status === "active"
+                                        ? "bg-green-100 text-green-800"
+                                        : mentorship.status === "pending"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : "bg-gray-100 text-gray-800"
+                                    }`}
+                                  >
+                                    {mentorship.status}
+                                  </span>
+                                </div>
+                                <p className="text-gray-600 mb-2">
+                                  {mentorship.description}
+                                </p>
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                  <span>
+                                    <strong>Mentor:</strong>{" "}
+                                    {mentorship.mentor?.firstName}{" "}
+                                    {mentorship.mentor?.lastName}
+                                  </span>
+                                  <span>
+                                    <strong>Mentee:</strong>{" "}
+                                    {mentorship.mentee?.firstName}{" "}
+                                    {mentorship.mentee?.lastName}
+                                  </span>
+                                  {mentorship.duration && (
+                                    <span>
+                                      <strong>Duration:</strong>{" "}
+                                      {mentorship.duration} weeks
+                                    </span>
+                                  )}
+                                </div>
+                                {mentorship.goals &&
+                                  mentorship.goals.length > 0 && (
+                                    <div className="mt-2">
+                                      <strong className="text-sm text-gray-700">
+                                        Goals:
+                                      </strong>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {mentorship.goals.map(
+                                          (goal: string, index: number) => (
+                                            <span
+                                              key={index}
+                                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                                            >
+                                              {goal}
+                                            </span>
+                                          )
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                              <div className="ml-4">
+                                <MentorshipActionMenu
+                                  mentorship={mentorship}
+                                  currentUser={user}
+                                  onEdit={() =>
+                                    handleEditMentorship(mentorship)
+                                  }
+                                  onDelete={() =>
+                                    handleDeleteMentorship(mentorship)
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Pagination */}
+                      {mentorshipsPagination.totalPages > 1 && (
+                        <div className="mt-6 pt-4 border-t">
+                          <Pagination
+                            currentPage={mentorshipsPage}
+                            totalPages={mentorshipsPagination.totalPages}
+                            onPageChange={setMentorshipsPage}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-                <div className="mt-6 text-right">
+              </div>
+            )}
+
+            {/* Modals */}
+            <MentorModal
+              isOpen={openForm}
+              onClose={() => setOpenForm(false)}
+              onSave={handleAddMentor}
+            />
+
+            <RequestModal
+              isOpen={openRequestForm}
+              onClose={() => setOpenRequestForm(false)}
+              onSubmit={(formData) =>
+                selectedMentor && handleSubmitRequest(formData, selectedMentor)
+              }
+              selectedMentor={selectedMentor}
+            />
+
+            {/* Full Content Modal */}
+            {contentModal.open && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[65] p-4">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 relative max-h-[80vh] overflow-y-auto">
                   <button
                     onClick={handleCloseContentModal}
-                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                    className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
                   >
-                    Close
+                    <X size={20} />
                   </button>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                    {contentModal.title}
+                  </h3>
+                  <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    {contentModal.content}
+                  </div>
+                  <div className="mt-6 text-right">
+                    <button
+                      onClick={handleCloseContentModal}
+                      className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Mentor Details Modal */}
-          <MentorDetailsModal
-            isOpen={mentorDetailsModal.isOpen}
-            onClose={handleCloseMentorDetails}
-            mentor={mentorDetailsModal.mentor}
-            onRequestMentorship={handleRequestMentorship}
-          />
+            {/* Mentor Details Modal */}
+            <MentorDetailsModal
+              isOpen={mentorDetailsModal.isOpen}
+              onClose={handleCloseMentorDetails}
+              mentor={mentorDetailsModal.mentor}
+              onRequestMentorship={handleRequestMentorship}
+            />
+
+            {/* Edit Mentorship Dialog */}
+            <EditMentorshipDialog
+              open={showEditDialog}
+              onOpenChange={setShowEditDialog}
+              mentorship={selectedMentorship}
+              onSuccess={handleEditSuccess}
+            />
+
+            {/* Delete Mentorship Dialog */}
+            <DeleteMentorshipDialog
+              open={showDeleteDialog}
+              onOpenChange={setShowDeleteDialog}
+              mentorship={selectedMentorship}
+              onSuccess={handleDeleteSuccess}
+            />
+
+            {/* Edit Mentor Dialog */}
+            <EditMentorDialog
+              open={showEditMentorDialog}
+              onOpenChange={setShowEditMentorDialog}
+              mentor={selectedMentorForEdit}
+              onSuccess={handleMentorEditSuccess}
+            />
+
+            {/* Delete Mentor Dialog */}
+            <DeleteMentorDialog
+              open={showDeleteMentorDialog}
+              onOpenChange={setShowDeleteMentorDialog}
+              mentor={selectedMentorForEdit}
+              onSuccess={handleMentorDeleteSuccess}
+            />
+          </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

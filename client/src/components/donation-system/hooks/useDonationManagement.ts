@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import {
   Campaign,
   DonationHistoryItem,
@@ -202,6 +203,25 @@ export const useDonationManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination state
+  const [campaignsPage, setCampaignsPage] = useState(1);
+  const [campaignsLimit] = useState(12); // 12 campaigns per page
+  const [campaignsPagination, setCampaignsPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    totalPages: 0,
+  });
+
+  const [donationsPage, setDonationsPage] = useState(1);
+  const [donationsLimit] = useState(10); // 10 donations per page
+  const [donationsPagination, setDonationsPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [donationModalOpen, setDonationModalOpen] = useState(false);
@@ -228,32 +248,54 @@ export const useDonationManagement = () => {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem("token");
+        // Get token from localStorage or sessionStorage (same logic as AuthContext)
+        const token = getAuthTokenOrNull();
 
-        // Load campaigns
-        const campaignsResponse = await donationApi.getAllCampaigns();
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
 
-        if (!campaignsResponse.data || !Array.isArray(campaignsResponse.data)) {
+        // Load campaigns with pagination
+        const campaignsResponse = await donationApi.getAllCampaigns({
+          category: categoryFilter || undefined,
+          page: campaignsPage,
+          limit: campaignsLimit,
+        });
+
+        if (
+          !campaignsResponse.data ||
+          !campaignsResponse.data.campaigns ||
+          !Array.isArray(campaignsResponse.data.campaigns)
+        ) {
           throw new Error("Invalid campaigns response format");
         }
 
-        const campaignsData = (
-          campaignsResponse.data as unknown as Record<string, unknown>[]
-        ).map(transformCampaignFromApi);
+        const campaignsData = campaignsResponse.data.campaigns.map(
+          transformCampaignFromApi
+        );
         setCampaigns(campaignsData);
         setDonationCampaignsArr(campaignsData);
+        setCampaignsPagination(campaignsResponse.data.pagination);
 
-        // Load user donations
-        const donationsResponse = await donationApi.getMyDonations();
+        // Load user donations with pagination
+        const donationsResponse = await donationApi.getMyDonations({
+          page: donationsPage,
+          limit: donationsLimit,
+        });
 
-        if (!donationsResponse.data || !Array.isArray(donationsResponse.data)) {
+        if (
+          !donationsResponse.data ||
+          !donationsResponse.data.donations ||
+          !Array.isArray(donationsResponse.data.donations)
+        ) {
           throw new Error("Invalid donations response format");
         }
 
-        const donationsData = (
-          donationsResponse.data as unknown as Record<string, unknown>[]
-        ).map(transformDonationFromApi);
+        const donationsData = donationsResponse.data.donations.map(
+          transformDonationFromApi
+        );
         setUserDonations(donationsData);
+        setDonationsPagination(donationsResponse.data.pagination);
       } catch (err) {
         console.error("Error loading donation data:", err);
         console.error("Error details:", {
@@ -272,7 +314,7 @@ export const useDonationManagement = () => {
     };
 
     loadData();
-  }, []);
+  }, [campaignsPage, campaignsLimit, donationsPage, donationsLimit, categoryFilter]);
 
   // Handle campaign save
   useEffect(() => {
@@ -318,12 +360,16 @@ export const useDonationManagement = () => {
             }
 
             // Refresh campaigns
-            const campaignsResponse = await donationApi.getAllCampaigns();
-            const campaignsData = (
-              campaignsResponse.data as unknown as Record<string, unknown>[]
-            ).map(transformCampaignFromApi);
+            const campaignsResponse = await donationApi.getAllCampaigns({
+              page: campaignsPage,
+              limit: campaignsLimit,
+            });
+            const campaignsData = campaignsResponse.data.campaigns.map(
+              transformCampaignFromApi
+            );
             setCampaigns(campaignsData);
             setDonationCampaignsArr(campaignsData);
+            setCampaignsPagination(campaignsResponse.data.pagination);
           } else {
             console.error("Campaign ID not found for editing");
           }
@@ -667,6 +713,13 @@ export const useDonationManagement = () => {
     activeTab,
     loading,
     error,
+    // Pagination state
+    campaignsPage,
+    setCampaignsPage,
+    campaignsPagination,
+    donationsPage,
+    setDonationsPage,
+    donationsPagination,
     // Modal states
     createModalOpen,
     donationModalOpen,

@@ -2,7 +2,7 @@
 // Author: AI Assistant
 // Purpose: Modal for submitting mentorship requests
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import type { Mentor, RequestFormData, MentorshipRequest } from "../types";
 import {
@@ -10,6 +10,7 @@ import {
   generateRequestId,
   getDefaultRequestData,
 } from "../utils";
+import { categoryAPI } from "@/lib/api";
 
 interface RequestModalProps {
   isOpen: boolean;
@@ -28,6 +29,31 @@ export const RequestModal: React.FC<RequestModalProps> = ({
     getDefaultRequestData()
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [mentorshipCategories, setMentorshipCategories] = useState<string[]>(
+    []
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "mentorship_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setMentorshipCategories(names);
+      } catch (_e) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleInputChange =
     (field: keyof RequestFormData) =>
@@ -199,6 +225,33 @@ export const RequestModal: React.FC<RequestModalProps> = ({
             </h3>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category (optional)
+                </label>
+                <select
+                  value={""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    setFormData((prev) => ({
+                      ...prev,
+                      careerGoals: prev.careerGoals || val,
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a category</option>
+                  {mentorshipCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecting a category will prefill your goals.
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Career Goals *

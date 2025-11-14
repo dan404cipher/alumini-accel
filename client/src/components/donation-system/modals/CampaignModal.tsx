@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { CampaignForm, CampaignModalProps } from "../types";
+import { categoryAPI } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CampaignModalState {
   formData: CampaignForm;
@@ -34,15 +42,8 @@ const defaultErrors = {
   imageFile: "",
 };
 
-const categoryOptions = [
-  "Infrastructure",
-  "Scholarships & Student Support",
-  "Research & Academics",
-  "Sports, Arts & Culture",
-  "Community & Social Impact",
-  "Emergency",
-  "Other",
-];
+// Loaded dynamically; fallback to empty
+const staticFallbackCategories: string[] = [];
 
 const CampaignModal: React.FC<CampaignModalProps> = ({
   open,
@@ -54,6 +55,31 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
     formData: defaultFormData,
     errors: defaultErrors,
   });
+  const [categoryOptions, setCategoryOptions] = useState<string[]>(
+    staticFallbackCategories
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "donation_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setCategoryOptions(names);
+      } catch (_e) {
+        // keep fallback
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Initialize form data for editing
   useEffect(() => {
@@ -291,19 +317,35 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
               <label className="block text-sm font-medium text-gray-700">
                 Category *
               </label>
-              <select
-                name="category"
+              <Select
                 value={state.formData.category}
-                onChange={handleChange}
-                className={`mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm ${
-                  state.errors.category ? "border-red-500" : "border-gray-300"
-                }`}
+                onValueChange={(value) =>
+                  setState((prev) => ({
+                    ...prev,
+                    formData: { ...prev.formData, category: value },
+                    errors: { ...prev.errors, category: "" },
+                  }))
+                }
               >
-                <option value="">Select an option</option>
-                {categoryOptions.map((cat) => (
-                  <option key={cat}>{cat}</option>
-                ))}
-              </select>
+                <SelectTrigger className={`mt-1 ${
+                  state.errors.category ? "border-red-500" : ""
+                }`}>
+                  <SelectValue placeholder="Select an option" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryOptions.length === 0 ? (
+                    <SelectItem value="__noopts__" disabled>
+                      No saved categories
+                    </SelectItem>
+                  ) : (
+                    categoryOptions.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
               {state.errors.category && (
                 <p className="text-red-500 text-xs mt-1">
                   {state.errors.category}

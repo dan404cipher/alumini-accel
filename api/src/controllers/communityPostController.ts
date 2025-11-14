@@ -143,7 +143,10 @@ export const getCommunityPosts = async (
     }
 
     // Check if user can view posts
-    if (community.type === "hidden" && userId) {
+    if (
+      (community.type === "hidden" || community.type === "closed") &&
+      userId
+    ) {
       const membership = await CommunityMembership.findOne({
         communityId: communityId,
         userId: userId,
@@ -153,7 +156,7 @@ export const getCommunityPosts = async (
       if (!membership) {
         return res.status(403).json({
           success: false,
-          message: "Access denied to hidden community",
+          message: `Access denied to ${community.type} community posts. You must be a member to view this content.`,
         });
       }
     }
@@ -747,6 +750,91 @@ export const rejectPost = async (req: AuthenticatedRequest, res: Response) => {
       success: false,
       message: "Error rejecting post",
       error: error.message,
+    });
+  }
+};
+
+// Get trending posts for a community
+export const getTrendingPosts = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { communityId } = req.params;
+    const { limit = 5 } = req.query;
+
+    // Check if community exists
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Get trending posts based on engagement (likes + comments + views)
+    const trendingPosts = await CommunityPost.find({ communityId })
+      .populate("authorId", "firstName lastName profilePicture")
+      .sort({
+        // Sort by engagement score: likes + comments + views
+        likeCount: -1,
+        commentCount: -1,
+        viewCount: -1,
+        createdAt: -1,
+      })
+      .limit(parseInt(limit as string))
+      .select("title likeCount commentCount viewCount authorId createdAt");
+
+    return res.json({
+      success: true,
+      data: trendingPosts,
+    });
+  } catch (error) {
+    console.error("Error fetching trending posts:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch trending posts",
+    });
+  }
+};
+
+// Get popular tags for a community
+export const getPopularTags = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const { communityId } = req.params;
+    const { limit = 8 } = req.query;
+
+    // Check if community exists
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({
+        success: false,
+        message: "Community not found",
+      });
+    }
+
+    // Aggregate tags from posts in this community
+    const tagStats = await CommunityPost.aggregate([
+      { $match: { communityId: community._id } },
+      { $unwind: "$tags" },
+      { $group: { _id: "$tags", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: parseInt(limit as string) },
+      { $project: { name: "$_id", count: 1, _id: 0 } },
+    ]);
+
+    return res.json({
+      success: true,
+      data: tagStats,
+    });
+  } catch (error) {
+    console.error("Error fetching popular tags:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch popular tags",
     });
   }
 };

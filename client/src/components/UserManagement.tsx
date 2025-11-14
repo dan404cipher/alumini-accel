@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import UserDetailsModal from "./UserDetailsModal";
 import EditUserModal from "./EditUserModal";
 
@@ -72,17 +73,18 @@ const UserManagement: React.FC = () => {
       setLoading(true);
       const response = await userAPI.getAllUsers();
       if (response.success && response.data?.users) {
-        // Filter out Alumni users - only show Admin, HOD, and Staff
-        const adminUsers = response.data.users.filter(
+        // Filter to show Admin, HOD, Staff, and Students (exclude alumni)
+        const filteredUsers = response.data.users.filter(
           (user: any) =>
             user.role === "super_admin" ||
             user.role === "college_admin" ||
             user.role === "hod" ||
-            user.role === "staff"
+            user.role === "staff" ||
+            user.role === "student"
         );
 
         // Map the populated tenantId to tenant field
-        const mappedUsers = adminUsers.map((user: any) => ({
+        const mappedUsers = filteredUsers.map((user: any) => ({
           ...user,
           tenant: user.tenantId, // tenantId is populated from backend
         }));
@@ -115,6 +117,8 @@ const UserManagement: React.FC = () => {
         return <Users className="w-4 h-4 text-green-600" />;
       case "staff":
         return <Settings className="w-4 h-4 text-purple-600" />;
+      case "student":
+        return <GraduationCap className="w-4 h-4 text-blue-500" />;
       case "alumni":
         return <GraduationCap className="w-4 h-4 text-orange-600" />;
       default:
@@ -132,6 +136,8 @@ const UserManagement: React.FC = () => {
         return "bg-green-100 text-green-800";
       case "staff":
         return "bg-purple-100 text-purple-800";
+      case "student":
+        return "bg-blue-100 text-blue-800";
       case "alumni":
         return "bg-orange-100 text-orange-800";
       default:
@@ -256,7 +262,7 @@ const UserManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Admin & Staff Management</h2>
+        <h2 className="text-2xl font-semibold">Admin, Staff & Students Management</h2>
         <div className="flex items-center space-x-2">
           <Button variant="outline" onClick={fetchUsers}>
             <Users className="w-4 h-4 mr-2" />
@@ -342,7 +348,7 @@ const UserManagement: React.FC = () => {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Admin & Staff Users ({filteredUsers.length})</CardTitle>
+          <CardTitle>Admin, Staff & Students ({filteredUsers.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

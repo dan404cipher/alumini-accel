@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +58,7 @@ import CreateNewsDialog from "@/components/dialogs/CreateNewsDialog";
 import EditNewsDialog from "@/components/dialogs/EditNewsDialog";
 import DeleteNewsDialog from "@/components/dialogs/DeleteNewsDialog";
 import ShareNewsDialog from "@/components/dialogs/ShareNewsDialog";
+import Footer from "./Footer";
 
 interface News {
   _id: string;
@@ -89,6 +91,9 @@ const NewsRoom = () => {
   const [selectedDateRange, setSelectedDateRange] = useState("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSavedArticles, setShowSavedArticles] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
 
   // Fetch news data
   const {
@@ -96,12 +101,32 @@ const NewsRoom = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["news", user?.tenantId],
+    queryKey: [
+      "news",
+      user?.tenantId,
+      currentPage,
+      searchQuery,
+      selectedDateRange,
+    ],
     queryFn: async () => {
       try {
-        const response = await newsAPI.getAllNews({
+        const params: Record<string, unknown> = {
+          page: currentPage,
+          limit: itemsPerPage,
           tenantId: user?.tenantId,
-        });
+        };
+
+        // Add search filter if provided
+        if (searchQuery) {
+          params.search = searchQuery;
+        }
+
+        // Add date range filter if not "all"
+        if (selectedDateRange && selectedDateRange !== "all") {
+          params.dateRange = selectedDateRange;
+        }
+
+        const response = await newsAPI.getAllNews(params);
         return response;
       } catch (error) {
         console.error("NewsRoom - Error:", error);
@@ -113,86 +138,37 @@ const NewsRoom = () => {
 
   const news = newsResponse?.data?.news || [];
 
-  // Filter news based on search and filter criteria
-  const filterNews = (newsItems: News[]) => {
-    return newsItems.filter((newsItem) => {
-      // Search query filter
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        const matchesSearch =
-          (newsItem.title &&
-            newsItem.title.toLowerCase().includes(searchLower)) ||
-          (newsItem.summary &&
-            newsItem.summary.toLowerCase().includes(searchLower)) ||
-          (newsItem.author?.firstName &&
-            newsItem.author.firstName.toLowerCase().includes(searchLower)) ||
-          (newsItem.author?.lastName &&
-            newsItem.author.lastName.toLowerCase().includes(searchLower));
-        if (!matchesSearch) return false;
-      }
-
-      // Date range filter
-      if (selectedDateRange !== "all") {
-        const newsDate = new Date(newsItem.createdAt);
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const thisWeekStart = new Date(today);
-        thisWeekStart.setDate(today.getDate() - today.getDay());
-        const lastWeekStart = new Date(thisWeekStart);
-        lastWeekStart.setDate(thisWeekStart.getDate() - 7);
-        const thisMonthStart = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          1
-        );
-        const lastMonthStart = new Date(
-          today.getFullYear(),
-          today.getMonth() - 1,
-          1
-        );
-
-        switch (selectedDateRange) {
-          case "today":
-            if (newsDate < today) return false;
-            break;
-          case "yesterday":
-            if (newsDate < yesterday || newsDate >= today) return false;
-            break;
-          case "this_week":
-            if (newsDate < thisWeekStart) return false;
-            break;
-          case "last_week":
-            if (newsDate < lastWeekStart || newsDate >= thisWeekStart)
-              return false;
-            break;
-          case "this_month":
-            if (newsDate < thisMonthStart) return false;
-            break;
-          case "last_month":
-            if (newsDate < lastMonthStart || newsDate >= thisMonthStart)
-              return false;
-            break;
-        }
-      }
-
-      return true;
-    });
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const filteredNews = filterNews(news);
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedDateRange]);
 
-  // Filter news based on quick action selections
+  // Extract pagination info from API response
+  const paginationInfo = (
+    newsResponse?.data as
+      | { pagination?: { totalPages: number; totalItems: number } }
+      | undefined
+  )?.pagination;
+  useEffect(() => {
+    if (paginationInfo) {
+      setTotalPages(paginationInfo.totalPages || 1);
+    }
+  }, [paginationInfo]);
+
+  // Filter news based on quick action selections (client-side only)
+  // Note: Backend already handles: search, dateRange
   const getQuickActionFilteredNews = () => {
-    let quickFilteredNews = filteredNews;
+    let quickFilteredNews = news;
 
     if (showSavedArticles) {
-      // Filter for saved articles
+      // Filter for saved articles (client-side only - backend doesn't support this)
       quickFilteredNews = quickFilteredNews.filter(
         (newsItem) => newsItem.isSaved
       );
@@ -256,8 +232,7 @@ const NewsRoom = () => {
     user?.role === "coordinator" ||
     user?.role === "college_admin" ||
     user?.role === "hod" ||
-    user?.role === "staff" ||
-    user?.role === "alumni";
+    user?.role === "staff";
 
   // Handle create news
   const handleCreateNews = () => {
@@ -441,341 +416,373 @@ const NewsRoom = () => {
   }
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Left Sidebar */}
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Left Sidebar */}
-      <div
-        className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+          className={`
+        ${
+          sidebarOpen
+            ? "fixed inset-y-0 left-0 z-50"
+            : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
+        }
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${
+          sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"
+        }
       `}
-      >
-        <div className="sticky top-0 h-screen overflow-y-auto p-6">
-          <Card className="h-fit">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Filter className="w-5 h-5 mr-2" />
-                  News Room
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <CardDescription>Stay updated with latest news</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Search News */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search News</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search news articles, topics..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-10"
-                  />
-                  {searchQuery && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1 h-8 w-8 p-0"
-                      onClick={() => setSearchQuery("")}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Filters</h3>
-
-                {/* Date Range */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date Range</label>
-                  <Select
-                    value={selectedDateRange}
-                    onValueChange={setSelectedDateRange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select date range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Dates</SelectItem>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="this_week">This Week</SelectItem>
-                      <SelectItem value="this_month">This Month</SelectItem>
-                      <SelectItem value="last_month">Last Month</SelectItem>
-                      <SelectItem value="this_year">This Year</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Clear Filters */}
-                {(searchQuery ||
-                  (selectedDateRange && selectedDateRange !== "all") ||
-                  showSavedArticles) && (
+        >
+          <div className="h-full overflow-y-auto p-4 sm:p-6">
+            <Card className="h-fit">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center">
+                    <Filter className="w-5 h-5 mr-2" />
+                    News Room
+                  </CardTitle>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedDateRange("all");
-                      setShowSavedArticles(false);
-                    }}
-                    className="w-full"
+                    className="lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
                   >
-                    <X className="w-4 h-4 mr-2" />
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-
-              {/* Quick Actions */}
-              <div className="space-y-3 pt-4 border-t">
-                <h3 className="text-sm font-semibold">Quick Actions</h3>
-                <div className="space-y-2">
-                  {canManageNews && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setIsCreateNewsOpen(true)}
-                      className="w-full justify-start"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create News
-                    </Button>
-                  )}
-                  <Button
-                    variant={showSavedArticles ? "default" : "outline"}
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setShowSavedArticles(!showSavedArticles);
-                    }}
-                  >
-                    <Bookmark className="w-4 h-4 mr-2" />
-                    {showSavedArticles ? "View All News" : "Saved Articles"}
+                    <X className="w-4 h-4" />
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-screen">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="w-4 h-4 mr-2" />
-              Filters
-            </Button>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">News Room</h1>
-              <p className="text-muted-foreground text-sm lg:text-base">
-                Stay updated with latest news • {finalFilteredNews.length}{" "}
-                articles
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* News Grid */}
-        {finalFilteredNews.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-              <ImageIcon className="w-12 h-12 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No news articles yet
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {canManageNews
-                ? "Create your first news article to get started."
-                : "Check back later for news updates."}
-            </p>
-            {canManageNews && (
-              <Button onClick={handleCreateNews}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create First News
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-            {finalFilteredNews.map((newsItem) => (
-              <Card
-                key={newsItem._id}
-                className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"
-              >
-                {/* News Image */}
-                {newsItem.image && getImageUrl(newsItem.image) && (
-                  <div className="aspect-video overflow-hidden">
-                    <img
-                      src={getImageUrl(newsItem.image)!}
-                      alt={newsItem.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
+                <CardDescription>Stay updated with latest news</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Search News */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Search News</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search news articles, topics..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-10"
                     />
+                    {searchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1 h-8 w-8 p-0"
+                        onClick={() => setSearchQuery("")}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                )}
+                </div>
 
-                <CardHeader className="pb-3 p-4 lg:p-6">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base lg:text-lg line-clamp-2 mb-2">
-                          {newsItem.title}
-                        </CardTitle>
-                        <div className="flex items-center space-x-2 text-xs lg:text-sm text-gray-500">
-                          <User className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
-                          <span className="truncate">
-                            {newsItem.author?.firstName || "Unknown"}{" "}
-                            {newsItem.author?.lastName || "Author"}
-                          </span>
+                {/* Filters */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">Filters</h3>
+
+                  {/* Date Range */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Date Range</label>
+                    <Select
+                      value={selectedDateRange}
+                      onValueChange={setSelectedDateRange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select date range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Dates</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="this_week">This Week</SelectItem>
+                        <SelectItem value="this_month">This Month</SelectItem>
+                        <SelectItem value="last_month">Last Month</SelectItem>
+                        <SelectItem value="this_year">This Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Clear Filters */}
+                  {(searchQuery ||
+                    (selectedDateRange && selectedDateRange !== "all") ||
+                    showSavedArticles) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedDateRange("all");
+                        setShowSavedArticles(false);
+                      }}
+                      className="w-full"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="space-y-3 pt-4 border-t">
+                  <h3 className="text-sm font-semibold">Quick Actions</h3>
+                  <div className="space-y-2">
+                    {canManageNews && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setIsCreateNewsOpen(true)}
+                        className="w-full justify-start"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create News
+                      </Button>
+                    )}
+                    <Button
+                      variant={showSavedArticles ? "default" : "outline"}
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        setShowSavedArticles(!showSavedArticles);
+                      }}
+                    >
+                      <Bookmark className="w-4 h-4 mr-2" />
+                      {showSavedArticles ? "View All News" : "Saved Articles"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+          <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+            {/* Mobile Menu Button */}
+            <div className="lg:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Menu className="w-4 h-4" />
+                Filters
+              </Button>
+            </div>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold">News Room</h1>
+                  <p className="text-muted-foreground text-sm lg:text-base">
+                    Stay updated with latest news •{" "}
+                    {showSavedArticles
+                      ? finalFilteredNews.length
+                      : paginationInfo?.totalItems ||
+                        finalFilteredNews.length}{" "}
+                    articles
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* News Grid */}
+            {finalFilteredNews.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <ImageIcon className="w-12 h-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No news articles yet
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {canManageNews
+                    ? "Create your first news article to get started."
+                    : "Check back later for news updates."}
+                </p>
+                {canManageNews && (
+                  <Button onClick={handleCreateNews}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First News
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                {finalFilteredNews.map((newsItem) => (
+                  <Card
+                    key={newsItem._id}
+                    className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"
+                  >
+                    {/* News Image */}
+                    {newsItem.image && getImageUrl(newsItem.image) && (
+                      <div className="aspect-video overflow-hidden">
+                        <img
+                          src={getImageUrl(newsItem.image)!}
+                          alt={newsItem.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <CardHeader className="pb-3 p-4 lg:p-6">
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base lg:text-lg line-clamp-2 mb-2">
+                              {newsItem.title}
+                            </CardTitle>
+                            <div className="flex items-center space-x-2 text-xs lg:text-sm text-gray-500">
+                              <User className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
+                              <span className="truncate">
+                                {newsItem.author?.firstName || "Unknown"}{" "}
+                                {newsItem.author?.lastName || "Author"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action buttons row */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/news/${newsItem._id}`)}
+                              className="flex-shrink-0 text-xs lg:text-sm"
+                            >
+                              <Eye className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                              <span className="hidden sm:inline">
+                                View Details
+                              </span>
+                              <span className="sm:hidden">View</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleShareNews(newsItem)}
+                              className="flex-shrink-0 text-xs lg:text-sm"
+                            >
+                              <Share2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                              Share
+                            </Button>
+                            <Button
+                              variant={newsItem.isSaved ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleSaveNews(newsItem)}
+                              className="flex-shrink-0 text-xs lg:text-sm"
+                            >
+                              <Bookmark className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                              {newsItem.isSaved ? "Saved" : "Save"}
+                            </Button>
+                          </div>
+
+                          {canManageNews && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="flex-shrink-0"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    navigate(`/news/${newsItem._id}`)
+                                  }
+                                >
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleSaveNews(newsItem)}
+                                >
+                                  <Bookmark className="w-4 h-4 mr-2" />
+                                  {newsItem.isSaved ? "Unsave" : "Save"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleEditNews(newsItem)}
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteNews(newsItem)}
+                                  className="text-red-600 focus:text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </div>
-                    </div>
+                    </CardHeader>
 
-                    {/* Action buttons row */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/news/${newsItem._id}`)}
-                          className="flex-shrink-0 text-xs lg:text-sm"
-                        >
-                          <Eye className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                          <span className="hidden sm:inline">View Details</span>
-                          <span className="sm:hidden">View</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleShareNews(newsItem)}
-                          className="flex-shrink-0 text-xs lg:text-sm"
-                        >
-                          <Share2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                          Share
-                        </Button>
-                        <Button
-                          variant={newsItem.isSaved ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handleSaveNews(newsItem)}
-                          className="flex-shrink-0 text-xs lg:text-sm"
-                        >
-                          <Bookmark className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
-                          {newsItem.isSaved ? "Saved" : "Save"}
-                        </Button>
+                    <CardContent className="pt-0 flex-1 flex flex-col p-4 lg:p-6">
+                      <CardDescription className="line-clamp-3 mb-4 flex-1 text-xs lg:text-sm">
+                        {newsItem.summary}
+                      </CardDescription>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-auto">
+                        <div className="flex items-center space-x-2 text-xs lg:text-sm text-gray-500">
+                          <Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {formatDate(newsItem.createdAt)}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {newsItem.isShared ? (
+                            <Badge
+                              variant="default"
+                              className="bg-green-100 text-green-800 flex-shrink-0 text-xs"
+                            >
+                              <Share2 className="w-3 h-3 mr-1" />
+                              Shared
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="secondary"
+                              className="flex-shrink-0 text-xs"
+                            >
+                              Draft
+                            </Badge>
+                          )}
+                        </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
-                      {canManageNews && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="flex-shrink-0"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => navigate(`/news/${newsItem._id}`)}
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleSaveNews(newsItem)}
-                            >
-                              <Bookmark className="w-4 h-4 mr-2" />
-                              {newsItem.isSaved ? "Unsave" : "Save"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleEditNews(newsItem)}
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteNews(newsItem)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="pt-0 flex-1 flex flex-col p-4 lg:p-6">
-                  <CardDescription className="line-clamp-3 mb-4 flex-1 text-xs lg:text-sm">
-                    {newsItem.summary}
-                  </CardDescription>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-auto">
-                    <div className="flex items-center space-x-2 text-xs lg:text-sm text-gray-500">
-                      <Calendar className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
-                      <span className="truncate">
-                        {formatDate(newsItem.createdAt)}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {newsItem.isShared ? (
-                        <Badge
-                          variant="default"
-                          className="bg-green-100 text-green-800 flex-shrink-0 text-xs"
-                        >
-                          <Share2 className="w-3 h-3 mr-1" />
-                          Shared
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="secondary"
-                          className="flex-shrink-0 text-xs"
-                        >
-                          Draft
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                className="mt-6"
+              />
+            )}
           </div>
-        )}
+        </div>
       </div>
+      <Footer />
 
       {/* Dialogs */}
       <CreateNewsDialog

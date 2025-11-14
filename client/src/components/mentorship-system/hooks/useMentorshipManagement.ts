@@ -27,6 +27,15 @@ interface UseMentorshipManagementReturn {
   filters: MentorshipFilters;
   loading: boolean;
   error: string | null;
+  // Pagination state
+  mentorsPage: number;
+  setMentorsPage: (page: number) => void;
+  mentorsPagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 
   // Setters
   setMentors: (mentors: Mentor[]) => void;
@@ -70,6 +79,16 @@ export const useMentorshipManagement = (
   const [selectedMentor, setSelectedMentor] = useState<Mentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [mentorsPage, setMentorsPage] = useState(1);
+  const [mentorsLimit] = useState(12); // 12 mentors per page
+  const [mentorsPagination, setMentorsPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    totalPages: 0,
+  });
 
   // Modal state
   const [contentModal, setContentModal] = useState<ContentModalProps>({
@@ -158,13 +177,30 @@ export const useMentorshipManagement = (
       const isApiAvailable = await mentorshipApi.checkApiHealth();
 
       if (isApiAvailable) {
-        const response = await mentorshipApi.getMentors();
+        const response = await mentorshipApi.getMentors({
+          page: mentorsPage,
+          limit: mentorsLimit,
+        });
+        
+        console.log("Mentors API Response:", response); // Debug log
+        
         if (response.success && response.data) {
           const mentorsData = response.data.alumni || [];
+          console.log("Mentors Data:", mentorsData); // Debug log
+          
           const transformedMentors = mentorsData.map(transformMentorFromApi);
+          console.log("Transformed Mentors:", transformedMentors); // Debug log
+          
           setMentors(transformedMentors);
+          if (response.data.pagination) {
+            setMentorsPagination(response.data.pagination);
+          }
+        } else {
+          console.warn("API response not successful:", response);
+          setMentors([]);
         }
       } else {
+        console.warn("API not available, using fallback");
         // Fallback to initial mentors if API is not available
         setMentors(initialMentors);
       }
@@ -200,11 +236,17 @@ export const useMentorshipManagement = (
     }
   };
 
-  // Load data on component mount
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setMentorsPage(1);
+  }, [filters.searchTerm, filters.selectedIndustry, filters.selectedExperienceLevel]);
+
+  // Load data on component mount and when pagination changes
   useEffect(() => {
     loadMentors();
     loadRequests();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mentorsPage, mentorsLimit]);
 
   // Refresh all data
   const refreshData = async () => {
@@ -214,6 +256,18 @@ export const useMentorshipManagement = (
   // Memoized mentor actions
   const handleAddMentor = useCallback(
     async (mentor: Mentor) => {
+      // Check if user is a student - students cannot register as mentors
+      if (currentUser?.role === "student") {
+        toast({
+          title: "Restriction",
+          description: "Students cannot register as mentors. Please contact your administrator if you need to update your role.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setOpenForm(false);
+        return;
+      }
+
       try {
         // Transform mentor data to API format
         const mentorData = {
@@ -585,6 +639,10 @@ export const useMentorshipManagement = (
     filters,
     loading,
     error,
+    // Pagination state
+    mentorsPage,
+    setMentorsPage,
+    mentorsPagination,
 
     // Setters
     setMentors,

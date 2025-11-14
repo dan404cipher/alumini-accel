@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { categoryAPI } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -73,6 +74,25 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "job_industry", isActive: "true" });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[]).filter((c) => c && typeof c.name === "string").map((c) => c.name as string)
+          : [];
+        if (mounted) setIndustryOptions(names);
+      } catch (_) {
+        if (mounted) setIndustryOptions([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<string[]>([]);
   const [benefits, setBenefits] = useState<string[]>([]);
@@ -333,15 +353,17 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({
                     <SelectValue placeholder="Select industry" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="technology">Technology</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="healthcare">Healthcare</SelectItem>
-                    <SelectItem value="education">Education</SelectItem>
-                    <SelectItem value="consulting">Consulting</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="operations">Operations</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {industryOptions.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No saved industries
+                      </SelectItem>
+                    ) : (
+                      industryOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 {errors.industry && (

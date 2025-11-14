@@ -32,11 +32,14 @@ import {
   Heart,
   ChevronDown,
   BookOpen,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { tenantAPI } from "@/lib/api";
 import { useState, useEffect } from "react";
+import { useNotificationContext } from "@/contexts/NotificationContext";
+import NotificationDropdown from "@/components/NotificationDropdown";
 import {
   canAccessAdmin,
   canManageUsers,
@@ -56,6 +59,10 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collegeLogo, setCollegeLogo] = useState<string | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  // Get dynamic unread count and notification count
+  const { unreadCount, notificationCount, isLoading } =
+    useNotificationContext();
 
   // Check if user has admin permissions
   const isAdmin = user ? canAccessAdmin(user.role) : false;
@@ -84,34 +91,6 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       dropdownItems: [
         { id: "news", name: "News Room", icon: Newspaper },
         { id: "gallery", name: "Gallery", icon: Image },
-      ],
-    },
-    {
-      id: "messages",
-      name: "Messages",
-      icon: MessageCircle,
-      count: null,
-      hasDropdown: true,
-      dropdownItems: [
-        { id: "messages/inbox", name: "Inbox", icon: MessageCircle },
-        { id: "messages/sent", name: "Sent", icon: MessageCircle },
-        { id: "messages/drafts", name: "Drafts", icon: MessageCircle },
-      ],
-    },
-    {
-      id: "connections",
-      name: "Connections",
-      icon: UserPlus,
-      count: null,
-      hasDropdown: true,
-      dropdownItems: [
-        {
-          id: "connections/my-connections",
-          name: "My Connections",
-          icon: UserPlus,
-        },
-        { id: "connections/pending", name: "Pending Requests", icon: UserPlus },
-        { id: "connections/find", name: "Find Alumni", icon: Users },
       ],
     },
     { id: "community", name: "Community", icon: Users2, count: null },
@@ -218,27 +197,45 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
             onClick={() => navigate("/")}
           >
             <div className="flex items-center space-x-3">
-              {collegeLogo ? (
-                <div className="relative">
-                  <img
-                    src={collegeLogo}
-                    alt="College Logo"
-                    className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:shadow-lg transition-shadow duration-200"
-                  />
-                </div>
+              {user?.role === "super_admin" && activeTab === "dashboard" ? (
+                <>
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex flex-col">
+                    <h1 className="text-base md:text-lg xl:text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-all duration-200">
+                      Super Admin
+                    </h1>
+                    <p className="text-xs text-gray-500 font-medium hidden lg:block">
+                      System Management
+                    </p>
+                  </div>
+                </>
               ) : (
-                <div className="w-12 h-12 bg-gray-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:bg-gray-700">
-                  <span className="text-white font-bold text-lg">A</span>
-                </div>
+                <>
+                  {collegeLogo ? (
+                    <div className="relative">
+                      <img
+                        src={collegeLogo}
+                        alt="College Logo"
+                        className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:shadow-lg transition-shadow duration-200"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:bg-gray-700">
+                      <span className="text-white font-bold text-lg">A</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <h1 className="text-base md:text-lg xl:text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-all duration-200">
+                      AlumniAccel
+                    </h1>
+                    <p className="text-xs text-gray-500 font-medium hidden lg:block">
+                      Alumni Network
+                    </p>
+                  </div>
+                </>
               )}
-              <div className="flex flex-col">
-                <h1 className="text-base md:text-lg xl:text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-all duration-200">
-                  AlumniAccel
-                </h1>
-                <p className="text-xs text-gray-500 font-medium hidden lg:block">
-                  Alumni Network
-                </p>
-              </div>
             </div>
           </div>
 
@@ -531,22 +528,32 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
           {/* Right side controls */}
           <div className="flex items-center space-x-2 md:space-x-3">
-            {/* Notifications */}
+            {/* Messages */}
             <Button
               variant="ghost"
               size="sm"
-              className="relative p-2.5 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105 group"
+              className="relative p-2.5 hover:bg-green-50 hover:text-green-600 transition-all duration-200 hover:scale-105 group"
               onClick={() => {
-                // TODO: Implement notifications functionality
-                console.log("Notifications clicked");
+                navigate("/messages");
               }}
             >
-              <Bell className="w-5 h-5 group-hover:animate-pulse" />
-              {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
-                3
-              </span>
+              <MessageCircle className="w-5 h-5 group-hover:animate-pulse" />
+              {/* Message badge - only show if there are unread messages */}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg animate-pulse">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+              {/* Loading indicator */}
+              {isLoading && unreadCount === 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-gray-400 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-lg">
+                  ...
+                </span>
+              )}
             </Button>
+
+            {/* Notifications */}
+            <NotificationDropdown />
 
             {/* User Menu */}
             {user ? (
@@ -730,10 +737,24 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-xl shadow-lg">
             <div className="px-4 py-6 space-y-3">
+              {/* Mobile Messages */}
+              <button
+                onClick={() => {
+                  navigate("/messages");
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 text-gray-700 hover:text-green-600 hover:bg-green-50 hover:scale-105 group"
+              >
+                <MessageCircle className="w-5 h-5 mr-3 group-hover:animate-pulse" />
+                <span className="flex-1 text-left font-medium">Messages</span>
+                <span className="w-5 h-5 bg-green-500 rounded-full text-xs text-white flex items-center justify-center font-bold shadow-md">
+                  2
+                </span>
+              </button>
+
               {/* Mobile Notifications */}
               <button
                 onClick={() => {
-                  console.log("Mobile notifications clicked");
                   setMobileMenuOpen(false);
                 }}
                 className="flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 text-gray-700 hover:text-blue-600 hover:bg-blue-50 hover:scale-105 group"

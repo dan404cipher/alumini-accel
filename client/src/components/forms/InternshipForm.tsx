@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { Plus, X } from "lucide-react";
 
 const internshipSchema = z.object({
@@ -91,6 +92,13 @@ export const InternshipForm = ({
     try {
       setIsLoading(true);
 
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const apiUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
       const baseEndpoint =
@@ -125,7 +133,7 @@ export const InternshipForm = ({
       const response = await fetch(url, {
         method,
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });

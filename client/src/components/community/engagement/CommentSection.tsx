@@ -16,6 +16,9 @@ import { useComments } from "@/hooks/useComments";
 import { useAuth } from "@/contexts/AuthContext";
 import { Comment } from "./types";
 import { cn } from "@/lib/utils";
+import { ActionMenu } from "../ActionMenu";
+import { reportAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface CommentSectionProps {
   postId: string;
@@ -23,6 +26,8 @@ interface CommentSectionProps {
   initialCommentCount: number;
   onCommentCountChange?: (count: number) => void;
   className?: string;
+  isModerator?: boolean;
+  isAdmin?: boolean;
 }
 
 interface CommentItemProps {
@@ -53,6 +58,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onEditCancel,
 }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [showReplies, setShowReplies] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
 
@@ -71,6 +77,48 @@ const CommentItem: React.FC<CommentItemProps> = ({
       onEditCancel?.();
     }
   };
+
+  // Action handlers for ActionMenu
+  const handleEditComment = () => {
+    onEdit(comment._id, comment.content);
+  };
+
+  const handleDeleteComment = () => {
+    onDelete(comment._id);
+  };
+
+  const handleReportComment = async (reason: string, description: string) => {
+    try {
+      await reportAPI.createReport({
+        entityId: comment._id,
+        entityType: "comment",
+        reason,
+        description,
+      });
+    } catch (error) {
+      console.error("Error reporting comment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to report comment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Check user permissions
+  const isGlobalAdmin =
+    user?.role === "admin" ||
+    user?.role === "super_admin" ||
+    user?.role === "college_admin";
+  const isHOD = user?.role === "hod";
+  const isStaff = user?.role === "staff";
+
+  // Use community-specific moderator/admin status from props
+  const canEdit =
+    isOwner || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
+  const canDelete =
+    isOwner || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
+  const canReport = !isOwner;
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -177,22 +225,19 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 Reply
               </button>
 
-              {isOwner && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onEdit(comment._id, comment.content)}
-                    className="hover:text-blue-500 transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onDelete(comment._id)}
-                    className="hover:text-red-500 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
+              <ActionMenu
+                entityId={comment._id}
+                entityType="comment"
+                entityAuthorId={comment.userId}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                canReport={canReport}
+                canShare={false}
+                onEdit={handleEditComment}
+                onDelete={handleDeleteComment}
+                onReport={handleReportComment}
+                size="sm"
+              />
 
               {hasReplies && (
                 <button
@@ -232,6 +277,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   initialCommentCount,
   onCommentCountChange,
   className,
+  isModerator = false,
+  isAdmin = false,
 }) => {
   const { user } = useAuth();
   const [newComment, setNewComment] = useState("");

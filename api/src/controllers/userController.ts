@@ -1,9 +1,14 @@
 import { Request, Response } from "express";
 import User from "../models/User";
+import Tenant from "../models/Tenant";
 import { logger } from "../utils/logger";
 import { UserRole, UserStatus } from "../types";
 import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
+import * as XLSX from "xlsx";
+import { updateProfileCompletion } from "../utils/profileCompletion";
+import { emailService } from "../services/emailService";
+import crypto from "crypto";
 
 // Get all users (admin only)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -155,6 +160,43 @@ export const createUser = async (req: Request, res: Response) => {
 
     logger.info(`User created: ${email} with role: ${role}`);
 
+    // Send welcome email for alumni users
+    if (role === UserRole.ALUMNI && tenantId) {
+      try {
+        const tenant = await Tenant.findById(tenantId);
+        const collegeName = tenant?.name || "College";
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+        const activationToken = crypto.randomBytes(32).toString("hex");
+
+        // Update user with activation token
+        await User.findByIdAndUpdate(user._id, {
+          emailVerificationToken: activationToken,
+        });
+
+        const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+        const portalUrl = frontendUrl;
+
+        await emailService.sendAlumniWelcomeEmail({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          collegeName: collegeName,
+          activationLink: activationLink,
+          portalUrl: portalUrl,
+          password: password, // Send password for new accounts
+          senderName: "Alumni Relations Team",
+          senderTitle: "Alumni Relations Manager",
+          senderEmail: tenant?.contactInfo?.email || "alumni@college.edu",
+          senderPhone: tenant?.contactInfo?.phone,
+        });
+
+        logger.info(`Welcome email sent to ${email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send welcome email to ${email}:`, emailError);
+        // Don't fail the user creation if email fails
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message: "User created successfully",
@@ -235,6 +277,11 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (preferences) user.preferences = { ...user.preferences, ...preferences };
 
     await user.save();
+
+    // Update profile completion for alumni
+    if (user.role === UserRole.ALUMNI) {
+      await updateProfileCompletion(user._id);
+    }
 
     return res.json({
       success: true,
@@ -553,6 +600,136 @@ export const bulkUpdateUsers = async (req: Request, res: Response) => {
   }
 };
 
+// Get eligible students (admin only)
+export const getEligibleStudents = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    // Find students who are eligible for alumni promotion
+    const eligibleStudents = await User.find({
+      role: UserRole.STUDENT,
+      eligibleForAlumni: true,
+    })
+      .select(
+        "firstName lastName email graduationYear department profilePicture status createdAt"
+      )
+      .sort({ graduationYear: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalCount = await User.countDocuments({
+      role: UserRole.STUDENT,
+      eligibleForAlumni: true,
+    });
+
+    return res.json({
+      success: true,
+      message: "Eligible students retrieved successfully",
+      data: {
+        students: eligibleStudents,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalCount,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPrevPage: page > 1,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get eligible students error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch eligible students",
+    });
+  }
+};
+
+// Promote student to alumni (admin only)
+export const promoteStudentToAlumni = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Check if user has permission (admin roles)
+    if (
+      !["super_admin", "college_admin", "hod", "staff"].includes(
+        currentUser.role
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to promote students",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Validate that user is a student
+    if (user.role !== UserRole.STUDENT) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not a student",
+      });
+    }
+
+    // Validate that student is eligible
+    if (!user.eligibleForAlumni) {
+      return res.status(400).json({
+        success: false,
+        message: "Student is not eligible for alumni promotion",
+      });
+    }
+
+    // Promote to alumni
+    user.role = UserRole.ALUMNI;
+    user.eligibleForAlumni = false;
+
+    await user.save();
+
+    logger.info(
+      `Student ${user.email} promoted to alumni by ${currentUser.email}`
+    );
+
+    return res.json({
+      success: true,
+      message: "Student promoted to alumni successfully",
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          graduationYear: user.graduationYear,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Promote student to alumni error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to promote student to alumni",
+    });
+  }
+};
+
 // Upload profile image
 export const uploadProfileImage = async (req: Request, res: Response) => {
   try {
@@ -612,6 +789,11 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
     user.profilePicture = `/uploads/profile-images/${file.filename}`;
     await user.save();
 
+    // Update profile completion for alumni
+    if (user.role === UserRole.ALUMNI) {
+      await updateProfileCompletion(user._id);
+    }
+
     return res.json({
       success: true,
       message: "Profile image uploaded successfully",
@@ -628,6 +810,532 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
   }
 };
 
+// Bulk create alumni from CSV/Excel data
+export const bulkCreateAlumni = async (req: Request, res: Response) => {
+  try {
+    const { alumniData } = req.body;
+    const currentUser = req.user;
+
+    if (!alumniData || !Array.isArray(alumniData)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid alumni data format",
+      });
+    }
+
+    if (alumniData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No alumni data provided",
+      });
+    }
+
+    if (alumniData.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot create more than 1000 alumni at once",
+      });
+    }
+
+    // Validate user permissions
+    if (
+      !currentUser ||
+      !["super_admin", "college_admin", "hod", "staff"].includes(
+        currentUser.role
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to create alumni",
+      });
+    }
+
+    const results = {
+      successful: [] as Array<{
+        row: number;
+        email: string;
+        name: string;
+        password: string;
+      }>,
+      failed: [] as Array<{
+        row: number;
+        email: string;
+        error: string;
+      }>,
+      total: alumniData.length,
+    };
+
+    // Process each alumni record
+    for (let i = 0; i < alumniData.length; i++) {
+      const alumniRecord = alumniData[i];
+      const rowNumber = i + 1;
+
+      try {
+        // Validate required fields
+        if (
+          !alumniRecord.firstName ||
+          !alumniRecord.lastName ||
+          !alumniRecord.email
+        ) {
+          results.failed.push({
+            row: rowNumber,
+            email: alumniRecord.email || "N/A",
+            error: "Missing required fields: firstName, lastName, or email",
+          });
+          continue;
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({
+          email: alumniRecord.email.toLowerCase(),
+        });
+        if (existingUser) {
+          results.failed.push({
+            row: rowNumber,
+            email: alumniRecord.email,
+            error: "User with this email already exists",
+          });
+          continue;
+        }
+
+        // Generate password if not provided
+        const password =
+          alumniRecord.password ||
+          `Alumni${Math.random().toString(36).slice(-8)}`;
+
+        // Determine tenantId based on user role
+        let tenantId = alumniRecord.collegeId;
+        if (currentUser.role !== "super_admin" && currentUser.tenantId) {
+          tenantId = currentUser.tenantId;
+        }
+
+        // Normalize gender field to match enum values
+        let normalizedGender: string | undefined = undefined;
+        if (alumniRecord.gender) {
+          const genderLower = alumniRecord.gender.toLowerCase().trim();
+          // Map common gender values to enum values
+          const genderMap: Record<string, string> = {
+            male: "male",
+            female: "female",
+            "m": "male",
+            "f": "female",
+            "other": "other",
+            "o": "other",
+            "prefer not to say": "other",
+            "not specified": "other",
+            "unspecified": "other",
+          };
+          normalizedGender = genderMap[genderLower];
+          if (!normalizedGender) {
+            // If no mapping found, try to match enum values directly
+            if (["male", "female", "other"].includes(genderLower)) {
+              normalizedGender = genderLower;
+            }
+          }
+        }
+
+        // Create user data
+        const userData = {
+          firstName: alumniRecord.firstName.trim(),
+          lastName: alumniRecord.lastName.trim(),
+          email: alumniRecord.email.toLowerCase().trim(),
+          password: await bcrypt.hash(password, 12),
+          role: UserRole.ALUMNI,
+          status: UserStatus.ACTIVE,
+          tenantId: tenantId,
+          phone: alumniRecord.phoneNumber || alumniRecord.phone || "",
+          department: alumniRecord.department || "",
+          graduationYear:
+            alumniRecord.graduationYear || new Date().getFullYear(),
+          currentCompany: alumniRecord.currentCompany || "",
+          currentPosition: alumniRecord.currentPosition || "",
+          bio: alumniRecord.bio || "",
+          location: alumniRecord.address || alumniRecord.location || "",
+          linkedinProfile: alumniRecord.linkedinProfile || "",
+          twitterHandle: alumniRecord.twitterHandle || "",
+          githubProfile: alumniRecord.githubProfile || "",
+          website: alumniRecord.website || "",
+          dateOfBirth: alumniRecord.dateOfBirth
+            ? new Date(alumniRecord.dateOfBirth)
+            : undefined,
+          gender: normalizedGender,
+        };
+
+        // Create the user
+        const newUser = new User(userData);
+        await newUser.save();
+
+        // Send welcome email for bulk created alumni
+        try {
+          const tenant = await Tenant.findById(tenantId);
+          const collegeName = tenant?.name || "College";
+          const frontendUrl =
+            process.env.FRONTEND_URL || "http://localhost:8080";
+          const activationToken = crypto.randomBytes(32).toString("hex");
+
+          // Update user with activation token
+          await User.findByIdAndUpdate(newUser._id, {
+            emailVerificationToken: activationToken,
+          });
+
+          const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+          const portalUrl = frontendUrl;
+
+          await emailService.sendAlumniWelcomeEmail({
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            email: newUser.email,
+            collegeName: collegeName,
+            activationLink: activationLink,
+            portalUrl: portalUrl,
+            password: password, // Send generated password
+            senderName: "Alumni Relations Team",
+            senderTitle: "Alumni Relations Manager",
+            senderEmail: tenant?.contactInfo?.email || "alumni@college.edu",
+            senderPhone: tenant?.contactInfo?.phone,
+          });
+
+          logger.info(`Welcome email sent to ${newUser.email}`);
+        } catch (emailError) {
+          logger.error(
+            `Failed to send welcome email to ${newUser.email}:`,
+            emailError
+          );
+          // Don't fail the user creation if email fails
+        }
+
+        results.successful.push({
+          row: rowNumber,
+          email: newUser.email,
+          name: `${newUser.firstName} ${newUser.lastName}`,
+          password: alumniRecord.password ? "User provided" : password, // Only show generated password
+        });
+
+        logger.info(
+          `Bulk alumni creation: Created user ${newUser.email} by ${currentUser.email}`
+        );
+      } catch (error: any) {
+        results.failed.push({
+          row: rowNumber,
+          email: alumniRecord.email || "N/A",
+          error: error.message || "Unknown error occurred",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Bulk alumni creation completed. ${results.successful.length} successful, ${results.failed.length} failed.`,
+      data: results,
+    });
+  } catch (error: any) {
+    logger.error("Bulk alumni creation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to process bulk alumni creation",
+      error: error.message,
+    });
+  }
+};
+
+// Simple test endpoint to check alumni data (no auth for testing)
+export const testAlumniDataNoAuth = async (req: Request, res: Response) => {
+  try {
+    // For testing, get all alumni without tenant filtering
+    const filter: any = { role: "alumni" };
+
+    const alumni = await User.find(filter)
+      .select(
+        "firstName lastName email phone department graduationYear currentCompany currentPosition bio linkedinProfile website status createdAt"
+      )
+      .lean();
+
+    const exportData = alumni.map((alumni) => ({
+      "First Name": alumni.firstName || "",
+      "Last Name": alumni.lastName || "",
+      Email: alumni.email || "",
+      Phone: alumni.phone || "",
+      Department: alumni.department || "",
+      "Graduation Year": alumni.graduationYear || "",
+      "Current Company": alumni.currentCompany || "",
+      "Current Position": alumni.currentPosition || "",
+      Bio: alumni.bio || "",
+      "LinkedIn Profile": alumni.linkedinProfile || "",
+      Website: alumni.website || "",
+      Status: alumni.status || "",
+      "Created At": alumni.createdAt
+        ? new Date(alumni.createdAt).toLocaleDateString()
+        : "",
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: alumni.length,
+      data: exportData.slice(0, 5), // Return first 5 records for testing
+      message: `Found ${alumni.length} alumni records`,
+    });
+  } catch (error) {
+    console.error("Test alumni data error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Simple test endpoint to check alumni data
+export const testAlumniData = async (req: Request, res: Response) => {
+  try {
+    const filter: any = { role: "alumni" };
+
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    const alumni = await User.find(filter)
+      .select(
+        "firstName lastName email phone department graduationYear currentCompany currentPosition bio linkedinProfile website status createdAt"
+      )
+      .lean();
+
+    const exportData = alumni.map((alumni) => ({
+      "First Name": alumni.firstName || "",
+      "Last Name": alumni.lastName || "",
+      Email: alumni.email || "",
+      Phone: alumni.phone || "",
+      Department: alumni.department || "",
+      "Graduation Year": alumni.graduationYear || "",
+      "Current Company": alumni.currentCompany || "",
+      "Current Position": alumni.currentPosition || "",
+      Bio: alumni.bio || "",
+      "LinkedIn Profile": alumni.linkedinProfile || "",
+      Website: alumni.website || "",
+      Status: alumni.status || "",
+      "Created At": alumni.createdAt
+        ? new Date(alumni.createdAt).toLocaleDateString()
+        : "",
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: alumni.length,
+      data: exportData.slice(0, 5), // Return first 5 records for testing
+      message: `Found ${alumni.length} alumni records`,
+    });
+  } catch (error) {
+    console.error("Test alumni data error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Test endpoint for export debugging
+export const testExport = async (req: Request, res: Response) => {
+  try {
+    console.log("Test export - User:", req.user);
+    console.log("Test export - Query:", req.query);
+
+    const filter: any = { role: "alumni" };
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    const alumni = await User.find(filter)
+      .select("-password -refreshToken")
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      user: req.user,
+      filter,
+      alumniCount: alumni?.length || 0,
+      sampleAlumni: alumni?.slice(0, 2) || [],
+    });
+  } catch (error) {
+    console.error("Test export error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Export all alumni data as Excel/CSV
+export const exportAlumniData = async (req: Request, res: Response) => {
+  try {
+    const { format = "excel" } = req.query;
+
+    // Debug logging
+    console.log("Export request - User:", req.user);
+    console.log("Export request - Format:", format);
+
+    // 🔒 MULTI-TENANT FILTERING: Only export alumni from same college (unless super admin)
+    const filter: any = { role: "alumni" };
+
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    console.log("Export filter:", filter);
+
+    // Get all alumni with only basic fields - no complex data
+    const alumni = await User.find(filter)
+      .select(
+        "firstName lastName email phone department graduationYear currentCompany currentPosition bio linkedinProfile website status createdAt"
+      )
+      .lean();
+
+    console.log("Found alumni count:", alumni?.length || 0);
+
+    if (!alumni || alumni.length === 0) {
+      // Return empty file for blob requests
+      if (format === "csv") {
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.csv"`
+        );
+        return res.send("No alumni data found");
+      } else {
+        // Create empty Excel file
+        const worksheet = XLSX.utils.json_to_sheet([
+          { Message: "No alumni data found" },
+        ]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Alumni Data");
+
+        const excelBuffer = XLSX.write(workbook, {
+          type: "buffer",
+          bookType: "xlsx",
+        });
+
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.xlsx"`
+        );
+        return res.send(excelBuffer);
+      }
+    }
+
+    // Prepare data for export - only basic text fields
+    const exportData = alumni.map((alumni) => ({
+      "First Name": alumni.firstName || "",
+      "Last Name": alumni.lastName || "",
+      Email: alumni.email || "",
+      Phone: alumni.phone || "",
+      Department: alumni.department || "",
+      "Graduation Year": alumni.graduationYear || "",
+      "Current Company": alumni.currentCompany || "",
+      "Current Position": alumni.currentPosition || "",
+      Bio: alumni.bio || "",
+      "LinkedIn Profile": alumni.linkedinProfile || "",
+      Website: alumni.website || "",
+      Status: alumni.status || "",
+      "Created At": alumni.createdAt
+        ? new Date(alumni.createdAt).toLocaleDateString()
+        : "",
+    }));
+
+    if (format === "csv") {
+      // Convert to CSV - simplified
+      const csvHeaders = Object.keys(exportData[0]).join(",");
+      const csvRows = exportData.map((row) =>
+        Object.values(row)
+          .map((value) => {
+            const stringValue = String(value || "");
+            // Escape quotes and wrap in quotes if contains comma
+            if (
+              stringValue.includes(",") ||
+              stringValue.includes('"') ||
+              stringValue.includes("\n")
+            ) {
+              return `"${stringValue.replace(/"/g, '""')}"`;
+            }
+            return stringValue;
+          })
+          .join(",")
+      );
+      const csvContent = [csvHeaders, ...csvRows].join("\n");
+
+      console.log("CSV Content length:", csvContent.length);
+      console.log("CSV Headers:", csvHeaders);
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.csv"`
+      );
+      return res.send(csvContent);
+    } else {
+      // Default to Excel format
+      console.log("Generating Excel with", exportData.length, "records");
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Alumni Data");
+
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      console.log("Excel buffer size:", excelBuffer.length);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="alumni_data_${new Date().toISOString().split("T")[0]}.xlsx"`
+      );
+      return res.send(excelBuffer);
+    }
+  } catch (error) {
+    logger.error("Error exporting alumni data:", error);
+    console.error("Export error details:", error);
+
+    // Return proper error response for blob requests
+    if (req.query.format === "csv") {
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="error_${new Date().toISOString().split("T")[0]}.csv"`
+      );
+      return res.send(
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } else {
+      // Create error Excel file
+      const worksheet = XLSX.utils.json_to_sheet([
+        { Error: error instanceof Error ? error.message : "Unknown error" },
+      ]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Error");
+
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="error_${new Date().toISOString().split("T")[0]}.xlsx"`
+      );
+      return res.send(excelBuffer);
+    }
+  }
+};
+
 export default {
   getAllUsers,
   createUser,
@@ -640,4 +1348,9 @@ export default {
   getUserStats,
   bulkUpdateUsers,
   uploadProfileImage,
+  bulkCreateAlumni,
+  exportAlumniData,
+  testExport,
+  getEligibleStudents,
+  promoteStudentToAlumni,
 };

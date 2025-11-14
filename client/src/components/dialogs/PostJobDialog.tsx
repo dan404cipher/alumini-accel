@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { jobAPI } from "@/lib/api";
+import { jobAPI, categoryAPI } from "@/lib/api";
 import {
   Briefcase,
   DollarSign,
@@ -50,15 +50,27 @@ export const PostJobDialog = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [jobTypeOptions, setJobTypeOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [experienceOptions, setExperienceOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [industryOptions, setIndustryOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [formData, setFormData] = useState({
     title: "",
     company: "",
     companyWebsite: "",
     location: "",
     type: "",
+    experience: "",
+    industry: "",
     salaryMin: "",
     salaryMax: "",
     currency: "USD",
+    numberOfVacancies: "1",
     description: "",
     requirements: "",
     benefits: "",
@@ -99,6 +111,21 @@ export const PostJobDialog = ({
 
     if (!formData.type) {
       newErrors.push("Job type is required");
+    }
+
+    // Number of vacancies validation
+    if (
+      !formData.numberOfVacancies ||
+      formData.numberOfVacancies.trim() === ""
+    ) {
+      newErrors.push("Number of vacancies is required");
+    } else {
+      const vacancies = parseInt(formData.numberOfVacancies);
+      if (isNaN(vacancies) || vacancies < 1) {
+        newErrors.push("Number of vacancies must be at least 1");
+      } else if (vacancies > 1000) {
+        newErrors.push("Number of vacancies cannot exceed 1000");
+      }
     }
 
     if (!formData.description.trim()) {
@@ -170,6 +197,146 @@ export const PostJobDialog = ({
     return newErrors.length === 0;
   };
 
+  // Load category-based options
+  useEffect(() => {
+    const load = async () => {
+      // Default enum values that match backend validation (used as fallback)
+      const defaultJobTypes = [
+        { value: "full-time", label: "Full-Time" },
+        { value: "part-time", label: "Part-Time" },
+        { value: "internship", label: "Internship" },
+        { value: "contract", label: "Contract" },
+      ];
+
+      const defaultExperience = [
+        { value: "entry", label: "Entry Level" },
+        { value: "mid", label: "Mid Level" },
+        { value: "senior", label: "Senior Level" },
+        { value: "lead", label: "Lead/Principal" },
+      ];
+
+      const defaultIndustry = [
+        { value: "technology", label: "Technology" },
+        { value: "finance", label: "Finance" },
+        { value: "healthcare", label: "Healthcare" },
+        { value: "education", label: "Education" },
+        { value: "consulting", label: "Consulting" },
+        { value: "marketing", label: "Marketing" },
+        { value: "sales", label: "Sales" },
+        { value: "operations", label: "Operations" },
+        { value: "other", label: "Other" },
+      ];
+
+      try {
+        const [typesRes, expRes, indRes] = await Promise.all([
+          categoryAPI.getAll({ entityType: "job_type", isActive: "true" }),
+          categoryAPI.getAll({
+            entityType: "job_experience",
+            isActive: "true",
+          }),
+          categoryAPI.getAll({ entityType: "job_industry", isActive: "true" }),
+        ]);
+
+        // Process job types from categories
+        if (typesRes.success && Array.isArray(typesRes.data) && typesRes.data.length > 0) {
+          const categoryTypes = typesRes.data.map((c: { name: string; _id: string }) => {
+            // Normalize category name to match enum format
+            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
+            
+            // Check if normalized name matches enum values
+            const enumMatch = defaultJobTypes.find(
+              (d) => d.value === normalizedName
+            );
+            
+            if (enumMatch) {
+              // Use enum value if it matches
+              return { value: enumMatch.value, label: c.name };
+            } else {
+              // Use ObjectId for custom categories
+              return { value: c._id, label: c.name };
+            }
+          });
+          
+          // Merge with defaults, prioritizing enum values
+          const mergedTypes = [
+            ...defaultJobTypes,
+            ...categoryTypes.filter(
+              (c: { value: string }) =>
+                !defaultJobTypes.some((d) => d.value === c.value)
+            ),
+          ];
+          
+          setJobTypeOptions(mergedTypes);
+        } else {
+          setJobTypeOptions(defaultJobTypes);
+        }
+
+        // Process experience from categories
+        if (expRes.success && Array.isArray(expRes.data) && expRes.data.length > 0) {
+          const categoryExp = expRes.data.map((c: { name: string; _id: string }) => {
+            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
+            const enumMatch = defaultExperience.find(
+              (d) => d.value === normalizedName
+            );
+            
+            if (enumMatch) {
+              return { value: enumMatch.value, label: c.name };
+            } else {
+              return { value: c._id, label: c.name };
+            }
+          });
+          
+          const mergedExp = [
+            ...defaultExperience,
+            ...categoryExp.filter(
+              (c: { value: string }) =>
+                !defaultExperience.some((d) => d.value === c.value)
+            ),
+          ];
+          
+          setExperienceOptions(mergedExp);
+        } else {
+          setExperienceOptions(defaultExperience);
+        }
+
+        // Process industry from categories
+        if (indRes.success && Array.isArray(indRes.data) && indRes.data.length > 0) {
+          const categoryInd = indRes.data.map((c: { name: string; _id: string }) => {
+            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
+            const enumMatch = defaultIndustry.find(
+              (d) => d.value === normalizedName
+            );
+            
+            if (enumMatch) {
+              return { value: enumMatch.value, label: c.name };
+            } else {
+              return { value: c._id, label: c.name };
+            }
+          });
+          
+          const mergedInd = [
+            ...defaultIndustry,
+            ...categoryInd.filter(
+              (c: { value: string }) =>
+                !defaultIndustry.some((d) => d.value === c.value)
+            ),
+          ];
+          
+          setIndustryOptions(mergedInd);
+        } else {
+          setIndustryOptions(defaultIndustry);
+        }
+      } catch (e) {
+        console.warn("Failed to load job category options", e);
+        // Use defaults on error
+        setJobTypeOptions(defaultJobTypes);
+        setExperienceOptions(defaultExperience);
+        setIndustryOptions(defaultIndustry);
+      }
+    };
+    if (open) load();
+  }, [open]);
+
   const handlePreview = () => {
     if (validateForm()) {
       setShowPreview(true);
@@ -226,8 +393,11 @@ export const PostJobDialog = ({
         position: formData.title.trim(),
         location: formData.location.trim(),
         type: formData.type,
+        experience: formData.experience || undefined,
+        industry: formData.industry || undefined,
         remote: formData.location.toLowerCase().includes("remote"),
         salary: salaryRange,
+        numberOfVacancies: parseInt(formData.numberOfVacancies),
         description: formData.description.trim(),
         requirements: requirements,
         benefits: benefits,
@@ -254,9 +424,12 @@ export const PostJobDialog = ({
           companyWebsite: "",
           location: "",
           type: "",
+          experience: "",
+          industry: "",
           salaryMin: "",
           salaryMax: "",
           currency: "USD",
+          numberOfVacancies: "1",
           description: "",
           requirements: "",
           benefits: "",
@@ -305,7 +478,7 @@ export const PostJobDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[820px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             {showPreview ? (
@@ -547,12 +720,31 @@ export const PostJobDialog = ({
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="full-time">Full-time</SelectItem>
-                    <SelectItem value="part-time">Part-time</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                    <SelectItem value="internship">Internship</SelectItem>
+                    {jobTypeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="numberOfVacancies">Number of Vacancies *</Label>
+                <Input
+                  id="numberOfVacancies"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={formData.numberOfVacancies}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      numberOfVacancies: e.target.value,
+                    })
+                  }
+                  placeholder="1"
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="deadline">Application Deadline *</Label>
@@ -584,8 +776,72 @@ export const PostJobDialog = ({
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="experience">Experience *</Label>
+                <Select
+                  value={formData.experience}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, experience: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select experience" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {experienceOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="industry">Industry *</Label>
+                <Select
+                  value={formData.industry}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, industry: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select industry" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {industryOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, currency: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                    <SelectItem value="INR">INR (₹)</SelectItem>
+                    <SelectItem value="CAD">CAD (C$)</SelectItem>
+                    <SelectItem value="AUD">AUD (A$)</SelectItem>
+                    <SelectItem value="JPY">JPY (¥)</SelectItem>
+                    <SelectItem value="CHF">CHF (CHF)</SelectItem>
+                    <SelectItem value="CNY">CNY (¥)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="salaryMin">Min Salary *</Label>
                 <div className="relative">
@@ -645,30 +901,6 @@ export const PostJobDialog = ({
                     required
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select
-                  value={formData.currency}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, currency: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="GBP">GBP (£)</SelectItem>
-                    <SelectItem value="INR">INR (₹)</SelectItem>
-                    <SelectItem value="CAD">CAD (C$)</SelectItem>
-                    <SelectItem value="AUD">AUD (A$)</SelectItem>
-                    <SelectItem value="JPY">JPY (¥)</SelectItem>
-                    <SelectItem value="CHF">CHF (CHF)</SelectItem>
-                    <SelectItem value="CNY">CNY (¥)</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             <div className="space-y-2">

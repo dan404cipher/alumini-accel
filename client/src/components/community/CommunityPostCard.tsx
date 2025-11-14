@@ -22,15 +22,39 @@ import {
 } from "lucide-react";
 import { CommunityPost } from "./types";
 import { LikeButton, ShareButton, CommentSection } from "./engagement";
+import { ActionMenu } from "./ActionMenu";
+import EditPostModal from "./EditPostModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { reportAPI } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 interface CommunityPostCardProps {
   post: CommunityPost;
+  isModerator?: boolean;
+  isAdmin?: boolean;
 }
 
-const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
+const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
+  post,
+  isModerator = false,
+  isAdmin = false,
+}) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null
   );
+
+  // Helper function to get auth token
+  const getAuthToken = (): string => {
+    const token = getAuthTokenOrNull();
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+    return token;
+  };
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showComments, setShowComments] = useState(false);
 
@@ -95,6 +119,101 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
         return <MessageSquare className="w-4 h-4" />;
     }
   };
+
+  // Action handlers
+  const handleEditPost = () => {
+    setShowEditModal(true);
+  };
+
+  const handlePostUpdated = () => {
+    setShowEditModal(false);
+    // Refresh the page to show updated post
+    window.location.reload();
+  };
+
+  const handleDeletePost = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/v1/community-posts/${post._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Post deleted successfully",
+        });
+        // Refresh the page or update the posts list
+        window.location.reload();
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to delete post",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReportPost = async (reason: string, description: string) => {
+    try {
+      await reportAPI.createReport({
+        entityId: post._id,
+        entityType: "post",
+        reason,
+        description,
+      });
+    } catch (error) {
+      console.error("Error reporting post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to report post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSharePost = () => {
+    // The ShareButton component already handles sharing
+    // This is just a fallback
+    navigator.clipboard.writeText(
+      `${window.location.origin}/community/post/${post._id}`
+    );
+    toast({
+      title: "Success",
+      description: "Post link copied to clipboard",
+    });
+  };
+
+  // Check user permissions
+  const isAuthor = user?._id === post.authorId?._id;
+  const isGlobalAdmin =
+    user?.role === "admin" ||
+    user?.role === "super_admin" ||
+    user?.role === "college_admin";
+  const isHOD = user?.role === "hod";
+  const isStaff = user?.role === "staff";
+
+  // Use community-specific moderator/admin status from props
+  const canEdit =
+    isAuthor || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
+  const canDelete =
+    isAuthor || isGlobalAdmin || isModerator || isAdmin || isHOD || isStaff;
+  const canReport = !isAuthor;
+  const canShare = true;
 
   const getCategoryColor = (category?: string) => {
     switch (category) {
@@ -249,6 +368,20 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
                   {post.priority}
                 </Badge>
               )}
+              <ActionMenu
+                entityId={post._id}
+                entityType="post"
+                entityAuthorId={post.authorId}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                canReport={canReport}
+                canShare={canShare}
+                onEdit={handleEditPost}
+                onDelete={handleDeletePost}
+                onReport={handleReportPost}
+                onShare={handleSharePost}
+                size="sm"
+              />
             </div>
           </div>
         </CardHeader>
@@ -473,8 +606,18 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({ post }) => {
             console.log("Comment count updated:", count);
           }}
           className="mt-2"
+          isModerator={isModerator}
+          isAdmin={isAdmin}
         />
       )}
+
+      {/* Edit Post Modal */}
+      <EditPostModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        post={post}
+        onPostUpdated={handlePostUpdated}
+      />
     </div>
   );
 };

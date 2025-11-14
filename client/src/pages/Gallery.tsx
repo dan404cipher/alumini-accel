@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
-import { galleryAPI } from "@/lib/api";
+import { galleryAPI, categoryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import Pagination from "@/components/ui/pagination";
+import EditGalleryDialog from "@/components/dialogs/EditGalleryDialog";
+import DeleteGalleryDialog from "@/components/dialogs/DeleteGalleryDialog";
+import GalleryActionMenu from "@/components/gallery/GalleryActionMenu";
 
 interface ApiError {
   response?: {
@@ -59,6 +63,7 @@ import {
   List,
   Star,
   Clock,
+  Maximize2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -68,6 +73,7 @@ interface GalleryItem {
   description?: string;
   images: string[];
   createdBy: {
+    _id: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -91,110 +97,20 @@ const Gallery: React.FC = () => {
   const [selectedSortBy, setSelectedSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [galleryCategories, setGalleryCategories] = useState<string[]>([]);
+  const [paginationInfo, setPaginationInfo] = useState<{
+    pages: number;
+    total: number;
+  } | null>(null);
 
-  // Filter galleries based on search and filter criteria
-  const filterGalleries = (galleryItems: GalleryItem[]) => {
-    return galleryItems.filter((gallery) => {
-      // Search query filter
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase();
-        const matchesSearch =
-          (gallery.title &&
-            gallery.title.toLowerCase().includes(searchLower)) ||
-          (gallery.description &&
-            gallery.description.toLowerCase().includes(searchLower)) ||
-          (gallery.createdBy?.firstName &&
-            gallery.createdBy.firstName.toLowerCase().includes(searchLower)) ||
-          (gallery.createdBy?.lastName &&
-            gallery.createdBy.lastName.toLowerCase().includes(searchLower)) ||
-          (gallery.tags &&
-            gallery.tags.some(
-              (tag) => tag && tag.toLowerCase().includes(searchLower)
-            ));
-        if (!matchesSearch) return false;
-      }
-
-      // Category filter
-      if (selectedCategory !== "all") {
-        // Assuming galleries have a category field, adjust as needed
-        if (!gallery.category || gallery.category !== selectedCategory)
-          return false;
-      }
-
-      // Date range filter
-      if (selectedDateRange !== "all") {
-        const galleryDate = new Date(gallery.createdAt);
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const thisWeekStart = new Date(today);
-        thisWeekStart.setDate(today.getDate() - today.getDay());
-        const lastWeekStart = new Date(thisWeekStart);
-        lastWeekStart.setDate(thisWeekStart.getDate() - 7);
-        const thisMonthStart = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          1
-        );
-        const lastMonthStart = new Date(
-          today.getFullYear(),
-          today.getMonth() - 1,
-          1
-        );
-
-        switch (selectedDateRange) {
-          case "today":
-            if (galleryDate < today) return false;
-            break;
-          case "yesterday":
-            if (galleryDate < yesterday || galleryDate >= today) return false;
-            break;
-          case "this_week":
-            if (galleryDate < thisWeekStart) return false;
-            break;
-          case "last_week":
-            if (galleryDate < lastWeekStart || galleryDate >= thisWeekStart)
-              return false;
-            break;
-          case "this_month":
-            if (galleryDate < thisMonthStart) return false;
-            break;
-          case "last_month":
-            if (galleryDate < lastMonthStart || galleryDate >= thisMonthStart)
-              return false;
-            break;
-        }
-      }
-
-      return true;
-    });
-  };
-
-  const filteredGalleries = filterGalleries(galleries);
-
-  // Sort galleries based on selected sort option
-  const sortedGalleries = [...filteredGalleries].sort((a, b) => {
-    switch (selectedSortBy) {
-      case "oldest":
-        return (
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-      case "popular":
-        // Assuming galleries have a viewCount or similar field, adjust as needed
-        return (b.viewCount || 0) - (a.viewCount || 0);
-      case "title":
-        return a.title.localeCompare(b.title);
-      default: // newest
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-    }
-  });
+  // Note: Backend already handles: search, category, dateRange, sortBy
+  // No client-side filtering or sorting needed
+  const sortedGalleries = galleries;
 
   // Create gallery form state
   const [formData, setFormData] = useState({
@@ -209,30 +125,78 @@ const Gallery: React.FC = () => {
     null
   );
   const [showGalleryDetail, setShowGalleryDetail] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
 
-  const categories = [
-    "Events",
-    "Campus",
-    "Sports",
-    "Academic",
-    "Cultural",
-    "Other",
-  ];
+  // Load gallery categories dynamically
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({
+          entityType: "gallery_category",
+        });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setGalleryCategories(names);
+      } catch (_e) {
+        // keep empty list if API fails
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  // Check if user can create galleries (admin or coordinator)
+  // Check if user can create galleries (HOD, Staff, College Admin only)
   const canCreateGallery =
-    user && (user.role === "super_admin" || user.role === "coordinator");
+    user &&
+    (user.role === "super_admin" ||
+      user.role === "college_admin" ||
+      user.role === "hod" ||
+      user.role === "staff");
 
   const fetchGalleries = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await galleryAPI.getAllGalleries({
-        category: selectedCategory === "all" ? undefined : selectedCategory,
-        limit: 20,
-      });
+      const params: Record<string, unknown> = {
+        page: currentPage,
+        limit: itemsPerPage,
+        tenantId: user?.tenantId,
+      };
+
+      if (selectedCategory !== "all") {
+        params.category = selectedCategory;
+      }
+
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      if (selectedDateRange !== "all") {
+        params.dateRange = selectedDateRange;
+      }
+
+      if (selectedSortBy) {
+        params.sortBy = selectedSortBy;
+      }
+
+      const response = await galleryAPI.getAllGalleries(params);
 
       if (response.success) {
-        setGalleries((response.data as { galleries: GalleryItem[] }).galleries);
+        const data = response.data as {
+          galleries: GalleryItem[];
+          pagination?: { pages: number; total: number };
+        };
+        setGalleries(data.galleries);
+        if (data.pagination) {
+          setTotalPages(data.pagination.pages || 1);
+          setPaginationInfo(data.pagination);
+        }
       }
     } catch (error) {
       console.error("Error fetching galleries:", error);
@@ -244,11 +208,32 @@ const Gallery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, toast]);
+  }, [
+    selectedCategory,
+    currentPage,
+    itemsPerPage,
+    user?.tenantId,
+    searchQuery,
+    selectedDateRange,
+    selectedSortBy,
+    toast,
+  ]);
 
   useEffect(() => {
     fetchGalleries();
   }, [fetchGalleries]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedDateRange, selectedSortBy]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -277,9 +262,16 @@ const Gallery: React.FC = () => {
         return;
       }
 
-      // Validate file types
+      // Validate file types - must be specific image MIME types
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
       const invalidFiles = files.filter(
-        (file) => !file.type.startsWith("image/")
+        (file) => !allowedTypes.includes(file.type.toLowerCase())
       );
       if (invalidFiles.length > 0) {
         toast({
@@ -325,6 +317,28 @@ const Gallery: React.FC = () => {
   const handleViewGallery = (gallery: GalleryItem) => {
     setSelectedGallery(gallery);
     setShowGalleryDetail(true);
+  };
+
+  const handleEditGallery = (gallery: GalleryItem) => {
+    setSelectedGallery(gallery);
+    setShowEditDialog(true);
+  };
+
+  const handleDeleteGallery = (gallery: GalleryItem) => {
+    setSelectedGallery(gallery);
+    setShowDeleteDialog(true);
+  };
+
+  const handleEditSuccess = () => {
+    fetchGalleries();
+    setShowEditDialog(false);
+    setSelectedGallery(null);
+  };
+
+  const handleDeleteSuccess = () => {
+    fetchGalleries();
+    setShowDeleteDialog(false);
+    setSelectedGallery(null);
   };
 
   const handleCreateGallery = async () => {
@@ -431,9 +445,9 @@ const Gallery: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navigation activeTab="gallery" onTabChange={() => {}} />
-      <div className="flex gap-6 h-[calc(100vh-4rem)] w-full overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div
@@ -445,11 +459,17 @@ const Gallery: React.FC = () => {
         {/* Left Sidebar */}
         <div
           className={`
-        ${sidebarOpen ? "fixed inset-y-0 left-0 z-50" : "hidden lg:block"}
-        w-80 flex-shrink-0 bg-background
+        ${
+          sidebarOpen
+            ? "fixed inset-y-0 left-0 z-50"
+            : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
+        }
+        top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${
+          sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"
+        }
       `}
         >
-          <div className="sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto p-6">
+          <div className="h-full overflow-y-auto p-4 sm:p-6">
             <Card className="h-fit">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -513,11 +533,17 @@ const Gallery: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
+                        {galleryCategories.length === 0 ? (
+                          <SelectItem value="__noopts__" disabled>
+                            No categories available
                           </SelectItem>
-                        ))}
+                        ) : (
+                          galleryCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -585,11 +611,11 @@ const Gallery: React.FC = () => {
                   )}
                 </div>
 
-                {/* Quick Actions */}
-                <div className="space-y-3 pt-4 border-t">
-                  <h3 className="text-sm font-semibold">Quick Actions</h3>
-                  <div className="space-y-2">
-                    {canCreateGallery && (
+                {/* Quick Actions - Only show if user can create galleries */}
+                {canCreateGallery && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <h3 className="text-sm font-semibold">Quick Actions</h3>
+                    <div className="space-y-2">
                       <Button
                         variant="default"
                         size="sm"
@@ -599,33 +625,9 @@ const Gallery: React.FC = () => {
                         <Plus className="w-4 h-4 mr-2" />
                         Create Gallery
                       </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Heart className="w-4 h-4 mr-2" />
-                      Favorites
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                    >
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share Gallery
-                    </Button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* View Mode */}
                 <div className="space-y-3 pt-4 border-t">
@@ -657,173 +659,199 @@ const Gallery: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 space-y-6 p-4 lg:p-6 overflow-y-auto h-[calc(100vh-4rem)]">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+        <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+          <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
+            {/* Mobile Menu Button */}
+            <div className="lg:hidden">
               <Button
                 variant="outline"
                 size="sm"
-                className="lg:hidden"
                 onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-2"
               >
-                <Menu className="w-4 h-4 mr-2" />
+                <Menu className="w-4 h-4" />
                 Filters
               </Button>
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold">
-                  Photo Gallery
-                </h1>
-                <p className="text-muted-foreground text-sm lg:text-base">
-                  Explore memorable moments • {sortedGalleries.length} galleries
-                </p>
+            </div>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold">
+                    Photo Gallery
+                  </h1>
+                  <p className="text-muted-foreground text-sm lg:text-base">
+                    Explore memorable moments •{" "}
+                    {paginationInfo?.total || sortedGalleries.length} galleries
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Gallery Grid */}
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading galleries...</p>
-            </div>
-          ) : sortedGalleries.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                <ImageIcon className="w-12 h-12 text-gray-400" />
+            {/* Gallery Grid */}
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading galleries...</p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No galleries found
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {canCreateGallery
-                  ? "Create your first gallery to get started."
-                  : "Check back later for gallery updates."}
-              </p>
-              {canCreateGallery && (
-                <Button onClick={() => setShowCreateDialog(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Gallery
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div
-              className={`grid gap-4 lg:gap-6 ${
-                viewMode === "grid"
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                  : "grid-cols-1"
-              }`}
-            >
-              {sortedGalleries.map((gallery) => (
-                <Card
-                  key={gallery._id}
-                  className={`overflow-hidden hover:shadow-xl transition-shadow duration-300 ${
-                    viewMode === "list"
-                      ? "flex flex-col sm:flex-row"
-                      : "flex flex-col"
-                  }`}
-                >
-                  <div
-                    className={`${
+            ) : sortedGalleries.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <ImageIcon className="w-12 h-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No galleries found
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {canCreateGallery
+                    ? "Create your first gallery to get started."
+                    : "Check back later for gallery updates."}
+                </p>
+                {canCreateGallery && (
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Gallery
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div
+                className={`grid gap-4 lg:gap-6 ${
+                  viewMode === "grid"
+                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                    : "grid-cols-1"
+                }`}
+              >
+                {sortedGalleries.map((gallery) => (
+                  <Card
+                    key={gallery._id}
+                    className={`overflow-hidden hover:shadow-xl transition-shadow duration-300 ${
                       viewMode === "list"
-                        ? "sm:w-48 sm:h-32 flex-shrink-0"
-                        : "aspect-w-16 aspect-h-9"
+                        ? "flex flex-col sm:flex-row"
+                        : "flex flex-col"
                     }`}
                   >
-                    <img
-                      src={getImageUrl(gallery.images[0])}
-                      alt={gallery.title}
+                    <div
                       className={`${
                         viewMode === "list"
-                          ? "w-full h-full object-cover"
-                          : "w-full h-48 lg:h-64 object-cover"
+                          ? "sm:w-48 sm:h-32 flex-shrink-0"
+                          : "aspect-w-16 aspect-h-9"
                       }`}
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=";
-                      }}
-                    />
-                  </div>
-                  <CardContent
-                    className={`${
-                      viewMode === "list" ? "p-4 lg:p-6 flex-1" : "p-4 lg:p-6"
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-2">
-                      <h3 className="text-base lg:text-xl font-semibold text-gray-900 line-clamp-2">
-                        {gallery.title}
-                      </h3>
-                      <Badge
-                        variant="secondary"
-                        className="flex-shrink-0 text-xs"
-                      >
-                        {gallery.category}
-                      </Badge>
+                    >
+                      <img
+                        src={getImageUrl(gallery.images[0])}
+                        alt={gallery.title}
+                        className={`${
+                          viewMode === "list"
+                            ? "w-full h-full object-cover"
+                            : "w-full h-48 lg:h-64 object-cover"
+                        }`}
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=";
+                        }}
+                      />
                     </div>
-
-                    {gallery.description && (
-                      <p className="text-xs lg:text-sm text-gray-600 mb-4 line-clamp-3">
-                        {gallery.description}
-                      </p>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs lg:text-sm text-gray-500 mb-4 gap-2">
-                      <div className="flex items-center">
-                        <Calendar className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
-                        {new Date(gallery.createdAt).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center">
-                        <User className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
-                        {gallery.createdBy?.firstName}{" "}
-                        {gallery.createdBy?.lastName}
-                      </div>
-                    </div>
-
-                    {gallery.tags && gallery.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {gallery.tags.slice(0, 3).map((tag, index) => (
+                    <CardContent
+                      className={`${
+                        viewMode === "list" ? "p-4 lg:p-6 flex-1" : "p-4 lg:p-6"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-2">
+                        <h3 className="text-base lg:text-xl font-semibold text-gray-900 line-clamp-2">
+                          {gallery.title}
+                        </h3>
+                        <div className="flex items-center gap-2">
                           <Badge
-                            key={index}
-                            variant="outline"
-                            className="text-xs"
+                            variant="secondary"
+                            className="flex-shrink-0 text-xs"
                           >
-                            <Tag className="w-3 h-3 mr-1" />
-                            {tag}
+                            {gallery.category}
                           </Badge>
-                        ))}
-                        {gallery.tags.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{gallery.tags.length - 3} more
-                          </Badge>
-                        )}
+                          <GalleryActionMenu
+                            gallery={gallery}
+                            currentUser={user}
+                            onEdit={() => handleEditGallery(gallery)}
+                            onDelete={() => handleDeleteGallery(gallery)}
+                          />
+                        </div>
                       </div>
-                    )}
 
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <span className="text-xs lg:text-sm text-gray-500">
-                        {gallery.images.length} image
-                        {gallery.images.length !== 1 ? "s" : ""}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewGallery(gallery)}
-                        className="text-xs lg:text-sm"
-                      >
-                        <Eye className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
-                        <span className="hidden sm:inline">View Gallery</span>
-                        <span className="sm:hidden">View</span>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                      {gallery.description && (
+                        <p className="text-xs lg:text-sm text-gray-600 mb-4 line-clamp-3">
+                          {gallery.description}
+                        </p>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs lg:text-sm text-gray-500 mb-4 gap-2">
+                        <div className="flex items-center">
+                          <Calendar className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
+                          {new Date(gallery.createdAt).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center">
+                          <User className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
+                          {gallery.createdBy?.firstName}{" "}
+                          {gallery.createdBy?.lastName}
+                        </div>
+                      </div>
+
+                      {gallery.tags && gallery.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-4">
+                          {gallery.tags.slice(0, 3).map((tag, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              <Tag className="w-3 h-3 mr-1" />
+                              {tag}
+                            </Badge>
+                          ))}
+                          {gallery.tags.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{gallery.tags.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <span className="text-xs lg:text-sm text-gray-500">
+                          {gallery.images.length} image
+                          {gallery.images.length !== 1 ? "s" : ""}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewGallery(gallery)}
+                          className="text-xs lg:text-sm"
+                        >
+                          <Eye className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
+                          <span className="hidden sm:inline">View Gallery</span>
+                          <span className="sm:hidden">View</span>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                className="mt-6"
+              />
+            )}
+          </div>
         </div>
+      </div>
 
-        {/* Create Gallery Dialog */}
+      {/* Dialogs */}
+      <>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -872,11 +900,17 @@ const Gallery: React.FC = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                    {galleryCategories.length === 0 ? (
+                      <SelectItem value="__noopts__" disabled>
+                        No categories available
                       </SelectItem>
-                    ))}
+                    ) : (
+                      galleryCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -919,8 +953,15 @@ const Gallery: React.FC = () => {
                       "border-blue-400",
                       "bg-blue-50"
                     );
+                    const allowedTypes = [
+                      "image/jpeg",
+                      "image/jpg",
+                      "image/png",
+                      "image/gif",
+                      "image/webp",
+                    ];
                     const files = Array.from(e.dataTransfer.files).filter(
-                      (file) => file.type.startsWith("image/")
+                      (file) => allowedTypes.includes(file.type.toLowerCase())
                     );
                     if (files.length > 0) {
                       setSelectedImages(files);
@@ -928,6 +969,13 @@ const Gallery: React.FC = () => {
                         URL.createObjectURL(file)
                       );
                       setImagePreviews(previews);
+                    } else {
+                      toast({
+                        title: "Invalid File Type",
+                        description:
+                          "Please drop only image files (JPEG, PNG, GIF, WebP)",
+                        variant: "destructive",
+                      });
                     }
                   }}
                 >
@@ -1086,20 +1134,28 @@ const Gallery: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {selectedGallery.images.map((imageUrl, index) => (
                     <div key={index} className="relative group">
-                      <img
-                        src={getImageUrl(imageUrl)}
-                        alt={`${selectedGallery.title} - Image ${index + 1}`}
-                        className="w-full h-64 object-cover rounded-lg border shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
+                      <div
+                        className="aspect-video overflow-hidden rounded-lg bg-gray-100 relative cursor-pointer"
                         onClick={() => {
-                          // Open image in new tab for full view
-                          window.open(getImageUrl(imageUrl), "_blank");
+                          setSelectedImageUrl(getImageUrl(imageUrl));
+                          setSelectedImageIndex(index);
+                          setIsImageModalOpen(true);
                         }}
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=";
-                        }}
-                      />
-                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                      >
+                        <img
+                          src={getImageUrl(imageUrl)}
+                          alt={`${selectedGallery.title} - Image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=";
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center pointer-events-none">
+                          <Maximize2 className="w-8 h-8 sm:w-10 sm:h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded z-10 pointer-events-none">
                         {index + 1}
                       </div>
                     </div>
@@ -1109,8 +1165,97 @@ const Gallery: React.FC = () => {
             )}
           </DialogContent>
         </Dialog>
-      </div>
 
+        {/* Edit Gallery Dialog */}
+        <EditGalleryDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          gallery={selectedGallery}
+          onSuccess={handleEditSuccess}
+        />
+
+        {/* Delete Gallery Dialog */}
+        <DeleteGalleryDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          gallery={selectedGallery}
+          onSuccess={handleDeleteSuccess}
+        />
+
+        {/* Image Modal */}
+        {selectedImageUrl && (
+          <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+            <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 overflow-hidden">
+              <div className="relative w-full h-full flex items-center justify-center bg-black min-h-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
+                  onClick={() => setIsImageModalOpen(false)}
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+                {selectedGallery && selectedGallery.images.length > 1 && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20"
+                      onClick={() => {
+                        const prevIndex =
+                          selectedImageIndex > 0
+                            ? selectedImageIndex - 1
+                            : selectedGallery.images.length - 1;
+                        setSelectedImageIndex(prevIndex);
+                        setSelectedImageUrl(
+                          getImageUrl(selectedGallery.images[prevIndex])
+                        );
+                      }}
+                      disabled={selectedGallery.images.length <= 1}
+                    >
+                      <ArrowLeft className="h-6 w-6" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20"
+                      onClick={() => {
+                        const nextIndex =
+                          selectedImageIndex < selectedGallery.images.length - 1
+                            ? selectedImageIndex + 1
+                            : 0;
+                        setSelectedImageIndex(nextIndex);
+                        setSelectedImageUrl(
+                          getImageUrl(selectedGallery.images[nextIndex])
+                        );
+                      }}
+                      disabled={selectedGallery.images.length <= 1}
+                    >
+                      <ArrowLeft className="h-6 w-6 rotate-180" />
+                    </Button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-black bg-opacity-70 text-white text-sm px-4 py-2 rounded">
+                      Image {selectedImageIndex + 1} of{" "}
+                      {selectedGallery.images.length}
+                    </div>
+                  </>
+                )}
+                <img
+                  src={selectedImageUrl}
+                  alt={
+                    selectedGallery
+                      ? `${selectedGallery.title} - Image ${
+                          selectedImageIndex + 1
+                        }`
+                      : "Gallery image"
+                  }
+                  className="max-w-full max-h-full w-auto h-auto object-contain"
+                  style={{ maxHeight: "calc(95vh - 2rem)" }}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </>
       <Footer />
     </div>
   );

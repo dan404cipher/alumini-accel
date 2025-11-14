@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Settings } from "lucide-react";
+import { ArrowLeft, Users, Settings, Edit, Trash2 } from "lucide-react";
 import { Community } from "./types";
 
 interface CommunityDetailHeaderProps {
@@ -10,6 +10,8 @@ interface CommunityDetailHeaderProps {
   isAdmin: boolean;
   onJoinCommunity: () => void;
   onLeaveCommunity: () => void;
+  onEditCommunity?: () => void;
+  onDeleteCommunity?: () => void;
 }
 
 const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
@@ -18,6 +20,8 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
   isAdmin,
   onJoinCommunity,
   onLeaveCommunity,
+  onEditCommunity,
+  onDeleteCommunity,
 }) => {
   const navigate = useNavigate();
 
@@ -76,7 +80,7 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
 
             <div className="flex items-center gap-4 min-w-0 flex-1">
               <div className="relative">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex-shrink-0 shadow-lg">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex items-center justify-center bg-gray-100 flex-shrink-0 shadow-lg">
                   {community?.logo ? (
                     <img
                       src={community.logo}
@@ -84,7 +88,7 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-white text-lg sm:text-xl font-bold">
+                    <span className="text-gray-600 text-lg sm:text-xl font-bold">
                       {getCategoryIcon(community?.category)}
                     </span>
                   )}
@@ -104,7 +108,7 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-3 flex-shrink-0">
-            {isMember ? (
+            {isMember && !isAdmin ? (
               <Button
                 variant="outline"
                 onClick={onLeaveCommunity}
@@ -115,7 +119,7 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
                 <span className="hidden sm:inline">Leave</span>
                 <span className="sm:hidden">Leave</span>
               </Button>
-            ) : (
+            ) : !isMember && !isAdmin ? (
               <Button
                 onClick={onJoinCommunity}
                 size="sm"
@@ -125,17 +129,28 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
                 <span className="hidden sm:inline">Join Community</span>
                 <span className="sm:hidden">Join</span>
               </Button>
-            )}
+            ) : null}
             {isAdmin && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white/80 hover:bg-white border-gray-300 text-gray-700 hover:text-gray-900 transition-all"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Manage</span>
-                <span className="sm:hidden">Manage</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onEditCommunity}
+                  className="bg-white/80 hover:bg-white border-gray-300 text-gray-700 hover:text-gray-900 transition-all"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Edit</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDeleteCommunity}
+                  className="bg-white/80 hover:bg-white border-red-300 text-red-700 hover:text-red-900 hover:border-red-400 transition-all"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Delete</span>
+                </Button>
+              </div>
             )}
           </div>
         </div>

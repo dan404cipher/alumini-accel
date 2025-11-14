@@ -24,6 +24,15 @@ router.post(
   asyncHandler(donationController.createDonation)
 );
 
+// @route   POST /api/v1/donations/verify-payment
+// @desc    Verify donation payment
+// @access  Private
+router.post(
+  "/verify-payment",
+  authenticateToken,
+  asyncHandler(donationController.verifyDonationPayment)
+);
+
 // @route   GET /api/v1/donations/my-donations
 // @desc    Get user's donations
 // @access  Private

@@ -182,9 +182,6 @@ const Connections = () => {
     action: string,
     connectionId: string
   ) => {
-    console.log(
-      `Handling connection action: ${action} for connection: ${connectionId}`
-    );
     try {
       let response;
       switch (action) {
@@ -503,15 +500,7 @@ const Connections = () => {
                             <Link
                               to={`/alumni/${user._id}`}
                               onClick={() => {
-                                console.log(
-                                  "Profile link clicked for user:",
-                                  user
-                                );
-                                console.log("User _id being passed:", user._id);
-                                console.log(
-                                  "Generated URL:",
-                                  `/alumni/${user._id}`
-                                );
+                                // Navigate to user profile
                               }}
                               className="hover:text-blue-600 transition-colors"
                             >
@@ -607,15 +596,7 @@ const Connections = () => {
                             <Link
                               to={`/alumni/${user._id}`}
                               onClick={() => {
-                                console.log(
-                                  "Profile link clicked for user:",
-                                  user
-                                );
-                                console.log("User _id being passed:", user._id);
-                                console.log(
-                                  "Generated URL:",
-                                  `/alumni/${user._id}`
-                                );
+                                // Navigate to user profile
                               }}
                               className="hover:text-blue-600 transition-colors"
                             >
@@ -706,15 +687,7 @@ const Connections = () => {
                             <Link
                               to={`/alumni/${user._id}`}
                               onClick={() => {
-                                console.log(
-                                  "Profile link clicked for user:",
-                                  user
-                                );
-                                console.log("User _id being passed:", user._id);
-                                console.log(
-                                  "Generated URL:",
-                                  `/alumni/${user._id}`
-                                );
+                                // Navigate to user profile
                               }}
                               className="hover:text-blue-600 transition-colors"
                             >
@@ -795,15 +768,7 @@ const Connections = () => {
                             <Link
                               to={`/alumni/${user._id}`}
                               onClick={() => {
-                                console.log(
-                                  "Profile link clicked for user:",
-                                  user
-                                );
-                                console.log("User _id being passed:", user._id);
-                                console.log(
-                                  "Generated URL:",
-                                  `/alumni/${user._id}`
-                                );
+                                // Navigate to user profile
                               }}
                               className="hover:text-blue-600 transition-colors"
                             >

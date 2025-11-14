@@ -8,9 +8,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  CreditCard,
-  Smartphone,
-  Building2,
   CheckCircle,
   Eye,
   EyeOff,
@@ -27,6 +24,7 @@ import {
 } from "../types";
 import { useToast } from "@/hooks/use-toast";
 import { donationApi, CreateDonationData } from "../../../services/donationApi";
+import RazorpayService from "../../../services/razorpayService";
 
 interface FormStep {
   id: string;
@@ -37,53 +35,9 @@ interface FormStep {
 const steps: FormStep[] = [
   { id: "amount", title: "Amount", description: "Choose donation amount" },
   { id: "donor", title: "Details", description: "Your information" },
-  { id: "payment", title: "Payment", description: "Payment method" },
   { id: "review", title: "Review", description: "Confirm donation" },
   { id: "receipt", title: "Receipt", description: "Download receipt" },
 ];
-
-const PaymentMethodCard: React.FC<{
-  value: PaymentMethod;
-  checked: boolean;
-  onChange: (value: PaymentMethod) => void;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}> = ({ value, checked, onChange, icon, title, description }) => (
-  <label
-    className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
-      checked
-        ? "border-indigo-500 bg-indigo-50"
-        : "border-gray-300 hover:bg-gray-50"
-    }`}
-    onClick={() => onChange(value)}
-  >
-    <input
-      type="radio"
-      name="paymentMethod"
-      value={value}
-      checked={checked}
-      onChange={() => onChange(value)}
-      className="sr-only"
-    />
-    <div
-      className={`p-2 rounded-lg ${checked ? "bg-indigo-100" : "bg-gray-100"}`}
-    >
-      {icon}
-    </div>
-    <div className="flex-1">
-      <div
-        className={`font-medium ${
-          checked ? "text-indigo-900" : "text-gray-900"
-        }`}
-      >
-        {title}
-      </div>
-      <div className="text-sm text-gray-600 mt-1">{description}</div>
-    </div>
-    {checked && <CheckCircle className="w-5 h-5 text-indigo-600 mt-1" />}
-  </label>
-);
 
 const EnhancedDonationModal: React.FC<DonationModalProps> = ({
   open,
@@ -114,7 +68,7 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
       anonymous: false,
     },
     paymentDetails: {
-      method: "UPI",
+      method: "Razorpay",
       upiId: "",
     },
     taxDeductible: true,
@@ -167,20 +121,8 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
         }
         break;
 
-      case 2: // Payment
-        if (
-          formData.paymentDetails.method === "UPI" &&
-          !formData.paymentDetails.upiId?.trim()
-        ) {
-          newErrors.upiId = "UPI ID is required";
-        } else if (
-          formData.paymentDetails.method === "UPI" &&
-          !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/.test(
-            formData.paymentDetails.upiId || ""
-          )
-        ) {
-          newErrors.upiId = "Please enter a valid UPI ID";
-        }
+      case 2: // Review (previously step 3)
+        // No additional validation needed for review step
         break;
     }
 
@@ -203,7 +145,91 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
 
     setLoading(true);
     try {
-      // Create donation data for API
+      // Handle Razorpay payment differently
+      if (formData.paymentDetails.method === "Razorpay") {
+        const razorpayService = RazorpayService.getInstance();
+
+        await razorpayService.processDonationPayment(
+          formData.amount,
+          formData.donorInfo,
+          campaign?.title || "Donation Campaign",
+          async (paymentData) => {
+            // Payment successful - create donation record
+            try {
+              const donationData: CreateDonationData = {
+                campaignId: campaign?._id || campaign?.title || "",
+                amount: formData.amount,
+                currency: "INR",
+                paymentMethod: formData.paymentDetails.method,
+                donationType: formData.recurring ? "recurring" : "one-time",
+                message: formData.message || `Donation for ${campaign?.title}`,
+                anonymous: formData.donorInfo.anonymous,
+                donorName: formData.donorInfo.anonymous
+                  ? "Anonymous Donor"
+                  : `${formData.donorInfo.firstName} ${formData.donorInfo.lastName}`,
+                donorEmail: formData.donorInfo.email,
+                donorPhone: formData.donorInfo.phone,
+                donorAddress: formData.donorInfo.address,
+                taxDeductible: formData.taxDeductible,
+                // Add Razorpay payment details
+                paymentId: paymentData.paymentId,
+                orderId: paymentData.orderId,
+                signature: paymentData.signature,
+              };
+
+              // Create donation record with payment verification
+              const response = await donationApi.createDonation(donationData);
+
+              // Generate receipt
+              const receipt: DonationReceipt = {
+                receiptId: response.data?.receiptId || `RCP-${Date.now()}`,
+                donorName: formData.donorInfo.anonymous
+                  ? "Anonymous Donor"
+                  : `${formData.donorInfo.firstName} ${formData.donorInfo.lastName}`,
+                amount: formData.amount,
+                campaignTitle: campaign?.title || "",
+                date: new Date().toISOString(),
+                paymentMethod: formData.paymentDetails.method,
+                taxDeductible: formData.taxDeductible,
+                transactionId: paymentData.paymentId,
+              };
+
+              setGeneratedReceipt(receipt);
+              setCurrentStep(3); // Go to receipt step
+
+              toast({
+                title: "Payment Successful!",
+                description: "Thank you for your generous contribution.",
+                duration: 5000,
+              });
+            } catch (error: any) {
+              console.error("Error creating donation record:", error);
+              toast({
+                title: "Payment Successful",
+                description:
+                  "Payment completed but there was an issue saving the record. Please contact support.",
+                variant: "destructive",
+                duration: 5000,
+              });
+            }
+          },
+          (error) => {
+            console.error("Razorpay payment error:", error);
+            toast({
+              title: "Payment Failed",
+              description:
+                error.message ||
+                "Payment could not be processed. Please try again.",
+              variant: "destructive",
+              duration: 5000,
+            });
+            setLoading(false);
+          }
+        );
+        return;
+      }
+
+      // Handle other payment methods (existing logic)
       const donationData: CreateDonationData = {
         campaignId: campaign?._id || campaign?.title || "",
         amount: formData.amount,
@@ -212,7 +238,6 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
         donationType: formData.recurring ? "recurring" : "one-time",
         message: formData.message || `Donation for ${campaign?.title}`,
         anonymous: formData.donorInfo.anonymous,
-        // Add donor information
         donorName: formData.donorInfo.anonymous
           ? "Anonymous Donor"
           : `${formData.donorInfo.firstName} ${formData.donorInfo.lastName}`,
@@ -222,10 +247,8 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
         taxDeductible: formData.taxDeductible,
       };
 
-      // Call the donation API
       const response = await donationApi.createDonation(donationData);
 
-      // Generate receipt with actual transaction data
       const receipt: DonationReceipt = {
         receiptId: response.data?.receiptId || `RCP-${Date.now()}`,
         donorName: formData.donorInfo.anonymous
@@ -240,7 +263,7 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
       };
 
       setGeneratedReceipt(receipt);
-      setCurrentStep(4); // Go to receipt step
+      setCurrentStep(3);
 
       toast({
         title: "Donation Successful!",
@@ -773,181 +796,8 @@ Thank you for your generous contribution!
             </div>
           )}
 
-          {/* Step 2: Payment Method */}
+          {/* Step 2: Review */}
           {currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                  Payment Method
-                </h4>
-
-                <div className="space-y-3">
-                  <PaymentMethodCard
-                    value="UPI"
-                    checked={formData.paymentDetails.method === "UPI"}
-                    onChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        paymentDetails: {
-                          ...prev.paymentDetails,
-                          method: value,
-                        },
-                      }))
-                    }
-                    icon={<Smartphone className="w-5 h-5 text-blue-600" />}
-                    title="UPI"
-                    description="Pay using UPI ID or QR code"
-                  />
-
-                  <PaymentMethodCard
-                    value="Credit Card"
-                    checked={formData.paymentDetails.method === "Credit Card"}
-                    onChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        paymentDetails: {
-                          ...prev.paymentDetails,
-                          method: value,
-                        },
-                      }))
-                    }
-                    icon={<CreditCard className="w-5 h-5 text-green-600" />}
-                    title="Credit/Debit Card"
-                    description="Visa, Mastercard, RuPay"
-                  />
-
-                  <PaymentMethodCard
-                    value="Bank Transfer"
-                    checked={formData.paymentDetails.method === "Bank Transfer"}
-                    onChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        paymentDetails: {
-                          ...prev.paymentDetails,
-                          method: value,
-                        },
-                      }))
-                    }
-                    icon={<Building2 className="w-5 h-5 text-purple-600" />}
-                    title="Net Banking"
-                    description="Direct bank transfer"
-                  />
-
-                  <PaymentMethodCard
-                    value="UPI QR"
-                    checked={formData.paymentDetails.method === "UPI QR"}
-                    onChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        paymentDetails: {
-                          ...prev.paymentDetails,
-                          method: value,
-                        },
-                      }))
-                    }
-                    icon={<Smartphone className="w-5 h-5 text-orange-600" />}
-                    title="UPI QR Code"
-                    description="Scan QR code to pay"
-                  />
-                </div>
-
-                {/* UPI ID Input */}
-                {formData.paymentDetails.method === "UPI" && (
-                  <div className="mt-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      UPI ID *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.paymentDetails.upiId}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          paymentDetails: {
-                            ...prev.paymentDetails,
-                            upiId: e.target.value,
-                          },
-                        }))
-                      }
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                        errors.upiId ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="Enter UPI ID (e.g., user@paytm)"
-                    />
-                    {errors.upiId && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.upiId}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Recurring Donation */}
-                <div className="mt-6">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.recurring}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          recurring: e.target.checked,
-                        }))
-                      }
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Make this a recurring donation
-                    </span>
-                  </label>
-
-                  {formData.recurring && (
-                    <div className="mt-3 ml-7">
-                      <select
-                        value={formData.recurringFrequency}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            recurringFrequency: e.target.value as
-                              | "monthly"
-                              | "quarterly"
-                              | "yearly",
-                          }))
-                        }
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      >
-                        <option value="monthly">Monthly</option>
-                        <option value="quarterly">Quarterly</option>
-                        <option value="yearly">Yearly</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                {/* Donation Message */}
-                <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Message (Optional)
-                  </label>
-                  <textarea
-                    value={formData.message}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        message: e.target.value,
-                      }))
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Leave a message for the campaign organizer"
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Review */}
-          {currentStep === 3 && (
             <div className="space-y-6">
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1032,8 +882,8 @@ Thank you for your generous contribution!
             </div>
           )}
 
-          {/* Step 4: Receipt */}
-          {currentStep === 4 && generatedReceipt && (
+          {/* Step 3: Receipt */}
+          {currentStep === 3 && generatedReceipt && (
             <div className="space-y-6">
               <div className="text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -1141,14 +991,14 @@ Thank you for your generous contribution!
               Previous
             </button>
 
-            {currentStep < 3 ? (
+            {currentStep < 2 ? (
               <button
                 onClick={handleNext}
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
               >
                 Next
               </button>
-            ) : currentStep === 3 ? (
+            ) : currentStep === 2 ? (
               <button
                 onClick={handleSubmit}
                 disabled={loading}
@@ -1182,10 +1032,10 @@ Thank you for your generous contribution!
           <p className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
             Secure payment powered by{" "}
             <a
-              href="https://www.cashfree.com/"
+              href="https://razorpay.com/"
               className="text-blue-600 hover:underline inline-flex items-center gap-1"
             >
-              Cashfree <ExternalLink size={12} />
+              Razorpay <ExternalLink size={12} />
             </a>
           </p>
         </div>

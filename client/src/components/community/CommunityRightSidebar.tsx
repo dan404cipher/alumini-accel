@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import {
   TrendingUp,
   Hash,
@@ -11,8 +12,10 @@ import {
   Users,
   MessageCircle,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { Community, TrendingPost, PopularTag } from "./types";
+import { communityAPI } from "@/lib/api";
 
 interface CommunityRightSidebarProps {
   community: Community | null;
@@ -33,47 +36,88 @@ const CommunityRightSidebar: React.FC<CommunityRightSidebarProps> = ({
   onCreatePost,
   onTagClick,
 }) => {
-  // Mock data for trending posts and popular tags
-  const trendingPosts: TrendingPost[] = [
-    {
-      id: "1",
-      title: "Best practices for React development",
-      likes: 24,
-      comments: 8,
-      views: 156,
-      author: "John Doe",
-      timeAgo: "2h ago",
-    },
-    {
-      id: "2",
-      title: "Career advice for new graduates",
-      likes: 18,
-      comments: 12,
-      views: 203,
-      author: "Jane Smith",
-      timeAgo: "4h ago",
-    },
-    {
-      id: "3",
-      title: "Networking tips for alumni events",
-      likes: 15,
-      comments: 6,
-      views: 98,
-      author: "Mike Johnson",
-      timeAgo: "6h ago",
-    },
-  ];
+  const { toast } = useToast();
+  const [trendingPosts, setTrendingPosts] = useState<TrendingPost[]>([]);
+  const [popularTags, setPopularTags] = useState<PopularTag[]>([]);
+  const [loadingTrending, setLoadingTrending] = useState(false);
+  const [loadingTags, setLoadingTags] = useState(false);
 
-  const popularTags: PopularTag[] = [
-    { name: "career", count: 45 },
-    { name: "networking", count: 32 },
-    { name: "job-opportunities", count: 28 },
-    { name: "mentorship", count: 22 },
-    { name: "events", count: 18 },
-    { name: "alumni", count: 15 },
-    { name: "industry", count: 12 },
-    { name: "startup", count: 10 },
-  ];
+  const fetchTrendingPosts = useCallback(async () => {
+    if (!community?._id) return;
+
+    setLoadingTrending(true);
+    try {
+      const response = await communityAPI.getTrendingPosts(community._id, 5);
+      if (response.success && Array.isArray(response.data)) {
+        // Transform backend data to match frontend interface
+        const transformedPosts = response.data.map((post: any) => ({
+          id: post._id,
+          title: post.title,
+          likes: post.likeCount || 0,
+          comments: post.commentCount || 0,
+          views: post.viewCount || 0,
+          author:
+            `${post.authorId?.firstName || ""} ${
+              post.authorId?.lastName || ""
+            }`.trim() || "Unknown",
+          timeAgo: formatTimeAgo(post.createdAt),
+        }));
+        setTrendingPosts(transformedPosts);
+      }
+    } catch (error) {
+      console.error("Error fetching trending posts:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load trending posts",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTrending(false);
+    }
+  }, [community?._id, toast]);
+
+  const fetchPopularTags = useCallback(async () => {
+    if (!community?._id) return;
+
+    setLoadingTags(true);
+    try {
+      const response = await communityAPI.getPopularTags(community._id, 8);
+      if (response.success && Array.isArray(response.data)) {
+        setPopularTags(response.data as PopularTag[]);
+      }
+    } catch (error) {
+      console.error("Error fetching popular tags:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load popular tags",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTags(false);
+    }
+  }, [community?._id, toast]);
+
+  // Fetch trending posts and popular tags
+  useEffect(() => {
+    if (community?._id) {
+      fetchTrendingPosts();
+      fetchPopularTags();
+    }
+  }, [community?._id, fetchTrendingPosts, fetchPopularTags]);
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 2592000)
+      return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+  };
 
   return (
     <div className="hidden xl:block w-[28rem] flex-shrink-0 bg-gray-50 border-l border-gray-200 h-full">
@@ -88,30 +132,42 @@ const CommunityRightSidebar: React.FC<CommunityRightSidebarProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {trendingPosts.map((post) => (
-                <div key={post.id} className="space-y-1">
-                  <h4 className="text-sm font-medium text-gray-900 line-clamp-2">
-                    {post.title}
-                  </h4>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <span>{post.likes}</span>
-                      <span>likes</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span>{post.comments}</span>
-                      <span>comments</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span>{post.views}</span>
-                      <span>views</span>
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    by {post.author} • {post.timeAgo}
-                  </p>
+              {loadingTrending ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  <span className="ml-2 text-sm text-gray-500">Loading...</span>
                 </div>
-              ))}
+              ) : trendingPosts.length > 0 ? (
+                trendingPosts.map((post) => (
+                  <div key={post.id} className="space-y-1">
+                    <h4 className="text-sm font-medium text-gray-900 line-clamp-2">
+                      {post.title}
+                    </h4>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <span>{post.likes}</span>
+                        <span>likes</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span>{post.comments}</span>
+                        <span>comments</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span>{post.views}</span>
+                        <span>views</span>
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      by {post.author} • {post.timeAgo}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No trending posts yet</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -124,18 +180,30 @@ const CommunityRightSidebar: React.FC<CommunityRightSidebarProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {popularTags.map((tag) => (
-                  <Badge
-                    key={tag.name}
-                    variant="secondary"
-                    className="cursor-pointer hover:bg-blue-100 text-xs"
-                    onClick={() => onTagClick(tag.name)}
-                  >
-                    {tag.name} ({tag.count})
-                  </Badge>
-                ))}
-              </div>
+              {loadingTags ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                </div>
+              ) : popularTags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {popularTags.map((tag) => (
+                    <Badge
+                      key={tag.name}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-blue-100 text-xs"
+                      onClick={() => onTagClick(tag.name)}
+                    >
+                      {tag.name} ({tag.count})
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <Hash className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No tags yet</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -275,7 +343,7 @@ const CommunityRightSidebar: React.FC<CommunityRightSidebarProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3">
-              {isMember ? (
+              {isMember && !isAdmin ? (
                 <>
                   <Button
                     variant="outline"
@@ -298,7 +366,7 @@ const CommunityRightSidebar: React.FC<CommunityRightSidebarProps> = ({
                     <span className="sm:hidden">Leave</span>
                   </Button>
                 </>
-              ) : (
+              ) : !isMember && !isAdmin ? (
                 <Button
                   variant="default"
                   size="sm"
@@ -309,7 +377,18 @@ const CommunityRightSidebar: React.FC<CommunityRightSidebarProps> = ({
                   <span className="hidden sm:inline">Join Community</span>
                   <span className="sm:hidden">Join</span>
                 </Button>
-              )}
+              ) : isAdmin ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start text-xs sm:text-sm"
+                  onClick={onCreatePost}
+                >
+                  <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Create Post</span>
+                  <span className="sm:hidden">Create</span>
+                </Button>
+              ) : null}
               {isAdmin && (
                 <Button
                   variant="outline"

@@ -16,9 +16,25 @@ const eventSchema = new Schema<IEvent>(
       maxlength: [2000, "Description cannot exceed 2000 characters"],
     },
     type: {
-      type: String,
-      enum: Object.values(EventType),
+      type: Schema.Types.Mixed, // Can be String (enum or stringified ObjectId) or ObjectId (custom)
       required: true,
+      validate: {
+        validator: function (value: any) {
+          if (typeof value === "string") {
+            // Accept stringified ObjectId or enum string
+            if (mongoose.Types.ObjectId.isValid(value)) return true;
+            return Object.values(EventType).includes(value as EventType);
+          }
+          // If it's an ObjectId, it's valid
+          return mongoose.Types.ObjectId.isValid(value);
+        },
+        message: "Event type must be a valid enum value or ObjectId",
+      },
+    },
+    customEventType: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
     },
     startDate: {
       type: Date,
@@ -124,8 +140,38 @@ const eventSchema = new Schema<IEvent>(
         },
         status: {
           type: String,
-          enum: ["registered", "attended", "cancelled"],
+          enum: ["registered", "attended", "cancelled", "pending_payment"],
           default: "registered",
+        },
+        // Additional registration details
+        phone: {
+          type: String,
+          trim: true,
+        },
+        dietaryRequirements: {
+          type: String,
+          trim: true,
+        },
+        emergencyContact: {
+          type: String,
+          trim: true,
+        },
+        additionalNotes: {
+          type: String,
+          trim: true,
+        },
+        amountPaid: {
+          type: Number,
+          default: 0,
+        },
+        paymentStatus: {
+          type: String,
+          enum: ["free", "pending", "successful", "failed"],
+          default: "free",
+        },
+        reminderSent: {
+          type: Boolean,
+          default: false,
         },
       },
     ],
@@ -203,7 +249,7 @@ eventSchema.virtual("organizerDetails", {
 });
 
 // Virtual for attendees count
-eventSchema.virtual("attendeesCount").get(function () {
+eventSchema.virtual("totalAttendees").get(function () {
   return this.attendees.length;
 });
 
@@ -305,6 +351,23 @@ eventSchema.statics.findByLocation = function (location: string) {
     location: { $regex: location, $options: "i" },
   }).populate("organizer", "firstName lastName email profilePicture");
 };
+
+// Middleware to sync currentAttendees with attendees.length before saving
+eventSchema.pre("save", function (next) {
+  if (this.isModified("attendees")) {
+    // Count only confirmed registrations
+    try {
+      const confirmedCount = Array.isArray(this.attendees)
+        ? this.attendees.filter((a: any) => a && a.status === "registered")
+            .length
+        : 0;
+      this.currentAttendees = confirmedCount;
+    } catch (_err) {
+      this.currentAttendees = 0;
+    }
+  }
+  next();
+});
 
 // Ensure virtual fields are serialized
 eventSchema.set("toJSON", { virtuals: true });

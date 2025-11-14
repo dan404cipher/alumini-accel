@@ -23,9 +23,6 @@ import {
   FileText,
   Shield,
   UserPlus,
-  LayoutDashboard,
-  GraduationCap,
-  UserCheck,
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,7 +34,7 @@ import AlumniManagement from "../AlumniManagement";
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("colleges");
   const [colleges, setColleges] = useState([]);
   const [loadingColleges, setLoadingColleges] = useState(false);
   const [recentUsers, setRecentUsers] = useState([]);
@@ -265,12 +262,7 @@ const SuperAdminDashboard = () => {
     fetchRecentUsers();
   }, []);
 
-  // Fetch user requests when approvals tab is active
-  useEffect(() => {
-    if (activeTab === "approvals") {
-      fetchPendingUserRequests();
-    }
-  }, [activeTab]);
+  // Approvals tab removed
 
   // Update current time every minute to refresh time display
   useEffect(() => {
@@ -310,9 +302,7 @@ const SuperAdminDashboard = () => {
         status: "pending", // Set to pending for approval
       };
 
-      console.log("Creating admin request with data:", userData);
       const response = await userAPI.createPendingUserRequest(userData);
-      console.log("Admin request creation response:", response);
 
       if (response.success) {
         toast({
@@ -376,9 +366,7 @@ const SuperAdminDashboard = () => {
         status: "pending", // Set to pending for approval
       };
 
-      console.log("Creating HOD request with data:", userData);
       const response = await userAPI.createPendingUserRequest(userData);
-      console.log("HOD request creation response:", response);
 
       if (response.success) {
         toast({
@@ -443,9 +431,7 @@ const SuperAdminDashboard = () => {
         status: "pending", // Set to pending for approval
       };
 
-      console.log("Creating staff request with data:", userData);
       const response = await userAPI.createPendingUserRequest(userData);
-      console.log("Staff request creation response:", response);
 
       if (response.success) {
         toast({
@@ -482,13 +468,11 @@ const SuperAdminDashboard = () => {
 
   // Handler functions for college management
   const handleViewCollege = (collegeId: string) => {
-    console.log("View college:", collegeId);
     // TODO: Implement view college details
     // Could open a modal or navigate to college details page
   };
 
   const handleManageCollege = (collegeId: string) => {
-    console.log("Manage college:", collegeId);
     // TODO: Implement college management
     // Could open a management modal or navigate to college admin panel
   };
@@ -505,20 +489,9 @@ const SuperAdminDashboard = () => {
       setRequestInProgress((prev) => ({ ...prev, userRequests: true }));
       setLoadingUserRequests(true);
       setLastFetchTime((prev) => ({ ...prev, userRequests: now }));
-      console.log("Fetching pending user requests...");
       const response = await userAPI.getPendingUserRequests();
-      console.log("Pending user requests response:", response);
-      console.log("Response data:", response.data);
-      console.log("Response success:", response.success);
-      console.log("Response data type:", typeof response.data);
-      console.log("Response data length:", response.data?.length);
-      console.log(
-        "Response data keys:",
-        response.data ? Object.keys(response.data) : "no keys"
-      );
 
       if (response.success && response.data) {
-        console.log("Setting pending user requests:", response.data);
         setPendingUserRequests(response.data);
 
         // Calculate stats by role
@@ -669,12 +642,6 @@ const SuperAdminDashboard = () => {
   // Sidebar navigation items
   const sidebarItems = [
     {
-      id: "overview",
-      label: "Overview",
-      icon: LayoutDashboard,
-      description: "System statistics and overview",
-    },
-    {
       id: "colleges",
       label: "Colleges",
       icon: Building2,
@@ -693,12 +660,6 @@ const SuperAdminDashboard = () => {
       description: "Create new user accounts",
     },
     {
-      id: "approvals",
-      label: "Approvals",
-      icon: UserCheck,
-      description: "Approve pending user requests",
-    },
-    {
       id: "activity",
       label: "Activity",
       icon: Activity,
@@ -707,24 +668,10 @@ const SuperAdminDashboard = () => {
   ];
 
   return (
-    <div className="flex bg-gray-50 min-h-screen pt-16">
+    <div className="flex bg-gray-50 min-h-screen">
       {/* Left Sidebar */}
-      <div className="w-64 lg:w-64 md:w-56 sm:w-48 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Super Admin
-              </h2>
-              <p className="text-sm text-gray-500">System Management</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="p-4 space-y-2">
+      <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-white shadow-lg border-r border-gray-200 overflow-hidden z-40">
+        <nav className="p-4 space-y-2 h-full overflow-y-auto">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -757,7 +704,7 @@ const SuperAdminDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto bg-gray-50 ml-64 pt-16">
         <div className="p-4 sm:p-6 lg:p-8 min-h-full">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -847,130 +794,6 @@ const SuperAdminDashboard = () => {
           </div>
 
           {/* Main Content Tabs */}
-          {/* Content based on active tab */}
-          {activeTab === "overview" && (
-            <div className="space-y-6">
-              <div className="grid gap-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-semibold">System Overview</h2>
-                  <Button variant="outline">
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    View Analytics
-                  </Button>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">
-                        Total Colleges
-                      </CardTitle>
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {stats.totalColleges}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        +2 from last month
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">
-                        Total Users
-                      </CardTitle>
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {stats.totalUsers.toLocaleString()}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        +12% from last month
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">
-                        Funds Raised
-                      </CardTitle>
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        ${(stats.totalFundsRaised / 1000000).toFixed(1)}M
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        +8% from last month
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">
-                        Active Users
-                      </CardTitle>
-                      <Activity className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {stats.activeUsers.toLocaleString()}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        +5% from last month
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Recent Activity */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
-                    <CardDescription>Latest system activities</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {recentActivity.map((activity) => (
-                        <div
-                          key={activity.id}
-                          className="flex items-center space-x-4"
-                        >
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              activity.type === "success"
-                                ? "bg-green-500"
-                                : activity.type === "warning"
-                                ? "bg-yellow-500"
-                                : "bg-blue-500"
-                            }`}
-                          />
-                          <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium">
-                              {activity.action}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {activity.college}
-                            </p>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {activity.time}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
 
           {activeTab === "colleges" && (
             <div className="space-y-6">

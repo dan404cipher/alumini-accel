@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { Plus, Edit, Trash2, Calendar, Building, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -113,6 +114,14 @@ export const CareerTimelineForm = ({
 
     try {
       setIsLoading(true);
+
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const apiUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
@@ -121,7 +130,7 @@ export const CareerTimelineForm = ({
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -150,6 +159,14 @@ export const CareerTimelineForm = ({
   const onSubmit = async (data: CareerTimelineFormData) => {
     try {
       setIsLoading(true);
+
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const apiUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
@@ -163,7 +180,7 @@ export const CareerTimelineForm = ({
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...data,

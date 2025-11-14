@@ -46,6 +46,9 @@ const RoleBasedDashboard = () => {
     case "alumni":
       return <AlumniPortal />;
 
+    case "student":
+      return <AlumniPortal />;
+
     default:
       // Fallback for unknown roles
       return (

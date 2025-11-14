@@ -20,7 +20,7 @@ if (!fs.existsSync(".env")) {
   console.log(`
 NODE_ENV=development
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/alumni-accel
+MONGODB_URI=mongodbs+srv://Dev-QA-Cluster:dfxNxrvo29C8ffIG@dev-1.evqcqx8.mongodb.net/Alumni-accel?retryWrites=true&w=majority&appName=Dev-1
 JWT_SECRET=your-super-secret-jwt-key-here
 JWT_EXPIRE=30d
 EMAIL_HOST=smtp.gmail.com

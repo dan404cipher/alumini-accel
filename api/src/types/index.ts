@@ -1,6 +1,5 @@
 import { Request } from "express";
-import { Document } from "mongoose";
-import mongoose from "mongoose";
+import mongoose, { Document } from "mongoose";
 
 // Export connection types
 export * from "./connection";
@@ -11,6 +10,7 @@ export enum UserRole {
   COLLEGE_ADMIN = "college_admin", // Manages one specific college
   HOD = "hod", // Head of Department
   STAFF = "staff", // College staff member
+  STUDENT = "student", // Student member
   ALUMNI = "alumni", // Alumni member
 }
 
@@ -166,6 +166,7 @@ export interface IUser extends Document {
   currentCompany?: string;
   currentPosition?: string;
   graduationYear?: number;
+  eligibleForAlumni?: boolean;
   timezone?: string;
   preferences: {
     emailNotifications: boolean;
@@ -177,6 +178,7 @@ export interface IUser extends Document {
   isProfileComplete: boolean;
   profileCompletionPercentage: number;
   savedEvents?: string[];
+  savedJobs?: string[];
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -328,8 +330,10 @@ export interface IJobPost extends Document {
   title: string;
   position: string;
   location: string;
-  type: "full-time" | "part-time" | "internship" | "contract";
-  experience: "entry" | "mid" | "senior" | "lead";
+  type: "full-time" | "part-time" | "internship" | "contract" | string; // Support custom categories
+  customJobType?: string; // Reference to Category model
+  experience: "entry" | "mid" | "senior" | "lead" | string; // Support custom categories
+  customExperience?: string; // Reference to Category model
   industry:
     | "technology"
     | "finance"
@@ -339,13 +343,16 @@ export interface IJobPost extends Document {
     | "marketing"
     | "sales"
     | "operations"
-    | "other";
+    | "other"
+    | string; // Support custom categories
+  customIndustry?: string; // Reference to Category model
   remote: boolean;
   salary?: {
     min: number;
     max: number;
     currency: string;
   };
+  numberOfVacancies: number;
   description: string;
   requiredSkills: string[];
   requirements: string[];
@@ -372,7 +379,8 @@ export interface IEvent extends Document {
   _id: string;
   title: string;
   description: string;
-  type: EventType;
+  type: EventType | string; // Support custom categories (ObjectId as string)
+  customEventType?: string; // Reference to Category model
   startDate: Date;
   endDate: Date;
   location: string;
@@ -402,7 +410,15 @@ export interface IEvent extends Document {
   attendees: Array<{
     userId: string;
     registeredAt: Date;
-    status: "registered" | "attended" | "cancelled";
+    status: "registered" | "attended" | "cancelled" | "pending_payment";
+    // Additional registration details
+    phone?: string;
+    dietaryRequirements?: string;
+    emergencyContact?: string;
+    additionalNotes?: string;
+    amountPaid?: number;
+    paymentStatus?: "free" | "pending" | "successful" | "failed";
+    reminderSent?: boolean;
   }>;
   photos: string[];
   feedback: Array<{
@@ -437,6 +453,10 @@ export interface IMentorship extends Document {
   rejectedAt?: Date;
   rejectionReason?: string;
   completedAt?: Date;
+  cancelledAt?: Date;
+  cancelledBy?: string;
+  duration?: number;
+  notes?: string;
   sessions: Array<{
     _id?: string;
     date: Date;
@@ -750,15 +770,23 @@ export interface EmailTemplate {
 // Notification Interface
 export interface INotification extends Document {
   _id: string;
-  userId: string;
+  userId: mongoose.Types.ObjectId;
   title: string;
   message: string;
   type: "info" | "success" | "warning" | "error";
   isRead: boolean;
   actionUrl?: string;
   metadata?: Record<string, any>;
+  category?: string;
+  priority?: "low" | "medium" | "high" | "urgent";
+  expiresAt?: Date;
+  relatedEntity?: {
+    type: string;
+    id: mongoose.Types.ObjectId;
+  };
   createdAt: Date;
   updatedAt: Date;
+  timeAgo?: string;
 }
 
 // Analytics Interface

@@ -265,10 +265,10 @@ const DonationModal: React.FC<DonationModalProps> = ({
           <p className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
             Secure payment powered by{" "}
             <a
-              href="https://www.cashfree.com/"
+              href="https://razorpay.com/"
               className="text-blue-600 hover:underline inline-flex items-center gap-1"
             >
-              Cashfree <ExternalLink size={12} />
+              Razorpay <ExternalLink size={12} />
             </a>
           </p>
         </div>

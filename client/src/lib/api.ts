@@ -4,6 +4,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+import { getAuthTokenOrNull } from "@/utils/auth";
 
 // API base URL
 const API_BASE_URL =
@@ -12,7 +13,7 @@ const API_BASE_URL =
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 300000, // 5 minutes for bulk operations
   headers: {
     "Content-Type": "application/json",
   },
@@ -36,10 +37,18 @@ api.interceptors.request.use(
       }
     }
 
-    const token = localStorage.getItem("token");
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // If data is FormData, remove Content-Type to let browser set it with boundary
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-Type"];
+    }
+
     return config;
   },
   (error) => {
@@ -142,8 +151,15 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Try to refresh token
-        const refreshToken = localStorage.getItem("refreshToken");
+        // Try to refresh token - check both storages
+        let refreshToken = localStorage.getItem("refreshToken");
+        let storageType = "localStorage";
+
+        if (!refreshToken) {
+          refreshToken = sessionStorage.getItem("refreshToken");
+          storageType = "sessionStorage";
+        }
+
         if (refreshToken) {
           const response = await axios.post(
             `${API_BASE_URL}/auth/refresh-token`,
@@ -153,8 +169,15 @@ api.interceptors.response.use(
           );
 
           const { token, refreshToken: newRefreshToken } = response.data.data;
-          localStorage.setItem("token", token);
-          localStorage.setItem("refreshToken", newRefreshToken);
+
+          // Store in the same storage type as the original token
+          if (storageType === "localStorage") {
+            localStorage.setItem("token", token);
+            localStorage.setItem("refreshToken", newRefreshToken);
+          } else {
+            sessionStorage.setItem("token", token);
+            sessionStorage.setItem("refreshToken", newRefreshToken);
+          }
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -165,6 +188,9 @@ api.interceptors.response.use(
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
         localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("user");
         window.location.href = "/login";
         return Promise.reject(refreshError);
       }
@@ -416,6 +442,26 @@ export const userAPI = {
     });
   },
 
+  // Get eligible students for alumni promotion (admin only)
+  getEligibleStudents: async (params?: {
+    page?: number;
+    limit?: number;
+  }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/users/eligible-students",
+      params,
+    });
+  },
+
+  // Promote student to alumni (admin only)
+  promoteStudentToAlumni: async (userId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/users/${userId}/promote-to-alumni`,
+    });
+  },
+
   // Get pending approvals
   getPendingApprovals: async () => {
     try {
@@ -612,7 +658,8 @@ export const userAPI = {
           success: true,
           message: "User request approved and account created",
           data: {
-            user: createUserResponse.data?.user || createUserResponse.data,
+            user:
+              (createUserResponse.data as any)?.user || createUserResponse.data,
           },
         };
       } else {
@@ -665,6 +712,69 @@ export const userAPI = {
       throw error;
     }
   },
+
+  // Bulk create alumni from CSV/Excel data
+  bulkCreateAlumni: async (
+    alumniData: Array<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      password?: string;
+      collegeId?: string;
+      department?: string;
+      graduationYear?: number;
+      currentCompany?: string;
+      currentPosition?: string;
+      phoneNumber?: string;
+      phone?: string;
+      address?: string;
+      location?: string;
+      bio?: string;
+      linkedinProfile?: string;
+      twitterHandle?: string;
+      githubProfile?: string;
+      website?: string;
+      dateOfBirth?: string;
+      gender?: string;
+    }>
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: "/users/bulk-alumni",
+      data: { alumniData },
+      timeout: 600000, // 10 minutes for bulk uploads (can handle up to 1000 records)
+    });
+  },
+
+  exportAlumniData: async (format: "excel" | "csv" = "excel") => {
+    const response = await api.get(`/users/export-alumni?format=${format}`, {
+      responseType: "blob",
+    });
+
+    // Create download link
+    const blob = new Blob([response.data], {
+      type:
+        format === "csv"
+          ? "text/csv"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    const filename = `alumni_data_${new Date().toISOString().split("T")[0]}.${
+      format === "csv" ? "csv" : "xlsx"
+    }`;
+    link.download = filename;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true, filename };
+  },
 };
 
 // Alumni API functions
@@ -675,6 +785,11 @@ export const alumniAPI = {
     limit?: number;
     userType?: "student" | "alumni" | "all";
     tenantId?: string;
+    search?: string;
+    department?: string;
+    graduationYear?: string;
+    location?: string;
+    role?: string;
   }) => {
     return apiRequest({
       method: "GET",
@@ -1091,6 +1206,31 @@ export const jobAPI = {
       params,
     });
   },
+
+  // Save a job
+  saveJob: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/jobs/${id}/save`,
+    });
+  },
+
+  // Unsave a job
+  unsaveJob: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/jobs/${id}/save`,
+    });
+  },
+
+  // Get saved jobs
+  getSavedJobs: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/jobs/saved",
+      params,
+    });
+  },
 };
 
 // Job Application API functions
@@ -1181,6 +1321,9 @@ export const eventAPI = {
     limit?: number;
     type?: string;
     location?: string;
+    search?: string;
+    dateRange?: string;
+    price?: string;
     tenantId?: string;
   }) => {
     try {
@@ -1343,7 +1486,7 @@ export const eventAPI = {
       url: "/events/with-image",
       data: formData,
       headers: {
-        "Content-Type": undefined, // Remove Content-Type to let browser set multipart/form-data
+        "Content-Type": "multipart/form-data",
       },
     });
   },
@@ -1378,10 +1521,45 @@ export const eventAPI = {
   },
 
   // Register for event
-  registerForEvent: async (id: string) => {
+  registerForEvent: async (
+    id: string,
+    registrationData?: {
+      phone?: string;
+      dietaryRequirements?: string;
+      emergencyContact?: string;
+      additionalNotes?: string;
+    }
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/events/${id}/register`,
+      data: registrationData,
+    });
+  },
+
+  // Confirm registration after successful payment
+  confirmRegistration: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${id}/confirm-registration`,
+      data: { paymentStatus: "success" },
+    });
+  },
+
+  // Get participants (organizers/admins)
+  getParticipants: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/events/${id}/participants`,
+    });
+  },
+
+  // Get events the current user is registered for
+  getMyRegistrations: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/events/my-registrations",
+      params,
     });
   },
 
@@ -1811,6 +1989,10 @@ export const galleryAPI = {
     page?: number;
     limit?: number;
     category?: string;
+    search?: string;
+    dateRange?: string;
+    sortBy?: string;
+    tenantId?: string;
   }) => {
     try {
       // Try backend API first
@@ -1818,6 +2000,10 @@ export const galleryAPI = {
       if (params?.page) queryParams.append("page", params.page.toString());
       if (params?.limit) queryParams.append("limit", params.limit.toString());
       if (params?.category) queryParams.append("category", params.category);
+      if (params?.search) queryParams.append("search", params.search);
+      if (params?.dateRange) queryParams.append("dateRange", params.dateRange);
+      if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+      if (params?.tenantId) queryParams.append("tenantId", params.tenantId);
 
       const response = await apiRequest({
         method: "GET",
@@ -1929,7 +2115,7 @@ export const galleryAPI = {
       url: "/gallery/upload-images",
       data: formData,
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": undefined, // Let browser set multipart/form-data with boundary
       },
     });
   },
@@ -2110,6 +2296,7 @@ export const messageAPI = {
     recipientId: string;
     content: string;
     messageType?: string;
+    replyTo?: string;
   }) => {
     return apiRequest({
       method: "POST",
@@ -2134,10 +2321,14 @@ export const messageAPI = {
   },
 
   // Get all conversations for a user
-  getConversations: async () => {
+  getConversations: async (params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
     return apiRequest({
       method: "GET",
-      url: "/messages/conversations",
+      url: `/messages/conversations?${queryParams.toString()}`,
     });
   },
 
@@ -2162,6 +2353,15 @@ export const messageAPI = {
     return apiRequest({
       method: "DELETE",
       url: `/messages/${messageId}`,
+    });
+  },
+
+  // Edit a message
+  editMessage: async (messageId: string, content: string) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/messages/${messageId}`,
+      data: { content },
     });
   },
 };
@@ -2501,6 +2701,59 @@ export const campaignAPI = {
       url: `/campaigns/${id}/stats`,
     });
   },
+
+  // Get campaign donors
+  getCampaignDonors: async (
+    id: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    return apiRequest({
+      method: "GET",
+      url: `/campaigns/${id}/donors?${queryParams.toString()}`,
+    });
+  },
+
+  // Get campaign donor statistics
+  getCampaignDonorStats: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/campaigns/${id}/donor-stats`,
+    });
+  },
+
+  // Export campaign donors
+  exportCampaignDonors: async (id: string, format: "csv" | "json" = "csv") => {
+    if (format === "csv") {
+      const response = await api.get(`/campaigns/${id}/donors/export?format=csv`, {
+        responseType: "blob",
+      });
+      return response.data;
+    } else {
+      return apiRequest({
+        method: "GET",
+        url: `/campaigns/${id}/donors/export?format=json`,
+      });
+    }
+  },
+
+  // Upload campaign image
+  uploadCampaignImage: async (id: string, formData: FormData) => {
+    return apiRequest({
+      method: "POST",
+      url: `/campaigns/${id}/image`,
+      data: formData,
+      headers: {
+        "Content-Type": undefined, // Let browser set multipart/form-data with boundary
+      },
+    });
+  },
 };
 
 // Community API functions
@@ -2549,6 +2802,244 @@ export const communityAPI = {
     return apiRequest({
       method: "GET",
       url: "/community/stats",
+    });
+  },
+
+  // Get trending posts for a community
+  getTrendingPosts: async (communityId: string, limit: number = 5) => {
+    return apiRequest({
+      method: "GET",
+      url: `/community-posts/community/${communityId}/trending?limit=${limit}`,
+    });
+  },
+
+  // Get popular tags for a community
+  getPopularTags: async (communityId: string, limit: number = 8) => {
+    return apiRequest({
+      method: "GET",
+      url: `/community-posts/community/${communityId}/popular-tags?limit=${limit}`,
+    });
+  },
+
+  // Get top communities (most active)
+  getTopCommunities: async (limit: number = 5) => {
+    return apiRequest({
+      method: "GET",
+      url: `/communities/top?limit=${limit}`,
+    });
+  },
+};
+
+// Category API functions
+export const categoryAPI = {
+  // Get all categories
+  getAll: async (params?: { isActive?: string; entityType?: string }) => {
+    const queryParams = params
+      ? `?${new URLSearchParams(params as Record<string, string>).toString()}`
+      : "";
+    return apiRequest({
+      method: "GET",
+      url: `/categories${queryParams}`,
+    });
+  },
+
+  // Get category by ID
+  getById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/categories/${id}`,
+    });
+  },
+
+  // Create category
+  create: async (data: {
+    name: string;
+    description?: string;
+    order?: number;
+    entityType: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/categories",
+      data,
+    });
+  },
+
+  // Update category
+  update: async (
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      isActive?: boolean;
+      order?: number;
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/categories/${id}`,
+      data,
+    });
+  },
+
+  // Delete category
+  delete: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/categories/${id}`,
+    });
+  },
+};
+
+// Notification API functions
+export const notificationAPI = {
+  // Get all notifications for a user
+  getNotifications: async (params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    type?: string;
+    isRead?: boolean;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.type) queryParams.append("type", params.type);
+    if (typeof params?.isRead === "boolean") {
+      queryParams.append("isRead", params.isRead.toString());
+    }
+
+    return apiRequest({
+      method: "GET",
+      url: `/notifications?${queryParams.toString()}`,
+    });
+  },
+
+  // Get unread notification count
+  getUnreadCount: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/notifications/unread-count",
+    });
+  },
+
+  // Mark a notification as read
+  markAsRead: async (notificationId: string) => {
+    return apiRequest({
+      method: "PATCH",
+      url: `/notifications/${notificationId}/read`,
+    });
+  },
+
+  // Mark all notifications as read
+  markAllAsRead: async () => {
+    return apiRequest({
+      method: "PATCH",
+      url: "/notifications/mark-all-read",
+    });
+  },
+
+  // Delete a notification
+  deleteNotification: async (notificationId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/notifications/${notificationId}`,
+    });
+  },
+
+  // Get notification statistics
+  getNotificationStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/notifications/stats",
+    });
+  },
+
+  // Create a notification (admin/system use)
+  createNotification: async (data: {
+    userId: string;
+    title: string;
+    message: string;
+    type?: "info" | "success" | "warning" | "error";
+    category?: string;
+    priority?: "low" | "medium" | "high" | "urgent";
+    actionUrl?: string;
+    metadata?: Record<string, any>;
+    relatedEntity?: { type: string; id: string };
+    expiresAt?: Date;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/notifications",
+      data,
+    });
+  },
+};
+
+// Report API functions
+export const reportAPI = {
+  // Create a report
+  createReport: async (data: {
+    entityId: string;
+    entityType: "post" | "comment";
+    reason: string;
+    description?: string;
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/reports",
+      data,
+    });
+  },
+
+  // Get reports for a specific entity
+  getEntityReports: async (
+    entityId: string,
+    entityType: "post" | "comment"
+  ) => {
+    return apiRequest({
+      method: "GET",
+      url: `/reports/entity/${entityId}/${entityType}`,
+    });
+  },
+
+  // Get user's own reports
+  getUserReports: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/reports/user",
+    });
+  },
+
+  // Get pending reports (admin only)
+  getPendingReports: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/reports/pending",
+    });
+  },
+
+  // Get community reports (moderators can use this)
+  getCommunityReports: async (communityId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/reports/community/${communityId}`,
+    });
+  },
+
+  // Update report status (admin only)
+  updateReportStatus: async (
+    reportId: string,
+    data: {
+      status: "pending" | "reviewed" | "resolved" | "dismissed";
+      resolution?: string;
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/reports/${reportId}`,
+      data,
     });
   },
 };

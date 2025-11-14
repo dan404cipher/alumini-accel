@@ -118,8 +118,8 @@ export const getSavedNews = async (req: Request, res: Response) => {
 
     const skip = (page - 1) * limit;
 
-    // Get saved news with populated news data
-    const savedNews = await SavedNews.find({
+    // Get saved news with populated news data - filter out null newsId (deleted news)
+    const savedNewsResults = await SavedNews.find({
       userId: new mongoose.Types.ObjectId(userId),
       tenantId: new mongoose.Types.ObjectId(tenantId),
     })
@@ -130,15 +130,17 @@ export const getSavedNews = async (req: Request, res: Response) => {
           select: "firstName lastName email",
         },
       })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      .sort({ createdAt: -1 });
 
-    // Get total count
-    const totalCount = await SavedNews.countDocuments({
-      userId: new mongoose.Types.ObjectId(userId),
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-    });
+    // Filter out items with null/deleted newsId after population
+    const savedNews = savedNewsResults
+      .filter((item) => item.newsId !== null && item.newsId !== undefined)
+      .slice(skip, skip + limit);
+
+    // Get total count (excluding null newsId)
+    const totalCount = savedNewsResults.filter(
+      (item) => item.newsId !== null && item.newsId !== undefined
+    ).length;
 
     return res.status(200).json({
       success: true,

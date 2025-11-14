@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { GraduationCap, Calendar, Hash } from "lucide-react";
 
 const educationalDetailsSchema = z.object({
@@ -88,6 +89,13 @@ export const EducationalDetailsForm = ({
     try {
       setIsLoading(true);
 
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       // Determine endpoint based on user's actual role
       const isStudent = userRole === "student";
       const apiUrl =
@@ -108,7 +116,7 @@ export const EducationalDetailsForm = ({
         method: profileData ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(processedData),
       });

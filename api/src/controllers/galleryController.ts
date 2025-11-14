@@ -5,17 +5,101 @@ import { asyncHandler } from "../middleware/errorHandler";
 // Get all galleries (public access)
 export const getAllGalleries = asyncHandler(
   async (req: Request, res: Response) => {
-    const { page = 1, limit = 10, category } = req.query;
+    const { page = 1, limit = 10, category, search, dateRange, sortBy } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     const filter: any = { isActive: true };
+
+    // 🔒 MULTI-TENANT FILTERING: Only show galleries from same college (unless super admin)
+    if (req.query.tenantId) {
+      filter.tenantId = req.query.tenantId;
+    } else if (
+      (req as any).user?.role !== "super_admin" &&
+      (req as any).user?.tenantId
+    ) {
+      filter.tenantId = (req as any).user.tenantId;
+    }
+
     if (category && category !== "all") {
       filter.category = category;
     }
 
+    // Search filter
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Date range filter
+    if (dateRange && dateRange !== "all") {
+      const now = new Date();
+      const today = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const thisWeekStart = new Date(today);
+      thisWeekStart.setDate(today.getDate() - today.getDay());
+      const lastWeekStart = new Date(thisWeekStart);
+      lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+      const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastMonthStart = new Date(
+        today.getFullYear(),
+        today.getMonth() - 1,
+        1
+      );
+      const thisYearStart = new Date(today.getFullYear(), 0, 1);
+
+      switch (dateRange) {
+        case "today":
+          filter.createdAt = { $gte: today };
+          break;
+        case "yesterday":
+          filter.createdAt = { $gte: yesterday, $lt: today };
+          break;
+        case "this_week":
+          filter.createdAt = { $gte: thisWeekStart };
+          break;
+        case "last_week":
+          filter.createdAt = { $gte: lastWeekStart, $lt: thisWeekStart };
+          break;
+        case "this_month":
+          filter.createdAt = { $gte: thisMonthStart };
+          break;
+        case "last_month":
+          filter.createdAt = { $gte: lastMonthStart, $lt: thisMonthStart };
+          break;
+        case "this_year":
+          filter.createdAt = { $gte: thisYearStart };
+          break;
+      }
+    }
+
+    // Build sort query
+    let sortQuery: any = { createdAt: -1 }; // default: newest
+    if (sortBy) {
+      switch (sortBy) {
+        case "oldest":
+          sortQuery = { createdAt: 1 };
+          break;
+        case "title":
+          sortQuery = { title: 1 };
+          break;
+        case "popular":
+          sortQuery = { viewCount: -1 };
+          break;
+        default: // newest
+          sortQuery = { createdAt: -1 };
+      }
+    }
+
     const galleries = await Gallery.find(filter)
       .populate("createdBy", "firstName lastName email")
-      .sort({ createdAt: -1 })
+      .sort(sortQuery)
       .skip(skip)
       .limit(Number(limit));
 
@@ -86,6 +170,7 @@ export const createGallery = asyncHandler(
       description,
       images,
       createdBy: userId,
+      tenantId: (req as any).user?.tenantId, // Add tenantId for multi-tenant support
       tags: tags || [],
       category: category || "Other",
     });
@@ -120,8 +205,11 @@ export const updateGallery = asyncHandler(
       });
     }
 
-    // Check permissions: creator or admin
-    if (gallery.createdBy.toString() !== userId && userRole !== "super_admin") {
+    // Check permissions: creator or has appropriate role
+    if (
+      gallery.createdBy.toString() !== userId &&
+      !["super_admin", "college_admin", "hod", "staff"].includes(userRole)
+    ) {
       return res.status(403).json({
         success: false,
         message: "You don't have permission to update this gallery",
@@ -164,8 +252,11 @@ export const deleteGallery = asyncHandler(
       });
     }
 
-    // Check permissions: creator or admin
-    if (gallery.createdBy.toString() !== userId && userRole !== "super_admin") {
+    // Check permissions: creator or has appropriate role
+    if (
+      gallery.createdBy.toString() !== userId &&
+      !["super_admin", "college_admin", "hod", "staff"].includes(userRole)
+    ) {
       return res.status(403).json({
         success: false,
         message: "You don't have permission to delete this gallery",

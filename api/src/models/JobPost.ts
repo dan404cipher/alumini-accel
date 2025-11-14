@@ -39,29 +39,97 @@ const jobPostSchema = new Schema<IJobPost>(
       maxlength: [100, "Location cannot exceed 100 characters"],
     },
     type: {
-      type: String,
+      type: Schema.Types.Mixed, // Can be String (enum) or ObjectId (custom)
       required: true,
-      enum: ["full-time", "part-time", "internship", "contract"],
+      validate: {
+        validator: function (value: any) {
+          if (!value) return false;
+          // Check if it's a valid enum value
+          if (typeof value === "string") {
+            const validEnums = [
+              "full-time",
+              "part-time",
+              "internship",
+              "contract",
+            ];
+            if (validEnums.includes(value)) {
+              return true;
+            }
+            // If not an enum, check if it's a valid ObjectId string
+            return mongoose.Types.ObjectId.isValid(value);
+          }
+          // If not a string, check if it's a valid ObjectId
+          return mongoose.Types.ObjectId.isValid(value);
+        },
+        message: "Job type must be a valid enum value or ObjectId",
+      },
+    },
+    customJobType: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
     },
     experience: {
-      type: String,
-      enum: ["entry", "mid", "senior", "lead"],
+      type: Schema.Types.Mixed, // Can be String (enum) or ObjectId (custom)
       default: "mid",
+      validate: {
+        validator: function (value: any) {
+          if (!value) return true; // Optional with default
+          // Check if it's a valid enum value
+          if (typeof value === "string") {
+            const validEnums = ["entry", "mid", "senior", "lead"];
+            if (validEnums.includes(value)) {
+              return true;
+            }
+            // If not an enum, check if it's a valid ObjectId string
+            return mongoose.Types.ObjectId.isValid(value);
+          }
+          // If not a string, check if it's a valid ObjectId
+          return mongoose.Types.ObjectId.isValid(value);
+        },
+        message: "Experience must be a valid enum value or ObjectId",
+      },
+    },
+    customExperience: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
     },
     industry: {
-      type: String,
-      enum: [
-        "technology",
-        "finance",
-        "healthcare",
-        "education",
-        "consulting",
-        "marketing",
-        "sales",
-        "operations",
-        "other",
-      ],
+      type: Schema.Types.Mixed, // Can be String (enum) or ObjectId (custom)
       default: "technology",
+      validate: {
+        validator: function (value: any) {
+          if (!value) return true; // Optional with default
+          // Check if it's a valid enum value
+          if (typeof value === "string") {
+            const validEnums = [
+              "technology",
+              "finance",
+              "healthcare",
+              "education",
+              "consulting",
+              "marketing",
+              "sales",
+              "operations",
+              "other",
+            ];
+            if (validEnums.includes(value)) {
+              return true;
+            }
+            // If not an enum, check if it's a valid ObjectId string
+            return mongoose.Types.ObjectId.isValid(value);
+          }
+          // If not a string, check if it's a valid ObjectId
+          return mongoose.Types.ObjectId.isValid(value);
+        },
+        message: "Industry must be a valid enum value or ObjectId",
+      },
+    },
+    customIndustry: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
     },
     remote: {
       type: Boolean,
@@ -83,6 +151,12 @@ const jobPostSchema = new Schema<IJobPost>(
         default: "USD",
         enum: ["USD", "EUR", "GBP", "INR", "CAD", "AUD", "JPY", "CHF", "CNY"],
       },
+    },
+    numberOfVacancies: {
+      type: Number,
+      required: true,
+      min: [1, "Number of vacancies must be at least 1"],
+      max: [1000, "Number of vacancies cannot exceed 1000"],
     },
     description: {
       type: String,

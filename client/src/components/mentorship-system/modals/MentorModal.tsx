@@ -6,6 +6,14 @@ import React, { useState, useEffect } from "react";
 import { X, Plus, Trash2, Clock, Calendar, MapPin } from "lucide-react";
 import type { Mentor, MentorFormData } from "../types";
 import { validateMentorFormDetailed, getDefaultMentorData } from "../utils";
+import { categoryAPI } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MentorModalProps {
   isOpen: boolean;
@@ -81,6 +89,7 @@ export const MentorModal: React.FC<MentorModalProps> = ({
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [selectedStartDate, setSelectedStartDate] = useState("");
   const [selectedEndDate, setSelectedEndDate] = useState("");
+  const [industryOptions, setIndustryOptions] = useState<string[]>([]);
 
   // Initialize availability slots from formData
   useEffect(() => {
@@ -104,6 +113,27 @@ export const MentorModal: React.FC<MentorModalProps> = ({
       setAvailabilitySlots(editMentor?.availableSlots || []);
     }
   }, [isOpen, editMentor]);
+
+  // Load industry options from mentorship categories
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "mentorship_category" });
+        const names = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => c.name as string)
+          : [];
+        if (mounted) setIndustryOptions(names);
+      } catch (_e) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleInputChange =
     (field: keyof MentorFormData) =>
@@ -480,6 +510,34 @@ export const MentorModal: React.FC<MentorModalProps> = ({
                 )}
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Industry
+            </label>
+            <Select
+              value={formData.industry || undefined}
+              onValueChange={(v) =>
+                setFormData((prev) => ({ ...prev, industry: v }))
+              }
+            >
+              <SelectTrigger className={` ${getFieldErrorClass("industry")}`}>
+                <SelectValue placeholder="Select industry" />
+              </SelectTrigger>
+              <SelectContent>
+                {industryOptions.map((opt) => (
+                  <SelectItem key={opt} value={opt}>
+                    {opt}
+                  </SelectItem>
+                ))}
+                {industryOptions.length === 0 && (
+                  <SelectItem value="__noopts__" disabled>
+                    No saved categories
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Expertise */}

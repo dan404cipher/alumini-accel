@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { alumniAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import SimpleImageUpload from "@/components/SimpleImageUpload";
@@ -172,6 +173,13 @@ const AlumniProfile = () => {
     try {
       setUploadingImage(true);
 
+      // Get token from localStorage or sessionStorage (same logic as AuthContext)
+      const token = getAuthTokenOrNull();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("profileImage", file);
@@ -184,7 +192,7 @@ const AlumniProfile = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
           body: formData,
         }

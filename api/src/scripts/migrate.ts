@@ -8,8 +8,14 @@ dotenv.config();
 // Connect to database
 const connectDB = async (): Promise<void> => {
   try {
-    const mongoURI =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/alumni_accel";
+    const mongoURI = process.env.MONGODB_URI;
+
+    if (!mongoURI) {
+      logger.error("MONGODB_URI environment variable is not set");
+      logger.error("Please set MONGODB_URI in your .env file");
+      process.exit(1);
+    }
+
     await mongoose.connect(mongoURI);
     logger.info("MongoDB connected successfully");
   } catch (error) {

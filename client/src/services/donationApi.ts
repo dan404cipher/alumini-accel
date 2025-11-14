@@ -1,3 +1,5 @@
+import { getAuthTokenOrNull } from "@/utils/auth";
+
 // API base URL
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
@@ -102,6 +104,16 @@ export interface CreateDonationData {
   donationType?: string;
   message?: string;
   anonymous?: boolean;
+  // Donor information
+  donorName?: string;
+  donorEmail?: string;
+  donorPhone?: string;
+  donorAddress?: string;
+  taxDeductible?: boolean;
+  // Razorpay payment fields
+  paymentId?: string;
+  orderId?: string;
+  signature?: string;
 }
 
 class DonationApiService {
@@ -111,13 +123,18 @@ class DonationApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = localStorage.getItem("token");
+    // Get token from localStorage or sessionStorage (same logic as AuthContext)
+    const token = getAuthTokenOrNull();
+
+    if (!token) {
+      throw new Error("Access token is required");
+    }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
-        Authorization: token ? `Bearer ${token}` : "",
+        Authorization: `Bearer ${token}`,
         ...options.headers,
       },
     });
@@ -143,11 +160,27 @@ class DonationApiService {
     status?: string;
     category?: string;
     search?: string;
-  }): Promise<{ success: boolean; data: Campaign[]; count: number }> {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    success: boolean;
+    data: {
+      campaigns: Campaign[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
+    count: number;
+  }> {
     const queryParams = new URLSearchParams();
     if (params?.status) queryParams.append("status", params.status);
     if (params?.category) queryParams.append("category", params.category);
     if (params?.search) queryParams.append("search", params.search);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
 
     const queryString = queryParams.toString();
     const endpoint = queryString ? `/campaigns?${queryString}` : "/campaigns";
@@ -211,7 +244,10 @@ class DonationApiService {
     const formData = new FormData();
     formData.append("image", file);
 
-    const token = localStorage.getItem("token");
+    const token = getAuthTokenOrNull();
+    if (!token) {
+      throw new Error("Access token is required");
+    }
 
     const response = await fetch(`${this.baseUrl}/campaigns/${id}/image`, {
       method: "POST",
@@ -273,12 +309,32 @@ class DonationApiService {
     });
   }
 
-  async getMyDonations(): Promise<{
+  async getMyDonations(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
     success: boolean;
-    data: Donation[];
+    data: {
+      donations: Donation[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
     count: number;
   }> {
-    return this.makeRequest("/donations/my-donations");
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString
+      ? `/donations/my-donations?${queryString}`
+      : "/donations/my-donations";
+
+    return this.makeRequest(endpoint);
   }
 
   async getDonationStats(): Promise<{ success: boolean; data: any }> {

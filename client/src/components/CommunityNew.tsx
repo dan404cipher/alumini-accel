@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Pagination from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +68,7 @@ import {
   Megaphone,
   Microscope,
   Sparkles,
+  Shield,
   Target,
   HandHeart,
   Telescope,
@@ -75,7 +77,18 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
+import { communityAPI, categoryAPI } from "@/lib/api";
+
+// Helper function to get auth token
+const getAuthToken = (): string => {
+  const token = getAuthTokenOrNull();
+  if (!token) {
+    throw new Error("Access token is required");
+  }
+  return token;
+};
 
 // Interfaces for Community features
 interface Community {
@@ -194,7 +207,10 @@ const CommunityNew = () => {
   const { toast } = useToast();
 
   // State management
-  const [activeTab, setActiveTab] = useState("communities");
+  const [activeTab, setActiveTab] = useState("my-communities");
+
+  // Debug active tab changes
+  useEffect(() => {}, [activeTab]);
   const [communityActiveTab, setCommunityActiveTab] = useState("posts"); // Post when inside a community
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -301,24 +317,42 @@ const CommunityNew = () => {
         ) {
           return "Please select a category";
         }
-        const validCategories = [
-          "department",
-          "batch",
-          "interest",
-          "professional",
-          "location",
-          "academic_research",
-          "professional_career",
-          "entrepreneurship_startups",
-          "social_hobby",
-          "mentorship_guidance",
-          "events_meetups",
-          "community_support_volunteering",
-          "technology_deeptech",
-          "regional_chapter_based",
-          "other",
-        ];
-        if (typeof value === "string" && !validCategories.includes(value)) {
+        if (typeof value === "string") {
+          // Check if it's a valid enum value
+          const validCategories = [
+            "department",
+            "batch",
+            "interest",
+            "professional",
+            "location",
+            "academic_research",
+            "professional_career",
+            "entrepreneurship_startups",
+            "social_hobby",
+            "mentorship_guidance",
+            "events_meetups",
+            "community_support_volunteering",
+            "technology_deeptech",
+            "regional_chapter_based",
+            "other",
+          ];
+          
+          // If it's in the enum list, it's valid
+          if (validCategories.includes(value)) {
+            return "";
+          }
+          
+          // Otherwise, check if it's a valid ObjectId (24 hex characters)
+          // Custom categories from API use ObjectId as the value
+          const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+          if (objectIdRegex.test(value)) {
+            // Also verify it exists in categoryOptions
+            if (categoryOptions.some((c) => c.id === value && c.id !== "all")) {
+              return "";
+            }
+          }
+          
+          // If neither enum nor valid ObjectId, it's invalid
           return "Please select a valid category";
         }
         return "";
@@ -541,6 +575,10 @@ const CommunityNew = () => {
   const [topCommunities, setTopCommunities] = useState<TopCommunity[]>([]);
   const [popularTags, setPopularTags] = useState<PopularTag[]>([]);
   const [loadingSidebar, setLoadingSidebar] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(12);
+  const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string }[]>([]);
 
   const categories = [
     { id: "all", name: "All Categories", icon: Globe },
@@ -581,6 +619,29 @@ const CommunityNew = () => {
     { id: "other", name: "Other", icon: Star },
   ];
 
+  // Load custom community categories (no defaults)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await categoryAPI.getAll({ entityType: "community", isActive: "true" });
+        const customs: { id: string; name: string }[] = Array.isArray(res.data)
+          ? (res.data as any[])
+              .filter((c) => c && typeof c.name === "string")
+              .map((c) => ({ id: c._id as string, name: c.name as string }))
+          : [];
+        const merged = [{ id: "all", name: "All Categories" }, ...customs];
+        if (mounted) setCategoryOptions(merged);
+      } catch (_e) {
+        // fallback to only All if API fails
+        setCategoryOptions([{ id: "all", name: "All Categories" }]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // API Functions
   const fetchCommunities = useCallback(async () => {
     try {
@@ -591,6 +652,8 @@ const CommunityNew = () => {
       if (selectedCategory !== "all")
         params.append("category", selectedCategory);
       if (searchQuery) params.append("search", searchQuery);
+      params.append("page", currentPage.toString());
+      params.append("limit", itemsPerPage.toString());
 
       const response = await fetch(
         `${
@@ -598,7 +661,7 @@ const CommunityNew = () => {
         }/communities?${params}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -607,7 +670,11 @@ const CommunityNew = () => {
 
       if (data.success) {
         // Transform the data to ensure isPublic field is properly set
-        const transformedCommunities = data.data.communities.map(
+        const communitiesData = data.data as {
+          communities: Community[];
+          pagination?: { totalPages: number };
+        };
+        const transformedCommunities = communitiesData.communities.map(
           (community: Community & { type?: string }) => ({
             ...community,
             // Handle different possible field names from backend
@@ -619,6 +686,9 @@ const CommunityNew = () => {
         );
 
         setCommunities(transformedCommunities);
+        if (communitiesData.pagination) {
+          setTotalPages(communitiesData.pagination.totalPages || 1);
+        }
       } else {
         setError("Failed to fetch communities");
       }
@@ -628,7 +698,19 @@ const CommunityNew = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, currentPage, itemsPerPage]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   const fetchCommunityPosts = useCallback(async (communityId: string) => {
     try {
@@ -641,7 +723,7 @@ const CommunityNew = () => {
         }/community-posts/community/${communityId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -672,7 +754,7 @@ const CommunityNew = () => {
         }/communities/${communityId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -694,7 +776,7 @@ const CommunityNew = () => {
 
   // Load data when component mounts or filters change
   useEffect(() => {
-    if (activeTab === "communities") {
+    if (activeTab === "communities" || activeTab === "my-communities") {
       fetchCommunities();
     }
   }, [activeTab, selectedCategory, searchQuery, fetchCommunities]);
@@ -704,62 +786,31 @@ const CommunityNew = () => {
     const fetchSidebarData = async () => {
       setLoadingSidebar(true);
       try {
-        // Mock data for now - replace with actual API calls
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API delay
+        // Fetch real top communities
+        const topCommunitiesResponse = await communityAPI.getTopCommunities(5);
 
-        const mockTopCommunities: TopCommunity[] = [
-          {
-            id: "1",
-            name: "Computer Science Alumni",
-            memberCount: 1250,
-            postCount: 89,
-            category: "department",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "2",
-            name: "Entrepreneurship Hub",
-            memberCount: 890,
-            postCount: 67,
-            category: "entrepreneurship_startups",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "3",
-            name: "Class of 2020",
-            memberCount: 2100,
-            postCount: 145,
-            category: "batch",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "4",
-            name: "Tech Professionals",
-            memberCount: 567,
-            postCount: 34,
-            category: "professional_career",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-          {
-            id: "5",
-            name: "Research Scholars",
-            memberCount: 445,
-            postCount: 78,
-            category: "academic_research",
-            isPublic: true,
-            coverImage: null,
-            logo: null,
-          },
-        ];
+        if (
+          topCommunitiesResponse.success &&
+          Array.isArray(topCommunitiesResponse.data)
+        ) {
+          const transformedCommunities = topCommunitiesResponse.data.map(
+            (community: any) => ({
+              id: community._id,
+              name: community.name,
+              memberCount: community.memberCount || 0,
+              postCount: community.postCount || 0,
+              category: community.category,
+              isPublic: community.type === "open",
+              coverImage: community.coverImage,
+              logo: community.logo,
+            })
+          );
+          setTopCommunities(transformedCommunities);
+        } else {
+          setTopCommunities([]);
+        }
 
+        // Mock popular tags for now (can be replaced with real API later)
         const mockPopularTags: PopularTag[] = [
           { name: "career", count: 156, color: "bg-blue-100 text-blue-800" },
           {
@@ -793,7 +844,6 @@ const CommunityNew = () => {
           { name: "investment", count: 43, color: "bg-gray-100 text-gray-800" },
         ];
 
-        setTopCommunities(mockTopCommunities);
         setPopularTags(mockPopularTags);
       } catch (error) {
         console.error("Error fetching sidebar data:", error);
@@ -835,7 +885,7 @@ const CommunityNew = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: formData,
         }
@@ -874,7 +924,7 @@ const CommunityNew = () => {
         }/users/search?q=${encodeURIComponent(query)}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1068,7 +1118,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify(requestBody),
         }
@@ -1132,7 +1182,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1168,10 +1218,10 @@ const CommunityNew = () => {
           import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
         }/communities/${communityId}/leave`,
         {
-          method: "POST",
+          method: "DELETE",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1310,7 +1360,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify(postData),
         }
@@ -1379,7 +1429,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
@@ -1421,7 +1471,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
@@ -1463,7 +1513,7 @@ const CommunityNew = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
           body: JSON.stringify({ userId, communityId: selectedCommunity._id }),
         }
@@ -1502,7 +1552,7 @@ const CommunityNew = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1542,7 +1592,7 @@ const CommunityNew = () => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1590,7 +1640,7 @@ const CommunityNew = () => {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         }
       );
@@ -1670,10 +1720,12 @@ const CommunityNew = () => {
   const isUserMember = useCallback(
     (community: Community) => {
       if (!user || !community) return false;
-      return (
+
+      const isMember =
         community.members &&
-        community.members.some((member) => member._id === user._id)
-      );
+        community.members.some((member) => member._id === user._id);
+
+      return isMember;
     },
     [user]
   );
@@ -1685,7 +1737,11 @@ const CommunityNew = () => {
       return;
     }
 
-    const joined = communities.filter((community) => isUserMember(community));
+    const joined = communities.filter((community) => {
+      const isMember = isUserMember(community);
+      return isMember;
+    });
+
     setJoinedCommunities(joined);
   }, [communities, user, isUserMember]);
 
@@ -1704,12 +1760,12 @@ const CommunityNew = () => {
   };
 
   return (
-    <div className="flex gap-6 h-screen w-full overflow-hidden">
+    <div className="flex gap-4 h-screen w-full overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden">
-          <div className="fixed inset-y-0 left-0 z-50 w-80 bg-background shadow-xl">
-            <div className="sticky top-0 h-screen overflow-y-auto p-6">
+        <div className="fixed inset-y-0 left-0 z-50 w-96 bg-background shadow-xl">
+            <div className="sticky top-0 h-screen overflow-y-auto p-4">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold">Filters</h2>
                 <Button
@@ -1722,9 +1778,9 @@ const CommunityNew = () => {
               </div>
 
               <Card className="h-fit">
-                <CardContent className="p-6">
+                <CardContent className="p-4">
                   {/* Search */}
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 mb-4">
                     <h3 className="text-sm font-semibold">
                       Search Communities
                     </h3>
@@ -1750,38 +1806,33 @@ const CommunityNew = () => {
                   </div>
 
                   {/* Categories */}
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 mb-4">
                     <h3 className="text-sm font-semibold">Categories</h3>
-                    <div className="space-y-2">
-                      {categories.map((category) => {
-                        const Icon = category.icon;
-                        const isActive = selectedCategory === category.id;
-
-                        return (
-                          <Button
-                            key={category.id}
-                            variant={isActive ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => setSelectedCategory(category.id)}
-                            className="w-full justify-start"
-                          >
-                            <Icon className="w-4 h-4 mr-2" />
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={(v) => setSelectedCategory(v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoryOptions.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
                             {category.name}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Quick Actions */}
-                  <div className="space-y-3 pt-4 border-t">
-                    <h3 className="text-sm font-semibold">Quick Actions</h3>
-                    <div className="space-y-2">
-                      {/* Only show Create Community button for College Admin, HOD, and Staff */}
-                      {user?.role &&
-                        ["college_admin", "hod", "staff"].includes(
-                          user.role
-                        ) && (
+                  {/* Quick Actions - Only show if user can create communities */}
+                  {user?.role &&
+                    ["super_admin", "college_admin", "hod", "staff"].includes(
+                      user.role
+                    ) && (
+                      <div className="space-y-3 pt-4 border-t">
+                        <h3 className="text-sm font-semibold">Quick Actions</h3>
+                        <div className="space-y-2">
                           <Dialog
                             open={communityDialogOpen}
                             onOpenChange={setCommunityDialogOpen}
@@ -1861,51 +1912,13 @@ const CommunityNew = () => {
                                           <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          <SelectItem value="department">
-                                            Department
-                                          </SelectItem>
-                                          <SelectItem value="batch">
-                                            Batch
-                                          </SelectItem>
-                                          <SelectItem value="interest">
-                                            Interest
-                                          </SelectItem>
-                                          <SelectItem value="professional">
-                                            Professional
-                                          </SelectItem>
-                                          <SelectItem value="location">
-                                            Location
-                                          </SelectItem>
-                                          <SelectItem value="academic_research">
-                                            Academic & Research
-                                          </SelectItem>
-                                          <SelectItem value="professional_career">
-                                            Professional & Career
-                                          </SelectItem>
-                                          <SelectItem value="entrepreneurship_startups">
-                                            Entrepreneurship & Startups
-                                          </SelectItem>
-                                          <SelectItem value="social_hobby">
-                                            Social & Hobby
-                                          </SelectItem>
-                                          <SelectItem value="mentorship_guidance">
-                                            Mentorship & Guidance
-                                          </SelectItem>
-                                          <SelectItem value="events_meetups">
-                                            Events & Meetups
-                                          </SelectItem>
-                                          <SelectItem value="community_support_volunteering">
-                                            Community Support & Volunteering
-                                          </SelectItem>
-                                          <SelectItem value="technology_deeptech">
-                                            Technology & DeepTech
-                                          </SelectItem>
-                                          <SelectItem value="regional_chapter_based">
-                                            Regional / Chapter-based
-                                          </SelectItem>
-                                          <SelectItem value="other">
-                                            Other
-                                          </SelectItem>
+                                          {categoryOptions
+                                            .filter((c) => c.id !== "all")
+                                            .map((c) => (
+                                              <SelectItem key={c.id} value={c.id}>
+                                                {c.name}
+                                              </SelectItem>
+                                            ))}
                                         </SelectContent>
                                       </Select>
                                     </div>
@@ -2316,9 +2329,144 @@ const CommunityNew = () => {
                               </div>
                             </DialogContent>
                           </Dialog>
-                        )}
-                    </div>
-                  </div>
+                        </div>
+                      </div>
+                    )}
+                  {/* Top Communities (Mobile Sidebar) */}
+                  <Card className="mt-6">
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <TrendingUp className="w-5 h-5 mr-2" />
+                        Top Communities
+                      </CardTitle>
+                      <CardDescription>Most active communities this week</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {loadingSidebar ? (
+                        <div className="space-y-4">
+                          {[...Array(5)].map((_, i) => (
+                            <div key={i} className="flex items-center space-x-3 p-3 rounded-lg">
+                              <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+                              <div className="flex-1 space-y-2">
+                                <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                                <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : topCommunities.length > 0 ? (
+                        <div className="space-y-3">
+                          {topCommunities.map((community, index) => (
+                            <div
+                              key={community.id}
+                              className="group flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-white shadow-sm hover:shadow transition-all cursor-pointer"
+                              onClick={() => navigate(`/community/${community.id}`)}
+                            >
+                              <div className="relative">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+                                  {index + 1}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                    {community.name}
+                                  </h4>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${community.isPublic ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                                    {community.isPublic ? "Public" : "Private"}
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-600">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Users className="w-3 h-3" />
+                                    {community.memberCount.toLocaleString()}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <MessageCircle className="w-3 h-3" />
+                                    {community.postCount}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                className="text-xs px-2.5 py-1 rounded-md border bg-white hover:bg-gray-50 text-gray-700"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No Communities Yet</h3>
+                          <p className="text-sm text-gray-600">Communities will appear here once they're created.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Popular Tags (Mobile Sidebar) */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Star className="w-5 h-5 mr-2" />
+                        Popular Tags
+                      </CardTitle>
+                      <CardDescription>Trending topics in the community</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {loadingSidebar ? (
+                        <div className="flex flex-wrap gap-2">
+                          {[...Array(8)].map((_, i) => (
+                            <div key={i} className="h-6 bg-gray-200 rounded animate-pulse" style={{ width: `${Math.random() * 60 + 40}px` }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {popularTags.map((tag) => (
+                            <Badge
+                              key={tag.name}
+                              variant="secondary"
+                              className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}
+                            >
+                              #{tag.name}
+                              <span className="ml-1 text-xs opacity-70">({tag.count})</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Community Stats (Mobile Sidebar) */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <BarChart3 className="w-5 h-5 mr-2" />
+                        Community Stats
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Total Communities</span>
+                          <span className="text-sm font-semibold">47</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Active Members</span>
+                          <span className="text-sm font-semibold">2,847</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Posts This Week</span>
+                          <span className="text-sm font-semibold">156</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">New Communities</span>
+                          <span className="text-sm font-semibold">3</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </CardContent>
               </Card>
             </div>
@@ -2327,12 +2475,12 @@ const CommunityNew = () => {
       )}
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block w-80 flex-shrink-0 bg-background">
+      <div className="hidden lg:block w-96 flex-shrink-0 bg-background">
         <div className="sticky top-0 h-screen overflow-y-auto p-6">
           <Card className="h-fit">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               {/* Search */}
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 mb-4">
                 <h3 className="text-sm font-semibold">Search Communities</h3>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -2356,43 +2504,166 @@ const CommunityNew = () => {
               </div>
 
               {/* Categories */}
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 mb-4">
                 <h3 className="text-sm font-semibold">Categories</h3>
-                <div className="space-y-2">
-                  {categories.map((category) => {
-                    const Icon = category.icon;
-                    const isActive = selectedCategory === category.id;
-
-                    return (
-                      <Button
-                        key={category.id}
-                        variant={isActive ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setSelectedCategory(category.id)}
-                        className="w-full justify-start"
-                      >
-                        <Icon className="w-4 h-4 mr-2" />
+                <Select
+                  value={selectedCategory}
+                  onValueChange={(v) => setSelectedCategory(v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
                         {category.name}
-                      </Button>
-                    );
-                  })}
-                </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Quick Actions */}
-              <div className="space-y-3 pt-4 border-t">
-                <h3 className="text-sm font-semibold">Quick Actions</h3>
-                <div className="space-y-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => setCommunityDialogOpen(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Community
-                  </Button>
-                </div>
+              {/* Quick Actions - Only show if user can create communities */}
+              {user?.role &&
+                ["super_admin", "college_admin", "hod", "staff"].includes(
+                  user.role
+                ) && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <h3 className="text-sm font-semibold">Quick Actions</h3>
+                    <div className="space-y-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => setCommunityDialogOpen(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Community
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+              {/* Top Communities (Desktop Left Sidebar) */}
+              <div className="pt-4 space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <TrendingUp className="w-5 h-5 mr-2" />
+                      Top Communities
+                    </CardTitle>
+                    <CardDescription>Most active communities this week</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingSidebar ? (
+                      <div className="space-y-4">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="flex items-center space-x-3 p-3 rounded-lg">
+                            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                              <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : topCommunities.length > 0 ? (
+                      <div className="space-y-3">
+                        {topCommunities.map((community, index) => (
+                          <div
+                            key={community.id}
+                            className="group flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-white shadow-sm hover:shadow transition-all cursor-pointer"
+                            onClick={() => navigate(`/community/${community.id}`)}
+                          >
+                            <div className="relative">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+                                {index + 1}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                  {community.name}
+                                </h4>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${community.isPublic ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                                  {community.isPublic ? "Public" : "Private"}
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-600">
+                                <span className="inline-flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  {community.memberCount.toLocaleString()}
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                  <MessageCircle className="w-3 h-3" />
+                                  {community.postCount}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              className="text-xs px-2.5 py-1 rounded-md border bg-white hover:bg-gray-50 text-gray-700"
+                            >
+                              View
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Communities Yet</h3>
+                        <p className="text-sm text-gray-600">Communities will appear here once they're created.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Popular Tags */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Star className="w-5 h-5 mr-2" />
+                      Popular Tags
+                    </CardTitle>
+                    <CardDescription>Trending topics in the community</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingSidebar ? (
+                      <div className="flex flex-wrap gap-2">
+                        {[...Array(8)].map((_, i) => (
+                          <div key={i} className="h-6 bg-gray-200 rounded animate-pulse" style={{ width: `${Math.random() * 60 + 40}px` }} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {popularTags.map((tag) => (
+                          <Badge key={tag.name} variant="secondary" className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}>
+                            #{tag.name}
+                            <span className="ml-1 text-xs opacity-70">({tag.count})</span>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Community Stats */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Community Stats
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Total Communities</span><span className="text-sm font-semibold">47</span></div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Active Members</span><span className="text-sm font-semibold">2,847</span></div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Posts This Week</span><span className="text-sm font-semibold">156</span></div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">New Communities</span><span className="text-sm font-semibold">3</span></div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </CardContent>
           </Card>
@@ -2486,39 +2757,38 @@ const CommunityNew = () => {
           </TabsList>
 
           {/* Communities Tab */}
-          <TabsContent value="communities" className="space-y-4">
-            {communities.length === 0 && !loading ? (
-              <div className="text-center py-12">
-                <Users2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No communities yet
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  Be the first to create a community!
-                </p>
-                <Button onClick={() => setCommunityDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Community
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {communities.map((community) => {
-                  const CategoryIcon = getCategoryIcon(community.category);
-                  const isMember = isUserMember(community);
-                  const isAdmin = isUserAdmin(community);
+          <TabsContent value="communities" className="space-y-6">
+            {/* Joined Communities Section */}
+            {joinedCommunities.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-blue-600" />
+                    Your Joined Communities
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab("my-communities")}
+                  >
+                    View All
+                  </Button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {joinedCommunities.slice(0, 6).map((community) => {
+                    const CategoryIcon = getCategoryIcon(community.category);
+                    const isMember = isUserMember(community);
+                    const isAdmin = isUserAdmin(community);
 
-                  return (
-                    <Card
-                      key={community._id}
-                      className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
-                      onClick={() => handleViewCommunity(community)}
-                    >
-                      {/* Community Card Content */}
-                      <CardContent className="p-6 pb-2">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
+                    return (
+                      <Card
+                        key={community._id}
+                        className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden border-blue-200 bg-blue-50/30"
+                        onClick={() => handleViewCommunity(community)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 flex-shrink-0">
                               {community.logo ? (
                                 <img
                                   src={community.logo}
@@ -2526,95 +2796,214 @@ const CommunityNew = () => {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <CategoryIcon className="w-6 h-6 text-gray-600" />
+                                <CategoryIcon className="w-5 h-5 text-gray-600" />
                               )}
                             </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 truncate">
                                 {community.name}
                               </h3>
-                              <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                                {community.description}
+                              <p className="text-sm text-gray-600 truncate">
+                                {community.category?.replace(/_/g, " ")}
                               </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <CategoryIcon className="w-3 h-3" />
-                                <span className="capitalize">
-                                  {community.category}
-                                </span>
-                                <span>•</span>
-                                <span>{community.memberCount} members</span>
-                                {!community.isPublic && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="text-amber-600">
-                                      Private
-                                    </span>
-                                  </>
-                                )}
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {isAdmin ? "Admin" : "Member"}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {community.type || "Community"}
+                                </Badge>
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {isMember && (
-                              <Badge variant="secondary" className="text-xs">
-                                Member
-                              </Badge>
-                            )}
-                            {isAdmin && (
-                              <Badge variant="default" className="text-xs">
-                                Admin
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Tags */}
-                        {community.tags && community.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {community.tags.slice(0, 3).map((tag) => (
-                              <Badge
-                                key={tag}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
-                            {community.tags.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{community.tags.length - 3} more
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Stats */}
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="w-4 h-4" />
-                              {community.postCount || 0} posts
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              <span>
-                                Active{" "}
-                                {new Date(
-                                  community.createdAt
-                                ).toLocaleDateString()}
-                              </span>
-                            </span>
-                          </div>
-                          <Button variant="outline" size="sm">
-                            {isMember ? "View" : "Join"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+                {joinedCommunities.length > 6 && (
+                  <div className="text-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab("my-communities")}
+                    >
+                      View All {joinedCommunities.length} Joined Communities
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* All Communities Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Users2 className="w-5 h-5 text-gray-600" />
+                  All Communities
+                </h2>
+              </div>
+
+              {communities.length === 0 && !loading ? (
+                <div className="text-center py-12">
+                  <Users2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No communities yet
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    Be the first to create a community!
+                  </p>
+                  {/* Only show Create Community button for College Admin, HOD, and Staff */}
+                  {user?.role &&
+                    ["super_admin", "college_admin", "hod", "staff"].includes(
+                      user.role
+                    ) && (
+                      <Button onClick={() => setCommunityDialogOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Community
+                      </Button>
+                    )}
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {communities.map((community) => {
+                    const CategoryIcon = getCategoryIcon(community.category);
+                    const isMember = isUserMember(community);
+                    const isAdmin = isUserAdmin(community);
+
+                    return (
+                      <Card
+                        key={community._id}
+                        className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+                        onClick={() => handleViewCommunity(community)}
+                      >
+                        {/* Community Card Content */}
+                        <CardContent className="p-6 pb-2">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-start space-x-4">
+                              <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
+                                {community.logo ? (
+                                  <img
+                                    src={community.logo}
+                                    alt={`${community.name} logo`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <CategoryIcon className="w-6 h-6 text-gray-600" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                                  {community.name}
+                                </h3>
+                                <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                                  {community.description}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <CategoryIcon className="w-3 h-3" />
+                                  <span className="capitalize">
+                                    {community.category}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{community.memberCount} members</span>
+                                  {!community.isPublic && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-amber-600">
+                                        Private
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isMember && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Member
+                                </Badge>
+                              )}
+                              {isAdmin && (
+                                <Badge variant="default" className="text-xs">
+                                  Admin
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Tags */}
+                          {community.tags && community.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {community.tags.slice(0, 3).map((tag) => (
+                                <Badge
+                                  key={tag}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {community.tags.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{community.tags.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Stats */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <MessageCircle className="w-4 h-4" />
+                                {community.postCount || 0} posts
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                <span>
+                                  Active{" "}
+                                  {new Date(
+                                    community.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
+                              </span>
+                            </div>
+                            <Button variant="outline" size="sm">
+                              {isMember ? "View" : "Join"}
+                            </Button>
+                          </div>
+
+                          {/* Moderator Tools - Only show for admins */}
+                          {isAdmin && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                  <Shield className="w-3 h-3" />
+                                  <span>Moderator Tools</span>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs h-6 px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // TODO: Add manage community functionality
+                                    }}
+                                  >
+                                    <Settings className="w-3 h-3 mr-1" />
+                                    Manage
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* My Communities Tab */}
@@ -2724,6 +3113,16 @@ const CommunityNew = () => {
                 })}
               </div>
             )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                className="mt-6"
+              />
+            )}
           </TabsContent>
 
           {/* Individual Community Page */}
@@ -2759,7 +3158,7 @@ const CommunityNew = () => {
                 {/* Community Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <Card>
-                    <CardContent className="p-6">
+            <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-600">
@@ -2775,7 +3174,7 @@ const CommunityNew = () => {
                   </Card>
 
                   <Card>
-                    <CardContent className="p-6">
+            <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-600">
@@ -2791,7 +3190,7 @@ const CommunityNew = () => {
                   </Card>
 
                   <Card>
-                    <CardContent className="p-6">
+            <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-600">
@@ -3009,145 +3408,6 @@ const CommunityNew = () => {
         </Tabs>
       </div>
 
-      {/* Right Sidebar - Top Communities & Popular Tags */}
-      <div className="block w-80 flex-shrink-0 bg-gray-50">
-        <div className="sticky top-0 h-screen overflow-y-auto p-4 space-y-6">
-          {/* Top Communities */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="w-5 h-5 mr-2" />
-                Top Communities
-              </CardTitle>
-              <CardDescription>
-                Most active communities this week
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingSidebar ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center space-x-3 p-3 rounded-lg"
-                    >
-                      <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-gray-200 rounded animate-pulse" />
-                        <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {topCommunities.map((community, index) => (
-                    <div
-                      key={community.id}
-                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/community/${community.id}`)}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-gray-900 truncate">
-                          {community.name}
-                        </h4>
-                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                          <Users className="w-3 h-3" />
-                          <span>{community.memberCount.toLocaleString()}</span>
-                          <MessageCircle className="w-3 h-3" />
-                          <span>{community.postCount}</span>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {community.isPublic ? "Public" : "Private"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Popular Tags */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Star className="w-5 h-5 mr-2" />
-                Popular Tags
-              </CardTitle>
-              <CardDescription>
-                Trending topics in the community
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingSidebar ? (
-                <div className="flex flex-wrap gap-2">
-                  {[...Array(8)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-6 bg-gray-200 rounded animate-pulse"
-                      style={{ width: `${Math.random() * 60 + 40}px` }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {popularTags.map((tag, index) => (
-                    <Badge
-                      key={tag.name}
-                      variant="secondary"
-                      className={`${tag.color} hover:opacity-80 cursor-pointer transition-opacity text-xs`}
-                      onClick={() => {
-                        console.log("Filter by tag:", tag.name);
-                      }}
-                    >
-                      #{tag.name}
-                      <span className="ml-1 text-xs opacity-70">
-                        ({tag.count})
-                      </span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <BarChart3 className="w-5 h-5 mr-2" />
-                Community Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
-                    Total Communities
-                  </span>
-                  <span className="text-sm font-semibold">47</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Active Members</span>
-                  <span className="text-sm font-semibold">2,847</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Posts This Week</span>
-                  <span className="text-sm font-semibold">156</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">New Communities</span>
-                  <span className="text-sm font-semibold">3</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
       {/* Shared Create Community Dialog - Triggered by all buttons */}
       <Dialog open={communityDialogOpen} onOpenChange={setCommunityDialogOpen}>
@@ -3237,43 +3497,13 @@ const CommunityNew = () => {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="department">Department</SelectItem>
-                      <SelectItem value="batch">Batch</SelectItem>
-                      <SelectItem value="interest">Interest</SelectItem>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="location">Location</SelectItem>
-                      <SelectItem value="academic_research">
-                        Academic & Research
-                      </SelectItem>
-                      <SelectItem value="professional_career">
-                        Professional & Career
-                      </SelectItem>
-                      <SelectItem value="entrepreneurship_startups">
-                        Entrepreneurship & Startups
-                      </SelectItem>
-                      <SelectItem value="social_hobby">
-                        Social & Hobby
-                      </SelectItem>
-                      <SelectItem value="mentorship_guidance">
-                        Mentorship & Guidance
-                      </SelectItem>
-                      <SelectItem value="events_meetups">
-                        Events & Meetups
-                      </SelectItem>
-                      <SelectItem value="community_support_volunteering">
-                        Community Support & Volunteering
-                      </SelectItem>
-                      <SelectItem value="technology_deeptech">
-                        Technology & DeepTech
-                      </SelectItem>
-                      <SelectItem value="regional_chapter_based">
-                        Regional / Chapter-based
-                      </SelectItem>
-                      <SelectItem value="sports">
-                        Sports & Recreation
-                      </SelectItem>
-                      <SelectItem value="cultural">Cultural</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {categoryOptions
+                        .filter((c) => c.id !== "all")
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   {formErrors.category && (

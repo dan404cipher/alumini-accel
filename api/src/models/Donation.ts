@@ -1,13 +1,13 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface IDonation extends Document {
-  donor: mongoose.Types.ObjectId;
+  donor?: mongoose.Types.ObjectId; // Optional for external donors
   tenantId: mongoose.Types.ObjectId;
   campaignId?: mongoose.Types.ObjectId;
   amount: number;
   currency: string;
   paymentMethod: string;
-  paymentStatus: "pending" | "completed" | "failed" | "refunded";
+  paymentStatus: "pending" | "completed" | "failed" | "refunded" | "successful";
   donationType: "one-time" | "recurring";
   campaign?: string;
   cause?: string;
@@ -19,6 +19,15 @@ export interface IDonation extends Document {
   paymentGateway?: string;
   screenshot?: string;
   eventId?: string;
+  paymentId?: string;
+  orderId?: string;
+  paidAt?: Date;
+  // External donor information
+  donorName?: string;
+  donorEmail?: string;
+  donorPhone?: string;
+  donorAddress?: string;
+  taxDeductible?: boolean;
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -29,7 +38,7 @@ const donationSchema = new Schema<IDonation>(
     donor: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false, // Optional for external donors
       index: true,
     },
     tenantId: {
@@ -67,13 +76,15 @@ const donationSchema = new Schema<IDonation>(
         "bank_transfer",
         "paypal",
         "stripe",
+        "razorpay",
+        "Razorpay",
         "other",
       ],
     },
     paymentStatus: {
       type: String,
       required: true,
-      enum: ["pending", "completed", "failed", "refunded"],
+      enum: ["pending", "completed", "failed", "refunded", "successful"],
       default: "pending",
       index: true,
     },
@@ -126,6 +137,39 @@ const donationSchema = new Schema<IDonation>(
     eventId: {
       type: String,
       trim: true,
+    },
+    paymentId: {
+      type: String,
+      trim: true,
+    },
+    orderId: {
+      type: String,
+      trim: true,
+    },
+    paidAt: {
+      type: Date,
+    },
+    // External donor information
+    donorName: {
+      type: String,
+      trim: true,
+    },
+    donorEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    donorPhone: {
+      type: String,
+      trim: true,
+    },
+    donorAddress: {
+      type: String,
+      trim: true,
+    },
+    taxDeductible: {
+      type: Boolean,
+      default: false,
     },
     metadata: {
       type: Schema.Types.Mixed,

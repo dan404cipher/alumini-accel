@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, MapPin, Clock } from "lucide-react";
-import { eventAPI } from "@/lib/api";
+import { eventAPI, categoryAPI } from "@/lib/api";
 
 interface Event {
   _id: string;
@@ -73,6 +73,12 @@ export const EditEventDialog = ({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const [eventTypes, setEventTypes] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [locationOptions, setLocationOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -103,6 +109,58 @@ export const EditEventDialog = ({
     }>,
   });
 
+  // Fetch custom event type categories
+  useEffect(() => {
+    const fetchEventTypes = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_type",
+          isActive: "true",
+        });
+
+        if (response.success && response.data && Array.isArray(response.data)) {
+          const customTypes = response.data.map((cat: any) => ({
+            value: cat._id, // Use ObjectId as value
+            label: cat.name,
+          }));
+          setEventTypes(customTypes);
+        } else {
+          setEventTypes([]);
+        }
+      } catch (error) {
+        setEventTypes([]);
+      }
+    };
+
+    if (open) {
+      fetchEventTypes();
+    }
+  }, [open]);
+
+  // Fetch event location categories (dynamic only)
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await categoryAPI.getAll({
+          entityType: "event_location",
+          isActive: "true",
+        });
+        if (response.success && Array.isArray(response.data)) {
+          const opts = response.data.map((c: any) => ({
+            value: c.name,
+            label: c.name,
+          }));
+          setLocationOptions(opts);
+        } else {
+          setLocationOptions([]);
+        }
+      } catch (_e) {
+        setLocationOptions([]);
+      }
+    };
+    if (open) fetchLocations();
+  }, [open]);
+
   // Populate form data when event changes
   useEffect(() => {
     if (event) {
@@ -120,6 +178,9 @@ export const EditEventDialog = ({
       const isValidRegistrationDeadline =
         registrationDeadline && !isNaN(registrationDeadline.getTime());
 
+      // Keep ObjectId if provided; if legacy string, leave as-is (may not match any current category)
+      const eventTypeValue = event.type || "";
+
       setFormData({
         title: event.title || "",
         description: event.description || "",
@@ -130,7 +191,7 @@ export const EditEventDialog = ({
         endDate: isValidEndDate ? endDate.toISOString().split("T")[0] : "",
         endTime: isValidEndDate ? endDate.toTimeString().slice(0, 5) : "",
         location: event.location || "",
-        type: event.type || "",
+        type: eventTypeValue,
         maxAttendees: event.maxAttendees?.toString() || "",
         price: event.price?.toString() || "",
         priceType: event.price > 0 ? "paid" : "free",
@@ -464,7 +525,7 @@ export const EditEventDialog = ({
       const eventData: any = {
         title: trimmedTitle,
         description: trimmedDescription,
-        type: formData.type,
+        type: formData.type, // formData.type holds ObjectId from Select
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
         location: trimmedLocation,
@@ -571,7 +632,6 @@ export const EditEventDialog = ({
         return;
       }
     } catch (error: any) {
-      console.error("Unexpected error updating event:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
@@ -743,14 +803,44 @@ export const EditEventDialog = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => handleFieldChange("location", e.target.value)}
-                placeholder="University Campus or Virtual"
-                required
-                className={fieldErrors.location ? "border-red-500" : ""}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) =>
+                      handleFieldChange("location", e.target.value)
+                    }
+                    placeholder="University Campus or Virtual"
+                    required
+                    className={fieldErrors.location ? "border-red-500" : ""}
+                  />
+                </div>
+                <div className="w-60">
+                  <Select
+                    onValueChange={(value) =>
+                      handleFieldChange("location", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick from categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locationOptions && locationOptions.length > 0 ? (
+                        locationOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          No saved locations
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-gray-500">
                   {formData.location.length}/200 characters (minimum 2)
@@ -781,12 +871,11 @@ export const EditEventDialog = ({
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="meetup">Meetup</SelectItem>
-                  <SelectItem value="workshop">Workshop</SelectItem>
-                  <SelectItem value="webinar">Webinar</SelectItem>
-                  <SelectItem value="conference">Conference</SelectItem>
-                  <SelectItem value="career_fair">Career Fair</SelectItem>
-                  <SelectItem value="reunion">Reunion</SelectItem>
+                  {eventTypes.map((eventType) => (
+                    <SelectItem key={eventType.value} value={eventType.value}>
+                      {eventType.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {fieldErrors.type && (
@@ -881,10 +970,10 @@ export const EditEventDialog = ({
                 )}
                 {formData.priceType === "paid" && (
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (USD) *</Label>
+                    <Label htmlFor="price">Price (INR) *</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                        $
+                        ₹
                       </span>
                       <Input
                         id="price"

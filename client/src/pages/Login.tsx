@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -11,6 +12,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Eye,
@@ -23,6 +32,7 @@ import {
   Globe,
   Users,
   GraduationCap,
+  Loader2,
 } from "lucide-react";
 import { tenantAPI } from "@/lib/api";
 
@@ -56,6 +66,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [collegeInfo, setCollegeInfo] = useState<CollegeInfo | null>(null);
   const [collegeLoading, setCollegeLoading] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   const { login, error, clearError } = useAuth();
   const { toast } = useToast();
@@ -85,7 +99,7 @@ const Login = () => {
     setLoading(true);
     clearError();
 
-    const success = await login(formData.email, formData.password);
+    const success = await login(formData.email, formData.password, rememberMe);
 
     if (success) {
       toast({
@@ -106,6 +120,64 @@ const Login = () => {
     setLoading(false);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!forgotPasswordEmail) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    try {
+      const requestData = { email: forgotPasswordEmail };
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+        }/auth/forgot-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: "Reset email sent",
+          description:
+            "Please check your email for password reset instructions",
+        });
+        setForgotPasswordOpen(false);
+        setForgotPasswordEmail("");
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || "Failed to send reset email",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send reset email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -114,9 +186,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Side - College Information */}
-      <div className="lg:w-1/2 bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 relative overflow-hidden min-h-[50vh] lg:min-h-screen">
+      <div className="lg:w-1/2 bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 relative overflow-hidden h-[50vh] lg:h-screen">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
@@ -364,9 +436,9 @@ const Login = () => {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-background to-muted/20 min-h-[50vh] lg:min-h-screen">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-background to-muted/20 h-[50vh] lg:h-screen overflow-y-auto">
         <Card className="w-full max-w-md shadow-2xl border-0 bg-white/95 backdrop-blur-sm animate-fade-in-up">
-          <CardHeader className="space-y-2 p-6 sm:p-8">
+          <CardHeader className="space-y-2 p-4 sm:p-6">
             <CardTitle className="text-2xl sm:text-3xl font-bold text-center text-primary">
               Welcome Back
             </CardTitle>
@@ -374,8 +446,8 @@ const Login = () => {
               Sign in to your account to continue
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6 sm:p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
+          <CardContent className="p-4 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email
@@ -427,6 +499,40 @@ const Login = () => {
                 </div>
               </div>
 
+              {/* Remember Me and Forgot Password */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="remember-me"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) =>
+                      setRememberMe(checked as boolean)
+                    }
+                  />
+                  <Label
+                    htmlFor="remember-me"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Remember me
+                  </Label>
+                </div>
+
+                <Dialog
+                  open={forgotPasswordOpen}
+                  onOpenChange={setForgotPasswordOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-sm text-primary hover:text-primary/80 p-0 h-auto"
+                    >
+                      Forgot password?
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -443,7 +549,68 @@ const Login = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            {/* Forgot Password Dialog */}
+            <Dialog
+              open={forgotPasswordOpen}
+              onOpenChange={setForgotPasswordOpen}
+            >
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Reset Password</DialogTitle>
+                  <DialogDescription>
+                    Enter your email address and we'll send you a link to reset
+                    your password.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="forgot-email"
+                      className="text-sm font-medium"
+                    >
+                      Email Address
+                    </Label>
+                    <div className="relative group">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={forgotPasswordEmail}
+                        onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                        className="pl-10 h-11 border-2 focus:border-primary transition-all duration-200"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setForgotPasswordOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={forgotPasswordLoading}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {forgotPasswordLoading ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sending...
+                        </div>
+                      ) : (
+                        "Send Reset Link"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <div className="mt-4 text-center">
               <div className="p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-xl border border-border/50">
                 <p className="text-sm font-medium text-foreground mb-2">
                   Need access?

@@ -493,7 +493,9 @@ const CampaignManagement: React.FC = () => {
       });
 
       if (response.success) {
-        const campaignsWithProgress = (response.data as Campaign[]).map(
+        // Handle both response structures: { campaigns: [...] } or direct array
+        const campaignsData = response.data?.campaigns || (Array.isArray(response.data) ? response.data : []);
+        const campaignsWithProgress = (campaignsData as Campaign[]).map(
           (campaign: Campaign) => ({
             ...campaign,
             progressPercentage: Math.round(

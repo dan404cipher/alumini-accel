@@ -112,66 +112,68 @@ const startServer = async () => {
       } else {
         logger.error("Failed to start server:", error);
         process.exit(1);
-      logger.info(
-        `🔌 Socket.IO server initialized for real-time communication`
-      );
-
-      // Schedule daily event reminder emails at 9:00 AM server time
-      try {
-        cron.schedule("0 9 * * *", async () => {
-          try {
-            const now = new Date();
-            const start = new Date(now);
-            start.setDate(now.getDate() + 1);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(start);
-            end.setHours(23, 59, 59, 999);
-
-            const events = await Event.find({
-              startDate: { $gte: start, $lte: end },
-            })
-              .populate("attendees.userId", "email firstName lastName")
-              .populate("organizer", "firstName lastName");
-
-            for (const evt of events) {
-              const attendees = Array.isArray(evt.attendees) ? evt.attendees : [];
-              for (const a of attendees) {
-                if (!a || a.status !== "registered" || a.reminderSent) continue;
-                const user: any = a.userId;
-                if (!user?.email) continue;
-                const tenant = (evt as any).tenantId
-                  ? await Tenant.findById((evt as any).tenantId)
-                  : null;
-                await emailService.sendEventReminderEmail({
-                  to: user.email,
-                  attendeeName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-                  eventTitle: (evt as any).title,
-                  eventDescription: (evt as any).description,
-                  startDate: (evt as any).startDate,
-                  endDate: (evt as any).endDate,
-                  location: (evt as any).location,
-                  isOnline: (evt as any).isOnline,
-                  meetingLink: (evt as any).meetingLink,
-                  price: (evt as any).price,
-                  image: (evt as any).image,
-                  collegeName: tenant?.name,
-                  organizerName: (evt as any).organizer ? `${(evt as any).organizer.firstName || ""} ${(evt as any).organizer.lastName || ""}`.trim() : undefined,
-                  speakers: Array.isArray((evt as any).speakers) ? ((evt as any).speakers as any) : undefined,
-                  agenda: Array.isArray((evt as any).agenda) ? ((evt as any).agenda as any) : undefined,
-                });
-                a.reminderSent = true;
-              }
-              await (evt as any).save();
-            }
-          } catch (err) {
-            logger.warn("Reminder email job failed", err);
-          }
-        });
-        logger.info("⏰ Daily reminder email job scheduled for 09:00");
-      } catch (e) {
-        logger.warn("Failed to schedule reminder job", e);
       }
     });
+
+    logger.info(
+      `🔌 Socket.IO server initialized for real-time communication`
+    );
+
+    // Schedule daily event reminder emails at 9:00 AM server time
+    try {
+      cron.schedule("0 9 * * *", async () => {
+        try {
+          const now = new Date();
+          const start = new Date(now);
+          start.setDate(now.getDate() + 1);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(start);
+          end.setHours(23, 59, 59, 999);
+
+          const events = await Event.find({
+            startDate: { $gte: start, $lte: end },
+          })
+            .populate("attendees.userId", "email firstName lastName")
+            .populate("organizer", "firstName lastName");
+
+          for (const evt of events) {
+            const attendees = Array.isArray(evt.attendees) ? evt.attendees : [];
+            for (const a of attendees) {
+              if (!a || a.status !== "registered" || a.reminderSent) continue;
+              const user: any = a.userId;
+              if (!user?.email) continue;
+              const tenant = (evt as any).tenantId
+                ? await Tenant.findById((evt as any).tenantId)
+                : null;
+              await emailService.sendEventReminderEmail({
+                to: user.email,
+                attendeeName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+                eventTitle: (evt as any).title,
+                eventDescription: (evt as any).description,
+                startDate: (evt as any).startDate,
+                endDate: (evt as any).endDate,
+                location: (evt as any).location,
+                isOnline: (evt as any).isOnline,
+                meetingLink: (evt as any).meetingLink,
+                price: (evt as any).price,
+                image: (evt as any).image,
+                collegeName: tenant?.name,
+                organizerName: (evt as any).organizer ? `${(evt as any).organizer.firstName || ""} ${(evt as any).organizer.lastName || ""}`.trim() : undefined,
+                speakers: Array.isArray((evt as any).speakers) ? ((evt as any).speakers as any) : undefined,
+                agenda: Array.isArray((evt as any).agenda) ? ((evt as any).agenda as any) : undefined,
+              });
+              a.reminderSent = true;
+            }
+            await (evt as any).save();
+          }
+        } catch (err) {
+          logger.warn("Reminder email job failed", err);
+        }
+      });
+      logger.info("⏰ Daily reminder email job scheduled for 09:00");
+    } catch (e) {
+      logger.warn("Failed to schedule reminder job", e);
+    }
   } catch (error: any) {
     logger.error("Failed to start server:", {
       error: error?.message || error,

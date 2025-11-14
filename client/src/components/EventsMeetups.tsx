@@ -290,7 +290,12 @@ const EventsMeetups = () => {
               { value: "50-100", label: "$50 - $100" },
               { value: "100+", label: "$100+" },
             ];
-            return [...defaults, ...custom];
+            // Deduplicate by value to avoid duplicate keys
+            const allOptions = [...defaults, ...custom];
+            const uniqueOptions = Array.from(
+              new Map(allOptions.map((opt) => [opt.value, opt])).values()
+            );
+            return uniqueOptions;
           });
         }
       } catch (e) {
@@ -492,8 +497,20 @@ const EventsMeetups = () => {
             ...types,
           ]);
           setLocationCategoryOptions(mapNames(locRes));
-          const price = mapNames(priceRes).map((n) => ({ value: n, label: n }));
-          setPriceOptions([{ value: "all", label: "All Prices" }, ...price]);
+          const price = mapNames(priceRes).map((n) => ({ 
+            value: n.toLowerCase(), 
+            label: n 
+          }));
+          // Deduplicate by value to avoid duplicate keys
+          const allPriceOptions = [
+            { value: "all", label: "All Prices" },
+            { value: "free", label: "Free" },
+            ...price
+          ];
+          const uniquePriceOptions = Array.from(
+            new Map(allPriceOptions.map((opt) => [opt.value, opt])).values()
+          );
+          setPriceOptions(uniquePriceOptions);
         }
       } catch (_) {
         if (mounted) {

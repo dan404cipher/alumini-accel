@@ -21,6 +21,7 @@ import CookiePolicy from "./pages/CookiePolicy";
 import Dashboard from "./components/Dashboard";
 import AlumniDirectory from "./components/AlumniDirectory";
 import JobBoard from "./components/JobBoard";
+import RoleBasedDashboard from "./components/RoleBasedDashboard";
 
 import EventsMeetups from "./components/EventsMeetups";
 import Recognition from "./components/Recognition";
@@ -61,275 +62,6 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/about" element={<AboutUs />} />
-              <Route path="/gallery" element={<Gallery />} />
-              <Route path="/connections" element={<Connections />} />
-              <Route
-                path="/connections/my-connections"
-                element={<Connections />}
-              />
-              <Route path="/connections/pending" element={<Connections />} />
-              <Route path="/connections/find" element={<Connections />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/messages/inbox" element={<Messages />} />
-              <Route path="/messages/sent" element={<Messages />} />
-              <Route path="/messages/drafts" element={<Messages />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/cookies" element={<CookiePolicy />} />
-              <Route
-                path="/mentee-registration"
-                element={<MenteeRegistration />}
-              />
-              <Route
-                path="/mentor-registration"
-                element={
-                  <ProtectedRoute>
-                    <ProgramMentorRegistration />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/your-mentees"
-                element={
-                  <ProtectedRoute>
-                    <YourMentees />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/registered-program-detail"
-                element={
-                  <ProtectedRoute>
-                    <RegisteredProgramDetail />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Protected routes */}
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route path="/alumni/:id" element={<AlumniProfile />} />
-
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/alumni"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/users"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/news"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/news/:id"
-                element={
-                  <ProtectedRoute>
-                    <NewsDetail />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/jobs/:id"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/jobs"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/events"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/events/:id"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/recognition"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/community"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/community/:id"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/donations"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/mentorship"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/mentoring-approvals"
-                element={
-                  <ProtectedRoute>
-                    <ApprovalWorkflow />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/matching-dashboard"
-                element={
-                  <ProtectedRoute>
-                    <MatchingDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/mentee-mentor-selection"
-                element={<MenteeMentorSelection />}
-              />
-              <Route
-                path="/mentor-match-requests"
-                element={
-                  <ProtectedRoute>
-                    <MentorMatchRequests />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/published-mentors/:programId"
-                element={<PublishedMentors />}
-              />
-              <Route
-                path="/mentoring-programs"
-                element={
-                  <ProtectedRoute>
-                    <MentoringPrograms />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/mentoring-programs/:id"
-                element={
-                  <ProtectedRoute>
-                    <MentoringPrograms />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/send-invitations"
-                element={
-                  <ProtectedRoute>
-                    <SendInvitationsPage />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
         <NotificationProvider>
           <MessagesProvider>
             <TooltipProvider>
@@ -343,9 +75,52 @@ const App = () => {
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/about" element={<AboutUs />} />
+                  <Route path="/gallery" element={<Gallery />} />
+                  <Route path="/connections" element={<Connections />} />
+                  <Route
+                    path="/connections/my-connections"
+                    element={<Connections />}
+                  />
+                  <Route
+                    path="/connections/pending"
+                    element={<Connections />}
+                  />
+                  <Route path="/connections/find" element={<Connections />} />
+                  <Route path="/messages" element={<Messages />} />
+                  <Route path="/messages/inbox" element={<Messages />} />
+                  <Route path="/messages/sent" element={<Messages />} />
+                  <Route path="/messages/drafts" element={<Messages />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route
+                    path="/mentee-registration"
+                    element={<MenteeRegistration />}
+                  />
+                  <Route
+                    path="/mentor-registration"
+                    element={
+                      <ProtectedRoute>
+                        <ProgramMentorRegistration />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/your-mentees"
+                    element={
+                      <ProtectedRoute>
+                        <YourMentees />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/registered-program-detail"
+                    element={
+                      <ProtectedRoute>
+                        <RegisteredProgramDetail />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Protected routes */}
                   <Route
@@ -492,84 +267,68 @@ const App = () => {
                       </ProtectedRoute>
                     }
                   />
-
                   <Route
-                    path="/gallery"
+                    path="/mentoring-approvals"
                     element={
                       <ProtectedRoute>
-                        <Layout />
+                        <ApprovalWorkflow />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/matching-dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <MatchingDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/mentee-mentor-selection"
+                    element={<MenteeMentorSelection />}
+                  />
+                  <Route
+                    path="/mentor-match-requests"
+                    element={
+                      <ProtectedRoute>
+                        <MentorMatchRequests />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/published-mentors/:programId"
+                    element={<PublishedMentors />}
+                  />
+                  <Route
+                    path="/mentoring-programs"
+                    element={
+                      <ProtectedRoute>
+                        <MentoringPrograms />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/mentoring-programs/:id"
+                    element={
+                      <ProtectedRoute>
+                        <MentoringPrograms />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/send-invitations"
+                    element={
+                      <ProtectedRoute>
+                        <SendInvitationsPage />
                       </ProtectedRoute>
                     }
                   />
 
                   <Route
-                    path="/connections"
+                    path="/admin"
                     element={
                       <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/connections/my-connections"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/connections/pending"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/connections/find"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/messages"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/messages/inbox"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/messages/sent"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/messages/drafts"
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
+                        <RoleBasedDashboard />
                       </ProtectedRoute>
                     }
                   />

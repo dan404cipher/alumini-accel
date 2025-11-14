@@ -513,13 +513,23 @@ const JobDetail = () => {
 
                 {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        onClick={handleApply}
-                        className="w-full sm:w-auto"
-                      >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Apply Now
-                  </Button>
+                      {job.postedBy?._id === user?._id ? (
+                        <Button
+                          variant="secondary"
+                          disabled
+                          className="w-full sm:w-auto"
+                        >
+                          Your Job Post
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleApply}
+                          className="w-full sm:w-auto"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Apply Now
+                        </Button>
+                      )}
                   <Button
                     variant="outline"
                     onClick={handleSaveJob}

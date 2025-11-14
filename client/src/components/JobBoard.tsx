@@ -1505,7 +1505,16 @@ const JobBoard = () => {
                                       </span>
                                       <span className="sm:hidden">View</span>
                                     </Button>
-                                    {isJobApplied(job) ? (
+                                    {job.postedBy?._id === user?._id ? (
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled
+                                        className="text-xs lg:text-sm"
+                                      >
+                                        Your Job Post
+                                      </Button>
+                                    ) : isJobApplied(job) ? (
                                       <Button
                                         variant="secondary"
                                         size="sm"

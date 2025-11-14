@@ -77,7 +77,7 @@ async function seedDepartments() {
 
     await ensureDepartmentsForTenant(
       tenant._id as mongoose.Types.ObjectId,
-      creator._id as mongoose.Types.ObjectId
+      new mongoose.Types.ObjectId(creator._id.toString())
     );
   }
 

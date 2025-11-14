@@ -369,10 +369,19 @@ export const applyForJob = async (req: Request, res: Response) => {
       });
     }
 
-    if (job.status !== JobPostStatus.ACTIVE) {
+    // Allow applying to active or pending jobs
+    if (job.status !== JobPostStatus.ACTIVE && job.status !== JobPostStatus.PENDING) {
       return res.status(400).json({
         success: false,
-        message: "Job post is not active",
+        message: "Job post is not available for applications. Only active or pending jobs can accept applications.",
+      });
+    }
+
+    // Prevent users from applying to their own jobs
+    if (job.postedBy.toString() === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot apply to your own job post",
       });
     }
 

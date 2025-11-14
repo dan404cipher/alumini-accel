@@ -10,6 +10,7 @@ interface EmailOptions {
   text?: string;
   templateId?: string;
   metadata?: Record<string, any>;
+  fromName?: string;
 }
 
 interface BatchEmailOptions {
@@ -195,21 +196,9 @@ class EmailService {
       // Update transporter with cleaned credentials each time to ensure consistency
       this.transporter = nodemailer.createTransport(smtpConfig);
 
-      const mailOptions = {
-        from: `"AlumniAccel" <${smtpUser}>`,
-      // Check if SMTP credentials are configured
-      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        logger.error(
-          "SMTP credentials not configured. Please set SMTP_USER and SMTP_PASS in your .env file."
-        );
-        throw new Error(
-          "SMTP credentials not configured. Please set SMTP_USER and SMTP_PASS environment variables."
-        );
-      }
-
       const fromName = options.fromName || "Alumni Accel";
       const mailOptions = {
-        from: `"${fromName}" <${process.env.SMTP_USER}>`,
+        from: `"${fromName}" <${smtpUser}>`,
         to: options.to,
         subject: options.subject || "No Subject",
         html: options.html || "",
@@ -472,14 +461,13 @@ class EmailService {
 
       return result;
     } catch (error) {
-      logger.error("Failed to retry email:", error);
-      return false;
       logger.error("Failed to send email:", error);
 
       // Provide more helpful error messages
+      const errorMessage = error instanceof Error ? error.message : String(error);
       if (
-        error.message?.includes("credentials") ||
-        error.message?.includes("PLAIN")
+        errorMessage?.includes("credentials") ||
+        errorMessage?.includes("PLAIN")
       ) {
         logger.error(
           "SMTP authentication failed. Please check your SMTP_USER and SMTP_PASS in .env file."

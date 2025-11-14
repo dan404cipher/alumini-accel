@@ -833,7 +833,7 @@ export const EditEventDialog = ({
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="__noopts__" disabled>
                           No saved locations
                         </SelectItem>
                       )}

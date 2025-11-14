@@ -86,10 +86,38 @@ const App = () => {
                     element={<Connections />}
                   />
                   <Route path="/connections/find" element={<Connections />} />
-                  <Route path="/messages" element={<Messages />} />
-                  <Route path="/messages/inbox" element={<Messages />} />
-                  <Route path="/messages/sent" element={<Messages />} />
-                  <Route path="/messages/drafts" element={<Messages />} />
+                  <Route
+                    path="/messages"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/messages/inbox"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/messages/sent"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/messages/drafts"
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/cookies" element={<CookiePolicy />} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
 import { galleryAPI, categoryAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -141,8 +141,11 @@ const Gallery: React.FC = () => {
         const res = await categoryAPI.getAll({
           entityType: "gallery_category",
         });
+        interface Category {
+          name?: string;
+        }
         const names = Array.isArray(res.data)
-          ? (res.data as any[])
+          ? (res.data as Category[])
               .filter((c) => c && typeof c.name === "string")
               .map((c) => c.name as string)
           : [];
@@ -453,7 +456,7 @@ const Gallery: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation activeTab="gallery" onTabChange={() => {}} />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden pt-16">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div
@@ -471,7 +474,7 @@ const Gallery: React.FC = () => {
             : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
         }
         top-16 w-[280px] sm:w-80 flex-shrink-0 bg-background ${
-          sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"
+          sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem)]"
         }
       `}
         >
@@ -665,7 +668,7 @@ const Gallery: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80">
+        <div className="flex-1 flex flex-col overflow-y-auto ml-0 lg:ml-80 pt-4 lg:pt-6">
           <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6 pb-20">
             {/* Mobile Menu Button */}
             <div className="lg:hidden">

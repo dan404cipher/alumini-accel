@@ -14,7 +14,7 @@ interface GalleryActionMenuProps {
     title: string;
     createdBy: {
       _id: string;
-    };
+    } | null;
   };
   currentUser: {
     _id: string;
@@ -31,7 +31,9 @@ const GalleryActionMenu: React.FC<GalleryActionMenuProps> = ({
   onDelete,
 }) => {
   // Check if user can edit/delete this gallery
-  const isCreator = currentUser?._id === gallery.createdBy._id;
+  const isCreator = currentUser?._id && gallery.createdBy?._id 
+    ? currentUser._id === gallery.createdBy._id 
+    : false;
   const isAdmin =
     currentUser?.role === "admin" ||
     currentUser?.role === "super_admin" ||

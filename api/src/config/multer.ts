@@ -2,7 +2,16 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Ensure upload directories exist
+// Get absolute path for uploads directory
+// Use process.cwd() to get the project root, or __dirname for compiled JS
+const getUploadsPath = (relativePath: string): string => {
+  // In production, use process.cwd() (project root)
+  // In development, this also works
+  const basePath = process.cwd();
+  return path.join(basePath, relativePath);
+};
+
+// Ensure upload directories exist with absolute paths
 const uploadDirs = [
   "uploads",
   "uploads/profile-images",
@@ -16,15 +25,22 @@ const uploadDirs = [
 ];
 
 uploadDirs.forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  const absolutePath = getUploadsPath(dir);
+  if (!fs.existsSync(absolutePath)) {
+    fs.mkdirSync(absolutePath, { recursive: true });
+    console.log(`Created upload directory: ${absolutePath}`);
   }
 });
 
 // Configure multer for profile images
 const profileImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/profile-images/");
+    const uploadPath = getUploadsPath("uploads/profile-images/");
+    // Ensure directory exists
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     // Generate unique filename with timestamp
@@ -71,7 +87,7 @@ export const uploadProfileImage = multer({
 // General file storage for other uploads
 const generalStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = "uploads/documents/";
+    const uploadPath = getUploadsPath("uploads/documents/");
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
@@ -94,7 +110,11 @@ export const uploadGeneral = multer({
 // Configure multer for gallery images
 const galleryImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/gallery/");
+    const uploadPath = getUploadsPath("uploads/gallery/");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     // Generate unique filename with timestamp
@@ -141,7 +161,11 @@ export const uploadGalleryImages = multer({
 // Configure multer for tenant logos
 const tenantLogoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/tenant-logos/");
+    const uploadPath = getUploadsPath("uploads/tenant-logos/");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -186,7 +210,11 @@ export const uploadTenantLogo = multer({
 // Configure multer for tenant banners
 const tenantBannerStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/tenant-banners/");
+    const uploadPath = getUploadsPath("uploads/tenant-banners/");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -231,7 +259,11 @@ export const uploadTenantBanner = multer({
 // Configure multer for campaign images
 const campaignImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/campaigns/");
+    const uploadPath = getUploadsPath("uploads/campaigns/");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);

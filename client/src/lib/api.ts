@@ -2485,7 +2485,7 @@ export const tenantAPI = {
       url: `/tenants/${tenantId}/logo`,
       data: formData,
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": undefined, // Let browser set multipart/form-data with boundary
       },
     });
   },
@@ -2528,7 +2528,7 @@ export const tenantAPI = {
       url: `/tenants/${tenantId}/banner`,
       data: formData,
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": undefined, // Let browser set multipart/form-data with boundary
       },
     });
   },

@@ -41,11 +41,6 @@ router.get(
 // @access  Public
 router.get("/public-info", asyncHandler(getPublicCollegeInfo));
 
-// @route   GET /api/v1/tenants/:id
-// @desc    Get tenant by ID
-// @access  Private
-router.get("/:id", authenticateToken, asyncHandler(getTenantById));
-
 // @route   POST /api/v1/tenants
 // @desc    Create new tenant
 // @access  Private/Super Admin
@@ -56,31 +51,7 @@ router.post(
   asyncHandler(createTenant)
 );
 
-// @route   PUT /api/v1/tenants/:id
-// @desc    Update tenant
-// @access  Private/Super Admin or College Admin
-router.put("/:id", authenticateToken, asyncHandler(updateTenant));
-
-// @route   DELETE /api/v1/tenants/:id
-// @desc    Delete tenant
-// @access  Private/Super Admin
-router.delete(
-  "/:id",
-  authenticateToken,
-  requireSuperAdmin,
-  asyncHandler(deleteTenant)
-);
-
-// @route   GET /api/v1/tenants/:id/users
-// @desc    Get tenant users
-// @access  Private
-router.get("/:id/users", authenticateToken, asyncHandler(getTenantUsers));
-
-// @route   GET /api/v1/tenants/:id/stats
-// @desc    Get tenant statistics
-// @access  Private
-router.get("/:id/stats", authenticateToken, asyncHandler(getTenantStats));
-
+// IMPORTANT: Specific routes must come before generic :id routes
 // @route   POST /api/v1/tenants/:id/logo
 // @desc    Upload tenant logo
 // @access  Private/Super Admin or College Admin
@@ -110,5 +81,35 @@ router.post(
 // @desc    Get tenant banner
 // @access  Private
 router.get("/:id/banner", authenticateToken, asyncHandler(getTenantBanner));
+
+// @route   GET /api/v1/tenants/:id/users
+// @desc    Get tenant users
+// @access  Private
+router.get("/:id/users", authenticateToken, asyncHandler(getTenantUsers));
+
+// @route   GET /api/v1/tenants/:id/stats
+// @desc    Get tenant statistics
+// @access  Private
+router.get("/:id/stats", authenticateToken, asyncHandler(getTenantStats));
+
+// @route   PUT /api/v1/tenants/:id
+// @desc    Update tenant
+// @access  Private/Super Admin or College Admin
+router.put("/:id", authenticateToken, asyncHandler(updateTenant));
+
+// @route   DELETE /api/v1/tenants/:id
+// @desc    Delete tenant
+// @access  Private/Super Admin
+router.delete(
+  "/:id",
+  authenticateToken,
+  requireSuperAdmin,
+  asyncHandler(deleteTenant)
+);
+
+// @route   GET /api/v1/tenants/:id
+// @desc    Get tenant by ID
+// @access  Private
+router.get("/:id", authenticateToken, asyncHandler(getTenantById));
 
 export default router;

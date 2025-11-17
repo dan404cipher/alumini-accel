@@ -77,7 +77,7 @@ interface GalleryItem {
     firstName: string;
     lastName: string;
     email: string;
-  };
+  } | null;
   createdAt: string;
   category: string;
   tags?: string[];
@@ -133,6 +133,10 @@ const Gallery: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      // Only fetch categories if user is authenticated
+      if (!user) {
+        return;
+      }
       try {
         const res = await categoryAPI.getAll({
           entityType: "gallery_category",
@@ -143,14 +147,16 @@ const Gallery: React.FC = () => {
               .map((c) => c.name as string)
           : [];
         if (mounted) setGalleryCategories(names);
-      } catch (_e) {
-        // keep empty list if API fails
+      } catch (error) {
+        // Silently handle errors (401, network issues, etc.)
+        // Categories are optional - gallery will work without them
+        if (mounted) setGalleryCategories([]);
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user]);
 
   // Check if user can create galleries (HOD, Staff, College Admin only)
   const canCreateGallery =

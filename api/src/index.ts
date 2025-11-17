@@ -9,6 +9,7 @@ import helmet from "helmet";
 import compression from "compression";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
+import path from "path";
 // import xss from 'xss-clean';
 // import hpp from 'hpp';
 import "express-async-errors";
@@ -227,8 +228,8 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Static file serving for uploads
-app.use("/uploads", express.static("uploads"));
+// Get absolute path for uploads directory
+const uploadsPath = path.join(process.cwd(), "uploads");
 
 // Compression middleware
 app.use(compression());
@@ -596,7 +597,7 @@ app.use(
 
     next();
   },
-  express.static("uploads")
+  express.static(uploadsPath)
 );
 
 // 404 handler

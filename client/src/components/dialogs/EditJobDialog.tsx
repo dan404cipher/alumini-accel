@@ -42,6 +42,8 @@ interface Job {
   position: string;
   location: string;
   type: string;
+  experience?: string;
+  industry?: string;
   remote?: boolean;
   salary?: {
     min: number;
@@ -99,6 +101,8 @@ export const EditJobDialog = ({
     companyWebsite: "",
     location: "",
     type: "",
+    experience: "",
+    industry: "",
     salaryMin: "",
     salaryMax: "",
     currency: "USD",
@@ -121,6 +125,8 @@ export const EditJobDialog = ({
         companyWebsite: job.companyWebsite || "",
         location: job.location || "",
         type: job.type || "",
+        experience: job.experience || "",
+        industry: job.industry || "",
         salaryMin: job.salary?.min?.toString() || "",
         salaryMax: job.salary?.max?.toString() || "",
         currency: job.salary?.currency || "USD",
@@ -310,6 +316,14 @@ export const EditJobDialog = ({
       newErrors.push("Job type is required");
     }
 
+    if (!formData.experience) {
+      newErrors.push("Experience level is required");
+    }
+
+    if (!formData.industry) {
+      newErrors.push("Industry is required");
+    }
+
     if (!formData.description.trim()) {
       newErrors.push("Job description is required");
     } else if (formData.description.trim().length < 10) {
@@ -437,6 +451,8 @@ export const EditJobDialog = ({
         position: formData.title.trim(),
         location: formData.location.trim(),
         type: formData.type,
+        experience: formData.experience || undefined,
+        industry: formData.industry || undefined,
         remote: formData.location.toLowerCase().includes("remote"),
         salary: salaryRange,
         description: formData.description.trim(),
@@ -751,7 +767,7 @@ export const EditJobDialog = ({
               <div className="space-y-2">
                 <Label htmlFor="experience">Experience *</Label>
                 <Select
-                  value={(formData as any).experience || ""}
+                  value={formData.experience || ""}
                   onValueChange={(value) =>
                     setFormData({ ...formData, experience: value })
                   }
@@ -771,7 +787,7 @@ export const EditJobDialog = ({
               <div className="space-y-2">
                 <Label htmlFor="industry">Industry *</Label>
                 <Select
-                  value={(formData as any).industry || ""}
+                  value={formData.industry || ""}
                   onValueChange={(value) =>
                     setFormData({ ...formData, industry: value })
                   }

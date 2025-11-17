@@ -85,6 +85,10 @@ const App = () => {
                     path="/connections/pending"
                     element={<Connections />}
                   />
+                  <Route
+                    path="/connections/sent"
+                    element={<Connections />}
+                  />
                   <Route path="/connections/find" element={<Connections />} />
                   <Route
                     path="/messages"

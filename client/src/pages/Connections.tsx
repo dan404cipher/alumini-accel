@@ -110,6 +110,8 @@ const Connections = () => {
       setActiveTab("connections");
     } else if (path.includes("/connections/pending")) {
       setActiveTab("pending");
+    } else if (path.includes("/connections/sent")) {
+      setActiveTab("sent");
     } else if (path.includes("/connections/find")) {
       setActiveTab("find");
     } else {

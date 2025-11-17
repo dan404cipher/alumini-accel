@@ -65,9 +65,212 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { userAPI, campaignAPI, tenantAPI, alumniAPI, eventAPI, galleryAPI, newsAPI, communityAPI } from "@/lib/api";
+import {
+  userAPI,
+  campaignAPI,
+  tenantAPI,
+  alumniAPI,
+  eventAPI,
+  galleryAPI,
+  newsAPI,
+  communityAPI,
+} from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
+
+// Type definitions
+interface PendingRequest {
+  _id: string;
+  role: string;
+  tenantId: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+interface Alumni {
+  _id: string;
+  department?: string;
+  userId?: {
+    _id?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    profileImage?: string;
+    profilePicture?: string;
+    department?: string;
+  };
+  graduationYear?: number;
+  currentCompany?: string;
+  currentPosition?: string;
+  currentLocation?: string;
+  experience?: number;
+  [key: string]: unknown;
+}
+
+interface Event {
+  _id: string;
+  title: string;
+  date?: string;
+  startDate?: string;
+  location?: string;
+  image?: string;
+  status?: string;
+  attendees?: Array<unknown> | number;
+  [key: string]: unknown;
+}
+
+interface Campaign {
+  _id: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  currentAmount?: number;
+  targetAmount?: number;
+  [key: string]: unknown;
+}
+
+interface Gallery {
+  _id: string;
+  title: string;
+  images?: string[];
+  category?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+interface News {
+  _id: string;
+  title: string;
+  content?: string;
+  summary?: string;
+  image?: string;
+  publishedAt?: string;
+  createdAt?: string;
+  author?:
+    | string
+    | {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      };
+  [key: string]: unknown;
+}
+
+interface Community {
+  _id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  members?: unknown[];
+  memberCount?: number;
+  posts?: unknown[];
+  postCount?: number;
+  [key: string]: unknown;
+}
+
+interface Donation {
+  _id: string;
+  amount: number;
+  donorName?: string;
+  donor?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  campaign?: {
+    title?: string;
+  };
+  createdAt?: string;
+  donatedAt?: string;
+  [key: string]: unknown;
+}
+
+interface Mentorship {
+  _id: string;
+  status?: string;
+  mentor?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  mentorName?: string;
+  mentee?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  menteeName?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+interface APIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+  errors?: string[];
+}
+
+interface EventResponse {
+  events?: Event[];
+  data?: Event[];
+  pagination?: {
+    total?: number;
+  };
+}
+
+interface CampaignResponse {
+  campaigns?: Campaign[];
+  data?: Campaign[];
+}
+
+interface GalleryResponse {
+  galleries?: Gallery[];
+  data?: Gallery[];
+}
+
+interface NewsResponse {
+  news?: News[];
+  data?: News[];
+}
+
+interface CommunityResponse {
+  data?: Community[];
+}
+
+interface DonationResponse {
+  donations?: Donation[];
+  data?: Donation[];
+}
+
+interface MentorshipResponse {
+  mentorships?: Mentorship[];
+  data?: Mentorship[];
+}
+
+interface AlumniResponse {
+  alumni?: Alumni[];
+  profiles?: Alumni[];
+  data?: Alumni[];
+  pagination?: {
+    total?: number;
+  };
+}
+
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  department: string;
+  password: string;
+  graduationYear?: number;
+  currentCompany?: string;
+  currentPosition?: string;
+  phoneNumber?: string;
+  address?: string;
+  bio?: string;
+  collegeId?: string;
+}
 
 const StaffPanel = () => {
   const { user } = useAuth();
@@ -77,17 +280,21 @@ const StaffPanel = () => {
   const [isCreateAlumniOpen, setIsCreateAlumniOpen] = useState(false);
 
   // Real data states
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [alumni, setAlumni] = useState([]);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [galleries, setGalleries] = useState<any[]>([]);
-  const [news, setNews] = useState<any[]>([]);
-  const [communities, setCommunities] = useState<any[]>([]);
-  const [donations, setDonations] = useState<any[]>([]);
-  const [mentorships, setMentorships] = useState<any[]>([]);
-  const [alumniByDepartment, setAlumniByDepartment] = useState<Record<string, number>>({});
-  const [eventsByStatus, setEventsByStatus] = useState<Record<string, number>>({});
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [alumni, setAlumni] = useState<Alumni[]>([]);
+  const [recentEvents, setRecentEvents] = useState<Event[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [news, setNews] = useState<News[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [mentorships, setMentorships] = useState<Mentorship[]>([]);
+  const [alumniByDepartment, setAlumniByDepartment] = useState<
+    Record<string, number>
+  >({});
+  const [eventsByStatus, setEventsByStatus] = useState<Record<string, number>>(
+    {}
+  );
   const [loading, setLoading] = useState({
     requests: false,
     post: false,
@@ -127,7 +334,6 @@ const StaffPanel = () => {
     alumni: false,
   });
 
-
   // Fetch pending requests (Alumni only for Staff)
   const fetchPendingRequests = useCallback(async () => {
     if (!user?.tenantId) return;
@@ -138,8 +344,8 @@ const StaffPanel = () => {
 
       if (response.success && response.data) {
         // Filter requests for Staff's department/college (only alumni)
-        const staffRequests = response.data.filter(
-          (req: any) => req.tenantId === user.tenantId && req.role === "alumni"
+        const staffRequests = (response.data as PendingRequest[]).filter(
+          (req) => req.tenantId === user.tenantId && req.role === "alumni"
         );
         setPendingRequests(staffRequests);
       }
@@ -165,13 +371,15 @@ const StaffPanel = () => {
         tenantId: user.tenantId,
       });
 
-      if (response.success && response.data) {
-        const alumniArray = Array.isArray(response.data)
-          ? response.data
-          : Array.isArray(response.data?.alumni)
-          ? response.data.alumni
-          : Array.isArray(response.data?.profiles)
-          ? response.data.profiles
+      const responseTyped = response as APIResponse<AlumniResponse>;
+      const dataTyped = responseTyped.data as AlumniResponse | Alumni[];
+      if (response.success && dataTyped) {
+        const alumniArray = Array.isArray(dataTyped)
+          ? dataTyped
+          : (dataTyped as AlumniResponse)?.alumni
+          ? (dataTyped as AlumniResponse).alumni
+          : (dataTyped as AlumniResponse)?.profiles
+          ? (dataTyped as AlumniResponse).profiles
           : [];
         setAlumni(alumniArray);
       }
@@ -188,8 +396,10 @@ const StaffPanel = () => {
   }, [user?.tenantId, toast]);
 
   // Handle alumni click
-  const handleAlumniClick = (alumni: any) => {
-    navigate(`/alumni/${alumni.userId._id}`);
+  const handleAlumniClick = (alumniItem: Alumni) => {
+    if (alumniItem.userId?._id) {
+      navigate(`/alumni/${alumniItem.userId._id}`);
+    }
   };
 
   // Approve user request
@@ -241,7 +451,7 @@ const StaffPanel = () => {
   };
 
   // Validation functions
-  const validateForm = (formData: any, formType: "alumni") => {
+  const validateForm = (formData: FormData, formType: "alumni") => {
     const errors: Record<string, string> = {};
 
     // First Name validation
@@ -305,7 +515,7 @@ const StaffPanel = () => {
     } else if (formData.password.length < 8) {
       errors.password = "Password must be at least 8 characters long";
     } else if (
-      !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(
+      !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/.test(
         formData.password
       )
     ) {
@@ -386,7 +596,10 @@ const StaffPanel = () => {
       } else {
         const errorMessage =
           userResponse.message || "Failed to create alumni user";
-        const errors = userResponse.errors || [];
+        const responseTyped = userResponse as APIResponse<unknown> & {
+          errors?: string[];
+        };
+        const errors = responseTyped.errors || [];
         console.error("User creation validation errors:", errors);
         throw new Error(`${errorMessage}: ${errors.join(", ")}`);
       }
@@ -403,7 +616,6 @@ const StaffPanel = () => {
       setLoading((prev) => ({ ...prev, post: false }));
     }
   };
-
 
   // Load data on component mount
   useEffect(() => {
@@ -496,11 +708,13 @@ const StaffPanel = () => {
         limit: 10,
         tenantId: user.tenantId,
       });
-      if (response.success && response.data?.events) {
-        const events = response.data.events;
+      const responseTyped = response as APIResponse<EventResponse>;
+      const dataTyped = responseTyped.data as EventResponse;
+      if (response.success && dataTyped?.events) {
+        const events = dataTyped.events;
         setRecentEvents(events);
         const statusCounts: Record<string, number> = {};
-        events.forEach((event: any) => {
+        events.forEach((event) => {
           const status = event.status || "upcoming";
           statusCounts[status] = (statusCounts[status] || 0) + 1;
         });
@@ -519,10 +733,13 @@ const StaffPanel = () => {
     try {
       setLoading((prev) => ({ ...prev, campaigns: true }));
       const response = await campaignAPI.getAllCampaigns({ limit: 10 });
-      if (response.success && response.data?.campaigns) {
-        setCampaigns(response.data.campaigns);
-      } else if (response.success && Array.isArray(response.data)) {
-        setCampaigns(response.data);
+      const responseTyped = response as APIResponse<CampaignResponse>;
+      const dataTyped = responseTyped.data as CampaignResponse | Campaign[];
+      if (response.success && dataTyped) {
+        const campaignsData =
+          (dataTyped as CampaignResponse)?.campaigns ||
+          (Array.isArray(dataTyped) ? dataTyped : []);
+        setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
       }
     } catch (error) {
       console.error("Error fetching campaigns:", error);
@@ -537,10 +754,13 @@ const StaffPanel = () => {
     try {
       setLoading((prev) => ({ ...prev, galleries: true }));
       const response = await galleryAPI.getAllGalleries({ limit: 10 });
-      if (response.success && response.data?.galleries) {
-        setGalleries(response.data.galleries);
-      } else if (response.success && Array.isArray(response.data)) {
-        setGalleries(response.data);
+      const responseTyped = response as APIResponse<GalleryResponse>;
+      const dataTyped = responseTyped.data as GalleryResponse | Gallery[];
+      if (response.success && dataTyped) {
+        const galleriesData =
+          (dataTyped as GalleryResponse)?.galleries ||
+          (Array.isArray(dataTyped) ? dataTyped : []);
+        setGalleries(Array.isArray(galleriesData) ? galleriesData : []);
       }
     } catch (error) {
       console.error("Error fetching galleries:", error);
@@ -555,10 +775,13 @@ const StaffPanel = () => {
     try {
       setLoading((prev) => ({ ...prev, news: true }));
       const response = await newsAPI.getAllNews({ limit: 10 });
-      if (response.success && response.data?.news) {
-        setNews(response.data.news);
-      } else if (response.success && Array.isArray(response.data)) {
-        setNews(response.data);
+      const responseTyped = response as APIResponse<NewsResponse>;
+      const dataTyped = responseTyped.data as NewsResponse | News[];
+      if (response.success && dataTyped) {
+        const newsData =
+          (dataTyped as NewsResponse)?.news ||
+          (Array.isArray(dataTyped) ? dataTyped : []);
+        setNews(Array.isArray(newsData) ? newsData : []);
       }
     } catch (error) {
       console.error("Error fetching news:", error);
@@ -588,9 +811,11 @@ const StaffPanel = () => {
     if (!user?.tenantId) return;
     try {
       setLoading((prev) => ({ ...prev, donations: true }));
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      
+      const baseUrl =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
       const response = await fetch(`${baseUrl}/donations?limit=5`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -599,8 +824,10 @@ const StaffPanel = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const donationsData = data.data?.donations || data.data || [];
+        const data = (await response.json()) as APIResponse<DonationResponse>;
+        const donationsData =
+          (data.data as DonationResponse)?.donations ||
+          (Array.isArray(data.data) ? data.data : []);
         setDonations(Array.isArray(donationsData) ? donationsData : []);
       }
     } catch (error) {
@@ -615,9 +842,11 @@ const StaffPanel = () => {
     if (!user?.tenantId) return;
     try {
       setLoading((prev) => ({ ...prev, mentorships: true }));
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      
+      const baseUrl =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+
       const response = await fetch(`${baseUrl}/mentorship?limit=5`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -626,8 +855,10 @@ const StaffPanel = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const mentorshipsData = data.data?.mentorships || data.data || [];
+        const data = (await response.json()) as APIResponse<MentorshipResponse>;
+        const mentorshipsData =
+          (data.data as MentorshipResponse)?.mentorships ||
+          (Array.isArray(data.data) ? data.data : []);
         setMentorships(Array.isArray(mentorshipsData) ? mentorshipsData : []);
       }
     } catch (error) {
@@ -641,7 +872,7 @@ const StaffPanel = () => {
   useEffect(() => {
     if (alumni.length > 0) {
       const deptCounts: Record<string, number> = {};
-      alumni.forEach((alum: any) => {
+      alumni.forEach((alum) => {
         const dept = alum.department || alum.userId?.department || "Unknown";
         deptCounts[dept] = (deptCounts[dept] || 0) + 1;
       });
@@ -658,22 +889,39 @@ const StaffPanel = () => {
     fetchCommunities();
     fetchDonations();
     fetchMentorships();
-  }, [fetchRecentEvents, fetchCampaigns, fetchGalleries, fetchNews, fetchCommunities, fetchDonations, fetchMentorships]);
+  }, [
+    fetchRecentEvents,
+    fetchCampaigns,
+    fetchGalleries,
+    fetchNews,
+    fetchCommunities,
+    fetchDonations,
+    fetchMentorships,
+  ]);
 
   // Stats calculation
   const stats = {
     alumniVerified: 45,
     postsMade: 23,
     eventsPosted: recentEvents.length,
-    pendingAlumni: pendingRequests.filter((req: any) => req.role === "alumni")
+    pendingAlumni: pendingRequests.filter((req) => req.role === "alumni")
       .length,
     postsModerated: 12,
     totalAlumniVerified: alumni.length,
-    totalContributions: campaigns.reduce((sum: number, c: any) => sum + (c.currentAmount || 0), 0),
+    totalContributions: campaigns.reduce(
+      (sum: number, c) => sum + (c.currentAmount || 0),
+      0
+    ),
     totalCampaigns: campaigns.length,
-    activeCampaigns: campaigns.filter((c: any) => c.status === "active").length,
-    totalCampaignRaised: campaigns.reduce((sum: number, c: any) => sum + (c.currentAmount || 0), 0),
-    totalCampaignTarget: campaigns.reduce((sum: number, c: any) => sum + (c.targetAmount || 0), 0),
+    activeCampaigns: campaigns.filter((c) => c.status === "active").length,
+    totalCampaignRaised: campaigns.reduce(
+      (sum: number, c) => sum + (c.currentAmount || 0),
+      0
+    ),
+    totalCampaignTarget: campaigns.reduce(
+      (sum: number, c) => sum + (c.targetAmount || 0),
+      0
+    ),
   };
 
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -761,7 +1009,7 @@ const StaffPanel = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex h-screen overflow-hidden pt-16">
+      <div className="flex h-screen overflow-hidden">
         {/* Enhanced Sidebar */}
         <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm z-40">
           <div className="h-full flex flex-col">
@@ -770,86 +1018,89 @@ const StaffPanel = () => {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
                   <Users className="h-6 w-6 text-green-600" />
-              </div>
+                </div>
                 <div>
                   <h3 className="text-white font-bold text-lg">Staff</h3>
                   <p className="text-green-100 text-xs">Management Portal</p>
-            </div>
-          </div>
+                </div>
+              </div>
             </div>
 
             {/* Navigation Menu */}
             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
               {[
-                { 
-                  key: "dashboard", 
-                  label: "Dashboard", 
+                {
+                  key: "dashboard",
+                  label: "Dashboard",
                   icon: LayoutDashboard,
-                  color: "purple"
+                  color: "purple",
                 },
-                { 
-                  key: "fundraisers", 
-                  label: "Campaigns", 
+                {
+                  key: "fundraisers",
+                  label: "Campaigns",
                   icon: DollarSign,
-                  color: "amber"
+                  color: "amber",
                 },
-                { 
-                  key: "moderate", 
-                  label: "Moderate", 
+                {
+                  key: "moderate",
+                  label: "Moderate",
                   icon: Edit,
-                  color: "rose"
+                  color: "rose",
                 },
-                { 
-                  key: "alumni", 
-                  label: "Alumni", 
+                {
+                  key: "alumni",
+                  label: "Alumni",
                   icon: GraduationCap,
-                  color: "amber"
+                  color: "amber",
                 },
-                { 
-                  key: "eligible-students", 
-                  label: "Eligible Students", 
+                {
+                  key: "eligible-students",
+                  label: "Eligible Students",
                   icon: GraduationCap,
-                  color: "blue"
+                  color: "blue",
                 },
               ].map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.key;
-                const colorMap: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+                const colorMap: Record<
+                  string,
+                  { bg: string; border: string; text: string; dot: string }
+                > = {
                   purple: {
                     bg: "bg-purple-50",
                     border: "border-purple-200",
                     text: "text-purple-700",
-                    dot: "bg-purple-500"
+                    dot: "bg-purple-500",
                   },
                   blue: {
                     bg: "bg-blue-50",
                     border: "border-blue-200",
                     text: "text-blue-700",
-                    dot: "bg-blue-500"
+                    dot: "bg-blue-500",
                   },
                   green: {
                     bg: "bg-green-50",
                     border: "border-green-200",
                     text: "text-green-700",
-                    dot: "bg-green-500"
+                    dot: "bg-green-500",
                   },
                   amber: {
                     bg: "bg-amber-50",
                     border: "border-amber-200",
                     text: "text-amber-700",
-                    dot: "bg-amber-500"
+                    dot: "bg-amber-500",
                   },
                   indigo: {
                     bg: "bg-indigo-50",
                     border: "border-indigo-200",
                     text: "text-indigo-700",
-                    dot: "bg-indigo-500"
+                    dot: "bg-indigo-500",
                   },
                   rose: {
                     bg: "bg-rose-50",
                     border: "border-rose-200",
                     text: "text-rose-700",
-                    dot: "bg-rose-500"
+                    dot: "bg-rose-500",
                   },
                 };
 
@@ -865,12 +1116,14 @@ const StaffPanel = () => {
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent"
                     }`}
                   >
-                    <Icon 
-                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`} 
+                    <Icon
+                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`}
                     />
                     <span className="flex-1">{item.label}</span>
                     {isActive && (
-                      <div className={`w-2 h-2 rounded-full ${activeColors.dot}`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${activeColors.dot}`}
+                      />
                     )}
                   </button>
                 );
@@ -887,122 +1140,130 @@ const StaffPanel = () => {
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.email}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </aside>
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-72">
-        {/* Header - only on Dashboard tab */}
-        {activeTab === "dashboard" && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Staff Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage alumni verification and moderate content
-            </p>
-          </div>
-          <Badge variant="outline" className="text-sm">
-            <Users className="w-4 h-4 mr-2" />
-            Staff Member
-          </Badge>
-        </div>
-        )}
-
-        {/* College Banner Display - only on Dashboard tab */}
-        {activeTab === "dashboard" && collegeBanner && (
-          <div className="relative overflow-hidden rounded-lg shadow-lg mt-6">
-            <img
-              src={collegeBanner}
-              alt="College Banner"
-              className="w-full h-80 object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 right-0 p-8">
-              <div className="max-w-4xl">
-                <h2 className="text-4xl font-bold text-white mb-4">
-                  Welcome to {user?.tenantId ? "Your College" : "AlumniAccel"}
-                </h2>
-                <p className="text-xl text-white/90 mb-6 max-w-2xl">
-                  Support alumni engagement, manage content, and contribute to college initiatives
+          {/* Header - only on Dashboard tab */}
+          {activeTab === "dashboard" && (
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold">Staff Dashboard</h1>
+                <p className="text-muted-foreground">
+                  Manage alumni verification and moderate content
                 </p>
               </div>
+              <Badge variant="outline" className="text-sm">
+                <Users className="w-4 h-4 mr-2" />
+                Staff Member
+              </Badge>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Main Content controlled by sidebar */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-6">
-
-          {/* Dashboard Overview */}
-          <TabsContent value="dashboard" className="space-y-6">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-l-4 border-l-blue-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                    Total Alumni Verified
-              </CardTitle>
-                  <Users className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalAlumniVerified}</div>
-              <p className="text-xs text-muted-foreground">
-                    Verified alumni
-              </p>
-            </CardContent>
-          </Card>
-
-              <Card className="border-l-4 border-l-green-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Pending Approvals
-                  </CardTitle>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.pendingAlumni}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Awaiting approval
+          {/* College Banner Display - only on Dashboard tab */}
+          {activeTab === "dashboard" && collegeBanner && (
+            <div className="relative overflow-hidden rounded-lg shadow-lg mt-6">
+              <img
+                src={collegeBanner}
+                alt="College Banner"
+                className="w-full h-80 object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-8">
+                <div className="max-w-4xl">
+                  <h2 className="text-4xl font-bold text-white mb-4">
+                    Welcome to {user?.tenantId ? "Your College" : "AlumniAccel"}
+                  </h2>
+                  <p className="text-xl text-white/90 mb-6 max-w-2xl">
+                    Support alumni engagement, manage content, and contribute to
+                    college initiatives
                   </p>
-            </CardContent>
-          </Card>
+                </div>
+              </div>
+            </div>
+          )}
 
-              <Card className="border-l-4 border-l-purple-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                    Posts Moderated
-              </CardTitle>
-                  <FileText className="h-4 w-4 text-purple-500" />
-            </CardHeader>
-            <CardContent>
-                  <div className="text-2xl font-bold">{stats.postsModerated}</div>
-                  <p className="text-xs text-muted-foreground">
-                    This month
-                  </p>
-            </CardContent>
-          </Card>
+          {/* Main Content controlled by sidebar */}
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6 mt-6"
+          >
+            {/* Dashboard Overview */}
+            <TabsContent value="dashboard" className="space-y-6">
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total Alumni Verified
+                    </CardTitle>
+                    <Users className="h-4 w-4 text-blue-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {stats.totalAlumniVerified}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Verified alumni
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <Card className="border-l-4 border-l-orange-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                    Campaigns Created
-              </CardTitle>
-                  <Target className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-                  <div className="text-2xl font-bold">
-                    {stats.postsMade > 0 ? "Active" : "0"}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Active campaigns
-                  </p>
-            </CardContent>
-          </Card>
-        </div>
+                <Card className="border-l-4 border-l-green-500">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Pending Approvals
+                    </CardTitle>
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {stats.pendingAlumni}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Awaiting approval
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-purple-500">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Posts Moderated
+                    </CardTitle>
+                    <FileText className="h-4 w-4 text-purple-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {stats.postsModerated}
+                    </div>
+                    <p className="text-xs text-muted-foreground">This month</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-orange-500">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Campaigns Created
+                    </CardTitle>
+                    <Target className="h-4 w-4 text-orange-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {stats.postsMade > 0 ? "Active" : "0"}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Active campaigns
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Detailed Statistics Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -1030,14 +1291,21 @@ const StaffPanel = () => {
                           .map(([dept, count]) => (
                             <div key={dept} className="space-y-1">
                               <div className="flex justify-between text-sm">
-                                <span className="font-medium truncate">{dept}</span>
-                                <span className="text-muted-foreground">{count}</span>
+                                <span className="font-medium truncate">
+                                  {dept}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {count}
+                                </span>
                               </div>
                               <div className="w-full bg-gray-200 rounded-full h-1.5">
                                 <div
                                   className="bg-blue-500 h-1.5 rounded-full"
                                   style={{
-                                    width: `${(count / stats.totalAlumniVerified) * 100 || 0}%`,
+                                    width: `${
+                                      (count / stats.totalAlumniVerified) *
+                                        100 || 0
+                                    }%`,
                                   }}
                                 />
                               </div>
@@ -1055,9 +1323,7 @@ const StaffPanel = () => {
                       <Calendar className="h-5 w-5" />
                       Events by Status
                     </CardTitle>
-                    <CardDescription>
-                      Event status breakdown
-                    </CardDescription>
+                    <CardDescription>Event status breakdown</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -1066,23 +1332,30 @@ const StaffPanel = () => {
                           No events yet
                         </p>
                       ) : (
-                        Object.entries(eventsByStatus).map(([status, count]) => (
-                          <div key={status} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`w-3 h-3 rounded-full ${
-                                  status === "upcoming"
-                                    ? "bg-green-500"
-                                    : status === "completed"
-                                    ? "bg-blue-500"
-                                    : "bg-gray-400"
-                                }`}
-                              />
-                              <span className="text-sm font-medium capitalize">{status}</span>
-            </div>
-                            <Badge variant="secondary">{count}</Badge>
-                          </div>
-                        ))
+                        Object.entries(eventsByStatus).map(
+                          ([status, count]) => (
+                            <div
+                              key={status}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`w-3 h-3 rounded-full ${
+                                    status === "upcoming"
+                                      ? "bg-green-500"
+                                      : status === "completed"
+                                      ? "bg-blue-500"
+                                      : "bg-gray-400"
+                                  }`}
+                                />
+                                <span className="text-sm font-medium capitalize">
+                                  {status}
+                                </span>
+                              </div>
+                              <Badge variant="secondary">{count}</Badge>
+                            </div>
+                          )
+                        )
                       )}
                     </div>
                   </CardContent>
@@ -1100,14 +1373,14 @@ const StaffPanel = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-            <div className="space-y-4">
+                    <div className="space-y-4">
                       <div>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-muted-foreground">Raised</span>
                           <span className="font-bold text-lg">
                             ₹{stats.totalCampaignRaised.toLocaleString()}
                           </span>
-                </div>
+                        </div>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-muted-foreground">Target</span>
                           <span className="font-medium">
@@ -1120,20 +1393,34 @@ const StaffPanel = () => {
                               <div
                                 className="bg-rose-500 h-3 rounded-full transition-all"
                                 style={{
-                                  width: `${Math.min((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100, 100)}%`,
+                                  width: `${Math.min(
+                                    (stats.totalCampaignRaised /
+                                      stats.totalCampaignTarget) *
+                                      100,
+                                    100
+                                  )}%`,
                                 }}
                               />
                             </div>
                             <p className="text-xs text-center text-muted-foreground">
-                              {Math.round((stats.totalCampaignRaised / stats.totalCampaignTarget) * 100)}% Complete
+                              {Math.round(
+                                (stats.totalCampaignRaised /
+                                  stats.totalCampaignTarget) *
+                                  100
+                              )}
+                              % Complete
                             </p>
                           </>
                         )}
-                </div>
+                      </div>
                       <div className="pt-2 border-t">
                         <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Active Campaigns:</span>
-                          <span className="font-medium text-green-600">{stats.activeCampaigns}</span>
+                          <span className="text-muted-foreground">
+                            Active Campaigns:
+                          </span>
+                          <span className="font-medium text-green-600">
+                            {stats.activeCampaigns}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1145,37 +1432,46 @@ const StaffPanel = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                 {/* Recent Events */}
                 <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-5 w-5 text-purple-500" />
                         <CardTitle>Recent Events</CardTitle>
-                        </div>
+                      </div>
                       <Badge variant="outline">{recentEvents.length}</Badge>
-                        </div>
-                    <CardDescription>Latest events and their performance</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    </div>
+                    <CardDescription>
+                      Latest events and their performance
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-3">
                       {loading.events ? (
                         <div className="text-center py-4">
-                          <p className="text-muted-foreground">Loading events...</p>
+                          <p className="text-muted-foreground">
+                            Loading events...
+                          </p>
                         </div>
                       ) : recentEvents.length === 0 ? (
                         <div className="text-center py-4">
                           <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No events found</p>
+                          <p className="text-muted-foreground">
+                            No events found
+                          </p>
                         </div>
                       ) : (
-                        recentEvents.slice(0, 5).map((event: any) => {
+                        recentEvents.slice(0, 5).map((event) => {
                           const attendeesCount = Array.isArray(event.attendees)
                             ? event.attendees.length
                             : typeof event.attendees === "number"
                             ? event.attendees
                             : 0;
-                          const eventDate = new Date(event.date || event.startDate);
+                          const eventDate = new Date(
+                            event.date || event.startDate
+                          );
                           const isUpcoming = eventDate > new Date();
-                          const eventStatus = event.status || (isUpcoming ? "upcoming" : "past");
+                          const eventStatus =
+                            event.status || (isUpcoming ? "upcoming" : "past");
 
                           return (
                             <div
@@ -1192,11 +1488,13 @@ const StaffPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
                                     <Calendar className="h-6 w-6 text-purple-500" />
-                        </div>
+                                  </div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">{event.title}</p>
+                                <p className="font-medium truncate text-sm">
+                                  {event.title}
+                                </p>
                                 <div className="flex items-center gap-2 mt-1">
                                   <p className="text-xs text-muted-foreground">
                                     {eventDate.toLocaleDateString("en-US", {
@@ -1206,7 +1504,9 @@ const StaffPanel = () => {
                                   </p>
                                   {event.location && (
                                     <>
-                                      <span className="text-muted-foreground">•</span>
+                                      <span className="text-muted-foreground">
+                                        •
+                                      </span>
                                       <p className="text-xs text-muted-foreground truncate">
                                         {event.location}
                                       </p>
@@ -1217,18 +1517,25 @@ const StaffPanel = () => {
                                   <span className="text-xs text-muted-foreground">
                                     {attendeesCount} attendees
                                   </span>
-                                  <Badge variant={eventStatus === "completed" ? "default" : "secondary"} className="text-xs">
+                                  <Badge
+                                    variant={
+                                      eventStatus === "completed"
+                                        ? "default"
+                                        : "secondary"
+                                    }
+                                    className="text-xs"
+                                  >
                                     {eventStatus}
-                          </Badge>
-                        </div>
-                      </div>
+                                  </Badge>
+                                </div>
+                              </div>
                             </div>
                           );
                         })
                       )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Gallery */}
                 <Card>
@@ -1241,23 +1548,35 @@ const StaffPanel = () => {
                       <Badge variant="outline">{galleries.length}</Badge>
                     </div>
                     <CardDescription>Recent photo galleries</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-3">
                       {loading.galleries ? (
                         <div className="text-center py-4">
-                          <p className="text-muted-foreground">Loading galleries...</p>
+                          <p className="text-muted-foreground">
+                            Loading galleries...
+                          </p>
                         </div>
                       ) : galleries.length === 0 ? (
                         <div className="text-center py-4">
                           <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No galleries found</p>
-                </div>
-              ) : (
-                        galleries.slice(0, 5).map((gallery: any) => {
-                          const galleryDate = new Date(gallery.createdAt || new Date());
-                          const imageCount = Array.isArray(gallery.images) ? gallery.images.length : 0;
-                          const firstImage = Array.isArray(gallery.images) && gallery.images.length > 0 ? gallery.images[0] : null;
+                          <p className="text-muted-foreground">
+                            No galleries found
+                          </p>
+                        </div>
+                      ) : (
+                        galleries.slice(0, 5).map((gallery) => {
+                          const galleryDate = new Date(
+                            gallery.createdAt || new Date()
+                          );
+                          const imageCount = Array.isArray(gallery.images)
+                            ? gallery.images.length
+                            : 0;
+                          const firstImage =
+                            Array.isArray(gallery.images) &&
+                            gallery.images.length > 0
+                              ? gallery.images[0]
+                              : null;
 
                           return (
                             <div
@@ -1275,10 +1594,12 @@ const StaffPanel = () => {
                                   <div className="w-12 h-12 rounded-lg bg-cyan-100 flex items-center justify-center">
                                     <Image className="h-6 w-6 text-cyan-500" />
                                   </div>
-              )}
-            </div>
+                                )}
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">{gallery.title}</p>
+                                <p className="font-medium truncate text-sm">
+                                  {gallery.title}
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-1">
                                   {galleryDate.toLocaleDateString("en-US", {
                                     month: "short",
@@ -1291,7 +1612,10 @@ const StaffPanel = () => {
                                     {imageCount} images
                                   </Badge>
                                   {gallery.category && (
-                                    <Badge variant="secondary" className="text-xs">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
                                       {gallery.category}
                                     </Badge>
                                   )}
@@ -1307,12 +1631,12 @@ const StaffPanel = () => {
 
                 {/* News Room */}
                 <Card>
-                    <CardHeader>
-            <div className="flex items-center justify-between">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Newspaper className="h-5 w-5 text-blue-500" />
                         <CardTitle>News Room</CardTitle>
-                        </div>
+                      </div>
                       <Badge variant="outline">{news.length}</Badge>
                     </div>
                     <CardDescription>Latest news and updates</CardDescription>
@@ -1321,7 +1645,9 @@ const StaffPanel = () => {
                     <div className="space-y-3">
                       {loading.news ? (
                         <div className="text-center py-4">
-                          <p className="text-muted-foreground">Loading news...</p>
+                          <p className="text-muted-foreground">
+                            Loading news...
+                          </p>
                         </div>
                       ) : news.length === 0 ? (
                         <div className="text-center py-4">
@@ -1329,8 +1655,12 @@ const StaffPanel = () => {
                           <p className="text-muted-foreground">No news found</p>
                         </div>
                       ) : (
-                        news.slice(0, 5).map((newsItem: any) => {
-                          const newsDate = new Date(newsItem.publishedAt || newsItem.createdAt || new Date());
+                        news.slice(0, 5).map((newsItem) => {
+                          const newsDate = new Date(
+                            newsItem.publishedAt ||
+                              newsItem.createdAt ||
+                              new Date()
+                          );
 
                           return (
                             <div
@@ -1347,13 +1677,17 @@ const StaffPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
                                     <Newspaper className="h-6 w-6 text-blue-500" />
-                      </div>
+                                  </div>
                                 )}
-                      </div>
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">{newsItem.title}</p>
+                                <p className="font-medium truncate text-sm">
+                                  {newsItem.title}
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {newsItem.summary || newsItem.content?.substring(0, 60) || ""}
+                                  {newsItem.summary ||
+                                    newsItem.content?.substring(0, 60) ||
+                                    ""}
                                 </p>
                                 <div className="flex items-center justify-between mt-2">
                                   <p className="text-xs text-muted-foreground">
@@ -1363,21 +1697,28 @@ const StaffPanel = () => {
                                     })}
                                   </p>
                                   {newsItem.author && (
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
                                       {typeof newsItem.author === "string"
                                         ? newsItem.author
-                                        : `${newsItem.author.firstName || ""} ${newsItem.author.lastName || ""}`.trim() || newsItem.author.email || "Unknown"}
-                          </Badge>
+                                        : `${newsItem.author.firstName || ""} ${
+                                            newsItem.author.lastName || ""
+                                          }`.trim() ||
+                                          newsItem.author.email ||
+                                          "Unknown"}
+                                    </Badge>
                                   )}
-                    </div>
-                    </div>
-                      </div>
+                                </div>
+                              </div>
+                            </div>
                           );
                         })
                       )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Community */}
                 <Card>
@@ -1390,22 +1731,30 @@ const StaffPanel = () => {
                       <Badge variant="outline">{communities.length}</Badge>
                     </div>
                     <CardDescription>Top active communities</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-3">
                       {loading.communities ? (
                         <div className="text-center py-4">
-                          <p className="text-muted-foreground">Loading communities...</p>
-                      </div>
+                          <p className="text-muted-foreground">
+                            Loading communities...
+                          </p>
+                        </div>
                       ) : communities.length === 0 ? (
                         <div className="text-center py-4">
                           <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No communities found</p>
+                          <p className="text-muted-foreground">
+                            No communities found
+                          </p>
                         </div>
                       ) : (
-                        communities.slice(0, 5).map((community: any) => {
-                          const memberCount = community.members?.length || community.memberCount || 0;
-                          const postCount = community.posts?.length || community.postCount || 0;
+                        communities.slice(0, 5).map((community) => {
+                          const memberCount =
+                            community.members?.length ||
+                            community.memberCount ||
+                            0;
+                          const postCount =
+                            community.posts?.length || community.postCount || 0;
 
                           return (
                             <div
@@ -1422,26 +1771,32 @@ const StaffPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
                                     <MessageSquare className="h-6 w-6 text-green-500" />
-                      </div>
+                                  </div>
                                 )}
-                    </div>
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">{community.name}</p>
+                                <p className="font-medium truncate text-sm">
+                                  {community.name}
+                                </p>
                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                                   {community.description || ""}
                                 </p>
                                 <div className="flex items-center gap-3 mt-2">
                                   <div className="flex items-center gap-1">
                                     <Users className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">{memberCount} members</span>
-                      </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {memberCount} members
+                                    </span>
+                                  </div>
                                   <div className="flex items-center gap-1">
                                     <FileText className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">{postCount} posts</span>
-                      </div>
-                      </div>
-                    </div>
-            </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {postCount} posts
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           );
                         })
                       )}
@@ -1450,35 +1805,45 @@ const StaffPanel = () => {
                 </Card>
 
                 {/* Donations */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <HeartHandshake className="h-5 w-5 text-rose-500" />
                         <CardTitle>Donations</CardTitle>
-                    </div>
-                      <Badge variant="outline">{donations.length}</Badge>
                       </div>
+                      <Badge variant="outline">{donations.length}</Badge>
+                    </div>
                     <CardDescription>Recent donations</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {loading.donations ? (
                         <div className="text-center py-4">
-                          <p className="text-muted-foreground">Loading donations...</p>
-                    </div>
+                          <p className="text-muted-foreground">
+                            Loading donations...
+                          </p>
+                        </div>
                       ) : donations.length === 0 ? (
                         <div className="text-center py-4">
                           <HeartHandshake className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No donations found</p>
-                  </div>
+                          <p className="text-muted-foreground">
+                            No donations found
+                          </p>
+                        </div>
                       ) : (
-                        donations.slice(0, 5).map((donation: any) => {
-                          const donationDate = new Date(donation.createdAt || donation.donatedAt || new Date());
+                        donations.slice(0, 5).map((donation) => {
+                          const donationDate = new Date(
+                            donation.createdAt ||
+                              donation.donatedAt ||
+                              new Date()
+                          );
                           const amount = donation.amount || 0;
-                          const donorName = donation.donor?.firstName && donation.donor?.lastName
-                            ? `${donation.donor.firstName} ${donation.donor.lastName}`
-                            : donation.donorName || "Anonymous";
+                          const donorName =
+                            donation.donor?.firstName &&
+                            donation.donor?.lastName
+                              ? `${donation.donor.firstName} ${donation.donor.lastName}`
+                              : donation.donorName || "Anonymous";
 
                           return (
                             <div
@@ -1491,7 +1856,9 @@ const StaffPanel = () => {
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">{donorName}</p>
+                                <p className="font-medium truncate text-sm">
+                                  {donorName}
+                                </p>
                                 <p className="text-lg font-bold text-rose-600 mt-1">
                                   ₹{amount.toLocaleString()}
                                 </p>
@@ -1514,40 +1881,52 @@ const StaffPanel = () => {
                       )}
                     </div>
                   </CardContent>
-              </Card>
+                </Card>
 
                 {/* Mentorship */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-5 w-5 text-indigo-500" />
                         <CardTitle>Mentorship</CardTitle>
-                    </div>
-                      <Badge variant="outline">{mentorships.length}</Badge>
                       </div>
-                    <CardDescription>Recent mentorship connections</CardDescription>
+                      <Badge variant="outline">{mentorships.length}</Badge>
+                    </div>
+                    <CardDescription>
+                      Recent mentorship connections
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {loading.mentorships ? (
                         <div className="text-center py-4">
-                          <p className="text-muted-foreground">Loading mentorships...</p>
-                    </div>
+                          <p className="text-muted-foreground">
+                            Loading mentorships...
+                          </p>
+                        </div>
                       ) : mentorships.length === 0 ? (
                         <div className="text-center py-4">
                           <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No mentorships found</p>
-                  </div>
+                          <p className="text-muted-foreground">
+                            No mentorships found
+                          </p>
+                        </div>
                       ) : (
-                        mentorships.slice(0, 5).map((mentorship: any) => {
-                          const mentorshipDate = new Date(mentorship.createdAt || new Date());
-                          const mentorName = mentorship.mentor?.firstName && mentorship.mentor?.lastName
-                            ? `${mentorship.mentor.firstName} ${mentorship.mentor.lastName}`
-                            : mentorship.mentorName || "Unknown";
-                          const menteeName = mentorship.mentee?.firstName && mentorship.mentee?.lastName
-                            ? `${mentorship.mentee.firstName} ${mentorship.mentee.lastName}`
-                            : mentorship.menteeName || "Unknown";
+                        mentorships.slice(0, 5).map((mentorship) => {
+                          const mentorshipDate = new Date(
+                            mentorship.createdAt || new Date()
+                          );
+                          const mentorName =
+                            mentorship.mentor?.firstName &&
+                            mentorship.mentor?.lastName
+                              ? `${mentorship.mentor.firstName} ${mentorship.mentor.lastName}`
+                              : mentorship.mentorName || "Unknown";
+                          const menteeName =
+                            mentorship.mentee?.firstName &&
+                            mentorship.mentee?.lastName
+                              ? `${mentorship.mentee.firstName} ${mentorship.mentee.lastName}`
+                              : mentorship.menteeName || "Unknown";
 
                           return (
                             <div
@@ -1560,8 +1939,12 @@ const StaffPanel = () => {
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm">Mentor: {mentorName}</p>
-                                <p className="text-xs text-muted-foreground mt-1">Mentee: {menteeName}</p>
+                                <p className="font-medium text-sm">
+                                  Mentor: {mentorName}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Mentee: {menteeName}
+                                </p>
                                 <div className="flex items-center justify-between mt-2">
                                   <Badge
                                     variant={
@@ -1576,661 +1959,687 @@ const StaffPanel = () => {
                                     {mentorship.status || "pending"}
                                   </Badge>
                                   <p className="text-xs text-muted-foreground">
-                                    {mentorshipDate.toLocaleDateString("en-US", {
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
+                                    {mentorshipDate.toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                      }
+                                    )}
                                   </p>
-                        </div>
+                                </div>
                               </div>
                             </div>
                           );
                         })
                       )}
-                      </div>
-                    </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Campaigns */}
-          <TabsContent value="fundraisers" className="space-y-6">
-            <CampaignManagement />
-          </TabsContent>
-
-          {/* Moderate Posts */}
-          <TabsContent value="moderate" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Content Moderation</h2>
-              <Badge variant="destructive">
-                {postsToModerate.length} Reports
-              </Badge>
-            </div>
-
-            <div className="space-y-4">
-              {postsToModerate.map((post) => (
-                <Card key={post.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{post.title}</CardTitle>
-                        <CardDescription>
-                          Reported by {post.reportedBy} • Reason: {post.reason}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="destructive">Reported</Badge>
-                        <Badge variant="outline">{post.date}</Badge>
-                      </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm">
-                          Content preview: "This is a sample of the reported
-                          content that needs to be reviewed..."
-                        </p>
-                      </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Campaigns */}
+            <TabsContent value="fundraisers" className="space-y-6">
+              <CampaignManagement />
+            </TabsContent>
+
+            {/* Moderate Posts */}
+            <TabsContent value="moderate" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">Content Moderation</h2>
+                <Badge variant="destructive">
+                  {postsToModerate.length} Reports
+                </Badge>
+              </div>
+
+              <div className="space-y-4">
+                {postsToModerate.map((post) => (
+                  <Card key={post.id}>
+                    <CardHeader>
                       <div className="flex items-center justify-between">
-                        <div className="text-sm text-muted-foreground">
-                          Author: {post.author} • Type: {post.type}
+                        <div>
+                          <CardTitle className="text-lg">
+                            {post.title}
+                          </CardTitle>
+                          <CardDescription>
+                            Reported by {post.reportedBy} • Reason:{" "}
+                            {post.reason}
+                          </CardDescription>
                         </div>
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="outline">
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Remove
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </Button>
-                          <Button size="sm">
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Approve
-                          </Button>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="destructive">Reported</Badge>
+                          <Badge variant="outline">{post.date}</Badge>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Analytics */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Analytics & Reports</h2>
-              <Button variant="outline">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Export Report
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Verification Stats</CardTitle>
-                  <CardDescription>
-                    Alumni verification performance
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span>Total Verified</span>
-                      <span className="font-medium">
-                        {stats.alumniVerified}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Pending Review</span>
-                      <span className="font-medium">{stats.pendingAlumni}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Rejected</span>
-                      <span className="font-medium">3</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Success Rate</span>
-                      <span className="font-medium text-green-600">94%</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Content Stats</CardTitle>
-                  <CardDescription>
-                    Posts and moderation activity
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span>Posts Created</span>
-                      <span className="font-medium">{stats.postsMade}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Events Posted</span>
-                      <span className="font-medium">{stats.eventsPosted}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Posts Moderated</span>
-                      <span className="font-medium">
-                        {stats.postsModerated}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Avg. Engagement</span>
-                      <span className="font-medium text-blue-600">67%</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>
-                  Your recent actions and activities
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Verified alumni: John Smith</p>
-                      <p className="text-sm text-muted-foreground">
-                        Computer Science, Class of 2020
-                      </p>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      2 hours ago
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">
-                        Created post: Career Workshop
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Event announcement
-                      </p>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      4 hours ago
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">
-                        Moderated post: Removed spam
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Inappropriate content
-                      </p>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      1 day ago
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Alumni Management */}
-          <TabsContent value="eligible-students" className="space-y-6">
-            <EligibleStudentsPanel />
-          </TabsContent>
-
-          <TabsContent value="alumni" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Alumni Management</h2>
-              <Dialog
-                open={isCreateAlumniOpen}
-                onOpenChange={setIsCreateAlumniOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create Alumni
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Alumni Account</DialogTitle>
-                    <DialogDescription>
-                      Create a new alumni account with profile information. Make
-                      sure to use a unique email address that hasn't been
-                      registered before.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateAlumni} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-firstName">First Name *</Label>
-                        <Input
-                          id="alumni-firstName"
-                          value={newAlumni.firstName}
-                          onChange={(e) => {
-                            setNewAlumni({
-                              ...newAlumni,
-                              firstName: e.target.value,
-                            });
-                            // Clear error when user starts typing
-                            if (validationErrors.alumni.firstName) {
-                              updateValidationErrors("alumni", {
-                                ...validationErrors.alumni,
-                                firstName: "",
-                              });
-                            }
-                          }}
-                          placeholder="Enter first name"
-                          className={
-                            validationErrors.alumni.firstName
-                              ? "border-red-500"
-                              : ""
-                          }
-                        />
-                        {validationErrors.alumni.firstName && (
-                          <p className="text-sm text-red-500">
-                            {validationErrors.alumni.firstName}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm">
+                            Content preview: "This is a sample of the reported
+                            content that needs to be reviewed..."
                           </p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-lastName">Last Name *</Label>
-                        <Input
-                          id="alumni-lastName"
-                          value={newAlumni.lastName}
-                          onChange={(e) => {
-                            setNewAlumni({
-                              ...newAlumni,
-                              lastName: e.target.value,
-                            });
-                            // Clear error when user starts typing
-                            if (validationErrors.alumni.lastName) {
-                              updateValidationErrors("alumni", {
-                                ...validationErrors.alumni,
-                                lastName: "",
-                              });
-                            }
-                          }}
-                          placeholder="Enter last name"
-                          className={
-                            validationErrors.alumni.lastName
-                              ? "border-red-500"
-                              : ""
-                          }
-                        />
-                        {validationErrors.alumni.lastName && (
-                          <p className="text-sm text-red-500">
-                            {validationErrors.alumni.lastName}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-email">Email Address *</Label>
-                      <Input
-                        id="alumni-email"
-                        type="email"
-                        value={newAlumni.email}
-                        onChange={(e) => {
-                          setNewAlumni({ ...newAlumni, email: e.target.value });
-                          // Clear error when user starts typing
-                          if (validationErrors.alumni.email) {
-                            updateValidationErrors("alumni", {
-                              ...validationErrors.alumni,
-                              email: "",
-                            });
-                          }
-                        }}
-                        placeholder="Enter email address"
-                        className={
-                          validationErrors.alumni.email ? "border-red-500" : ""
-                        }
-                      />
-                      {validationErrors.alumni.email && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.email}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-password">Password *</Label>
-                      <div className="relative">
-                        <Input
-                          id="alumni-password"
-                          type={passwordVisibility.alumni ? "text" : "password"}
-                          value={newAlumni.password}
-                          onChange={(e) => {
-                            setNewAlumni({
-                              ...newAlumni,
-                              password: e.target.value,
-                            });
-                            // Clear error when user starts typing
-                            if (validationErrors.alumni.password) {
-                              updateValidationErrors("alumni", {
-                                ...validationErrors.alumni,
-                                password: "",
-                              });
-                            }
-                          }}
-                          placeholder="Enter password"
-                          className={`pr-10 ${
-                            validationErrors.alumni.password
-                              ? "border-red-500"
-                              : ""
-                          }`}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => togglePasswordVisibility("alumni")}
-                        >
-                          {passwordVisibility.alumni ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {validationErrors.alumni.password && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.password}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-department">Department *</Label>
-                      <Input
-                        id="alumni-department"
-                        value={newAlumni.department}
-                        onChange={(e) => {
-                          setNewAlumni({
-                            ...newAlumni,
-                            department: e.target.value,
-                          });
-                          // Clear error when user starts typing
-                          if (validationErrors.alumni.department) {
-                            updateValidationErrors("alumni", {
-                              ...validationErrors.alumni,
-                              department: "",
-                            });
-                          }
-                        }}
-                        placeholder="Enter department"
-                        className={
-                          validationErrors.alumni.department
-                            ? "border-red-500"
-                            : ""
-                        }
-                      />
-                      {validationErrors.alumni.department && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.department}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-graduationYear">
-                        Graduation Year *
-                      </Label>
-                      <Input
-                        id="alumni-graduationYear"
-                        type="number"
-                        value={newAlumni.graduationYear}
-                        onChange={(e) => {
-                          setNewAlumni({
-                            ...newAlumni,
-                            graduationYear:
-                              parseInt(e.target.value) ||
-                              new Date().getFullYear(),
-                          });
-                          // Clear error when user starts typing
-                          if (validationErrors.alumni.graduationYear) {
-                            updateValidationErrors("alumni", {
-                              ...validationErrors.alumni,
-                              graduationYear: "",
-                            });
-                          }
-                        }}
-                        placeholder="Enter graduation year"
-                        className={
-                          validationErrors.alumni.graduationYear
-                            ? "border-red-500"
-                            : ""
-                        }
-                      />
-                      {validationErrors.alumni.graduationYear && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.graduationYear}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-currentCompany">
-                          Current Company
-                        </Label>
-                        <Input
-                          id="alumni-currentCompany"
-                          value={newAlumni.currentCompany}
-                          onChange={(e) =>
-                            setNewAlumni({
-                              ...newAlumni,
-                              currentCompany: e.target.value,
-                            })
-                          }
-                          placeholder="Enter current company"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-currentPosition">
-                          Current Position
-                        </Label>
-                        <Input
-                          id="alumni-currentPosition"
-                          value={newAlumni.currentPosition}
-                          onChange={(e) =>
-                            setNewAlumni({
-                              ...newAlumni,
-                              currentPosition: e.target.value,
-                            })
-                          }
-                          placeholder="Enter current position"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-phoneNumber">Phone Number</Label>
-                      <Input
-                        id="alumni-phoneNumber"
-                        value={newAlumni.phoneNumber}
-                        onChange={(e) =>
-                          setNewAlumni({
-                            ...newAlumni,
-                            phoneNumber: e.target.value,
-                          })
-                        }
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-address">Address</Label>
-                      <Input
-                        id="alumni-address"
-                        value={newAlumni.address}
-                        onChange={(e) =>
-                          setNewAlumni({
-                            ...newAlumni,
-                            address: e.target.value,
-                          })
-                        }
-                        placeholder="Enter address"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-bio">Bio</Label>
-                      <Input
-                        id="alumni-bio"
-                        value={newAlumni.bio}
-                        onChange={(e) =>
-                          setNewAlumni({ ...newAlumni, bio: e.target.value })
-                        }
-                        placeholder="Enter bio"
-                      />
-                    </div>
-
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsCreateAlumniOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={loading.post}>
-                        {loading.post ? "Creating..." : "Create Alumni"}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="space-y-4">
-              {loading.alumni ? (
-                <div className="text-center py-8">
-                  <div className="text-muted-foreground">Loading alumni...</div>
-                </div>
-              ) : alumni.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <div className="space-y-4">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                        <GraduationCap className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          No alumni found
-                        </h3>
-                        <p className="text-gray-600">
-                          No alumni have been created yet. Use the "Create
-                          Alumni" button above to add new alumni.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                alumni.map((alumni: any) => (
-                  <Card
-                    key={alumni._id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleAlumniClick(alumni)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4">
-                          <div className="relative">
-                            <img
-                              src={
-                                alumni.userId?.profilePicture
-                                  ? alumni.userId.profilePicture.startsWith(
-                                      "http"
-                                    )
-                                    ? alumni.userId.profilePicture
-                                    : `${(
-                                        import.meta.env.VITE_API_BASE_URL ||
-                                        "http://localhost:3000/api/v1"
-                                      ).replace("/api/v1", "")}${
-                                        alumni.userId.profilePicture
-                                      }`
-                                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                      `${alumni.userId?.firstName || ""} ${
-                                        alumni.userId?.lastName || ""
-                                      }`
-                                    )}&background=random`
-                              }
-                              alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
-                              className="w-12 h-12 rounded-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  `${alumni.userId?.firstName || ""} ${
-                                    alumni.userId?.lastName || ""
-                                  }`
-                                )}&background=random`;
-                              }}
-                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-muted-foreground">
+                            Author: {post.author} • Type: {post.type}
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h3 className="text-lg font-semibold">
-                                {alumni.userId?.firstName}{" "}
-                                {alumni.userId?.lastName}
-                              </h3>
-                              <Badge variant="secondary">Alumni</Badge>
-                            </div>
-                            <div className="space-y-1 text-sm text-muted-foreground">
-                              <div className="flex items-center space-x-2">
-                                <Mail className="h-4 w-4" />
-                                <span>{alumni.userId?.email}</span>
-                              </div>
-                              {alumni.currentCompany && (
-                                <div className="flex items-center space-x-2">
-                                  <Building className="h-4 w-4" />
-                                  <span>{alumni.currentCompany}</span>
-                                  {alumni.currentPosition && (
-                                    <span>• {alumni.currentPosition}</span>
-                                  )}
-                                </div>
-                              )}
-                              {alumni.currentLocation && (
-                                <div className="flex items-center space-x-2">
-                                  <MapPin className="h-4 w-4" />
-                                  <span>{alumni.currentLocation}</span>
-                                </div>
-                              )}
-                              <div className="flex items-center space-x-2">
-                                <GraduationCap className="h-4 w-4" />
-                                <span>Class of {alumni.graduationYear}</span>
-                              </div>
-                              {alumni.experience && alumni.experience > 0 && (
-                                <div className="flex items-center space-x-2">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>
-                                    {alumni.experience} years experience
-                                  </span>
-                                </div>
-                              )}
-                            </div>
+                          <div className="flex space-x-2">
+                            <Button size="sm" variant="outline">
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Remove
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </Button>
+                            <Button size="sm">
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Approve
+                            </Button>
                           </div>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+                ))}
+              </div>
+            </TabsContent>
+
+            {/* Analytics */}
+            <TabsContent value="analytics" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">Analytics & Reports</h2>
+                <Button variant="outline">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Export Report
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Verification Stats</CardTitle>
+                    <CardDescription>
+                      Alumni verification performance
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span>Total Verified</span>
+                        <span className="font-medium">
+                          {stats.alumniVerified}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Pending Review</span>
+                        <span className="font-medium">
+                          {stats.pendingAlumni}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Rejected</span>
+                        <span className="font-medium">3</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Success Rate</span>
+                        <span className="font-medium text-green-600">94%</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Content Stats</CardTitle>
+                    <CardDescription>
+                      Posts and moderation activity
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span>Posts Created</span>
+                        <span className="font-medium">{stats.postsMade}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Events Posted</span>
+                        <span className="font-medium">
+                          {stats.eventsPosted}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Posts Moderated</span>
+                        <span className="font-medium">
+                          {stats.postsModerated}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg. Engagement</span>
+                        <span className="font-medium text-blue-600">67%</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>
+                    Your recent actions and activities
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">
+                          Verified alumni: John Smith
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Computer Science, Class of 2020
+                        </p>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        2 hours ago
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">
+                          Created post: Career Workshop
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Event announcement
+                        </p>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        4 hours ago
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">
+                          Moderated post: Removed spam
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Inappropriate content
+                        </p>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        1 day ago
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Alumni Management */}
+            <TabsContent value="eligible-students" className="space-y-6">
+              <EligibleStudentsPanel />
+            </TabsContent>
+
+            <TabsContent value="alumni" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">Alumni Management</h2>
+                <Dialog
+                  open={isCreateAlumniOpen}
+                  onOpenChange={setIsCreateAlumniOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button>
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create Alumni
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Alumni Account</DialogTitle>
+                      <DialogDescription>
+                        Create a new alumni account with profile information.
+                        Make sure to use a unique email address that hasn't been
+                        registered before.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateAlumni} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-firstName">First Name *</Label>
+                          <Input
+                            id="alumni-firstName"
+                            value={newAlumni.firstName}
+                            onChange={(e) => {
+                              setNewAlumni({
+                                ...newAlumni,
+                                firstName: e.target.value,
+                              });
+                              // Clear error when user starts typing
+                              if (validationErrors.alumni.firstName) {
+                                updateValidationErrors("alumni", {
+                                  ...validationErrors.alumni,
+                                  firstName: "",
+                                });
+                              }
+                            }}
+                            placeholder="Enter first name"
+                            className={
+                              validationErrors.alumni.firstName
+                                ? "border-red-500"
+                                : ""
+                            }
+                          />
+                          {validationErrors.alumni.firstName && (
+                            <p className="text-sm text-red-500">
+                              {validationErrors.alumni.firstName}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-lastName">Last Name *</Label>
+                          <Input
+                            id="alumni-lastName"
+                            value={newAlumni.lastName}
+                            onChange={(e) => {
+                              setNewAlumni({
+                                ...newAlumni,
+                                lastName: e.target.value,
+                              });
+                              // Clear error when user starts typing
+                              if (validationErrors.alumni.lastName) {
+                                updateValidationErrors("alumni", {
+                                  ...validationErrors.alumni,
+                                  lastName: "",
+                                });
+                              }
+                            }}
+                            placeholder="Enter last name"
+                            className={
+                              validationErrors.alumni.lastName
+                                ? "border-red-500"
+                                : ""
+                            }
+                          />
+                          {validationErrors.alumni.lastName && (
+                            <p className="text-sm text-red-500">
+                              {validationErrors.alumni.lastName}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-email">Email Address *</Label>
+                        <Input
+                          id="alumni-email"
+                          type="email"
+                          value={newAlumni.email}
+                          onChange={(e) => {
+                            setNewAlumni({
+                              ...newAlumni,
+                              email: e.target.value,
+                            });
+                            // Clear error when user starts typing
+                            if (validationErrors.alumni.email) {
+                              updateValidationErrors("alumni", {
+                                ...validationErrors.alumni,
+                                email: "",
+                              });
+                            }
+                          }}
+                          placeholder="Enter email address"
+                          className={
+                            validationErrors.alumni.email
+                              ? "border-red-500"
+                              : ""
+                          }
+                        />
+                        {validationErrors.alumni.email && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.email}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-password">Password *</Label>
+                        <div className="relative">
+                          <Input
+                            id="alumni-password"
+                            type={
+                              passwordVisibility.alumni ? "text" : "password"
+                            }
+                            value={newAlumni.password}
+                            onChange={(e) => {
+                              setNewAlumni({
+                                ...newAlumni,
+                                password: e.target.value,
+                              });
+                              // Clear error when user starts typing
+                              if (validationErrors.alumni.password) {
+                                updateValidationErrors("alumni", {
+                                  ...validationErrors.alumni,
+                                  password: "",
+                                });
+                              }
+                            }}
+                            placeholder="Enter password"
+                            className={`pr-10 ${
+                              validationErrors.alumni.password
+                                ? "border-red-500"
+                                : ""
+                            }`}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => togglePasswordVisibility("alumni")}
+                          >
+                            {passwordVisibility.alumni ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        {validationErrors.alumni.password && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.password}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-department">Department *</Label>
+                        <Input
+                          id="alumni-department"
+                          value={newAlumni.department}
+                          onChange={(e) => {
+                            setNewAlumni({
+                              ...newAlumni,
+                              department: e.target.value,
+                            });
+                            // Clear error when user starts typing
+                            if (validationErrors.alumni.department) {
+                              updateValidationErrors("alumni", {
+                                ...validationErrors.alumni,
+                                department: "",
+                              });
+                            }
+                          }}
+                          placeholder="Enter department"
+                          className={
+                            validationErrors.alumni.department
+                              ? "border-red-500"
+                              : ""
+                          }
+                        />
+                        {validationErrors.alumni.department && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.department}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-graduationYear">
+                          Graduation Year *
+                        </Label>
+                        <Input
+                          id="alumni-graduationYear"
+                          type="number"
+                          value={newAlumni.graduationYear}
+                          onChange={(e) => {
+                            setNewAlumni({
+                              ...newAlumni,
+                              graduationYear:
+                                parseInt(e.target.value) ||
+                                new Date().getFullYear(),
+                            });
+                            // Clear error when user starts typing
+                            if (validationErrors.alumni.graduationYear) {
+                              updateValidationErrors("alumni", {
+                                ...validationErrors.alumni,
+                                graduationYear: "",
+                              });
+                            }
+                          }}
+                          placeholder="Enter graduation year"
+                          className={
+                            validationErrors.alumni.graduationYear
+                              ? "border-red-500"
+                              : ""
+                          }
+                        />
+                        {validationErrors.alumni.graduationYear && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.graduationYear}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-currentCompany">
+                            Current Company
+                          </Label>
+                          <Input
+                            id="alumni-currentCompany"
+                            value={newAlumni.currentCompany}
+                            onChange={(e) =>
+                              setNewAlumni({
+                                ...newAlumni,
+                                currentCompany: e.target.value,
+                              })
+                            }
+                            placeholder="Enter current company"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-currentPosition">
+                            Current Position
+                          </Label>
+                          <Input
+                            id="alumni-currentPosition"
+                            value={newAlumni.currentPosition}
+                            onChange={(e) =>
+                              setNewAlumni({
+                                ...newAlumni,
+                                currentPosition: e.target.value,
+                              })
+                            }
+                            placeholder="Enter current position"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-phoneNumber">Phone Number</Label>
+                        <Input
+                          id="alumni-phoneNumber"
+                          value={newAlumni.phoneNumber}
+                          onChange={(e) =>
+                            setNewAlumni({
+                              ...newAlumni,
+                              phoneNumber: e.target.value,
+                            })
+                          }
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-address">Address</Label>
+                        <Input
+                          id="alumni-address"
+                          value={newAlumni.address}
+                          onChange={(e) =>
+                            setNewAlumni({
+                              ...newAlumni,
+                              address: e.target.value,
+                            })
+                          }
+                          placeholder="Enter address"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-bio">Bio</Label>
+                        <Input
+                          id="alumni-bio"
+                          value={newAlumni.bio}
+                          onChange={(e) =>
+                            setNewAlumni({ ...newAlumni, bio: e.target.value })
+                          }
+                          placeholder="Enter bio"
+                        />
+                      </div>
+
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCreateAlumniOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={loading.post}>
+                          {loading.post ? "Creating..." : "Create Alumni"}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="space-y-4">
+                {loading.alumni ? (
+                  <div className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      Loading alumni...
+                    </div>
+                  </div>
+                ) : alumni.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <div className="space-y-4">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                          <GraduationCap className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            No alumni found
+                          </h3>
+                          <p className="text-gray-600">
+                            No alumni have been created yet. Use the "Create
+                            Alumni" button above to add new alumni.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  alumni.map((alumniItem) => (
+                    <Card
+                      key={alumniItem._id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleAlumniClick(alumniItem)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-4">
+                            <div className="relative">
+                              <img
+                                src={
+                                  alumniItem.userId?.profilePicture
+                                    ? alumniItem.userId.profilePicture.startsWith(
+                                        "http"
+                                      )
+                                      ? alumniItem.userId.profilePicture
+                                      : `${(
+                                          import.meta.env.VITE_API_BASE_URL ||
+                                          "http://localhost:3000/api/v1"
+                                        ).replace("/api/v1", "")}${
+                                          alumniItem.userId.profilePicture
+                                        }`
+                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                        `${
+                                          alumniItem.userId?.firstName || ""
+                                        } ${alumniItem.userId?.lastName || ""}`
+                                      )}&background=random`
+                                }
+                                alt={`${alumniItem.userId?.firstName} ${alumniItem.userId?.lastName}`}
+                                className="w-12 h-12 rounded-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    `${alumniItem.userId?.firstName || ""} ${
+                                      alumniItem.userId?.lastName || ""
+                                    }`
+                                  )}&background=random`;
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h3 className="text-lg font-semibold">
+                                  {alumniItem.userId?.firstName}{" "}
+                                  {alumniItem.userId?.lastName}
+                                </h3>
+                                <Badge variant="secondary">Alumni</Badge>
+                              </div>
+                              <div className="space-y-1 text-sm text-muted-foreground">
+                                <div className="flex items-center space-x-2">
+                                  <Mail className="h-4 w-4" />
+                                  <span>{alumniItem.userId?.email}</span>
+                                </div>
+                                {alumniItem.currentCompany && (
+                                  <div className="flex items-center space-x-2">
+                                    <Building className="h-4 w-4" />
+                                    <span>{alumniItem.currentCompany}</span>
+                                    {alumniItem.currentPosition && (
+                                      <span>
+                                        • {alumniItem.currentPosition}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {alumniItem.currentLocation && (
+                                  <div className="flex items-center space-x-2">
+                                    <MapPin className="h-4 w-4" />
+                                    <span>{alumniItem.currentLocation}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center space-x-2">
+                                  <GraduationCap className="h-4 w-4" />
+                                  <span>
+                                    Class of {alumniItem.graduationYear}
+                                  </span>
+                                </div>
+                                {alumniItem.experience &&
+                                  alumniItem.experience > 0 && (
+                                    <div className="flex items-center space-x-2">
+                                      <Calendar className="h-4 w-4" />
+                                      <span>
+                                        {alumniItem.experience} years experience
+                                      </span>
+                                    </div>
+                                  )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

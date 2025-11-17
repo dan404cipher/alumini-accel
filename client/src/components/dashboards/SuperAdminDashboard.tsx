@@ -31,18 +31,91 @@ import TenantManagement from "../TenantManagement";
 import UserManagement from "../UserManagement";
 import AlumniManagement from "../AlumniManagement";
 
+// Type definitions
+interface Tenant {
+  _id: string;
+  name: string;
+  domain?: string;
+  [key: string]: unknown;
+}
+
+interface User {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  tenantId?: {
+    _id?: string;
+    name?: string;
+  };
+  department?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+interface PendingUserRequest {
+  requestId: string;
+  _id?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+  tenantId?:
+    | string
+    | {
+        _id?: string;
+        name?: string;
+      };
+  department?: string;
+  graduationYear?: number;
+  currentCompany?: string;
+  currentPosition?: string;
+  requestedAt?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+interface APIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
+interface TenantResponse {
+  tenants?: Tenant[];
+  data?: Tenant[];
+}
+
+interface UserResponse {
+  users?: User[];
+  data?: User[];
+}
+
+interface ActivityItem {
+  id: string;
+  action: string;
+  college: string;
+  time: string;
+  type: "success" | "warning" | "info";
+}
+
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("colleges");
-  const [colleges, setColleges] = useState([]);
+  const [colleges, setColleges] = useState<Tenant[]>([]);
   const [loadingColleges, setLoadingColleges] = useState(false);
-  const [recentUsers, setRecentUsers] = useState([]);
+  const [recentUsers, setRecentUsers] = useState<User[]>([]);
   const [loadingRecentUsers, setLoadingRecentUsers] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // User request states
-  const [pendingUserRequests, setPendingUserRequests] = useState([]);
+  const [pendingUserRequests, setPendingUserRequests] = useState<
+    PendingUserRequest[]
+  >([]);
   const [loadingUserRequests, setLoadingUserRequests] = useState(false);
   const [requestStats, setRequestStats] = useState({
     alumni: 0,
@@ -59,11 +132,14 @@ const SuperAdminDashboard = () => {
   });
 
   // Debounce utility
-  const debounce = (func: Function, delay: number) => {
+  const debounce = <T extends (...args: unknown[]) => void>(
+    func: T,
+    delay: number
+  ) => {
     let timeoutId: NodeJS.Timeout;
-    return (...args: any[]) => {
+    return (...args: Parameters<T>) => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func.apply(null, args), delay);
+      timeoutId = setTimeout(() => func(...args), delay);
     };
   };
 
@@ -145,8 +221,10 @@ const SuperAdminDashboard = () => {
       setLoadingColleges(true);
       setLastFetchTime((prev) => ({ ...prev, colleges: now }));
       const response = await tenantAPI.getAllTenants();
-      if (response.success) {
-        setColleges(response.data.tenants || []);
+      const responseTyped = response as APIResponse<TenantResponse>;
+      const dataTyped = responseTyped.data as TenantResponse;
+      if (response.success && dataTyped) {
+        setColleges(dataTyped.tenants || []);
       }
     } catch (error) {
       console.error("Error fetching colleges:", error);
@@ -169,21 +247,25 @@ const SuperAdminDashboard = () => {
       setLoadingRecentUsers(true);
       setLastFetchTime((prev) => ({ ...prev, users: now }));
       const response = await userAPI.getAllUsers();
-      if (response.success && response.data?.users) {
+      const responseTyped = response as APIResponse<UserResponse>;
+      const dataTyped = responseTyped.data as UserResponse;
+      if (response.success && dataTyped?.users) {
         // Filter users created in the last 7 days
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const recentUsers = response.data.users.filter((user: any) => {
+        const recentUsersList = dataTyped.users.filter((user) => {
+          if (!user.createdAt) return false;
           const createdAt = new Date(user.createdAt);
           return createdAt >= sevenDaysAgo;
         });
 
         // Sort by creation date (newest first) and limit to 5
-        const sortedRecentUsers = recentUsers
+        const sortedRecentUsers = recentUsersList
           .sort(
-            (a: any, b: any) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            (a, b) =>
+              new Date(b.createdAt || 0).getTime() -
+              new Date(a.createdAt || 0).getTime()
           )
           .slice(0, 5);
 
@@ -260,6 +342,7 @@ const SuperAdminDashboard = () => {
   useEffect(() => {
     fetchColleges();
     fetchRecentUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Approvals tab removed
@@ -325,10 +408,14 @@ const SuperAdminDashboard = () => {
       } else {
         throw new Error(response.message || "Failed to create admin");
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create college admin";
       toast({
         title: "Error",
-        description: error.message || "Failed to create college admin",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -390,10 +477,12 @@ const SuperAdminDashboard = () => {
       } else {
         throw new Error(response.message || "Failed to create HOD");
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create HOD";
       toast({
         title: "Error",
-        description: error.message || "Failed to create HOD",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -455,10 +544,14 @@ const SuperAdminDashboard = () => {
       } else {
         throw new Error(response.message || "Failed to create staff");
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create staff member";
       toast({
         title: "Error",
-        description: error.message || "Failed to create staff member",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -492,21 +585,17 @@ const SuperAdminDashboard = () => {
       const response = await userAPI.getPendingUserRequests();
 
       if (response.success && response.data) {
-        setPendingUserRequests(response.data);
+        const requests = response.data as PendingUserRequest[];
+        setPendingUserRequests(requests);
 
         // Calculate stats by role
         const stats = {
-          alumni: response.data.filter(
-            (request: any) => request.role === "alumni"
-          ).length,
-          admin: response.data.filter(
-            (request: any) => request.role === "college_admin"
-          ).length,
-          hod: response.data.filter((request: any) => request.role === "hod")
+          alumni: requests.filter((request) => request.role === "alumni")
             .length,
-          staff: response.data.filter(
-            (request: any) => request.role === "staff"
-          ).length,
+          admin: requests.filter((request) => request.role === "college_admin")
+            .length,
+          hod: requests.filter((request) => request.role === "hod").length,
+          staff: requests.filter((request) => request.role === "staff").length,
         };
         setRequestStats(stats);
       }
@@ -579,15 +668,27 @@ const SuperAdminDashboard = () => {
   };
 
   // Create debounced versions of fetch functions (after all functions are defined)
-  const debouncedFetchColleges = useCallback(debounce(fetchColleges, 300), []);
+  const debouncedFetchColleges = useCallback(
+    debounce(() => {
+      fetchColleges();
+    }, 300),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const debouncedFetchRecentUsers = useCallback(
-    debounce(fetchRecentUsers, 300),
+    debounce(() => {
+      fetchRecentUsers();
+    }, 300),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
   const debouncedFetchPendingUserRequests = useCallback(
-    debounce(fetchPendingUserRequests, 300),
+    debounce(() => {
+      fetchPendingUserRequests();
+    }, 300),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -606,25 +707,31 @@ const SuperAdminDashboard = () => {
   };
 
   // Generate recent activity from real data
-  const recentActivity = [
+  const recentActivity: ActivityItem[] = [
     // Show recent user registrations
-    ...(recentUsers || []).slice(0, 3).map((user: any, index: number) => ({
+    ...(recentUsers || []).slice(0, 3).map((user, index) => ({
       id: `user_${index + 1}`,
       action: `New ${user?.role || "user"} registered`,
-      college: user?.tenantId?.name || "Unknown College",
+      college:
+        typeof user?.tenantId === "object" && user.tenantId?.name
+          ? user.tenantId.name
+          : "Unknown College",
       time: formatTimeAgo(user?.createdAt),
       type: "info" as const,
     })),
     // Show pending requests
-    ...(pendingUserRequests || [])
-      .slice(0, 2)
-      .map((request: any, index: number) => ({
-        id: `request_${index + 1}`,
-        action: `${request?.role || "user"} approval pending`,
-        college: request?.tenantId || "Unknown College",
-        time: formatTimeAgo(request?.requestedAt),
-        type: "warning" as const,
-      })),
+    ...(pendingUserRequests || []).slice(0, 2).map((request, index) => ({
+      id: `request_${index + 1}`,
+      action: `${request?.role || "user"} approval pending`,
+      college:
+        typeof request?.tenantId === "object" && request.tenantId?.name
+          ? request.tenantId.name
+          : typeof request?.tenantId === "string"
+          ? request.tenantId
+          : "Unknown College",
+      time: formatTimeAgo(request?.requestedAt),
+      type: "warning" as const,
+    })),
     // Add system activity if no real data
     ...(recentUsers.length === 0 && pendingUserRequests.length === 0
       ? [
@@ -899,7 +1006,7 @@ const SuperAdminDashboard = () => {
                         }
                       >
                         <option value="">Select College</option>
-                        {colleges.map((college: any) => (
+                        {colleges.map((college) => (
                           <option key={college._id} value={college._id}>
                             {college.name}
                           </option>
@@ -989,7 +1096,7 @@ const SuperAdminDashboard = () => {
                         }
                       >
                         <option value="">Select College</option>
-                        {colleges.map((college: any) => (
+                        {colleges.map((college) => (
                           <option key={college._id} value={college._id}>
                             {college.name}
                           </option>
@@ -1101,7 +1208,7 @@ const SuperAdminDashboard = () => {
                         }
                       >
                         <option value="">Select College</option>
-                        {colleges.map((college: any) => (
+                        {colleges.map((college) => (
                           <option key={college._id} value={college._id}>
                             {college.name}
                           </option>
@@ -1212,16 +1319,20 @@ const SuperAdminDashboard = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {recentUsers.map((user: any) => {
+                      {recentUsers.map((user) => {
                         const {
                           icon: Icon,
                           bgColor,
                           iconColor,
-                        } = getRoleIconAndColor(user.role);
-                        const roleDisplayName = user.role
+                        } = getRoleIconAndColor(user.role || "");
+                        const roleDisplayName = (user.role || "")
                           .replace("_", " ")
                           .replace(/\b\w/g, (l) => l.toUpperCase());
-                        const collegeName = user.tenantId?.name || "No College";
+                        const collegeName =
+                          typeof user.tenantId === "object" &&
+                          user.tenantId?.name
+                            ? user.tenantId.name
+                            : "No College";
                         const departmentInfo = user.department
                           ? ` - ${user.department}`
                           : "";
@@ -1371,7 +1482,7 @@ const SuperAdminDashboard = () => {
                         </div>
                       </div>
                     ) : pendingUserRequests.filter(
-                        (request: any) => request.role === "alumni"
+                        (request) => request.role === "alumni"
                       ).length === 0 ? (
                       <div className="flex items-center justify-center p-8">
                         <div className="text-muted-foreground">
@@ -1380,8 +1491,8 @@ const SuperAdminDashboard = () => {
                       </div>
                     ) : (
                       pendingUserRequests
-                        .filter((request: any) => request.role === "alumni")
-                        .map((request: any) => (
+                        .filter((request) => request.role === "alumni")
+                        .map((request) => (
                           <div
                             key={request.requestId}
                             className="flex items-center justify-between p-3 border rounded-lg"
@@ -1458,8 +1569,10 @@ const SuperAdminDashboard = () => {
                           Loading approvals...
                         </div>
                       </div>
-                    ) : pendingUserRequests.filter((request: any) =>
-                        ["college_admin", "hod", "staff"].includes(request.role)
+                    ) : pendingUserRequests.filter((request) =>
+                        ["college_admin", "hod", "staff"].includes(
+                          request.role || ""
+                        )
                       ).length === 0 ? (
                       <div className="flex items-center justify-center p-8">
                         <div className="text-muted-foreground">
@@ -1468,12 +1581,12 @@ const SuperAdminDashboard = () => {
                       </div>
                     ) : (
                       pendingUserRequests
-                        .filter((request: any) =>
+                        .filter((request) =>
                           ["college_admin", "hod", "staff"].includes(
-                            request.role
+                            request.role || ""
                           )
                         )
-                        .map((request: any) => (
+                        .map((request) => (
                           <div
                             key={request.requestId}
                             className="flex items-center justify-between p-3 border rounded-lg"

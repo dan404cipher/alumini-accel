@@ -78,6 +78,198 @@ import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
 
+// Type definitions
+interface PendingRequest {
+  _id: string;
+  role: string;
+  tenantId: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+interface Alumni {
+  _id: string;
+  department?: string;
+  userId?: {
+    _id?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    profileImage?: string;
+    department?: string;
+  };
+  graduationYear?: number;
+  currentCompany?: string;
+  currentPosition?: string;
+  currentLocation?: string;
+  [key: string]: unknown;
+}
+
+interface Event {
+  _id: string;
+  title: string;
+  date?: string;
+  startDate?: string;
+  location?: string;
+  image?: string;
+  status?: string;
+  attendees?: Array<unknown> | number;
+  [key: string]: unknown;
+}
+
+interface Campaign {
+  _id: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  currentAmount?: number;
+  targetAmount?: number;
+  [key: string]: unknown;
+}
+
+interface Gallery {
+  _id: string;
+  title: string;
+  images?: string[];
+  category?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+interface News {
+  _id: string;
+  title: string;
+  content?: string;
+  summary?: string;
+  image?: string;
+  publishedAt?: string;
+  createdAt?: string;
+  author?:
+    | string
+    | {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      };
+  [key: string]: unknown;
+}
+
+interface Community {
+  _id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  members?: unknown[];
+  memberCount?: number;
+  posts?: unknown[];
+  postCount?: number;
+  [key: string]: unknown;
+}
+
+interface Donation {
+  _id: string;
+  amount: number;
+  donorName?: string;
+  donor?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  campaign?: {
+    title?: string;
+  };
+  createdAt?: string;
+  donatedAt?: string;
+  [key: string]: unknown;
+}
+
+interface Mentorship {
+  _id: string;
+  status?: string;
+  mentor?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  mentorName?: string;
+  mentee?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  menteeName?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+interface APIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+  errors?: string[];
+}
+
+interface EventResponse {
+  events?: Event[];
+  data?: Event[];
+  pagination?: {
+    total?: number;
+  };
+}
+
+interface CampaignResponse {
+  campaigns?: Campaign[];
+  data?: Campaign[];
+}
+
+interface GalleryResponse {
+  galleries?: Gallery[];
+  data?: Gallery[];
+}
+
+interface NewsResponse {
+  news?: News[];
+  data?: News[];
+}
+
+interface CommunityResponse {
+  data?: Community[];
+}
+
+interface DonationResponse {
+  donations?: Donation[];
+  data?: Donation[];
+}
+
+interface MentorshipResponse {
+  mentorships?: Mentorship[];
+  data?: Mentorship[];
+}
+
+interface AlumniResponse {
+  alumni?: Alumni[];
+  profiles?: Alumni[];
+  data?: Alumni[];
+  pagination?: {
+    total?: number;
+  };
+}
+
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  department: string;
+  password: string;
+  graduationYear?: number;
+  currentCompany?: string;
+  currentPosition?: string;
+  phoneNumber?: string;
+  address?: string;
+  bio?: string;
+  collegeId?: string;
+}
+
 const HODPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -87,15 +279,15 @@ const HODPanel = () => {
   const [isCreateAlumniOpen, setIsCreateAlumniOpen] = useState(false);
 
   // Real data states
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [alumni, setAlumni] = useState([]);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [galleries, setGalleries] = useState<any[]>([]);
-  const [news, setNews] = useState<any[]>([]);
-  const [communities, setCommunities] = useState<any[]>([]);
-  const [donations, setDonations] = useState<any[]>([]);
-  const [mentorships, setMentorships] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [alumni, setAlumni] = useState<Alumni[]>([]);
+  const [recentEvents, setRecentEvents] = useState<Event[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [news, setNews] = useState<News[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [mentorships, setMentorships] = useState<Mentorship[]>([]);
   const [alumniByDepartment, setAlumniByDepartment] = useState<
     Record<string, number>
   >({});
@@ -139,7 +331,6 @@ const HODPanel = () => {
     bio: "",
   });
 
-
   // Validation errors state
   const [validationErrors, setValidationErrors] = useState({
     staff: {} as Record<string, string>,
@@ -164,8 +355,8 @@ const HODPanel = () => {
 
       if (response.success && response.data) {
         // Filter requests for HOD's department/college
-        const hodRequests = response.data.filter(
-          (req: any) =>
+        const hodRequests = (response.data as PendingRequest[]).filter(
+          (req) =>
             req.tenantId === user.tenantId &&
             (req.role === "alumni" || req.role === "staff")
         );
@@ -193,13 +384,15 @@ const HODPanel = () => {
         tenantId: user.tenantId,
       });
 
-      if (response.success && response.data) {
-        const alumniArray = Array.isArray(response.data)
-          ? response.data
-          : Array.isArray(response.data?.alumni)
-          ? response.data.alumni
-          : Array.isArray(response.data?.profiles)
-          ? response.data.profiles
+      const responseTyped = response as APIResponse<AlumniResponse>;
+      const dataTyped = responseTyped.data as AlumniResponse | Alumni[];
+      if (response.success && dataTyped) {
+        const alumniArray = Array.isArray(dataTyped)
+          ? dataTyped
+          : (dataTyped as AlumniResponse)?.alumni
+          ? (dataTyped as AlumniResponse).alumni
+          : (dataTyped as AlumniResponse)?.profiles
+          ? (dataTyped as AlumniResponse).profiles
           : [];
         setAlumni(alumniArray);
       }
@@ -264,7 +457,7 @@ const HODPanel = () => {
   };
 
   // Validation functions
-  const validateForm = (formData: any, formType: "staff" | "alumni") => {
+  const validateForm = (formData: FormData, formType: "staff" | "alumni") => {
     const errors: Record<string, string> = {};
 
     // First Name validation
@@ -333,7 +526,7 @@ const HODPanel = () => {
     } else if (formData.password.length < 8) {
       errors.password = "Password must be at least 8 characters long";
     } else if (
-      !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(
+      !/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/.test(
         formData.password
       )
     ) {
@@ -470,7 +663,10 @@ const HODPanel = () => {
       } else {
         const errorMessage =
           userResponse.message || "Failed to create alumni user";
-        const errors = userResponse.errors || [];
+        const responseTyped = userResponse as APIResponse<unknown> & {
+          errors?: string[];
+        };
+        const errors = responseTyped.errors || [];
         console.error("User creation validation errors:", errors);
         throw new Error(`${errorMessage}: ${errors.join(", ")}`);
       }
@@ -488,10 +684,11 @@ const HODPanel = () => {
     }
   };
 
-
   // Handle alumni click
-  const handleAlumniClick = (alumni: any) => {
-    navigate(`/alumni/${alumni.userId._id}`);
+  const handleAlumniClick = (alumniItem: Alumni) => {
+    if (alumniItem.userId?._id) {
+      navigate(`/alumni/${alumniItem.userId._id}`);
+    }
   };
 
   // Load data on component mount
@@ -588,12 +785,14 @@ const HODPanel = () => {
         tenantId: user.tenantId,
       });
 
-      if (response.success && response.data?.events) {
-        const events = response.data.events;
+      const responseTyped = response as APIResponse<EventResponse>;
+      const dataTyped = responseTyped.data as EventResponse;
+      if (response.success && dataTyped?.events) {
+        const events = dataTyped.events;
         setRecentEvents(events);
 
         const statusCounts: Record<string, number> = {};
-        events.forEach((event: any) => {
+        events.forEach((event) => {
           const status = event.status || "upcoming";
           statusCounts[status] = (statusCounts[status] || 0) + 1;
         });
@@ -616,10 +815,13 @@ const HODPanel = () => {
         limit: 10,
       });
 
-      if (response.success && response.data?.campaigns) {
-        setCampaigns(response.data.campaigns);
-      } else if (response.success && Array.isArray(response.data)) {
-        setCampaigns(response.data);
+      const responseTyped = response as APIResponse<CampaignResponse>;
+      const dataTyped = responseTyped.data as CampaignResponse | Campaign[];
+      if (response.success && dataTyped) {
+        const campaignsData =
+          (dataTyped as CampaignResponse)?.campaigns ||
+          (Array.isArray(dataTyped) ? dataTyped : []);
+        setCampaigns(Array.isArray(campaignsData) ? campaignsData : []);
       }
     } catch (error) {
       console.error("Error fetching campaigns:", error);
@@ -638,10 +840,13 @@ const HODPanel = () => {
         limit: 10,
       });
 
-      if (response.success && response.data?.galleries) {
-        setGalleries(response.data.galleries);
-      } else if (response.success && Array.isArray(response.data)) {
-        setGalleries(response.data);
+      const responseTyped = response as APIResponse<GalleryResponse>;
+      const dataTyped = responseTyped.data as GalleryResponse | Gallery[];
+      if (response.success && dataTyped) {
+        const galleriesData =
+          (dataTyped as GalleryResponse)?.galleries ||
+          (Array.isArray(dataTyped) ? dataTyped : []);
+        setGalleries(Array.isArray(galleriesData) ? galleriesData : []);
       }
     } catch (error) {
       console.error("Error fetching galleries:", error);
@@ -660,10 +865,13 @@ const HODPanel = () => {
         limit: 10,
       });
 
-      if (response.success && response.data?.news) {
-        setNews(response.data.news);
-      } else if (response.success && Array.isArray(response.data)) {
-        setNews(response.data);
+      const responseTyped = response as APIResponse<NewsResponse>;
+      const dataTyped = responseTyped.data as NewsResponse | News[];
+      if (response.success && dataTyped) {
+        const newsData =
+          (dataTyped as NewsResponse)?.news ||
+          (Array.isArray(dataTyped) ? dataTyped : []);
+        setNews(Array.isArray(newsData) ? newsData : []);
       }
     } catch (error) {
       console.error("Error fetching news:", error);
@@ -709,8 +917,10 @@ const HODPanel = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const donationsData = data.data?.donations || data.data || [];
+        const data = (await response.json()) as APIResponse<DonationResponse>;
+        const donationsData =
+          (data.data as DonationResponse)?.donations ||
+          (Array.isArray(data.data) ? data.data : []);
         setDonations(Array.isArray(donationsData) ? donationsData : []);
       }
     } catch (error) {
@@ -739,8 +949,10 @@ const HODPanel = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const mentorshipsData = data.data?.mentorships || data.data || [];
+        const data = (await response.json()) as APIResponse<MentorshipResponse>;
+        const mentorshipsData =
+          (data.data as MentorshipResponse)?.mentorships ||
+          (Array.isArray(data.data) ? data.data : []);
         setMentorships(Array.isArray(mentorshipsData) ? mentorshipsData : []);
       }
     } catch (error) {
@@ -754,7 +966,7 @@ const HODPanel = () => {
   useEffect(() => {
     if (alumni.length > 0) {
       const deptCounts: Record<string, number> = {};
-      alumni.forEach((alum: any) => {
+      alumni.forEach((alum) => {
         const dept = alum.department || alum.userId?.department || "Unknown";
         deptCounts[dept] = (deptCounts[dept] || 0) + 1;
       });
@@ -786,23 +998,22 @@ const HODPanel = () => {
     staffUnderHOD: 8,
     alumniEngagement: 78,
     eventsOrganized: recentEvents.length,
-    pendingAlumni: pendingRequests.filter((req: any) => req.role === "alumni")
+    pendingAlumni: pendingRequests.filter((req) => req.role === "alumni")
       .length,
-    pendingStaff: pendingRequests.filter((req: any) => req.role === "staff")
-      .length,
+    pendingStaff: pendingRequests.filter((req) => req.role === "staff").length,
     totalContributions: campaigns.reduce(
-      (sum: number, c: any) => sum + (c.currentAmount || 0),
+      (sum: number, c) => sum + (c.currentAmount || 0),
       0
     ),
     totalAlumniVerified: alumni.length,
     totalCampaigns: campaigns.length,
-    activeCampaigns: campaigns.filter((c: any) => c.status === "active").length,
+    activeCampaigns: campaigns.filter((c) => c.status === "active").length,
     totalCampaignRaised: campaigns.reduce(
-      (sum: number, c: any) => sum + (c.currentAmount || 0),
+      (sum: number, c) => sum + (c.currentAmount || 0),
       0
     ),
     totalCampaignTarget: campaigns.reduce(
-      (sum: number, c: any) => sum + (c.targetAmount || 0),
+      (sum: number, c) => sum + (c.targetAmount || 0),
       0
     ),
   };
@@ -893,12 +1104,12 @@ const HODPanel = () => {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
                   <Users className="h-6 w-6 text-blue-600" />
-              </div>
+                </div>
                 <div>
                   <h3 className="text-white font-bold text-lg">HOD</h3>
                   <p className="text-blue-100 text-xs">Management Portal</p>
-            </div>
-          </div>
+                </div>
+              </div>
             </div>
 
             {/* Navigation Menu */}
@@ -1032,18 +1243,18 @@ const HODPanel = () => {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-72">
           {/* Header - only on Dashboard tab */}
           {activeTab === "dashboard" && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">HOD Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage your department staff and alumni engagement
-            </p>
-          </div>
-          <Badge variant="outline" className="text-sm">
-            <Users className="w-4 h-4 mr-2" />
-            Head of Department
-          </Badge>
-        </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold">HOD Dashboard</h1>
+                <p className="text-muted-foreground">
+                  Manage your department staff and alumni engagement
+                </p>
+              </div>
+              <Badge variant="outline" className="text-sm">
+                <Users className="w-4 h-4 mr-2" />
+                Head of Department
+              </Badge>
+            </div>
           )}
 
           {/* College Banner Display - only on Dashboard tab */}
@@ -1080,47 +1291,47 @@ const HODPanel = () => {
               {/* KPI Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-l-4 border-l-blue-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
                       Total Alumni Verified
-              </CardTitle>
+                    </CardTitle>
                     <GraduationCap className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
+                  </CardHeader>
+                  <CardContent>
                     <div className="text-2xl font-bold">
                       {stats.totalAlumniVerified}
                     </div>
-              <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Verified alumni
-              </p>
-            </CardContent>
-          </Card>
+                    </p>
+                  </CardContent>
+                </Card>
 
                 <Card className="border-l-4 border-l-green-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
                       Pending Approvals
-              </CardTitle>
+                    </CardTitle>
                     <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
                       {stats.pendingAlumni + stats.pendingStaff}
-              </div>
-              <p className="text-xs text-muted-foreground">
+                    </div>
+                    <p className="text-xs text-muted-foreground">
                       Awaiting approval
-              </p>
-            </CardContent>
-          </Card>
+                    </p>
+                  </CardContent>
+                </Card>
 
                 <Card className="border-l-4 border-l-purple-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Events Organized
-              </CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Events Organized
+                    </CardTitle>
                     <Calendar className="h-4 w-4 text-purple-500" />
-            </CardHeader>
-            <CardContent>
+                  </CardHeader>
+                  <CardContent>
                     <div className="text-2xl font-bold">
                       {stats.eventsOrganized}
                     </div>
@@ -1144,9 +1355,9 @@ const HODPanel = () => {
                     <p className="text-xs text-muted-foreground">
                       Active campaigns
                     </p>
-            </CardContent>
-          </Card>
-        </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Detailed Statistics Section */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -1234,7 +1445,7 @@ const HODPanel = () => {
                                 <span className="text-sm font-medium capitalize">
                                   {status}
                                 </span>
-            </div>
+                              </div>
                               <Badge variant="secondary">{count}</Badge>
                             </div>
                           )
@@ -1256,7 +1467,7 @@ const HODPanel = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-            <div className="space-y-4">
+                    <div className="space-y-4">
                       <div>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-muted-foreground">Raised</span>
@@ -1295,7 +1506,7 @@ const HODPanel = () => {
                             </p>
                           </>
                         )}
-                </div>
+                      </div>
                       <div className="pt-2 border-t">
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">
@@ -1304,7 +1515,7 @@ const HODPanel = () => {
                           <span className="font-medium text-green-600">
                             {stats.activeCampaigns}
                           </span>
-                </div>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -1315,12 +1526,12 @@ const HODPanel = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
                 {/* Recent Events */}
                 <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-5 w-5 text-purple-500" />
                         <CardTitle>Recent Events</CardTitle>
-                        </div>
+                      </div>
                       <Badge variant="outline">{recentEvents.length}</Badge>
                     </div>
                     <CardDescription>
@@ -1343,7 +1554,7 @@ const HODPanel = () => {
                           </p>
                         </div>
                       ) : (
-                        recentEvents.slice(0, 5).map((event: any) => {
+                        recentEvents.slice(0, 5).map((event) => {
                           const attendeesCount = Array.isArray(event.attendees)
                             ? event.attendees.length
                             : typeof event.attendees === "number"
@@ -1400,18 +1611,18 @@ const HODPanel = () => {
                                   <span className="text-xs text-muted-foreground">
                                     {attendeesCount} attendees
                                   </span>
-                          <Badge
-                            variant={
+                                  <Badge
+                                    variant={
                                       eventStatus === "completed"
-                                ? "default"
-                                : "secondary"
-                            }
+                                        ? "default"
+                                        : "secondary"
+                                    }
                                     className="text-xs"
-                          >
+                                  >
                                     {eventStatus}
-                          </Badge>
-                        </div>
-                      </div>
+                                  </Badge>
+                                </div>
+                              </div>
                             </div>
                           );
                         })
@@ -1431,8 +1642,8 @@ const HODPanel = () => {
                       <Badge variant="outline">{galleries.length}</Badge>
                     </div>
                     <CardDescription>Recent photo galleries</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-3">
                       {loading.galleries ? (
                         <div className="text-center py-4">
@@ -1448,7 +1659,7 @@ const HODPanel = () => {
                           </p>
                         </div>
                       ) : (
-                        galleries.slice(0, 5).map((gallery: any) => {
+                        galleries.slice(0, 5).map((gallery) => {
                           const galleryDate = new Date(
                             gallery.createdAt || new Date()
                           );
@@ -1515,11 +1726,11 @@ const HODPanel = () => {
                 {/* News Room */}
                 <Card>
                   <CardHeader>
-                      <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Newspaper className="h-5 w-5 text-blue-500" />
                         <CardTitle>News Room</CardTitle>
-                        </div>
+                      </div>
                       <Badge variant="outline">{news.length}</Badge>
                     </div>
                     <CardDescription>Latest news and updates</CardDescription>
@@ -1538,7 +1749,7 @@ const HODPanel = () => {
                           <p className="text-muted-foreground">No news found</p>
                         </div>
                       ) : (
-                        news.slice(0, 5).map((newsItem: any) => {
+                        news.slice(0, 5).map((newsItem) => {
                           const newsDate = new Date(
                             newsItem.publishedAt ||
                               newsItem.createdAt ||
@@ -1581,7 +1792,7 @@ const HODPanel = () => {
                                   </p>
                                   {newsItem.author && (
                                     <Badge
-                            variant="outline"
+                                      variant="outline"
                                       className="text-xs"
                                     >
                                       {typeof newsItem.author === "string"
@@ -1631,7 +1842,7 @@ const HODPanel = () => {
                           </p>
                         </div>
                       ) : (
-                        communities.slice(0, 5).map((community: any) => {
+                        communities.slice(0, 5).map((community) => {
                           const memberCount =
                             community.members?.length ||
                             community.memberCount ||
@@ -1654,7 +1865,7 @@ const HODPanel = () => {
                                 ) : (
                                   <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
                                     <MessageSquare className="h-6 w-6 text-green-500" />
-                        </div>
+                                  </div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1683,9 +1894,9 @@ const HODPanel = () => {
                           );
                         })
                       )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Donations */}
                 <Card>
@@ -1715,7 +1926,7 @@ const HODPanel = () => {
                           </p>
                         </div>
                       ) : (
-                        donations.slice(0, 5).map((donation: any) => {
+                        donations.slice(0, 5).map((donation) => {
                           const donationDate = new Date(
                             donation.createdAt ||
                               donation.donatedAt ||
@@ -1796,7 +2007,7 @@ const HODPanel = () => {
                           </p>
                         </div>
                       ) : (
-                        mentorships.slice(0, 5).map((mentorship: any) => {
+                        mentorships.slice(0, 5).map((mentorship) => {
                           const mentorshipDate = new Date(
                             mentorship.createdAt || new Date()
                           );
@@ -1859,719 +2070,723 @@ const HODPanel = () => {
                     </div>
                   </CardContent>
                 </Card>
-            </div>
-          </TabsContent>
+              </div>
+            </TabsContent>
 
-          {/* Campaigns */}
-          <TabsContent value="fundraisers" className="space-y-6">
-            <CampaignManagement />
-          </TabsContent>
+            {/* Campaigns */}
+            <TabsContent value="fundraisers" className="space-y-6">
+              <CampaignManagement />
+            </TabsContent>
 
-          {/* Staff Management */}
-          <TabsContent value="staff" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Staff Management</h2>
-              <Dialog
-                open={isCreateStaffOpen}
-                onOpenChange={setIsCreateStaffOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create Staff
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Staff Member</DialogTitle>
-                    <DialogDescription>
-                      Add a new staff member to your department.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateStaff} className="space-y-4">
-                    <div>
-                      <Label htmlFor="staff-firstName">First Name</Label>
-                      <Input
-                        id="staff-firstName"
-                        placeholder="Jane"
-                        value={newStaff.firstName}
-                        onChange={(e) => {
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            firstName: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.staff.firstName) {
-                            updateValidationErrors("staff", {
-                              ...validationErrors.staff,
-                              firstName: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.staff.firstName
-                            ? "border-red-500"
-                            : ""
-                        }
-                        required
-                      />
-                      {validationErrors.staff.firstName && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.staff.firstName}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-lastName">Last Name</Label>
-                      <Input
-                        id="staff-lastName"
-                        placeholder="Doe"
-                        value={newStaff.lastName}
-                        onChange={(e) => {
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            lastName: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.staff.lastName) {
-                            updateValidationErrors("staff", {
-                              ...validationErrors.staff,
-                              lastName: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.staff.lastName
-                            ? "border-red-500"
-                            : ""
-                        }
-                        required
-                      />
-                      {validationErrors.staff.lastName && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.staff.lastName}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-email">Email</Label>
-                      <Input
-                        id="staff-email"
-                        type="email"
-                        placeholder="jane.doe@college.edu"
-                        value={newStaff.email}
-                        onChange={(e) => {
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            email: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.staff.email) {
-                            updateValidationErrors("staff", {
-                              ...validationErrors.staff,
-                              email: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.staff.email ? "border-red-500" : ""
-                        }
-                        required
-                      />
-                      {validationErrors.staff.email && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.staff.email}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-department">Department</Label>
-                      <Input
-                        id="staff-department"
-                        placeholder="Administration"
-                        value={newStaff.department}
-                        onChange={(e) => {
-                          setNewStaff((prev) => ({
-                            ...prev,
-                            department: e.target.value,
-                          }));
-                          // Clear error when user starts typing
-                          if (validationErrors.staff.department) {
-                            updateValidationErrors("staff", {
-                              ...validationErrors.staff,
-                              department: "",
-                            });
-                          }
-                        }}
-                        className={
-                          validationErrors.staff.department
-                            ? "border-red-500"
-                            : ""
-                        }
-                        required
-                      />
-                      {validationErrors.staff.department && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.staff.department}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="staff-password">Default Password</Label>
-                      <div className="relative">
+            {/* Staff Management */}
+            <TabsContent value="staff" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">Staff Management</h2>
+                <Dialog
+                  open={isCreateStaffOpen}
+                  onOpenChange={setIsCreateStaffOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button>
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create Staff
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Staff Member</DialogTitle>
+                      <DialogDescription>
+                        Add a new staff member to your department.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateStaff} className="space-y-4">
+                      <div>
+                        <Label htmlFor="staff-firstName">First Name</Label>
                         <Input
-                          id="staff-password"
-                            type={
-                              passwordVisibility.staff ? "text" : "password"
-                            }
-                          placeholder="Staff@1234"
-                          value={newStaff.password}
+                          id="staff-firstName"
+                          placeholder="Jane"
+                          value={newStaff.firstName}
                           onChange={(e) => {
                             setNewStaff((prev) => ({
                               ...prev,
-                              password: e.target.value,
+                              firstName: e.target.value,
                             }));
                             // Clear error when user starts typing
-                            if (validationErrors.staff.password) {
+                            if (validationErrors.staff.firstName) {
                               updateValidationErrors("staff", {
                                 ...validationErrors.staff,
-                                password: "",
-                              });
-                            }
-                          }}
-                          className={`pr-10 ${
-                            validationErrors.staff.password
-                              ? "border-red-500"
-                              : ""
-                          }`}
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => togglePasswordVisibility("staff")}
-                        >
-                          {passwordVisibility.staff ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {validationErrors.staff.password && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.staff.password}
-                        </p>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsCreateStaffOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={loading.post}>
-                        {loading.post ? "Creating..." : "Create Staff"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="space-y-4">
-              {staffUnderHOD.map((staff) => (
-                <Card key={staff.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                          <CardTitle className="text-lg">
-                            {staff.name}
-                          </CardTitle>
-                        <CardDescription>{staff.email}</CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={
-                              staff.status === "active"
-                                ? "default"
-                                : "secondary"
-                          }
-                        >
-                          {staff.status}
-                        </Badge>
-                        <Badge variant="outline">{staff.department}</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        Joined: {staff.joinDate}
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          View Profile
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Manage
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Alumni Management */}
-          <TabsContent value="alumni" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Alumni Management</h2>
-              <Dialog
-                open={isCreateAlumniOpen}
-                onOpenChange={setIsCreateAlumniOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create Alumni
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Alumni Account</DialogTitle>
-                    <DialogDescription>
-                        Create a new alumni account with profile information.
-                        Make sure to use a unique email address that hasn't been
-                      registered before.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateAlumni} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-firstName">First Name *</Label>
-                        <Input
-                          id="alumni-firstName"
-                          value={newAlumni.firstName}
-                          onChange={(e) => {
-                            setNewAlumni({
-                              ...newAlumni,
-                              firstName: e.target.value,
-                            });
-                            // Clear error when user starts typing
-                            if (validationErrors.alumni.firstName) {
-                              updateValidationErrors("alumni", {
-                                ...validationErrors.alumni,
                                 firstName: "",
                               });
                             }
                           }}
-                          placeholder="Enter first name"
                           className={
-                            validationErrors.alumni.firstName
+                            validationErrors.staff.firstName
                               ? "border-red-500"
                               : ""
                           }
+                          required
                         />
-                        {validationErrors.alumni.firstName && (
-                          <p className="text-sm text-red-500">
-                            {validationErrors.alumni.firstName}
+                        {validationErrors.staff.firstName && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.staff.firstName}
                           </p>
                         )}
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-lastName">Last Name *</Label>
+                      <div>
+                        <Label htmlFor="staff-lastName">Last Name</Label>
                         <Input
-                          id="alumni-lastName"
-                          value={newAlumni.lastName}
+                          id="staff-lastName"
+                          placeholder="Doe"
+                          value={newStaff.lastName}
                           onChange={(e) => {
-                            setNewAlumni({
-                              ...newAlumni,
+                            setNewStaff((prev) => ({
+                              ...prev,
                               lastName: e.target.value,
-                            });
+                            }));
                             // Clear error when user starts typing
-                            if (validationErrors.alumni.lastName) {
-                              updateValidationErrors("alumni", {
-                                ...validationErrors.alumni,
+                            if (validationErrors.staff.lastName) {
+                              updateValidationErrors("staff", {
+                                ...validationErrors.staff,
                                 lastName: "",
                               });
                             }
                           }}
-                          placeholder="Enter last name"
                           className={
-                            validationErrors.alumni.lastName
+                            validationErrors.staff.lastName
                               ? "border-red-500"
                               : ""
                           }
+                          required
                         />
-                        {validationErrors.alumni.lastName && (
-                          <p className="text-sm text-red-500">
-                            {validationErrors.alumni.lastName}
+                        {validationErrors.staff.lastName && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.staff.lastName}
                           </p>
                         )}
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-email">Email Address *</Label>
-                      <Input
-                        id="alumni-email"
-                        type="email"
-                        value={newAlumni.email}
-                        onChange={(e) => {
-                            setNewAlumni({
-                              ...newAlumni,
-                              email: e.target.value,
-                            });
-                          // Clear error when user starts typing
-                          if (validationErrors.alumni.email) {
-                            updateValidationErrors("alumni", {
-                              ...validationErrors.alumni,
-                              email: "",
-                            });
-                          }
-                        }}
-                        placeholder="Enter email address"
-                        className={
-                            validationErrors.alumni.email
-                              ? "border-red-500"
-                              : ""
-                        }
-                      />
-                      {validationErrors.alumni.email && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.email}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-password">Password *</Label>
-                      <div className="relative">
+                      <div>
+                        <Label htmlFor="staff-email">Email</Label>
                         <Input
-                          id="alumni-password"
-                            type={
-                              passwordVisibility.alumni ? "text" : "password"
-                            }
-                          value={newAlumni.password}
+                          id="staff-email"
+                          type="email"
+                          placeholder="jane.doe@college.edu"
+                          value={newStaff.email}
                           onChange={(e) => {
-                            setNewAlumni({
-                              ...newAlumni,
-                              password: e.target.value,
-                            });
+                            setNewStaff((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }));
                             // Clear error when user starts typing
-                            if (validationErrors.alumni.password) {
-                              updateValidationErrors("alumni", {
-                                ...validationErrors.alumni,
-                                password: "",
+                            if (validationErrors.staff.email) {
+                              updateValidationErrors("staff", {
+                                ...validationErrors.staff,
+                                email: "",
                               });
                             }
                           }}
-                          placeholder="Enter password"
-                          className={`pr-10 ${
-                            validationErrors.alumni.password
-                              ? "border-red-500"
-                              : ""
-                          }`}
+                          className={
+                            validationErrors.staff.email ? "border-red-500" : ""
+                          }
+                          required
                         />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => togglePasswordVisibility("alumni")}
-                        >
-                          {passwordVisibility.alumni ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {validationErrors.alumni.password && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.password}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-department">Department *</Label>
-                      <Input
-                        id="alumni-department"
-                        value={newAlumni.department}
-                        onChange={(e) => {
-                          setNewAlumni({
-                            ...newAlumni,
-                            department: e.target.value,
-                          });
-                          // Clear error when user starts typing
-                          if (validationErrors.alumni.department) {
-                            updateValidationErrors("alumni", {
-                              ...validationErrors.alumni,
-                              department: "",
-                            });
-                          }
-                        }}
-                        placeholder="Enter department"
-                        className={
-                          validationErrors.alumni.department
-                            ? "border-red-500"
-                            : ""
-                        }
-                      />
-                      {validationErrors.alumni.department && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.department}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-graduationYear">
-                        Graduation Year *
-                      </Label>
-                      <Input
-                        id="alumni-graduationYear"
-                        type="number"
-                        value={newAlumni.graduationYear}
-                        onChange={(e) => {
-                          setNewAlumni({
-                            ...newAlumni,
-                            graduationYear:
-                              parseInt(e.target.value) ||
-                              new Date().getFullYear(),
-                          });
-                          // Clear error when user starts typing
-                          if (validationErrors.alumni.graduationYear) {
-                            updateValidationErrors("alumni", {
-                              ...validationErrors.alumni,
-                              graduationYear: "",
-                            });
-                          }
-                        }}
-                        placeholder="Enter graduation year"
-                        className={
-                          validationErrors.alumni.graduationYear
-                            ? "border-red-500"
-                            : ""
-                        }
-                      />
-                      {validationErrors.alumni.graduationYear && (
-                        <p className="text-sm text-red-500">
-                          {validationErrors.alumni.graduationYear}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-currentCompany">
-                          Current Company
-                        </Label>
-                        <Input
-                          id="alumni-currentCompany"
-                          value={newAlumni.currentCompany}
-                          onChange={(e) =>
-                            setNewAlumni({
-                              ...newAlumni,
-                              currentCompany: e.target.value,
-                            })
-                          }
-                          placeholder="Enter current company"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="alumni-currentPosition">
-                          Current Position
-                        </Label>
-                        <Input
-                          id="alumni-currentPosition"
-                          value={newAlumni.currentPosition}
-                          onChange={(e) =>
-                            setNewAlumni({
-                              ...newAlumni,
-                              currentPosition: e.target.value,
-                            })
-                          }
-                          placeholder="Enter current position"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-phoneNumber">Phone Number</Label>
-                      <Input
-                        id="alumni-phoneNumber"
-                        value={newAlumni.phoneNumber}
-                        onChange={(e) =>
-                          setNewAlumni({
-                            ...newAlumni,
-                            phoneNumber: e.target.value,
-                          })
-                        }
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-address">Address</Label>
-                      <Input
-                        id="alumni-address"
-                        value={newAlumni.address}
-                        onChange={(e) =>
-                          setNewAlumni({
-                            ...newAlumni,
-                            address: e.target.value,
-                          })
-                        }
-                        placeholder="Enter address"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="alumni-bio">Bio</Label>
-                      <Input
-                        id="alumni-bio"
-                        value={newAlumni.bio}
-                        onChange={(e) =>
-                          setNewAlumni({ ...newAlumni, bio: e.target.value })
-                        }
-                        placeholder="Enter bio"
-                      />
-                    </div>
-
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsCreateAlumniOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={loading.post}>
-                        {loading.post ? "Creating..." : "Create Alumni"}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="space-y-4">
-              {loading.alumni ? (
-                <div className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      Loading alumni...
-                    </div>
-                </div>
-              ) : alumni.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <div className="space-y-4">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                        <GraduationCap className="w-8 h-8 text-gray-400" />
+                        {validationErrors.staff.email && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.staff.email}
+                          </p>
+                        )}
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          No alumni found
-                        </h3>
-                        <p className="text-gray-600">
-                          No alumni have been created yet. Use the "Create
-                          Alumni" button above to add new alumni.
-                        </p>
+                        <Label htmlFor="staff-department">Department</Label>
+                        <Input
+                          id="staff-department"
+                          placeholder="Administration"
+                          value={newStaff.department}
+                          onChange={(e) => {
+                            setNewStaff((prev) => ({
+                              ...prev,
+                              department: e.target.value,
+                            }));
+                            // Clear error when user starts typing
+                            if (validationErrors.staff.department) {
+                              updateValidationErrors("staff", {
+                                ...validationErrors.staff,
+                                department: "",
+                              });
+                            }
+                          }}
+                          className={
+                            validationErrors.staff.department
+                              ? "border-red-500"
+                              : ""
+                          }
+                          required
+                        />
+                        {validationErrors.staff.department && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.staff.department}
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                alumni.map((alumni: any) => (
-                  <Card
-                    key={alumni._id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleAlumniClick(alumni)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4">
-                          <div className="relative">
-                            <img
-                              src={
-                                alumni.userId?.profileImage
-                                  ? alumni.userId.profileImage.startsWith(
-                                      "http"
-                                    )
-                                    ? alumni.userId.profileImage
-                                    : `${(
-                                        import.meta.env.VITE_API_BASE_URL ||
-                                        "http://localhost:3000/api/v1"
-                                      ).replace("/api/v1", "")}${
-                                        alumni.userId.profileImage
-                                      }`
-                                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                      `${alumni.userId?.firstName || ""} ${
-                                        alumni.userId?.lastName || ""
-                                      }`
-                                    )}&background=random&color=fff`
+                      <div>
+                        <Label htmlFor="staff-password">Default Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="staff-password"
+                            type={
+                              passwordVisibility.staff ? "text" : "password"
+                            }
+                            placeholder="Staff@1234"
+                            value={newStaff.password}
+                            onChange={(e) => {
+                              setNewStaff((prev) => ({
+                                ...prev,
+                                password: e.target.value,
+                              }));
+                              // Clear error when user starts typing
+                              if (validationErrors.staff.password) {
+                                updateValidationErrors("staff", {
+                                  ...validationErrors.staff,
+                                  password: "",
+                                });
                               }
-                              alt={`${alumni.userId?.firstName} ${alumni.userId?.lastName}`}
-                              className="w-12 h-12 rounded-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  `${alumni.userId?.firstName || ""} ${
-                                    alumni.userId?.lastName || ""
-                                  }`
-                                )}&background=random&color=fff`;
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h3 className="text-lg font-semibold">
-                                {alumni.userId?.firstName}{" "}
-                                {alumni.userId?.lastName}
-                              </h3>
-                              <Badge variant="secondary">Alumni</Badge>
-                            </div>
-                            <div className="space-y-1 text-sm text-muted-foreground">
-                              <div className="flex items-center space-x-2">
-                                <Mail className="h-4 w-4" />
-                                <span>{alumni.userId?.email}</span>
-                              </div>
-                              {alumni.currentCompany && (
-                                <div className="flex items-center space-x-2">
-                                  <Building className="h-4 w-4" />
-                                  <span>{alumni.currentCompany}</span>
-                                  {alumni.currentPosition && (
-                                    <span>• {alumni.currentPosition}</span>
-                                  )}
-                                </div>
-                              )}
-                              {alumni.currentLocation && (
-                                <div className="flex items-center space-x-2">
-                                  <MapPin className="h-4 w-4" />
-                                  <span>{alumni.currentLocation}</span>
-                                </div>
-                              )}
-                              <div className="flex items-center space-x-2">
-                                <GraduationCap className="h-4 w-4" />
-                                <span>Class of {alumni.graduationYear}</span>
-                              </div>
-                            </div>
-                          </div>
+                            }}
+                            className={`pr-10 ${
+                              validationErrors.staff.password
+                                ? "border-red-500"
+                                : ""
+                            }`}
+                            required
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => togglePasswordVisibility("staff")}
+                          >
+                            {passwordVisibility.staff ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        {validationErrors.staff.password && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.staff.password}
+                          </p>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCreateStaffOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={loading.post}>
+                          {loading.post ? "Creating..." : "Create Staff"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="space-y-4">
+                {staffUnderHOD.map((staff) => (
+                  <Card key={staff.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">
+                            {staff.name}
+                          </CardTitle>
+                          <CardDescription>{staff.email}</CardDescription>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge
+                            variant={
+                              staff.status === "active"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {staff.status}
+                          </Badge>
+                          <Badge variant="outline">{staff.department}</Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-muted-foreground">
+                          Joined: {staff.joinDate}
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">
+                            View Profile
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            Manage
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
+                ))}
+              </div>
+            </TabsContent>
+
+            {/* Alumni Management */}
+            <TabsContent value="alumni" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">Alumni Management</h2>
+                <Dialog
+                  open={isCreateAlumniOpen}
+                  onOpenChange={setIsCreateAlumniOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button>
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create Alumni
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Alumni Account</DialogTitle>
+                      <DialogDescription>
+                        Create a new alumni account with profile information.
+                        Make sure to use a unique email address that hasn't been
+                        registered before.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateAlumni} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-firstName">First Name *</Label>
+                          <Input
+                            id="alumni-firstName"
+                            value={newAlumni.firstName}
+                            onChange={(e) => {
+                              setNewAlumni({
+                                ...newAlumni,
+                                firstName: e.target.value,
+                              });
+                              // Clear error when user starts typing
+                              if (validationErrors.alumni.firstName) {
+                                updateValidationErrors("alumni", {
+                                  ...validationErrors.alumni,
+                                  firstName: "",
+                                });
+                              }
+                            }}
+                            placeholder="Enter first name"
+                            className={
+                              validationErrors.alumni.firstName
+                                ? "border-red-500"
+                                : ""
+                            }
+                          />
+                          {validationErrors.alumni.firstName && (
+                            <p className="text-sm text-red-500">
+                              {validationErrors.alumni.firstName}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-lastName">Last Name *</Label>
+                          <Input
+                            id="alumni-lastName"
+                            value={newAlumni.lastName}
+                            onChange={(e) => {
+                              setNewAlumni({
+                                ...newAlumni,
+                                lastName: e.target.value,
+                              });
+                              // Clear error when user starts typing
+                              if (validationErrors.alumni.lastName) {
+                                updateValidationErrors("alumni", {
+                                  ...validationErrors.alumni,
+                                  lastName: "",
+                                });
+                              }
+                            }}
+                            placeholder="Enter last name"
+                            className={
+                              validationErrors.alumni.lastName
+                                ? "border-red-500"
+                                : ""
+                            }
+                          />
+                          {validationErrors.alumni.lastName && (
+                            <p className="text-sm text-red-500">
+                              {validationErrors.alumni.lastName}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-email">Email Address *</Label>
+                        <Input
+                          id="alumni-email"
+                          type="email"
+                          value={newAlumni.email}
+                          onChange={(e) => {
+                            setNewAlumni({
+                              ...newAlumni,
+                              email: e.target.value,
+                            });
+                            // Clear error when user starts typing
+                            if (validationErrors.alumni.email) {
+                              updateValidationErrors("alumni", {
+                                ...validationErrors.alumni,
+                                email: "",
+                              });
+                            }
+                          }}
+                          placeholder="Enter email address"
+                          className={
+                            validationErrors.alumni.email
+                              ? "border-red-500"
+                              : ""
+                          }
+                        />
+                        {validationErrors.alumni.email && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.email}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-password">Password *</Label>
+                        <div className="relative">
+                          <Input
+                            id="alumni-password"
+                            type={
+                              passwordVisibility.alumni ? "text" : "password"
+                            }
+                            value={newAlumni.password}
+                            onChange={(e) => {
+                              setNewAlumni({
+                                ...newAlumni,
+                                password: e.target.value,
+                              });
+                              // Clear error when user starts typing
+                              if (validationErrors.alumni.password) {
+                                updateValidationErrors("alumni", {
+                                  ...validationErrors.alumni,
+                                  password: "",
+                                });
+                              }
+                            }}
+                            placeholder="Enter password"
+                            className={`pr-10 ${
+                              validationErrors.alumni.password
+                                ? "border-red-500"
+                                : ""
+                            }`}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => togglePasswordVisibility("alumni")}
+                          >
+                            {passwordVisibility.alumni ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        {validationErrors.alumni.password && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.password}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-department">Department *</Label>
+                        <Input
+                          id="alumni-department"
+                          value={newAlumni.department}
+                          onChange={(e) => {
+                            setNewAlumni({
+                              ...newAlumni,
+                              department: e.target.value,
+                            });
+                            // Clear error when user starts typing
+                            if (validationErrors.alumni.department) {
+                              updateValidationErrors("alumni", {
+                                ...validationErrors.alumni,
+                                department: "",
+                              });
+                            }
+                          }}
+                          placeholder="Enter department"
+                          className={
+                            validationErrors.alumni.department
+                              ? "border-red-500"
+                              : ""
+                          }
+                        />
+                        {validationErrors.alumni.department && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.department}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-graduationYear">
+                          Graduation Year *
+                        </Label>
+                        <Input
+                          id="alumni-graduationYear"
+                          type="number"
+                          value={newAlumni.graduationYear}
+                          onChange={(e) => {
+                            setNewAlumni({
+                              ...newAlumni,
+                              graduationYear:
+                                parseInt(e.target.value) ||
+                                new Date().getFullYear(),
+                            });
+                            // Clear error when user starts typing
+                            if (validationErrors.alumni.graduationYear) {
+                              updateValidationErrors("alumni", {
+                                ...validationErrors.alumni,
+                                graduationYear: "",
+                              });
+                            }
+                          }}
+                          placeholder="Enter graduation year"
+                          className={
+                            validationErrors.alumni.graduationYear
+                              ? "border-red-500"
+                              : ""
+                          }
+                        />
+                        {validationErrors.alumni.graduationYear && (
+                          <p className="text-sm text-red-500">
+                            {validationErrors.alumni.graduationYear}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-currentCompany">
+                            Current Company
+                          </Label>
+                          <Input
+                            id="alumni-currentCompany"
+                            value={newAlumni.currentCompany}
+                            onChange={(e) =>
+                              setNewAlumni({
+                                ...newAlumni,
+                                currentCompany: e.target.value,
+                              })
+                            }
+                            placeholder="Enter current company"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="alumni-currentPosition">
+                            Current Position
+                          </Label>
+                          <Input
+                            id="alumni-currentPosition"
+                            value={newAlumni.currentPosition}
+                            onChange={(e) =>
+                              setNewAlumni({
+                                ...newAlumni,
+                                currentPosition: e.target.value,
+                              })
+                            }
+                            placeholder="Enter current position"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-phoneNumber">Phone Number</Label>
+                        <Input
+                          id="alumni-phoneNumber"
+                          value={newAlumni.phoneNumber}
+                          onChange={(e) =>
+                            setNewAlumni({
+                              ...newAlumni,
+                              phoneNumber: e.target.value,
+                            })
+                          }
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-address">Address</Label>
+                        <Input
+                          id="alumni-address"
+                          value={newAlumni.address}
+                          onChange={(e) =>
+                            setNewAlumni({
+                              ...newAlumni,
+                              address: e.target.value,
+                            })
+                          }
+                          placeholder="Enter address"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="alumni-bio">Bio</Label>
+                        <Input
+                          id="alumni-bio"
+                          value={newAlumni.bio}
+                          onChange={(e) =>
+                            setNewAlumni({ ...newAlumni, bio: e.target.value })
+                          }
+                          placeholder="Enter bio"
+                        />
+                      </div>
+
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCreateAlumniOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={loading.post}>
+                          {loading.post ? "Creating..." : "Create Alumni"}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="space-y-4">
+                {loading.alumni ? (
+                  <div className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      Loading alumni...
+                    </div>
+                  </div>
+                ) : alumni.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <div className="space-y-4">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                          <GraduationCap className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            No alumni found
+                          </h3>
+                          <p className="text-gray-600">
+                            No alumni have been created yet. Use the "Create
+                            Alumni" button above to add new alumni.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  alumni.map((alumniItem) => (
+                    <Card
+                      key={alumniItem._id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleAlumniClick(alumniItem)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-4">
+                            <div className="relative">
+                              <img
+                                src={
+                                  alumniItem.userId?.profileImage
+                                    ? alumniItem.userId.profileImage.startsWith(
+                                        "http"
+                                      )
+                                      ? alumniItem.userId.profileImage
+                                      : `${(
+                                          import.meta.env.VITE_API_BASE_URL ||
+                                          "http://localhost:3000/api/v1"
+                                        ).replace("/api/v1", "")}${
+                                          alumniItem.userId.profileImage
+                                        }`
+                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                        `${
+                                          alumniItem.userId?.firstName || ""
+                                        } ${alumniItem.userId?.lastName || ""}`
+                                      )}&background=random&color=fff`
+                                }
+                                alt={`${alumniItem.userId?.firstName} ${alumniItem.userId?.lastName}`}
+                                className="w-12 h-12 rounded-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    `${alumniItem.userId?.firstName || ""} ${
+                                      alumniItem.userId?.lastName || ""
+                                    }`
+                                  )}&background=random&color=fff`;
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h3 className="text-lg font-semibold">
+                                  {alumniItem.userId?.firstName}{" "}
+                                  {alumniItem.userId?.lastName}
+                                </h3>
+                                <Badge variant="secondary">Alumni</Badge>
+                              </div>
+                              <div className="space-y-1 text-sm text-muted-foreground">
+                                <div className="flex items-center space-x-2">
+                                  <Mail className="h-4 w-4" />
+                                  <span>{alumniItem.userId?.email}</span>
+                                </div>
+                                {alumniItem.currentCompany && (
+                                  <div className="flex items-center space-x-2">
+                                    <Building className="h-4 w-4" />
+                                    <span>{alumniItem.currentCompany}</span>
+                                    {alumniItem.currentPosition && (
+                                      <span>
+                                        • {alumniItem.currentPosition}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {alumniItem.currentLocation && (
+                                  <div className="flex items-center space-x-2">
+                                    <MapPin className="h-4 w-4" />
+                                    <span>{alumniItem.currentLocation}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center space-x-2">
+                                  <GraduationCap className="h-4 w-4" />
+                                  <span>
+                                    Class of {alumniItem.graduationYear}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </TabsContent>
 
             {/* Eligible Students Management */}
             <TabsContent value="eligible-students" className="space-y-6">
@@ -2583,71 +2798,71 @@ const HODPanel = () => {
               <CategoryManagement />
             </TabsContent>
 
-          {/* Contributions */}
-          <TabsContent value="contributions" className="space-y-6">
-            <div className="flex items-center justify-between">
+            {/* Contributions */}
+            <TabsContent value="contributions" className="space-y-6">
+              <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-semibold">
                   Contributions History
                 </h2>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">
-                  Total Raised:
-                </span>
-                <span className="text-lg font-bold">
-                  ${stats.totalContributions.toLocaleString()}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">
+                    Total Raised:
+                  </span>
+                  <span className="text-lg font-bold">
+                    ${stats.totalContributions.toLocaleString()}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-4">
-              {contributions.map((contribution) => (
-                <Card key={contribution.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">
-                          {contribution.alumni}
-                        </CardTitle>
+              <div className="space-y-4">
+                {contributions.map((contribution) => (
+                  <Card key={contribution.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">
+                            {contribution.alumni}
+                          </CardTitle>
                           <CardDescription>
                             {contribution.event}
                           </CardDescription>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge
+                            variant={
+                              contribution.status === "completed"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {contribution.status}
+                          </Badge>
+                          <span className="text-lg font-bold">
+                            ${contribution.amount.toLocaleString()}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={
-                            contribution.status === "completed"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {contribution.status}
-                        </Badge>
-                        <span className="text-lg font-bold">
-                          ${contribution.amount.toLocaleString()}
-                        </span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-muted-foreground">
+                          Date: {contribution.date}
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">
+                            View Details
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            Send Thank You
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        Date: {contribution.date}
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          View Details
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Send Thank You
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

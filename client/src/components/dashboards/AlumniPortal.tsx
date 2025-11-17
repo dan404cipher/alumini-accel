@@ -62,6 +62,166 @@ import EditMentorshipDialog from "@/components/dialogs/EditMentorshipDialog";
 import DeleteMentorshipDialog from "@/components/dialogs/DeleteMentorshipDialog";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
+// Type definitions
+interface Event {
+  _id: string;
+  title: string;
+  description?: string;
+  startDate: string;
+  endDate?: string;
+  location?: string;
+  type?: string;
+  image?: string;
+  currentAttendees?: number;
+  maxAttendees?: number;
+  attendees?: Array<{
+    userId: string | { _id: string };
+    status: string;
+    registeredAt?: string;
+  }>;
+  createdAt?: string;
+}
+
+interface News {
+  _id: string;
+  title: string;
+  content?: string;
+  image?: string;
+  author?: {
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+}
+
+interface Gallery {
+  _id: string;
+  title: string;
+  description?: string;
+  images?: string[];
+  createdBy?: {
+    firstName: string;
+    lastName: string;
+  };
+  createdAt?: string;
+}
+
+interface Community {
+  _id: string;
+  name: string;
+  description?: string;
+  type?: string;
+  category?: string;
+  logo?: string;
+  memberCount?: number;
+  postCount?: number;
+  createdAt?: string;
+}
+
+interface Mentorship {
+  _id: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  field?: string;
+  domain?: string;
+  goals?: string[];
+  duration?: number;
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+  mentor?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    profilePicture?: string;
+  };
+  mentee?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  createdAt?: string;
+}
+
+interface Job {
+  _id: string;
+  title: string;
+  description?: string;
+  type?: string;
+  location?: string;
+  company?: {
+    name: string;
+    logo?: string;
+  };
+  createdAt?: string;
+}
+
+interface Campaign {
+  _id: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  images?: string[];
+  targetAmount?: number;
+  status?: string;
+  createdAt?: string;
+}
+
+interface MentorshipProgram {
+  _id: string;
+  domain?: string;
+  description?: string;
+  status?: string;
+  mentor?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    profilePicture?: string;
+  };
+  createdAt?: string;
+}
+
+interface Alumni {
+  _id?: string;
+  id?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImage?: string;
+  profilePicture?: string;
+  graduationYear?: number;
+  batchYear?: number;
+  department?: string;
+  currentRole?: string;
+  company?: string;
+}
+
+interface TrendingTag {
+  tag?: string;
+  name?: string;
+  count?: number;
+}
+
+interface Activity {
+  id: string;
+  type: string;
+  action: string;
+  title: string;
+  time: string;
+  icon: React.ComponentType<{ className?: string }>;
+  link?: string;
+}
+
+interface SavedItem {
+  _id: string;
+  title?: string;
+  name?: string;
+  type: "event" | "job" | "news" | "gallery";
+  savedAt: string | Date;
+  createdAt?: string;
+}
+
 // Helper function to format time ago
 const formatTimeAgo = (date: Date): string => {
   const now = new Date();
@@ -81,20 +241,21 @@ const AlumniPortal = () => {
 
   // Debug logging
   const [collegeBanner, setCollegeBanner] = useState<string | null>(null);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
-  const [recentNews, setRecentNews] = useState<any[]>([]);
-  const [recentGalleries, setRecentGalleries] = useState<any[]>([]);
-  const [recentCommunities, setRecentCommunities] = useState<any[]>([]);
-  const [recentMentorships, setRecentMentorships] = useState<any[]>([]);
-  const [recentJobs, setRecentJobs] = useState<any[]>([]);
-  const [recentCampaigns, setRecentCampaigns] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<Event[]>([]);
+  const [recentNews, setRecentNews] = useState<News[]>([]);
+  const [recentGalleries, setRecentGalleries] = useState<Gallery[]>([]);
+  const [recentCommunities, setRecentCommunities] = useState<Community[]>([]);
+  const [recentMentorships, setRecentMentorships] = useState<Mentorship[]>([]);
+  const [recentJobs, setRecentJobs] = useState<Job[]>([]);
+  const [recentCampaigns, setRecentCampaigns] = useState<Campaign[]>([]);
   const [recentMentorshipPrograms, setRecentMentorshipPrograms] = useState<
-    any[]
+    MentorshipProgram[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedMentorship, setSelectedMentorship] = useState<any>(null);
+  const [selectedMentorship, setSelectedMentorship] =
+    useState<Mentorship | null>(null);
   const [stats, setStats] = useState({
     totalEvents: 0,
     totalJobs: 0,
@@ -106,11 +267,11 @@ const AlumniPortal = () => {
     myConnections: 0,
   });
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [alumniList, setAlumniList] = useState<any[]>([]);
-  const [trendingTags, setTrendingTags] = useState<any[]>([]);
-  const [myActivity, setMyActivity] = useState<any[]>([]);
-  const [savedItems, setSavedItems] = useState<any[]>([]);
-  const [featuredAlumni, setFeaturedAlumni] = useState<any[]>([]);
+  const [alumniList, setAlumniList] = useState<Alumni[]>([]);
+  const [trendingTags, setTrendingTags] = useState<TrendingTag[]>([]);
+  const [myActivity, setMyActivity] = useState<Activity[]>([]);
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [featuredAlumni, setFeaturedAlumni] = useState<Alumni[]>([]);
 
   // Load college banner
   useEffect(() => {
@@ -326,8 +487,14 @@ const AlumniPortal = () => {
           const myRegData = await myRegistrationsResponse.json();
           let myRegCount = 0;
           if (myRegData.data?.events) {
-            myRegData.data.events.forEach((event: any) => {
-              if (event.attendees?.some((a: any) => a.userId === user._id)) {
+            myRegData.data.events.forEach((event: Event) => {
+              if (
+                event.attendees?.some((a) => {
+                  const userId =
+                    typeof a.userId === "string" ? a.userId : a.userId?._id;
+                  return userId === user._id;
+                })
+              ) {
                 myRegCount++;
               }
             });
@@ -358,7 +525,7 @@ const AlumniPortal = () => {
           limit: 10,
           tenantId: user?.tenantId,
           userType: "alumni",
-        })) as any;
+        })) as { success: boolean; data?: { users?: Alumni[] } };
         if (alumniResponse.success && alumniResponse.data?.users) {
           setAlumniList(alumniResponse.data.users);
         }
@@ -372,31 +539,37 @@ const AlumniPortal = () => {
           eventAPI.getSavedEvents().catch(() => ({
             success: false,
             data: { events: [] },
-          })) as Promise<{ success: boolean; data?: { events?: any[] } }>,
+          })) as Promise<{ success: boolean; data?: { events?: Event[] } }>,
           jobAPI.getSavedJobs({ page: 1, limit: 3 }).catch(() => ({
             success: false,
             data: { jobs: [] },
           })) as Promise<{
             success: boolean;
-            data?: { jobs?: any[] };
+            data?: { jobs?: Job[] };
           }>,
           newsAPI.getSavedNews({ page: 1, limit: 3 }).catch(() => ({
             success: false,
             data: { savedNews: [] },
-          })) as Promise<{ success: boolean; data?: { savedNews?: any[] } }>,
+          })) as Promise<{
+            success: boolean;
+            data?: { savedNews?: Array<{ newsId: News; createdAt?: string }> };
+          }>,
         ]);
 
-        const allSaved: any[] = [];
+        const allSaved: SavedItem[] = [];
 
         // Process saved events
         if (savedEventsRes.success && savedEventsRes.data?.events) {
-          savedEventsRes.data.events.forEach((event: any) => {
+          savedEventsRes.data.events.forEach((event: Event) => {
             if (event && event._id) {
               allSaved.push({
                 _id: event._id,
-                title: event.title || event.name || "Untitled Event",
-                type: "event",
-                savedAt: event.savedAt || event.createdAt || new Date(),
+                title: event.title || "Untitled Event",
+                type: "event" as const,
+                savedAt:
+                  (event as Event & { savedAt?: string }).savedAt ||
+                  event.createdAt ||
+                  new Date(),
               });
             }
           });
@@ -404,13 +577,16 @@ const AlumniPortal = () => {
 
         // Process saved jobs
         if (savedJobsRes.success && savedJobsRes.data?.jobs) {
-          savedJobsRes.data.jobs.forEach((job: any) => {
+          savedJobsRes.data.jobs.forEach((job: Job) => {
             if (job && job._id) {
               allSaved.push({
                 _id: job._id,
-                title: job.title || job.position || job.name || "Untitled Job",
-                type: "job",
-                savedAt: job.savedAt || job.createdAt || new Date(),
+                title: job.title || "Untitled Job",
+                type: "job" as const,
+                savedAt:
+                  (job as Job & { savedAt?: string }).savedAt ||
+                  job.createdAt ||
+                  new Date(),
               });
             }
           });
@@ -418,19 +594,21 @@ const AlumniPortal = () => {
 
         // Process saved news (newsId is populated)
         if (savedNewsRes.success && savedNewsRes.data?.savedNews) {
-          savedNewsRes.data.savedNews.forEach((savedNewsItem: any) => {
-            // SavedNews document has newsId populated - handle null newsId (deleted news)
-            const news = savedNewsItem.newsId;
-            if (news && news._id) {
-              allSaved.push({
-                _id: news._id,
-                title: news.title || news.name || "Untitled News",
-                type: "news",
-                savedAt:
-                  savedNewsItem.createdAt || news.createdAt || new Date(),
-              });
+          savedNewsRes.data.savedNews.forEach(
+            (savedNewsItem: { newsId: News | null; createdAt?: string }) => {
+              // SavedNews document has newsId populated - handle null newsId (deleted news)
+              const news = savedNewsItem.newsId;
+              if (news && news._id) {
+                allSaved.push({
+                  _id: news._id,
+                  title: news.title || "Untitled News",
+                  type: "news" as const,
+                  savedAt:
+                    savedNewsItem.createdAt || news.createdAt || new Date(),
+                });
+              }
             }
-          });
+          );
         }
 
         // Sort by saved date and limit to 5
@@ -441,17 +619,20 @@ const AlumniPortal = () => {
         setSavedItems(allSaved.slice(0, 5));
 
         // Generate activity feed from real user data
-        const activities: any[] = [];
+        const activities: Activity[] = [];
 
         // Add event registrations as activities
         if (recentEvents.length > 0 && user?._id) {
-          recentEvents.forEach((event: any) => {
+          recentEvents.forEach((event: Event) => {
             if (event.attendees && Array.isArray(event.attendees)) {
-              const userRegistration = event.attendees.find(
-                (a: any) =>
-                  a.userId === user._id ||
-                  a.userId?.toString() === user._id?.toString()
-              );
+              const userRegistration = event.attendees.find((a) => {
+                const userId =
+                  typeof a.userId === "string" ? a.userId : a.userId?._id;
+                return (
+                  userId === user._id ||
+                  userId?.toString() === user._id?.toString()
+                );
+              });
               if (userRegistration && userRegistration.registeredAt) {
                 const regDate = new Date(userRegistration.registeredAt);
                 const timeAgo = formatTimeAgo(regDate);
@@ -471,9 +652,9 @@ const AlumniPortal = () => {
 
         // Add community memberships as activities
         if (recentCommunities.length > 0 && user?._id) {
-          recentCommunities.slice(0, 3).forEach((community: any) => {
+          recentCommunities.slice(0, 3).forEach((community: Community) => {
             // Check if user is a member (you might need to add this check)
-            if (community.memberCount > 0) {
+            if (community.memberCount && community.memberCount > 0) {
               const joinDate = community.createdAt
                 ? new Date(community.createdAt)
                 : new Date();
@@ -493,7 +674,7 @@ const AlumniPortal = () => {
 
         // Add saved items as activities
         if (allSaved.length > 0) {
-          allSaved.slice(0, 3).forEach((item: any, index: number) => {
+          allSaved.slice(0, 3).forEach((item: SavedItem, index: number) => {
             const savedDate = item.savedAt
               ? new Date(item.savedAt)
               : new Date();
@@ -530,7 +711,7 @@ const AlumniPortal = () => {
       try {
         const topCommunitiesRes = (await communityAPI.getTopCommunities(5)) as {
           success: boolean;
-          data?: any[];
+          data?: Community[];
         };
         if (
           topCommunitiesRes.success &&
@@ -538,13 +719,13 @@ const AlumniPortal = () => {
           Array.isArray(topCommunitiesRes.data) &&
           topCommunitiesRes.data.length > 0
         ) {
-          const allTags: any[] = [];
+          const allTags: TrendingTag[] = [];
           for (const community of topCommunitiesRes.data.slice(0, 3)) {
             try {
               const tagsResponse = (await communityAPI.getPopularTags(
                 community._id,
                 5
-              )) as { success: boolean; data?: any[] };
+              )) as { success: boolean; data?: TrendingTag[] };
               if (
                 tagsResponse.success &&
                 tagsResponse.data &&
@@ -570,7 +751,7 @@ const AlumniPortal = () => {
       try {
         const mentorsResponse = (await alumniAPI.getMentors({ limit: 5 })) as {
           success: boolean;
-          data?: { alumni?: any[] } | any[];
+          data?: { alumni?: Alumni[] } | Alumni[];
         };
         if (mentorsResponse.success) {
           if (
@@ -590,7 +771,7 @@ const AlumniPortal = () => {
             limit: 5,
             tenantId: user?.tenantId,
             userType: "alumni",
-          })) as { success: boolean; data?: { users?: any[] } };
+          })) as { success: boolean; data?: { users?: Alumni[] } };
           if (topAlumniResponse.success && topAlumniResponse.data?.users) {
             setFeaturedAlumni(topAlumniResponse.data.users);
           }
@@ -607,6 +788,7 @@ const AlumniPortal = () => {
 
   useEffect(() => {
     fetchRecentData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role]);
 
   // Navigation handlers
@@ -631,12 +813,12 @@ const AlumniPortal = () => {
     navigate(`/mentorship/${mentorshipId}`);
   };
 
-  const handleEditMentorship = (mentorship: any) => {
+  const handleEditMentorship = (mentorship: Mentorship) => {
     setSelectedMentorship(mentorship);
     setShowEditDialog(true);
   };
 
-  const handleDeleteMentorship = (mentorship: any) => {
+  const handleDeleteMentorship = (mentorship: Mentorship) => {
     setSelectedMentorship(mentorship);
     setShowDeleteDialog(true);
   };
@@ -673,9 +855,9 @@ const AlumniPortal = () => {
 
   // Helper function to map events to calendar dates
   const getEventsByDate = () => {
-    const eventsMap = new Map<string, any[]>();
+    const eventsMap = new Map<string, Event[]>();
     recentEvents.forEach((event) => {
-      const eventDate = new Date(event.startDate || event.date);
+      const eventDate = new Date(event.startDate);
       const dateKey = eventDate.toISOString().split("T")[0];
       if (!eventsMap.has(dateKey)) {
         eventsMap.set(dateKey, []);
@@ -710,7 +892,7 @@ const AlumniPortal = () => {
   };
 
   // Get events for a specific date
-  const getEventsForDate = (date: Date): any[] => {
+  const getEventsForDate = (date: Date): Event[] => {
     const eventsMap = getEventsByDate();
     const dateKey = date.toISOString().split("T")[0];
     return eventsMap.get(dateKey) || [];
@@ -761,7 +943,9 @@ const AlumniPortal = () => {
           </div>
           <div className="flex items-center space-x-2 text-sm text-gray-500">
             <User className="h-4 w-4" />
-            <span>{user?.role === "student" ? "Student" : "Alumni Member"}</span>
+            <span>
+              {user?.role === "student" ? "Student" : "Alumni Member"}
+            </span>
           </div>
         </div>
 
@@ -1288,7 +1472,22 @@ const AlumniPortal = () => {
                               {/* Action Menu */}
                               <div className="absolute top-2 left-2">
                                 <MentorshipActionMenu
-                                  mentorship={mentorship}
+                                  mentorship={
+                                    mentorship as Mentorship & {
+                                      domain: string;
+                                      status: string;
+                                      mentor: {
+                                        _id: string;
+                                        firstName: string;
+                                        lastName: string;
+                                      };
+                                      mentee: {
+                                        _id: string;
+                                        firstName: string;
+                                        lastName: string;
+                                      };
+                                    }
+                                  }
                                   currentUser={user}
                                   onEdit={() =>
                                     handleEditMentorship(mentorship)
@@ -1675,7 +1874,7 @@ const AlumniPortal = () => {
                   <CardContent>
                     {alumniList.length > 0 ? (
                       <div className="space-y-3">
-                        {alumniList.map((alumnus: any) => {
+                        {alumniList.map((alumnus: Alumni) => {
                           const displayName =
                             alumnus.name ||
                             `${alumnus.firstName || ""} ${
@@ -1757,7 +1956,7 @@ const AlumniPortal = () => {
                       <div className="flex flex-wrap gap-2">
                         {trendingTags
                           .slice(0, 8)
-                          .map((tag: any, index: number) => (
+                          .map((tag: TrendingTag, index: number) => (
                             <Badge
                               key={tag.tag || tag.name || index}
                               variant="secondary"
@@ -1883,7 +2082,7 @@ const AlumniPortal = () => {
                   <CardContent>
                     {savedItems.length > 0 ? (
                       <div className="space-y-2">
-                        {savedItems.slice(0, 5).map((item: any) => {
+                        {savedItems.slice(0, 5).map((item: SavedItem) => {
                           const getIcon = () => {
                             if (item.type === "event") return Calendar;
                             if (item.type === "job") return Briefcase;
@@ -1949,7 +2148,7 @@ const AlumniPortal = () => {
                   <CardContent>
                     {featuredAlumni.length > 0 ? (
                       <div className="space-y-2">
-                        {featuredAlumni.slice(0, 5).map((alumnus: any) => {
+                        {featuredAlumni.slice(0, 5).map((alumnus: Alumni) => {
                           const displayName =
                             alumnus.name ||
                             `${alumnus.firstName || ""} ${
@@ -2083,7 +2282,20 @@ const AlumniPortal = () => {
       <EditMentorshipDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
-        mentorship={selectedMentorship}
+        mentorship={
+          selectedMentorship as
+            | (Mentorship & {
+                domain: string;
+                goals: string[];
+                duration: number;
+                startDate: string;
+                endDate: string;
+                status: string;
+                mentor: { _id: string; firstName: string; lastName: string };
+                mentee: { _id: string; firstName: string; lastName: string };
+              })
+            | null
+        }
         onSuccess={handleEditSuccess}
       />
 
@@ -2091,7 +2303,16 @@ const AlumniPortal = () => {
       <DeleteMentorshipDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        mentorship={selectedMentorship}
+        mentorship={
+          selectedMentorship as
+            | (Mentorship & {
+                domain: string;
+                status: string;
+                mentor: { _id: string; firstName: string; lastName: string };
+                mentee: { _id: string; firstName: string; lastName: string };
+              })
+            | null
+        }
         onSuccess={handleDeleteSuccess}
       />
     </div>

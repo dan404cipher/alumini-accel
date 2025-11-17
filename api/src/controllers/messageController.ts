@@ -130,6 +130,15 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
       createdAt: message.createdAt,
       replyTo: message.replyTo,
     });
+
+    // Emit unread count update for recipient
+    try {
+      const recipientUnreadCount = await Message.getUnreadCount(recipientId);
+      socketService.emitUnreadCountUpdate(recipientId, recipientUnreadCount);
+      logger.info(`📊 Emitted unread_count_update to recipient ${recipientId}: ${recipientUnreadCount}`);
+    } catch (error) {
+      logger.error("Error emitting unread count update:", error);
+    }
   } else {
     logger.error("❌ Socket service is not available!");
   }
@@ -240,7 +249,18 @@ export const getMessages = asyncHandler(async (req: Request, res: Response) => {
   );
 
   // Mark messages as read for the current user
-  await Message.markMessagesAsRead(recipientId, senderId);
+  const markedCount = await Message.markMessagesAsRead(recipientId, senderId);
+  
+  // Emit unread count update if messages were marked as read
+  if (socketService && markedCount.modifiedCount > 0) {
+    try {
+      const unreadCount = await Message.getUnreadCount(recipientId);
+      socketService.emitUnreadCountUpdate(recipientId, unreadCount);
+      logger.info(`📊 Emitted unread_count_update to user ${recipientId}: ${unreadCount}`);
+    } catch (error) {
+      logger.error("Error emitting unread count update:", error);
+    }
+  }
 
   const total = await Message.countDocuments({
     $or: [
@@ -361,6 +381,17 @@ export const markAsRead = asyncHandler(async (req: Request, res: Response) => {
   message.isRead = true;
   message.readAt = new Date();
   await message.save();
+
+  // Emit unread count update for the user
+  if (socketService) {
+    try {
+      const unreadCount = await Message.getUnreadCount(userId);
+      socketService.emitUnreadCountUpdate(userId, unreadCount);
+      logger.info(`📊 Emitted unread_count_update to user ${userId}: ${unreadCount}`);
+    } catch (error) {
+      logger.error("Error emitting unread count update:", error);
+    }
+  }
 
   return res.status(200).json({
     success: true,

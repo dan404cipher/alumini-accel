@@ -125,13 +125,7 @@ const DonationCard: React.FC<DonationCardProps> = ({
           <div className="text-xs">{donorsCount} donors</div>
         </div>
 
-        {/* Recent Supporters */}
-        <div className="flex items-center gap-2 mt-4">
-          <div className="w-6 h-6 rounded-full bg-gray-200" />
-          <div className="w-6 h-6 rounded-full bg-gray-200" />
-          <div className="w-6 h-6 rounded-full bg-gray-200" />
-          <span className="text-xs text-gray-600 ml-1">Recent supporters</span>
-        </div>
+     
 
         {/* Footer Info */}
         <div className="flex items-center justify-between text-sm text-gray-600 mt-4">

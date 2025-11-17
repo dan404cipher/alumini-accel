@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,15 +110,276 @@ const Messages = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
+  const wasInputFocusedRef = useRef(false);
 
-  // Auto-scroll to bottom when messages change
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Socket message type from context (uses _id instead of id)
+  interface SocketMessage {
+    _id?: string;
+    id?: string;
+    sender?:
+      | {
+          _id?: string;
+          id?: string;
+          firstName?: string;
+          lastName?: string;
+          email?: string;
+          profilePicture?: string;
+        }
+      | string;
+    recipient?:
+      | {
+          _id?: string;
+          id?: string;
+          firstName?: string;
+          lastName?: string;
+          email?: string;
+          profilePicture?: string;
+        }
+      | string;
+    content?: string;
+    messageType?: string;
+    isRead?: boolean;
+    readAt?: string;
+    isEdited?: boolean;
+    editedAt?: string;
+    isDeleted?: boolean;
+    deletedAt?: string;
+    replyTo?: unknown;
+    createdAt?: string;
+    updatedAt?: string;
+  }
+
+  // Normalize socket message format to match local Message interface
+  const normalizeSocketMessage = useCallback(
+    (socketMsg: SocketMessage): Message => {
+      // Handle sender - can be object or string
+      const senderObj =
+        typeof socketMsg.sender === "string"
+          ? { _id: socketMsg.sender, id: socketMsg.sender }
+          : socketMsg.sender;
+
+      // Handle recipient - can be object or string
+      const recipientObj =
+        typeof socketMsg.recipient === "string"
+          ? { _id: socketMsg.recipient, id: socketMsg.recipient }
+          : socketMsg.recipient;
+
+      return {
+        id: socketMsg._id || socketMsg.id || "",
+        sender: {
+          id:
+            senderObj?._id ||
+            senderObj?.id ||
+            (typeof socketMsg.sender === "string" ? socketMsg.sender : ""),
+          firstName:
+            (typeof senderObj === "object" ? senderObj?.firstName : "") || "",
+          lastName:
+            (typeof senderObj === "object" ? senderObj?.lastName : "") || "",
+          email: (typeof senderObj === "object" ? senderObj?.email : "") || "",
+          profilePicture:
+            typeof senderObj === "object"
+              ? senderObj?.profilePicture
+              : undefined,
+        },
+        recipient: {
+          id:
+            recipientObj?._id ||
+            recipientObj?.id ||
+            (typeof socketMsg.recipient === "string"
+              ? socketMsg.recipient
+              : ""),
+          firstName:
+            (typeof recipientObj === "object" ? recipientObj?.firstName : "") ||
+            "",
+          lastName:
+            (typeof recipientObj === "object" ? recipientObj?.lastName : "") ||
+            "",
+          email:
+            (typeof recipientObj === "object" ? recipientObj?.email : "") || "",
+          profilePicture:
+            typeof recipientObj === "object"
+              ? recipientObj?.profilePicture
+              : undefined,
+        },
+        content: socketMsg.content || "",
+        messageType: socketMsg.messageType || "text",
+        isRead: socketMsg.isRead || false,
+        readAt: socketMsg.readAt,
+        isEdited: socketMsg.isEdited || false,
+        editedAt: socketMsg.editedAt,
+        isDeleted: socketMsg.isDeleted || false,
+        deletedAt: socketMsg.deletedAt,
+        replyTo: socketMsg.replyTo as Message["replyTo"] | undefined,
+        createdAt: socketMsg.createdAt || new Date().toISOString(),
+        updatedAt:
+          socketMsg.updatedAt ||
+          socketMsg.createdAt ||
+          new Date().toISOString(),
+      };
+    },
+    []
+  );
+
+  // Merge socket messages with local messages for current conversation
+  const mergeMessages = useCallback(
+    (localMessages: Message[], socketMsgs: SocketMessage[]) => {
+      if (!selectedConversation || !currentUser) {
+        return localMessages;
+      }
+
+      // Filter socket messages for current conversation
+      const conversationSocketMessages = socketMsgs
+        .filter((socketMsg) => {
+          // Handle sender - can be object or string
+          const senderObj =
+            typeof socketMsg.sender === "string"
+              ? { _id: socketMsg.sender, id: socketMsg.sender }
+              : socketMsg.sender;
+
+          // Handle recipient - can be object or string
+          const recipientObj =
+            typeof socketMsg.recipient === "string"
+              ? { _id: socketMsg.recipient, id: socketMsg.recipient }
+              : socketMsg.recipient;
+
+          const senderId =
+            senderObj?._id ||
+            senderObj?.id ||
+            (typeof socketMsg.sender === "string" ? socketMsg.sender : "");
+          const recipientId =
+            recipientObj?._id ||
+            recipientObj?.id ||
+            (typeof socketMsg.recipient === "string"
+              ? socketMsg.recipient
+              : "");
+          const currentUserId = currentUser._id;
+          const conversationUserId = selectedConversation.user.id;
+
+          // Check if message is part of this conversation
+          return (
+            (senderId === currentUserId &&
+              recipientId === conversationUserId) ||
+            (senderId === conversationUserId && recipientId === currentUserId)
+          );
+        })
+        .map(normalizeSocketMessage);
+
+      // Combine and deduplicate messages
+      const allMessages = [...localMessages, ...conversationSocketMessages];
+      const messageMap = new Map<string, Message>();
+
+      // Add local messages first (they take precedence)
+      localMessages.forEach((msg) => {
+        messageMap.set(msg.id, msg);
+      });
+
+      // Add socket messages (only if not already present)
+      conversationSocketMessages.forEach((msg) => {
+        if (!messageMap.has(msg.id)) {
+          messageMap.set(msg.id, msg);
+        }
+      });
+
+      // Convert to array and sort by createdAt
+      const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      });
+
+      return mergedMessages;
+    },
+    [selectedConversation, currentUser, normalizeSocketMessage]
+  );
+
+  // Check if input is currently focused
+  const isInputFocused = useCallback(() => {
+    return document.activeElement === messageInputRef.current;
+  }, []);
+
+  // Auto-scroll to bottom when messages change (but don't steal focus)
+  const scrollToBottom = useCallback(() => {
+    // Only scroll if input is not focused to avoid stealing focus
+    if (!isInputFocused()) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isInputFocused]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
+
+  // Restore focus after messages update if input was previously focused
+  useLayoutEffect(() => {
+    if (wasInputFocusedRef.current && messageInputRef.current) {
+      // Use requestAnimationFrame to restore focus after React has painted
+      requestAnimationFrame(() => {
+        if (messageInputRef.current && !isInputFocused()) {
+          messageInputRef.current.focus();
+        }
+      });
+    }
+  }, [messages, isInputFocused]);
+
+  // Merge socket messages with local messages for current conversation
+  useEffect(() => {
+    if (selectedConversation && socketMessages.length > 0) {
+      setMessages((prevMessages) => {
+        const merged = mergeMessages(prevMessages, socketMessages);
+        // Only update if there are actual changes to avoid unnecessary re-renders
+        if (
+          merged.length !== prevMessages.length ||
+          merged.some((msg, idx) => msg.id !== prevMessages[idx]?.id)
+        ) {
+          return merged;
+        }
+        return prevMessages;
+      });
+    }
+  }, [socketMessages, selectedConversation, mergeMessages]);
+
+  // Update conversations list when socket messages arrive
+  useEffect(() => {
+    if (socketMessages.length > 0 && currentUser) {
+      // Check if any socket message is for a conversation in our list
+      const hasRelevantMessage = socketMessages.some((socketMsg) => {
+        const senderObj =
+          typeof socketMsg.sender === "string"
+            ? { _id: socketMsg.sender }
+            : (socketMsg.sender as { _id?: string; id?: string } | undefined);
+        const recipientObj =
+          typeof socketMsg.recipient === "string"
+            ? { _id: socketMsg.recipient }
+            : (socketMsg.recipient as
+                | { _id?: string; id?: string }
+                | undefined);
+
+        const senderId =
+          senderObj?._id ||
+          senderObj?.id ||
+          (typeof socketMsg.sender === "string" ? socketMsg.sender : "");
+        const recipientId =
+          recipientObj?._id ||
+          recipientObj?.id ||
+          (typeof socketMsg.recipient === "string" ? socketMsg.recipient : "");
+        const currentUserId = currentUser._id;
+
+        // Check if this message involves the current user
+        return senderId === currentUserId || recipientId === currentUserId;
+      });
+
+      // If there's a relevant message, refresh conversations to update lastMessage and unreadCount
+      if (hasRelevantMessage) {
+        // Debounce to avoid too many API calls
+        const timeoutId = setTimeout(() => {
+          fetchConversations();
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socketMessages, currentUser]);
 
   useEffect(() => {
     // Debounce the API call to prevent rapid successive requests
@@ -121,6 +388,7 @@ const Messages = () => {
     }, 300);
 
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Handle auto-selecting conversation when user parameter is provided
@@ -135,6 +403,7 @@ const Messages = () => {
         fetchMessages(targetConversation.user.id);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, searchParams, selectedConversation]);
 
   // Cleanup socket connections on unmount
@@ -186,7 +455,10 @@ const Messages = () => {
         if (response.success) {
           const messagesData =
             (response.data as { messages: Message[] }).messages || [];
-          setMessages(messagesData);
+
+          // Merge with socket messages if available
+          const mergedMessages = mergeMessages(messagesData, socketMessages);
+          setMessages(mergedMessages);
 
           // Refresh unread count after loading messages
           await refreshUnreadCount();
@@ -200,7 +472,7 @@ const Messages = () => {
         });
       }
     },
-    [toast, refreshUnreadCount]
+    [toast, refreshUnreadCount, mergeMessages, socketMessages]
   );
 
   const sendMessage = async () => {
@@ -369,6 +641,9 @@ const Messages = () => {
       const prevConversationId = `${currentUser?._id}_${selectedConversation.user.id}`;
       leaveConversation(prevConversationId);
     }
+
+    // Clear socket messages when switching conversations to avoid showing messages from previous conversation
+    setSocketMessages([]);
 
     setSelectedConversation(conversation);
     fetchMessages(conversation.user.id);
@@ -848,6 +1123,15 @@ const Messages = () => {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
+                      onFocus={() => {
+                        wasInputFocusedRef.current = true;
+                      }}
+                      onBlur={(e) => {
+                        // Only set to false if focus is moving to another element
+                        if (e.relatedTarget !== messageInputRef.current) {
+                          wasInputFocusedRef.current = false;
+                        }
+                      }}
                       disabled={sending}
                       className="flex-1 h-11 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     />
@@ -1025,6 +1309,15 @@ const Messages = () => {
                       e.preventDefault();
                       e.stopPropagation();
                       handleSendMessage();
+                    }
+                  }}
+                  onFocus={() => {
+                    wasInputFocusedRef.current = true;
+                  }}
+                  onBlur={(e) => {
+                    // Only set to false if focus is moving to another element
+                    if (e.relatedTarget !== messageInputRef.current) {
+                      wasInputFocusedRef.current = false;
                     }
                   }}
                   className="flex-1 h-11 text-sm border-gray-300 focus:border-blue-500"

@@ -55,8 +55,8 @@ class EmailService {
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       // Gmail App Passwords may have spaces - remove them for nodemailer
       const smtpUser = process.env.SMTP_USER.trim();
-      const smtpPass = process.env.SMTP_PASS.replace(/\s+/g, '').trim(); // Remove all spaces
-      
+      const smtpPass = process.env.SMTP_PASS.replace(/\s+/g, "").trim(); // Remove all spaces
+
       smtpConfig.auth = {
         user: smtpUser,
         pass: smtpPass,
@@ -64,14 +64,17 @@ class EmailService {
     }
 
     this.transporter = nodemailer.createTransport(smtpConfig);
-    
+
     // Verify connection on startup (but don't block and don't warn if credentials exist)
     // Only verify if credentials are provided
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       this.verifyConnection().catch((error) => {
         // Only log as info, not warning, since verification can fail for network reasons
         // but emails might still work
-        logger.info("SMTP connection verification skipped (non-blocking):", error.message);
+        logger.info(
+          "SMTP connection verification skipped (non-blocking):",
+          error.message
+        );
       });
     } else {
       logger.warn("SMTP credentials not configured. Email sending will fail.");
@@ -83,12 +86,12 @@ class EmailService {
     try {
       const smtpUser = process.env.SMTP_USER?.trim();
       const smtpPass = process.env.SMTP_PASS?.trim();
-      
+
       if (!smtpUser || !smtpPass) {
         // Don't log warning here - it's already logged in constructor if needed
         return false;
       }
-      
+
       // Create transporter with cleaned credentials for verification
       const smtpConfig: any = {
         host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -96,17 +99,20 @@ class EmailService {
         secure: process.env.SMTP_SECURE === "true",
         auth: {
           user: smtpUser,
-          pass: smtpPass.replace(/\s+/g, ''), // Remove spaces
+          pass: smtpPass.replace(/\s+/g, ""), // Remove spaces
         },
       };
-      
+
       const testTransporter = nodemailer.createTransport(smtpConfig);
       // Set a timeout for verification to prevent hanging
       await Promise.race([
         testTransporter.verify(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("SMTP verification timeout")), 10000)
-        )
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("SMTP verification timeout")),
+            10000
+          )
+        ),
       ]);
       logger.info("SMTP connection verified successfully");
       return true;
@@ -115,7 +121,10 @@ class EmailService {
       // Only log if it's not a timeout (timeouts are expected in some network configurations)
       if (!error.message?.includes("timeout")) {
         // Use info level since debug might not be visible
-        logger.info("SMTP connection verification skipped (non-critical):", error.message);
+        logger.info(
+          "SMTP connection verification skipped (non-critical):",
+          error.message
+        );
       }
       return false;
     }
@@ -154,9 +163,11 @@ class EmailService {
       // Validate SMTP configuration
       const smtpUser = process.env.SMTP_USER?.trim();
       const smtpPass = process.env.SMTP_PASS?.trim();
-      
+
       if (!smtpUser || !smtpPass) {
-        logger.error("SMTP configuration missing. Please set SMTP_USER and SMTP_PASS environment variables.");
+        logger.error(
+          "SMTP configuration missing. Please set SMTP_USER and SMTP_PASS environment variables."
+        );
         return false;
       }
 
@@ -165,23 +176,29 @@ class EmailService {
         logger.error(`Invalid email address: ${options.to}`);
         return false;
       }
-      
+
       // Clean password - remove all spaces (Gmail App Passwords have spaces but nodemailer needs them removed)
-      const cleanedPassword = smtpPass.replace(/\s+/g, '');
-      
+      const cleanedPassword = smtpPass.replace(/\s+/g, "");
+
       // Log password info for debugging (always log for troubleshooting)
       logger.info("SMTP Configuration:", {
         user: smtpUser,
         passwordLength: cleanedPassword.length,
-        passwordPreview: cleanedPassword.length > 0 ? `${cleanedPassword.substring(0, 2)}...${cleanedPassword.substring(cleanedPassword.length - 2)}` : "empty",
+        passwordPreview:
+          cleanedPassword.length > 0
+            ? `${cleanedPassword.substring(0, 2)}...${cleanedPassword.substring(cleanedPassword.length - 2)}`
+            : "empty",
         expectedLength: 16,
         isValidLength: cleanedPassword.length === 16,
       });
-      
+
       if (cleanedPassword.length !== 16) {
-        logger.warn("App Password length is incorrect! Expected 16 characters, got " + cleanedPassword.length);
+        logger.warn(
+          "App Password length is incorrect! Expected 16 characters, got " +
+            cleanedPassword.length
+        );
       }
-      
+
       // Reconfigure transporter with cleaned credentials (in case env vars changed)
       const smtpConfig: any = {
         host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -192,7 +209,7 @@ class EmailService {
           pass: cleanedPassword,
         },
       };
-      
+
       // Update transporter with cleaned credentials each time to ensure consistency
       this.transporter = nodemailer.createTransport(smtpConfig);
 
@@ -210,7 +227,7 @@ class EmailService {
         `Email sent successfully to ${options.to}:`,
         result.messageId
       );
-      
+
       // Log success for debugging
       if (process.env.NODE_ENV === "development") {
         logger.info(`Email sent successfully`, {
@@ -234,7 +251,10 @@ class EmailService {
           });
         } catch (trackingError) {
           // Log but don't fail the email send
-          logger.warn("Failed to track email (email was still sent):", trackingError);
+          logger.warn(
+            "Failed to track email (email was still sent):",
+            trackingError
+          );
         }
       }
 
@@ -248,17 +268,28 @@ class EmailService {
         command: error.command,
         response: error.response,
       };
-      
+
       logger.error("Failed to send email:", errorDetails);
-      
+
       // Log specific error types with detailed messages
       if (error.code === "EAUTH") {
-        if (error.response?.includes("BadCredentials") || error.message?.includes("BadCredentials")) {
-          logger.error("SMTP Authentication failed - Invalid Gmail App Password!");
+        if (
+          error.response?.includes("BadCredentials") ||
+          error.message?.includes("BadCredentials")
+        ) {
+          logger.error(
+            "SMTP Authentication failed - Invalid Gmail App Password!"
+          );
           logger.error("FIX STEPS:");
-          logger.error("1. Enable 2-Step Verification: https://myaccount.google.com/security");
-          logger.error("2. Create App Password: https://myaccount.google.com/apppasswords");
-          logger.error("3. Select 'Mail' and 'Other (Custom name)' → Type 'AlumniAccel'");
+          logger.error(
+            "1. Enable 2-Step Verification: https://myaccount.google.com/security"
+          );
+          logger.error(
+            "2. Create App Password: https://myaccount.google.com/apppasswords"
+          );
+          logger.error(
+            "3. Select 'Mail' and 'Other (Custom name)' → Type 'AlumniAccel'"
+          );
           logger.error("4. Copy the 16-character password (remove ALL spaces)");
           logger.error("5. Update SMTP_PASS in .env file (no spaces)");
           logger.error("6. Restart server");
@@ -266,12 +297,18 @@ class EmailService {
           logger.error(`Gmail Error: ${error.response || error.message}`);
           logger.error("See SMTP_SETUP_GUIDE.md for detailed instructions");
         } else {
-          logger.error("SMTP Authentication failed. Please check SMTP_USER and SMTP_PASS.");
+          logger.error(
+            "SMTP Authentication failed. Please check SMTP_USER and SMTP_PASS."
+          );
         }
       } else if (error.code === "ECONNECTION") {
-        logger.error("SMTP Connection failed. Please check SMTP_HOST and SMTP_PORT.");
+        logger.error(
+          "SMTP Connection failed. Please check SMTP_HOST and SMTP_PORT."
+        );
       } else if (error.code === "ETIMEDOUT") {
-        logger.error("SMTP Connection timeout. Please check network connectivity.");
+        logger.error(
+          "SMTP Connection timeout. Please check network connectivity."
+        );
       }
 
       // Track failed email (don't fail if tracking fails)
@@ -325,7 +362,8 @@ class EmailService {
     failed: number;
     results: Array<{ email: string; success: boolean; error?: string }>;
   }> {
-    const results: Array<{ email: string; success: boolean; error?: string }> = [];
+    const results: Array<{ email: string; success: boolean; error?: string }> =
+      [];
     let success = 0;
     let failed = 0;
 
@@ -335,7 +373,10 @@ class EmailService {
     for (let i = 0; i < options.recipients.length; i++) {
       const recipient = options.recipients[i];
       const subject = replaceTemplateVariables(options.subject, recipient.data);
-      const html = replaceTemplateVariables(options.htmlTemplate, recipient.data);
+      const html = replaceTemplateVariables(
+        options.htmlTemplate,
+        recipient.data
+      );
       const text = options.textTemplate
         ? replaceTemplateVariables(options.textTemplate, recipient.data)
         : html.replace(/<[^>]*>/g, "");
@@ -361,14 +402,16 @@ class EmailService {
           // Check if SMTP is configured
           const smtpUser = process.env.SMTP_USER?.trim();
           const smtpPass = process.env.SMTP_PASS?.trim();
-          
+
           let errorMsg = "Failed to send email";
           if (!smtpUser || !smtpPass) {
-            errorMsg = "SMTP configuration missing. Please configure SMTP_USER and SMTP_PASS in .env file.";
+            errorMsg =
+              "SMTP configuration missing. Please configure SMTP_USER and SMTP_PASS in .env file.";
           } else {
-            errorMsg = "Failed to send email. Check SMTP configuration and server logs.";
+            errorMsg =
+              "Failed to send email. Check SMTP configuration and server logs.";
           }
-          
+
           results.push({
             email: recipient.email,
             success: false,
@@ -379,10 +422,14 @@ class EmailService {
         failed++;
         // Extract more detailed error message
         let errorMessage = "Failed to send email";
-        
+
         if (error.code === "EAUTH") {
-          if (error.response?.includes("BadCredentials") || error.message?.includes("BadCredentials")) {
-            errorMessage = "Invalid Gmail App Password. Please: 1) Enable 2-Step Verification, 2) Create new App Password at https://myaccount.google.com/apppasswords, 3) Copy 16-char password (remove spaces), 4) Update SMTP_PASS in .env, 5) Restart server.";
+          if (
+            error.response?.includes("BadCredentials") ||
+            error.message?.includes("BadCredentials")
+          ) {
+            errorMessage =
+              "Invalid Gmail App Password. Please: 1) Enable 2-Step Verification, 2) Create new App Password at https://myaccount.google.com/apppasswords, 3) Copy 16-char password (remove spaces), 4) Update SMTP_PASS in .env, 5) Restart server.";
           } else {
             errorMessage = `SMTP Authentication failed: ${error.message || error.response || "Invalid credentials"}`;
           }
@@ -395,13 +442,13 @@ class EmailService {
         } else if (error.response) {
           errorMessage = error.response;
         }
-        
+
         logger.error(`Failed to send email to ${recipient.email}:`, {
           error: errorMessage,
           code: error.code,
           response: error.response,
         });
-        
+
         results.push({
           email: recipient.email,
           success: false,
@@ -411,7 +458,9 @@ class EmailService {
 
       // Rate limiting - delay between emails
       if (i < options.recipients.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delayBetweenBatches));
+        await new Promise((resolve) =>
+          setTimeout(resolve, delayBetweenBatches)
+        );
       }
     }
 
@@ -464,7 +513,8 @@ class EmailService {
       logger.error("Failed to send email:", error);
 
       // Provide more helpful error messages
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       if (
         errorMessage?.includes("credentials") ||
         errorMessage?.includes("PLAIN")
@@ -880,7 +930,9 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
       return imagePath;
     }
     // Fallback to local server base URL if relative path
-    const apiBase = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const apiBase =
+      process.env.PUBLIC_BASE_URL ||
+      `http://localhost:${process.env.PORT || 3000}`;
     return `${apiBase}${imagePath.startsWith("/") ? imagePath : `/${imagePath}`}`;
   }
 
@@ -899,59 +951,79 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     ctaUrl?: string;
     collegeName?: string;
     organizerName?: string;
-    speakers?: Array<{ name: string; title?: string; company?: string; photo?: string; bio?: string }>;
+    speakers?: Array<{
+      name: string;
+      title?: string;
+      company?: string;
+      photo?: string;
+      bio?: string;
+    }>;
     agenda?: Array<{ title: string; speaker?: string; description?: string }>;
   }): string {
-    const title = data.type === "registration" ? "Event Registration Confirmed" : "Event Reminder";
-    const bannerText = data.type === "registration" ? "You're Registered!" : "Reminder: Upcoming Event";
+    const title =
+      data.type === "registration"
+        ? "Event Registration Confirmed"
+        : "Event Reminder";
+    const bannerText =
+      data.type === "registration"
+        ? "You're Registered!"
+        : "Reminder: Upcoming Event";
     const eventImage = this.buildAbsoluteImageUrl(data.image);
     const formattedStart = new Date(data.startDate).toLocaleString();
-    const formattedEnd = data.endDate ? new Date(data.endDate).toLocaleString() : undefined;
+    const formattedEnd = data.endDate
+      ? new Date(data.endDate).toLocaleString()
+      : undefined;
     const college = data.collegeName || "Alumni Accel";
     const isPaid = typeof data.price === "number" && data.price > 0;
 
-    const speakersHtml = (data.speakers && data.speakers.length)
-      ? `
+    const speakersHtml =
+      data.speakers && data.speakers.length
+        ? `
           <div style="margin-top:18px;">
             <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Speakers</div>
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f9fafb;border-left:4px solid #10b981;">
               <tr>
                 <td style="padding:14px 16px;">
                   ${data.speakers
-                    .map((s) => `
+                    .map(
+                      (s) => `
                       <div style=\"margin-bottom:10px; font-size:14px; color:#111827;\">
                         <div><strong>${s.name}</strong>${s.title ? `, ${s.title}` : ""}${s.company ? ` - ${s.company}` : ""}</div>
                       </div>
-                    `)
+                    `
+                    )
                     .join("")}
                 </td>
               </tr>
             </table>
           </div>
         `
-      : "";
+        : "";
 
-    const agendaHtml = (data.agenda && data.agenda.length)
-      ? `
+    const agendaHtml =
+      data.agenda && data.agenda.length
+        ? `
           <div style=\"margin-top:18px;\">
             <div style=\"font-size:16px;font-weight:700;margin-bottom:8px;\">Event Agenda</div>
             <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\" style=\"background:#f9fafb;border-left:4px solid #3b82f6;\">
               <tr>
                 <td style=\"padding:14px 16px;\">
                   ${data.agenda
-                    .map((a) => `
+                    .map(
+                      (a) => `
                       <div style=\\"margin-bottom:10px; font-size:14px; color:#111827;\\">
                         <div><strong>${a.title}</strong>${a.speaker ? ` - ${a.speaker}` : ""}</div>
                         ${a.description ? `<div style=\\"color:#4b5563; font-size:13px; margin-top:4px;\\">${a.description}</div>` : ""}
                       </div>
-                    `)
+                    `
+                    )
                     .join("")}
                 </td>
               </tr>
             </table>
           </div>
         `
-      : "";
+        : "";
 
     return `
 <!DOCTYPE html>
@@ -972,12 +1044,16 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
               <div style="color:rgba(255,255,255,0.9); font-size:14px; margin-top:6px;">${college}</div>
             </td>
           </tr>
-          ${eventImage ? `
+          ${
+            eventImage
+              ? `
           <tr>
             <td style="padding:0;">
               <img src="${eventImage}" alt="Event image" style="display:block;width:100%;height:auto;" />
             </td>
-          </tr>` : ""}
+          </tr>`
+              : ""
+          }
           <tr>
             <td style="padding:28px 32px;">
               <div style="font-size:16px;">Hello <strong>${data.attendeeName}</strong>,</div>
@@ -999,11 +1075,15 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
               ${speakersHtml}
               ${agendaHtml}
 
-              ${data.type === "registration" && data.ctaUrl ? `
+              ${
+                data.type === "registration" && data.ctaUrl
+                  ? `
               <div style="text-align:center; margin-top:22px;">
                 <a href="${data.ctaUrl}" style="display:inline-block;background-color:#2563eb;color:#ffffff;padding:12px 22px;text-decoration:none;border-radius:6px;font-weight:600; font-size:14px;">View Event</a>
               </div>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <div style="margin-top:24px; font-size:13px; color:#6b7280;">
                 If you have questions, reply to this email.
@@ -1038,12 +1118,22 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     ctaUrl?: string;
     collegeName?: string;
     organizerName?: string;
-    speakers?: Array<{ name: string; title?: string; company?: string; photo?: string; bio?: string }>;
+    speakers?: Array<{
+      name: string;
+      title?: string;
+      company?: string;
+      photo?: string;
+      bio?: string;
+    }>;
     agenda?: Array<{ title: string; speaker?: string; description?: string }>;
   }): Promise<boolean> {
-    const html = this.generateEventEmailTemplate({ type: "registration", ...data });
+    const html = this.generateEventEmailTemplate({
+      type: "registration",
+      ...data,
+    });
     const text = `Registration Confirmed\n\n${data.eventTitle}\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}${typeof data.price === "number" && data.price > 0 ? `Price: ₹${Number(data.price).toFixed(2)}` : "Price: Free"}`;
-    return this.sendEmail({ to: data.to, subject: `Registration Confirmed: ${data.eventTitle}`, html, text });
+    const subject = `Registration Confirmed: ${data.eventTitle}`;
+    return this.sendEmail({ to: data.to, subject, html, text });
   }
 
   async sendEventReminderEmail(data: {
@@ -1061,12 +1151,19 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     ctaUrl?: string;
     collegeName?: string;
     organizerName?: string;
-    speakers?: Array<{ name: string; title?: string; company?: string; photo?: string; bio?: string }>;
+    speakers?: Array<{
+      name: string;
+      title?: string;
+      company?: string;
+      photo?: string;
+      bio?: string;
+    }>;
     agenda?: Array<{ title: string; speaker?: string; description?: string }>;
   }): Promise<boolean> {
     const html = this.generateEventEmailTemplate({ type: "reminder", ...data });
     const text = `Reminder: ${data.eventTitle} (Tomorrow)\n\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}${typeof data.price === "number" && data.price > 0 ? `Price: ₹${Number(data.price).toFixed(2)}` : "Price: Free"}`;
-    return this.sendEmail({ to: data.to, subject: `Reminder: ${data.eventTitle} is tomorrow`, html, text });
+    const subject = `Reminder: ${data.eventTitle} is tomorrow`;
+    return this.sendEmail({ to: data.to, subject, html, text });
   }
 }
 

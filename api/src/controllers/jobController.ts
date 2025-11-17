@@ -236,8 +236,18 @@ export const updateJob = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user is the poster or admin
-    if (job.postedBy.toString() !== req.user.id && req.user.role !== "admin") {
+    // Check if user can update this job post
+    // Allow: job poster, super_admin, or admin roles (college_admin, hod, staff) from same tenant
+    const isCreator = job.postedBy.toString() === req.user.id;
+    const isSuperAdmin = req.user.role === "super_admin";
+    const isAdmin =
+      req.user.role === "college_admin" ||
+      req.user.role === "hod" ||
+      req.user.role === "staff";
+    const isSameTenant =
+      job.tenantId.toString() === req.user.tenantId?.toString();
+
+    if (!isCreator && !isSuperAdmin && (!isAdmin || !isSameTenant)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this job post",
@@ -332,8 +342,18 @@ export const deleteJob = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user is the poster or admin
-    if (job.postedBy.toString() !== req.user.id && req.user.role !== "admin") {
+    // Check if user can delete this job post
+    // Allow: job poster, super_admin, or admin roles (college_admin, hod, staff) from same tenant
+    const isCreator = job.postedBy.toString() === req.user.id;
+    const isSuperAdmin = req.user.role === "super_admin";
+    const isAdmin =
+      req.user.role === "college_admin" ||
+      req.user.role === "hod" ||
+      req.user.role === "staff";
+    const isSameTenant =
+      job.tenantId.toString() === req.user.tenantId?.toString();
+
+    if (!isCreator && !isSuperAdmin && (!isAdmin || !isSameTenant)) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to delete this job post",
@@ -370,10 +390,14 @@ export const applyForJob = async (req: Request, res: Response) => {
     }
 
     // Allow applying to active or pending jobs
-    if (job.status !== JobPostStatus.ACTIVE && job.status !== JobPostStatus.PENDING) {
+    if (
+      job.status !== JobPostStatus.ACTIVE &&
+      job.status !== JobPostStatus.PENDING
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Job post is not available for applications. Only active or pending jobs can accept applications.",
+        message:
+          "Job post is not available for applications. Only active or pending jobs can accept applications.",
       });
     }
 

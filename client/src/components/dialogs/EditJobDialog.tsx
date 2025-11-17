@@ -185,25 +185,34 @@ export const EditJobDialog = ({
         ]);
 
         // Process job types from categories
-        if (typesRes.success && Array.isArray(typesRes.data) && typesRes.data.length > 0) {
-          const categoryTypes = typesRes.data.map((c: { name: string; _id: string }) => {
-            // Normalize category name to match enum format
-            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
-            
-            // Check if normalized name matches enum values
-            const enumMatch = defaultJobTypes.find(
-              (d) => d.value === normalizedName
-            );
-            
-            if (enumMatch) {
-              // Use enum value if it matches
-              return { value: enumMatch.value, label: c.name };
-            } else {
-              // Use ObjectId for custom categories
-              return { value: c._id, label: c.name };
+        if (
+          typesRes.success &&
+          Array.isArray(typesRes.data) &&
+          typesRes.data.length > 0
+        ) {
+          const categoryTypes = typesRes.data.map(
+            (c: { name: string; _id: string }) => {
+              // Normalize category name to match enum format
+              const normalizedName = c.name
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .trim();
+
+              // Check if normalized name matches enum values
+              const enumMatch = defaultJobTypes.find(
+                (d) => d.value === normalizedName
+              );
+
+              if (enumMatch) {
+                // Use enum value if it matches
+                return { value: enumMatch.value, label: c.name };
+              } else {
+                // Use ObjectId for custom categories
+                return { value: c._id, label: c.name };
+              }
             }
-          });
-          
+          );
+
           // Merge with defaults, prioritizing enum values
           const mergedTypes = [
             ...defaultJobTypes,
@@ -212,27 +221,36 @@ export const EditJobDialog = ({
                 !defaultJobTypes.some((d) => d.value === c.value)
             ),
           ];
-          
+
           setJobTypeOptions(mergedTypes);
         } else {
           setJobTypeOptions(defaultJobTypes);
         }
 
         // Process experience from categories
-        if (expRes.success && Array.isArray(expRes.data) && expRes.data.length > 0) {
-          const categoryExp = expRes.data.map((c: { name: string; _id: string }) => {
-            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
-            const enumMatch = defaultExperience.find(
-              (d) => d.value === normalizedName
-            );
-            
-            if (enumMatch) {
-              return { value: enumMatch.value, label: c.name };
-            } else {
-              return { value: c._id, label: c.name };
+        if (
+          expRes.success &&
+          Array.isArray(expRes.data) &&
+          expRes.data.length > 0
+        ) {
+          const categoryExp = expRes.data.map(
+            (c: { name: string; _id: string }) => {
+              const normalizedName = c.name
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .trim();
+              const enumMatch = defaultExperience.find(
+                (d) => d.value === normalizedName
+              );
+
+              if (enumMatch) {
+                return { value: enumMatch.value, label: c.name };
+              } else {
+                return { value: c._id, label: c.name };
+              }
             }
-          });
-          
+          );
+
           const mergedExp = [
             ...defaultExperience,
             ...categoryExp.filter(
@@ -240,27 +258,36 @@ export const EditJobDialog = ({
                 !defaultExperience.some((d) => d.value === c.value)
             ),
           ];
-          
+
           setExperienceOptions(mergedExp);
         } else {
           setExperienceOptions(defaultExperience);
         }
 
         // Process industry from categories
-        if (indRes.success && Array.isArray(indRes.data) && indRes.data.length > 0) {
-          const categoryInd = indRes.data.map((c: { name: string; _id: string }) => {
-            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
-            const enumMatch = defaultIndustry.find(
-              (d) => d.value === normalizedName
-            );
-            
-            if (enumMatch) {
-              return { value: enumMatch.value, label: c.name };
-            } else {
-              return { value: c._id, label: c.name };
+        if (
+          indRes.success &&
+          Array.isArray(indRes.data) &&
+          indRes.data.length > 0
+        ) {
+          const categoryInd = indRes.data.map(
+            (c: { name: string; _id: string }) => {
+              const normalizedName = c.name
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .trim();
+              const enumMatch = defaultIndustry.find(
+                (d) => d.value === normalizedName
+              );
+
+              if (enumMatch) {
+                return { value: enumMatch.value, label: c.name };
+              } else {
+                return { value: c._id, label: c.name };
+              }
             }
-          });
-          
+          );
+
           const mergedInd = [
             ...defaultIndustry,
             ...categoryInd.filter(
@@ -268,7 +295,7 @@ export const EditJobDialog = ({
                 !defaultIndustry.some((d) => d.value === c.value)
             ),
           ];
-          
+
           setIndustryOptions(mergedInd);
         } else {
           setIndustryOptions(defaultIndustry);
@@ -465,7 +492,6 @@ export const EditJobDialog = ({
         contactEmail: formData.contactEmail.trim(),
       };
 
-      console.log("Updating job data:", jobData);
       const response = await jobAPI.updateJob(job._id, jobData);
 
       if (response.success) {

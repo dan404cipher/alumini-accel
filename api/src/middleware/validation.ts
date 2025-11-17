@@ -1287,7 +1287,11 @@ export const validateCommunity = [
       ) {
         return true;
       }
-      // Check if it's a valid URL
+      // Check if it's a relative path (starts with /uploads/)
+      if (typeof value === "string" && value.startsWith("/uploads/")) {
+        return true;
+      }
+      // Check if it's a valid absolute URL
       try {
         new URL(value);
         return true;
@@ -1295,7 +1299,7 @@ export const validateCommunity = [
         return false;
       }
     })
-    .withMessage("Cover image must be a valid URL"),
+    .withMessage("Cover image must be a valid URL or relative path"),
   body("logo")
     .optional()
     .custom((value) => {
@@ -1308,7 +1312,11 @@ export const validateCommunity = [
       ) {
         return true;
       }
-      // Check if it's a valid URL
+      // Check if it's a relative path (starts with /uploads/)
+      if (typeof value === "string" && value.startsWith("/uploads/")) {
+        return true;
+      }
+      // Check if it's a valid absolute URL
       try {
         new URL(value);
         return true;
@@ -1316,7 +1324,7 @@ export const validateCommunity = [
         return false;
       }
     })
-    .withMessage("Logo must be a valid URL"),
+    .withMessage("Logo must be a valid URL or relative path"),
   body("tags").optional().isArray().withMessage("Tags must be an array"),
   body("tags.*")
     .optional()

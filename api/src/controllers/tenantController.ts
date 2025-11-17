@@ -514,27 +514,12 @@ export const getTenantLogo = asyncHandler(
       });
     }
 
-    // Check if it's a URL (external image)
-    if (
-      tenant.logo.startsWith("http://") ||
-      tenant.logo.startsWith("https://")
-    ) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          logo: tenant.logo,
-        },
-      });
-    }
-
-    // For local files, return the full URL
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const logoUrl = `${baseUrl}${tenant.logo}`;
-
+    // Return the logo URL as-is (relative or absolute)
+    // Frontend will handle URL construction using getImageUrl utility
     return res.status(200).json({
       success: true,
       data: {
-        logo: logoUrl,
+        logo: tenant.logo,
       },
     });
   }
@@ -624,27 +609,12 @@ export const getTenantBanner = asyncHandler(
       });
     }
 
-    // Check if it's a URL (external image)
-    if (
-      tenant.banner.startsWith("http://") ||
-      tenant.banner.startsWith("https://")
-    ) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          banner: tenant.banner,
-        },
-      });
-    }
-
-    // For local files, return the full URL
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const bannerUrl = `${baseUrl}${tenant.banner}`;
-
+    // Return the banner URL as-is (relative or absolute)
+    // Frontend will handle URL construction using getImageUrl utility
     return res.status(200).json({
       success: true,
       data: {
-        banner: bannerUrl,
+        banner: tenant.banner,
       },
     });
   }

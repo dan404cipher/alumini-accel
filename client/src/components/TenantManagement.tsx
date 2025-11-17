@@ -44,7 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { tenantAPI } from "@/lib/api";
+import { tenantAPI, getImageUrl } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -841,7 +841,7 @@ const TenantManagement: React.FC = () => {
                     <div className="flex items-center space-x-3">
                       {tenant.logo ? (
                         <img
-                          src={tenant.logo}
+                          src={getImageUrl(tenant.logo)}
                           alt={tenant.name}
                           className="w-8 h-8 rounded-full object-cover"
                         />

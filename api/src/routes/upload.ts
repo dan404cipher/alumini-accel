@@ -24,7 +24,7 @@ router.post(
         });
       }
 
-      const fileUrl = getFileUrl(req.file.filename);
+      const fileUrl = getRelativeFileUrl(req.file.filename);
 
       return res.json({
         success: true,
@@ -56,7 +56,7 @@ router.post("/community/logo", uploadSingle("logo") as any, (req, res) => {
       });
     }
 
-    const fileUrl = getFileUrl(req.file.filename);
+    const fileUrl = getRelativeFileUrl(req.file.filename);
 
     return res.json({
       success: true,
@@ -87,8 +87,7 @@ router.post("/image", uploadSingle("image") as any, (req, res) => {
       });
     }
 
-    const fileUrl = getFileUrl(req.file.filename);
-    const relativeUrl = getRelativeFileUrl(req.file.filename);
+    const fileUrl = getRelativeFileUrl(req.file.filename);
 
     return res.json({
       success: true,
@@ -98,7 +97,6 @@ router.post("/image", uploadSingle("image") as any, (req, res) => {
         originalName: req.file.originalname,
         size: req.file.size,
         url: fileUrl,
-        relativeUrl: relativeUrl,
       },
     });
   } catch (error) {

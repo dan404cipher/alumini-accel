@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { tenantAPI } from "@/lib/api";
+import { tenantAPI, getImageUrl } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -216,7 +216,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                   {collegeLogo ? (
                     <div className="relative">
                       <img
-                        src={collegeLogo}
+                        src={getImageUrl(collegeLogo)}
                         alt="College Logo"
                         className="w-12 h-12 rounded-xl object-contain shadow-md group-hover:shadow-lg transition-shadow duration-200"
                       />

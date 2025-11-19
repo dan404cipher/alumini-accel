@@ -55,6 +55,7 @@ import {
   eventAPI,
   jobAPI,
   newsAPI,
+  getImageUrl,
 } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import MentorshipActionMenu from "@/components/mentorship/MentorshipActionMenu";
@@ -1374,7 +1375,7 @@ const AlumniPortal = () => {
                             <div className="relative">
                               {community.logo ? (
                                 <img
-                                  src={community.logo}
+                                  src={getImageUrl(community.logo)}
                                   alt={community.name}
                                   className="w-full h-32 object-cover rounded-t-lg"
                                 />
@@ -1563,7 +1564,7 @@ const AlumniPortal = () => {
                             <div className="relative">
                               {job.company?.logo ? (
                                 <img
-                                  src={job.company.logo}
+                                  src={getImageUrl(job.company.logo)}
                                   alt={job.company.name}
                                   className="w-full h-32 object-cover rounded-t-lg"
                                 />
@@ -1638,9 +1639,9 @@ const AlumniPortal = () => {
                               <div className="relative">
                                 {campaign.imageUrl || campaign.images?.[0] ? (
                                   <img
-                                    src={
+                                    src={getImageUrl(
                                       campaign.imageUrl || campaign.images[0]
-                                    }
+                                    )}
                                     alt={campaign.title}
                                     className="w-full h-32 object-cover rounded-t-lg"
                                   />

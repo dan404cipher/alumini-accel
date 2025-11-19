@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Users, Settings, Edit, Trash2 } from "lucide-react";
 import { Community } from "./types";
+import { getImageUrl } from "@/lib/api";
 
 interface CommunityDetailHeaderProps {
   community: Community | null;
@@ -83,7 +84,7 @@ const CommunityDetailHeader: React.FC<CommunityDetailHeaderProps> = ({
                 <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden flex items-center justify-center bg-gray-100 flex-shrink-0 shadow-lg">
                   {community?.logo ? (
                     <img
-                      src={community.logo}
+                      src={getImageUrl(community.logo)}
                       alt={community.name}
                       className="w-full h-full object-cover"
                     />

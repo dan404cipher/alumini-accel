@@ -79,7 +79,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
-import { communityAPI, categoryAPI } from "@/lib/api";
+import { communityAPI, categoryAPI, getImageUrl } from "@/lib/api";
 
 // Helper function to get auth token
 const getAuthToken = (): string => {
@@ -2791,7 +2791,7 @@ const CommunityNew = () => {
                             <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 flex-shrink-0">
                               {community.logo ? (
                                 <img
-                                  src={community.logo}
+                                  src={getImageUrl(community.logo)}
                                   alt={`${community.name} logo`}
                                   className="w-full h-full object-cover"
                                 />
@@ -2883,7 +2883,7 @@ const CommunityNew = () => {
                               <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
                                 {community.logo ? (
                                   <img
-                                    src={community.logo}
+                                    src={getImageUrl(community.logo)}
                                     alt={`${community.name} logo`}
                                     className="w-full h-full object-cover"
                                   />
@@ -3043,7 +3043,7 @@ const CommunityNew = () => {
                             <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
                               {community.logo ? (
                                 <img
-                                  src={community.logo}
+                                  src={getImageUrl(community.logo)}
                                   alt={`${community.name} logo`}
                                   className="w-full h-full object-cover"
                                 />
@@ -3133,7 +3133,7 @@ const CommunityNew = () => {
                 {selectedCommunity.coverImage && (
                   <div className="mb-6">
                     <img
-                      src={selectedCommunity.coverImage}
+                      src={getImageUrl(selectedCommunity.coverImage)}
                       alt={`${selectedCommunity.name} cover`}
                       className="w-full h-48 object-cover rounded-lg"
                       onError={(e) => {

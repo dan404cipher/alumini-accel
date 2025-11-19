@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +57,8 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const lastPopulatedGalleryId = useRef<string | null>(null);
+  const wasOpenRef = useRef(false);
 
   // Load gallery categories dynamically
   useEffect(() => {
@@ -81,20 +83,48 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
     };
   }, []);
 
-  // Initialize form data when gallery changes
+  // Populate form data when gallery changes or dialog opens
+  const galleryId = gallery?._id;
   useEffect(() => {
-    if (gallery) {
-      setFormData({
-        title: gallery.title,
-        description: gallery.description || "",
-        category: gallery.category,
-        tags: gallery.tags || [],
-        images: gallery.images || [],
-      });
-      setPreviewImages(gallery.images || []);
-      setUploadedFiles([]);
+    // Handle dialog close - reset form
+    if (!open) {
+      if (wasOpenRef.current) {
+        lastPopulatedGalleryId.current = null;
+        setFormData({
+          title: "",
+          description: "",
+          category: "",
+          tags: [],
+          images: [],
+        });
+        setPreviewImages([]);
+        setUploadedFiles([]);
+      }
+      wasOpenRef.current = false;
+      return;
     }
-  }, [gallery]);
+
+    // Handle dialog open - populate form
+    if (open && gallery && galleryId) {
+      wasOpenRef.current = true;
+
+      // Check if we've already populated for this gallery to prevent unnecessary re-population
+      if (lastPopulatedGalleryId.current === galleryId) {
+        return;
+      }
+
+      setFormData({
+        title: gallery.title || "",
+        description: gallery.description || "",
+        category: gallery.category || "",
+        tags: gallery.tags ? [...gallery.tags] : [],
+        images: gallery.images ? [...gallery.images] : [],
+      });
+      setPreviewImages(gallery.images ? [...gallery.images] : []);
+      setUploadedFiles([]);
+      lastPopulatedGalleryId.current = galleryId;
+    }
+  }, [galleryId, open, gallery]);
 
   const handleImageUpload = async (files: FileList) => {
     try {
@@ -253,7 +283,7 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
               id="title"
               value={formData.title}
               onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
+                setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               placeholder="Enter gallery title"
               required
@@ -266,7 +296,7 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
               id="description"
               value={formData.description}
               onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
+                setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               placeholder="Enter gallery description"
               rows={3}
@@ -278,7 +308,7 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
             <Select
               value={formData.category}
               onValueChange={(value) =>
-                setFormData({ ...formData, category: value })
+                setFormData((prev) => ({ ...prev, category: value }))
               }
             >
               <SelectTrigger>

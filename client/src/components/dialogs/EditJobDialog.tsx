@@ -42,6 +42,8 @@ interface Job {
   position: string;
   location: string;
   type: string;
+  experience?: string;
+  industry?: string;
   remote?: boolean;
   salary?: {
     min: number;
@@ -99,6 +101,8 @@ export const EditJobDialog = ({
     companyWebsite: "",
     location: "",
     type: "",
+    experience: "",
+    industry: "",
     salaryMin: "",
     salaryMax: "",
     currency: "USD",
@@ -121,6 +125,8 @@ export const EditJobDialog = ({
         companyWebsite: job.companyWebsite || "",
         location: job.location || "",
         type: job.type || "",
+        experience: job.experience || "",
+        industry: job.industry || "",
         salaryMin: job.salary?.min?.toString() || "",
         salaryMax: job.salary?.max?.toString() || "",
         currency: job.salary?.currency || "USD",
@@ -179,25 +185,34 @@ export const EditJobDialog = ({
         ]);
 
         // Process job types from categories
-        if (typesRes.success && Array.isArray(typesRes.data) && typesRes.data.length > 0) {
-          const categoryTypes = typesRes.data.map((c: { name: string; _id: string }) => {
-            // Normalize category name to match enum format
-            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
-            
-            // Check if normalized name matches enum values
-            const enumMatch = defaultJobTypes.find(
-              (d) => d.value === normalizedName
-            );
-            
-            if (enumMatch) {
-              // Use enum value if it matches
-              return { value: enumMatch.value, label: c.name };
-            } else {
-              // Use ObjectId for custom categories
-              return { value: c._id, label: c.name };
+        if (
+          typesRes.success &&
+          Array.isArray(typesRes.data) &&
+          typesRes.data.length > 0
+        ) {
+          const categoryTypes = typesRes.data.map(
+            (c: { name: string; _id: string }) => {
+              // Normalize category name to match enum format
+              const normalizedName = c.name
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .trim();
+
+              // Check if normalized name matches enum values
+              const enumMatch = defaultJobTypes.find(
+                (d) => d.value === normalizedName
+              );
+
+              if (enumMatch) {
+                // Use enum value if it matches
+                return { value: enumMatch.value, label: c.name };
+              } else {
+                // Use ObjectId for custom categories
+                return { value: c._id, label: c.name };
+              }
             }
-          });
-          
+          );
+
           // Merge with defaults, prioritizing enum values
           const mergedTypes = [
             ...defaultJobTypes,
@@ -206,27 +221,36 @@ export const EditJobDialog = ({
                 !defaultJobTypes.some((d) => d.value === c.value)
             ),
           ];
-          
+
           setJobTypeOptions(mergedTypes);
         } else {
           setJobTypeOptions(defaultJobTypes);
         }
 
         // Process experience from categories
-        if (expRes.success && Array.isArray(expRes.data) && expRes.data.length > 0) {
-          const categoryExp = expRes.data.map((c: { name: string; _id: string }) => {
-            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
-            const enumMatch = defaultExperience.find(
-              (d) => d.value === normalizedName
-            );
-            
-            if (enumMatch) {
-              return { value: enumMatch.value, label: c.name };
-            } else {
-              return { value: c._id, label: c.name };
+        if (
+          expRes.success &&
+          Array.isArray(expRes.data) &&
+          expRes.data.length > 0
+        ) {
+          const categoryExp = expRes.data.map(
+            (c: { name: string; _id: string }) => {
+              const normalizedName = c.name
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .trim();
+              const enumMatch = defaultExperience.find(
+                (d) => d.value === normalizedName
+              );
+
+              if (enumMatch) {
+                return { value: enumMatch.value, label: c.name };
+              } else {
+                return { value: c._id, label: c.name };
+              }
             }
-          });
-          
+          );
+
           const mergedExp = [
             ...defaultExperience,
             ...categoryExp.filter(
@@ -234,27 +258,36 @@ export const EditJobDialog = ({
                 !defaultExperience.some((d) => d.value === c.value)
             ),
           ];
-          
+
           setExperienceOptions(mergedExp);
         } else {
           setExperienceOptions(defaultExperience);
         }
 
         // Process industry from categories
-        if (indRes.success && Array.isArray(indRes.data) && indRes.data.length > 0) {
-          const categoryInd = indRes.data.map((c: { name: string; _id: string }) => {
-            const normalizedName = c.name.toLowerCase().replace(/\s+/g, "-").trim();
-            const enumMatch = defaultIndustry.find(
-              (d) => d.value === normalizedName
-            );
-            
-            if (enumMatch) {
-              return { value: enumMatch.value, label: c.name };
-            } else {
-              return { value: c._id, label: c.name };
+        if (
+          indRes.success &&
+          Array.isArray(indRes.data) &&
+          indRes.data.length > 0
+        ) {
+          const categoryInd = indRes.data.map(
+            (c: { name: string; _id: string }) => {
+              const normalizedName = c.name
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .trim();
+              const enumMatch = defaultIndustry.find(
+                (d) => d.value === normalizedName
+              );
+
+              if (enumMatch) {
+                return { value: enumMatch.value, label: c.name };
+              } else {
+                return { value: c._id, label: c.name };
+              }
             }
-          });
-          
+          );
+
           const mergedInd = [
             ...defaultIndustry,
             ...categoryInd.filter(
@@ -262,7 +295,7 @@ export const EditJobDialog = ({
                 !defaultIndustry.some((d) => d.value === c.value)
             ),
           ];
-          
+
           setIndustryOptions(mergedInd);
         } else {
           setIndustryOptions(defaultIndustry);
@@ -308,6 +341,14 @@ export const EditJobDialog = ({
 
     if (!formData.type) {
       newErrors.push("Job type is required");
+    }
+
+    if (!formData.experience) {
+      newErrors.push("Experience level is required");
+    }
+
+    if (!formData.industry) {
+      newErrors.push("Industry is required");
     }
 
     if (!formData.description.trim()) {
@@ -437,6 +478,8 @@ export const EditJobDialog = ({
         position: formData.title.trim(),
         location: formData.location.trim(),
         type: formData.type,
+        experience: formData.experience || undefined,
+        industry: formData.industry || undefined,
         remote: formData.location.toLowerCase().includes("remote"),
         salary: salaryRange,
         description: formData.description.trim(),
@@ -449,7 +492,6 @@ export const EditJobDialog = ({
         contactEmail: formData.contactEmail.trim(),
       };
 
-      console.log("Updating job data:", jobData);
       const response = await jobAPI.updateJob(job._id, jobData);
 
       if (response.success) {
@@ -751,7 +793,7 @@ export const EditJobDialog = ({
               <div className="space-y-2">
                 <Label htmlFor="experience">Experience *</Label>
                 <Select
-                  value={(formData as any).experience || ""}
+                  value={formData.experience || ""}
                   onValueChange={(value) =>
                     setFormData({ ...formData, experience: value })
                   }
@@ -771,7 +813,7 @@ export const EditJobDialog = ({
               <div className="space-y-2">
                 <Label htmlFor="industry">Industry *</Label>
                 <Select
-                  value={(formData as any).industry || ""}
+                  value={formData.industry || ""}
                   onValueChange={(value) =>
                     setFormData({ ...formData, industry: value })
                   }

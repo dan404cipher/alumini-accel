@@ -56,7 +56,6 @@ const GallerySchema = new Schema<IGallery>(
     category: {
       type: String,
       trim: true,
-      enum: ["Events", "Campus", "Sports", "Academic", "Cultural", "Other"],
       default: "Other",
     },
   },

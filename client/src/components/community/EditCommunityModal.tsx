@@ -144,7 +144,81 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({
 
     setLoading(true);
     try {
-      const submitData = {
+      // Upload files if they exist
+      let coverImageUrl = null;
+      let logoUrl = null;
+
+      if (formData.coverImage) {
+        try {
+          const formDataUpload = new FormData();
+          formDataUpload.append("coverImage", formData.coverImage);
+
+          const uploadResponse = await fetch(
+            `${
+              import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+            }/upload/community/cover`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${getAuthTokenOrNull()}`,
+              },
+              body: formDataUpload,
+            }
+          );
+
+          const uploadData = await uploadResponse.json();
+          if (uploadData.success) {
+            coverImageUrl = uploadData.data.url;
+          } else {
+            throw new Error(uploadData.message || "Cover image upload failed");
+          }
+        } catch (error) {
+          toast({
+            title: "Upload Error",
+            description: "Failed to upload cover image. Please try again.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (formData.logo) {
+        try {
+          const formDataUpload = new FormData();
+          formDataUpload.append("logo", formData.logo);
+
+          const uploadResponse = await fetch(
+            `${
+              import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+            }/upload/community/logo`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${getAuthTokenOrNull()}`,
+              },
+              body: formDataUpload,
+            }
+          );
+
+          const uploadData = await uploadResponse.json();
+          if (uploadData.success) {
+            logoUrl = uploadData.data.url;
+          } else {
+            throw new Error(uploadData.message || "Logo upload failed");
+          }
+        } catch (error) {
+          toast({
+            title: "Upload Error",
+            description: "Failed to upload logo. Please try again.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      const submitData: any = {
         name: formData.name,
         description: formData.description,
         category: formData.category,
@@ -158,6 +232,14 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({
         rules: formData.rules.filter((rule) => rule.trim()),
         externalLinks: formData.externalLinks,
       };
+
+      // Only include coverImage and logo if they were uploaded
+      if (coverImageUrl) {
+        submitData.coverImage = coverImageUrl;
+      }
+      if (logoUrl) {
+        submitData.logo = logoUrl;
+      }
 
       // Get token from localStorage or sessionStorage (same logic as AuthContext)
       const token = getAuthTokenOrNull();

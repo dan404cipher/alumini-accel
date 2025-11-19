@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,7 @@ interface Event {
   image?: string;
   registrationDeadline?: string;
   onlineUrl?: string;
+  meetingLink?: string;
   organizerNotes?: string;
   speakers?: Array<{
     name: string;
@@ -79,6 +80,8 @@ export const EditEventDialog = ({
   const [locationOptions, setLocationOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
+  const lastPopulatedEventId = useRef<string | null>(null);
+  const wasOpenRef = useRef(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -161,51 +164,151 @@ export const EditEventDialog = ({
     if (open) fetchLocations();
   }, [open]);
 
-  // Populate form data when event changes
+  // Populate form data when event changes or dialog opens
+  // Use event._id as the dependency instead of the whole event object to prevent unnecessary re-runs
+  const eventId = event?._id;
+
   useEffect(() => {
-    if (event) {
-      const startDate = new Date(event.startDate);
-      const endDate = new Date(event.endDate);
+    // Handle dialog close - reset form
+    if (!open) {
+      if (wasOpenRef.current) {
+        lastPopulatedEventId.current = null;
+        setFormData({
+          title: "",
+          description: "",
+          startDate: "",
+          startTime: "",
+          endDate: "",
+          endTime: "",
+          location: "",
+          type: "",
+          maxAttendees: "",
+          price: "",
+          priceType: "free",
+          tags: "",
+          registrationDeadline: "",
+          imageFile: null,
+          onlineUrl: "",
+          organizerNotes: "",
+          speakers: [],
+          agenda: [],
+        });
+        setFieldErrors({});
+      }
+      wasOpenRef.current = false;
+      return;
+    }
+
+    // Handle dialog open - populate form
+    if (open && event && eventId) {
+      wasOpenRef.current = true;
+
+      // Check if we've already populated for this event to prevent unnecessary re-population
+      if (lastPopulatedEventId.current === eventId) {
+        return;
+      }
+
+      // Convert dates - handle both string and Date object formats
+      const startDateValue = event.startDate as string | Date;
+      const endDateValue = event.endDate as string | Date;
+
+      const startDateStr =
+        typeof startDateValue === "string"
+          ? startDateValue
+          : startDateValue instanceof Date
+          ? startDateValue.toISOString()
+          : String(startDateValue);
+      const endDateStr =
+        typeof endDateValue === "string"
+          ? endDateValue
+          : endDateValue instanceof Date
+          ? endDateValue.toISOString()
+          : String(endDateValue);
+
+      const startDate = new Date(startDateStr);
+      const endDate = new Date(endDateStr);
 
       // Check if dates are valid
       const isValidStartDate = !isNaN(startDate.getTime());
       const isValidEndDate = !isNaN(endDate.getTime());
 
       // Handle registration deadline
-      const registrationDeadline = event.registrationDeadline
-        ? new Date(event.registrationDeadline)
-        : null;
-      const isValidRegistrationDeadline =
-        registrationDeadline && !isNaN(registrationDeadline.getTime());
+      let registrationDeadline: Date | null = null;
+      let isValidRegistrationDeadline = false;
+      if (event.registrationDeadline) {
+        const regDeadlineValue = event.registrationDeadline as string | Date;
+        const regDeadlineStr =
+          typeof regDeadlineValue === "string"
+            ? regDeadlineValue
+            : regDeadlineValue instanceof Date
+            ? regDeadlineValue.toISOString()
+            : String(regDeadlineValue);
+        registrationDeadline = new Date(regDeadlineStr);
+        isValidRegistrationDeadline = !isNaN(registrationDeadline.getTime());
+      }
 
       // Keep ObjectId if provided; if legacy string, leave as-is (may not match any current category)
       const eventTypeValue = event.type || "";
 
-      setFormData({
+      // Handle location: if event is online and has meetingLink, use that; otherwise use location
+      // For online events, meetingLink might be in location field or separate meetingLink field
+      let locationValue = event.location || "";
+      if (event.isOnline && event.meetingLink) {
+        // If meetingLink exists, use it for location (since submit handler checks location for URLs)
+        locationValue = event.meetingLink;
+      }
+      // Note: If location already contains http, it's already set correctly above
+
+      // Format dates for date inputs (YYYY-MM-DD)
+      const formattedStartDate = isValidStartDate
+        ? startDate.toISOString().split("T")[0]
+        : "";
+      const formattedEndDate = isValidEndDate
+        ? endDate.toISOString().split("T")[0]
+        : "";
+
+      // Format times for time inputs (HH:MM)
+      const formattedStartTime = isValidStartDate
+        ? startDate.toTimeString().slice(0, 5)
+        : "";
+      const formattedEndTime = isValidEndDate
+        ? endDate.toTimeString().slice(0, 5)
+        : "";
+
+      // Format registration deadline
+      const formattedRegDeadline = isValidRegistrationDeadline
+        ? registrationDeadline!.toISOString().split("T")[0]
+        : "";
+
+      const newFormData = {
         title: event.title || "",
         description: event.description || "",
-        startDate: isValidStartDate
-          ? startDate.toISOString().split("T")[0]
-          : "",
-        startTime: isValidStartDate ? startDate.toTimeString().slice(0, 5) : "",
-        endDate: isValidEndDate ? endDate.toISOString().split("T")[0] : "",
-        endTime: isValidEndDate ? endDate.toTimeString().slice(0, 5) : "",
-        location: event.location || "",
+        startDate: formattedStartDate,
+        startTime: formattedStartTime,
+        endDate: formattedEndDate,
+        endTime: formattedEndTime,
+        location: locationValue,
         type: eventTypeValue,
         maxAttendees: event.maxAttendees?.toString() || "",
         price: event.price?.toString() || "",
-        priceType: event.price > 0 ? "paid" : "free",
+        priceType: event.price && event.price > 0 ? "paid" : "free",
         tags: event.tags?.join(", ") || "",
-        registrationDeadline: isValidRegistrationDeadline
-          ? registrationDeadline.toISOString().split("T")[0]
-          : "",
-        onlineUrl: event.onlineUrl || "",
+        registrationDeadline: formattedRegDeadline,
+        imageFile: null, // Reset image file when dialog opens
+        onlineUrl: event.onlineUrl || event.meetingLink || "",
         organizerNotes: event.organizerNotes || "",
-        speakers: event.speakers || [],
-        agenda: event.agenda || [],
-      });
+        speakers: event.speakers ? [...event.speakers] : [],
+        agenda: event.agenda ? [...event.agenda] : [],
+      };
+
+      // Use functional update to ensure state is set correctly
+      setFormData(() => newFormData);
+      lastPopulatedEventId.current = eventId;
+
+      // Clear any previous field errors
+      setFieldErrors({});
     }
-  }, [event]);
+  }, [eventId, open, event]);
 
   const validateForm = () => {
     const errors: string[] = [];
@@ -429,10 +532,10 @@ export const EditEventDialog = ({
         return;
       }
 
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         imageFile: file,
-      });
+      }));
     }
   };
 
@@ -530,13 +633,15 @@ export const EditEventDialog = ({
         endDate: endDateTime.toISOString(),
         location: trimmedLocation,
         isOnline: formData.type === "webinar" ? true : false,
-        // Only add meetingLink for webinars and if it's a valid URL
+        // Only add meetingLink for webinars and if location is a valid URL
         ...(formData.type === "webinar" && trimmedLocation.startsWith("http")
           ? { meetingLink: trimmedLocation }
           : {}),
-        // Add onlineUrl for webinars if provided
-        ...(formData.type === "webinar" && formData.onlineUrl
-          ? { onlineUrl: formData.onlineUrl }
+        // Add onlineUrl for webinars if provided (use onlineUrl field or meetingLink as fallback)
+        ...(formData.type === "webinar" &&
+        (formData.onlineUrl ||
+          (trimmedLocation.startsWith("http") ? trimmedLocation : ""))
+          ? { onlineUrl: formData.onlineUrl || trimmedLocation }
           : {}),
         // Add registration deadline if provided
         ...(formData.registrationDeadline
@@ -642,7 +747,9 @@ export const EditEventDialog = ({
     }
   };
 
-  if (!event) return null;
+  if (!event) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -709,7 +816,10 @@ export const EditEventDialog = ({
                 value={formData.startDate}
                 min={new Date().toISOString().split("T")[0]}
                 onChange={(e) => {
-                  setFormData({ ...formData, startDate: e.target.value });
+                  setFormData((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }));
                   if (fieldErrors.startDate) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -732,7 +842,10 @@ export const EditEventDialog = ({
                 type="time"
                 value={formData.startTime}
                 onChange={(e) => {
-                  setFormData({ ...formData, startTime: e.target.value });
+                  setFormData((prev) => ({
+                    ...prev,
+                    startTime: e.target.value,
+                  }));
                   if (fieldErrors.startTime) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -760,7 +873,7 @@ export const EditEventDialog = ({
                   formData.startDate || new Date().toISOString().split("T")[0]
                 }
                 onChange={(e) => {
-                  setFormData({ ...formData, endDate: e.target.value });
+                  setFormData((prev) => ({ ...prev, endDate: e.target.value }));
                   if (fieldErrors.endDate) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -783,7 +896,7 @@ export const EditEventDialog = ({
                 type="time"
                 value={formData.endTime}
                 onChange={(e) => {
-                  setFormData({ ...formData, endTime: e.target.value });
+                  setFormData((prev) => ({ ...prev, endTime: e.target.value }));
                   if (fieldErrors.endTime) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -855,7 +968,7 @@ export const EditEventDialog = ({
               <Select
                 value={formData.type}
                 onValueChange={(value) => {
-                  setFormData({ ...formData, type: value });
+                  setFormData((prev) => ({ ...prev, type: value }));
                   if (fieldErrors.type) {
                     setFieldErrors((prev) => {
                       const newErrors = { ...prev };
@@ -915,11 +1028,11 @@ export const EditEventDialog = ({
                       value="free"
                       checked={formData.priceType === "free"}
                       onChange={(e) => {
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           priceType: e.target.value,
                           price: "",
-                        });
+                        }));
                         if (fieldErrors.price) {
                           setFieldErrors((prev) => {
                             const newErrors = { ...prev };
@@ -948,7 +1061,10 @@ export const EditEventDialog = ({
                       value="paid"
                       checked={formData.priceType === "paid"}
                       onChange={(e) => {
-                        setFormData({ ...formData, priceType: e.target.value });
+                        setFormData((prev) => ({
+                          ...prev,
+                          priceType: e.target.value,
+                        }));
                         if (fieldErrors.priceType) {
                           setFieldErrors((prev) => {
                             const newErrors = { ...prev };
@@ -1008,10 +1124,10 @@ export const EditEventDialog = ({
               value={formData.registrationDeadline}
               min={new Date().toISOString().split("T")[0]}
               onChange={(e) => {
-                setFormData({
-                  ...formData,
+                setFormData((prev) => ({
+                  ...prev,
                   registrationDeadline: e.target.value,
-                });
+                }));
                 if (fieldErrors.registrationDeadline) {
                   setFieldErrors((prev) => {
                     const newErrors = { ...prev };

@@ -10,6 +10,33 @@ import { getAuthTokenOrNull } from "@/utils/auth";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
+// Utility function to get full image URL
+// Handles both absolute URLs (for backward compatibility) and relative URLs
+export const getImageUrl = (url: string | null | undefined): string => {
+  if (!url) return "";
+  
+  // If it's an absolute URL, check if it's an old localhost URL that needs to be converted
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    // Check if it's a localhost URL pointing to uploads (old format)
+    // Convert old localhost URLs to relative paths
+    const localhostPattern = /^https?:\/\/localhost:\d+\/(uploads\/.+)$/;
+    const match = url.match(localhostPattern);
+    if (match) {
+      // Extract the relative path and use it
+      const relativePath = `/${match[1]}`;
+      const baseUrl = API_BASE_URL.replace("/api/v1", "");
+      return `${baseUrl}${relativePath}`;
+    }
+    // For external URLs (not localhost), return as-is
+    return url;
+  }
+  
+  // For relative URLs, construct full URL
+  // Remove /api/v1 from base URL since static files are served at root /uploads
+  const baseUrl = API_BASE_URL.replace("/api/v1", "");
+  return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

@@ -589,11 +589,13 @@ export const getCampaignDonors = asyncHandler(
         _id: donation._id,
         donorName: donation.anonymous
           ? "Anonymous"
-          : donation.donor
-          ? `${donation.donor.firstName} ${donation.donor.lastName}`
-          : donation.donorName || "Anonymous",
-        donorEmail: donation.anonymous ? null : donation.donor?.email || donation.donorEmail || null,
-        donorPhone: donation.anonymous ? null : donation.donor?.phone || donation.donorPhone || null,
+          : donation.donorName || 
+            (donation.donor ? `${donation.donor.firstName} ${donation.donor.lastName}` : null) ||
+            "Anonymous",
+        // Prioritize email from donation form over user profile email
+        donorEmail: donation.anonymous ? null : donation.donorEmail || donation.donor?.email || null,
+        // Prioritize phone from donation form over user profile phone
+        donorPhone: donation.anonymous ? null : donation.donorPhone || donation.donor?.phone || null,
         donorProfile: donation.anonymous ? null : donation.donor || null,
         amount: donation.amount,
         currency: donation.currency,
@@ -785,11 +787,13 @@ export const exportCampaignDonors = asyncHandler(
       // Format for CSV
       const format = req.query.format || "csv";
       const csvData = donations.map((donation: any) => ({
-        "Donor Name": donation.donor
-          ? `${donation.donor.firstName} ${donation.donor.lastName}`
-          : donation.donorName || "Unknown",
-        "Email": donation.donor?.email || donation.donorEmail || "",
-        "Phone": donation.donor?.phone || donation.donorPhone || "",
+        "Donor Name": donation.donorName || 
+          (donation.donor ? `${donation.donor.firstName} ${donation.donor.lastName}` : null) ||
+          "Unknown",
+        // Prioritize email from donation form over user profile email
+        "Email": donation.donorEmail || donation.donor?.email || "",
+        // Prioritize phone from donation form over user profile phone
+        "Phone": donation.donorPhone || donation.donor?.phone || "",
         "Amount": donation.amount,
         "Currency": donation.currency,
         "Payment Method": donation.paymentMethod,

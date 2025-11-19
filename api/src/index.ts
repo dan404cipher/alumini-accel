@@ -599,7 +599,21 @@ app.use(
 
     next();
   },
-  express.static(uploadsPath)
+  express.static(uploadsPath, {
+    // Don't call next() on 404 - just send 404 response
+    fallthrough: false,
+    setHeaders: (res, path) => {
+      // Set cache headers for static files
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+    },
+  }),
+  // Handle 404 for static files gracefully
+  (req, res) => {
+    res.status(404).json({
+      success: false,
+      message: "File not found",
+    });
+  }
 );
 
 // 404 handler

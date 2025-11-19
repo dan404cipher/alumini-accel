@@ -129,19 +129,17 @@ export const sendErrorResponse = (
 ) => {
   const statusCode = err.statusCode || 500;
 
-  // API errors
-  if (req.originalUrl.startsWith("/api")) {
-    return res.status(statusCode).json({
-      success: false,
-      message: err.message,
-      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-    });
+  // Always return JSON response (no view engine configured)
+  // For static file 404s, return a simple 404 without JSON
+  if (req.originalUrl.startsWith("/uploads/") && statusCode === 404) {
+    return res.status(404).send("File not found");
   }
 
-  // Rendered error page
-  return res.status(statusCode).render("error", {
-    title: "Something went wrong!",
+  // API errors and all other errors return JSON
+  return res.status(statusCode).json({
+    success: false,
     message: err.message,
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };
 

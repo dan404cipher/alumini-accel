@@ -60,7 +60,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
     staticFallbackCategories
   );
   const [funds, setFunds] = useState<Fund[]>([]);
-  const [selectedFundId, setSelectedFundId] = useState<string>("");
+  const [selectedFundId, setSelectedFundId] = useState<string>("__none__");
   const [targetAudience, setTargetAudience] = useState<TargetAudience>({});
   const [showTargeting, setShowTargeting] = useState(false);
 
@@ -121,6 +121,8 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
       // Set fund and targeting if editing
       if (editData.fundId) {
         setSelectedFundId(editData.fundId);
+      } else {
+        setSelectedFundId("__none__");
       }
       if (editData.targetAudience) {
         setTargetAudience(editData.targetAudience);
@@ -131,7 +133,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
         formData: defaultFormData,
         errors: defaultErrors,
       });
-      setSelectedFundId("");
+      setSelectedFundId("__none__");
       setTargetAudience({});
       setShowTargeting(false);
     }
@@ -276,7 +278,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
       detail: {
         formData: {
           ...state.formData,
-          fundId: selectedFundId || undefined,
+          fundId: selectedFundId && selectedFundId !== "__none__" ? selectedFundId : undefined,
           targetAudience: showTargeting && Object.keys(targetAudience).length > 0 ? targetAudience : undefined,
         },
         editIndex,
@@ -441,14 +443,14 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
                 Fund (Optional)
               </label>
               <Select
-                value={selectedFundId}
+                value={selectedFundId || "__none__"}
                 onValueChange={setSelectedFundId}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select a fund" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {funds.map((fund) => (
                     <SelectItem key={fund._id} value={fund._id}>
                       {fund.name}

@@ -77,6 +77,7 @@ import {
 } from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
+import EventManagement from "../EventManagement";
 
 // Type definitions
 interface PendingRequest {
@@ -1058,6 +1059,12 @@ const StaffPanel = () => {
                   label: "Eligible Students",
                   icon: GraduationCap,
                   color: "blue",
+                },
+                {
+                  key: "event-management",
+                  label: "Event Management",
+                  icon: Calendar,
+                  color: "amber",
                 },
               ].map((item) => {
                 const Icon = item.icon;
@@ -2638,6 +2645,9 @@ const StaffPanel = () => {
                   ))
                 )}
               </div>
+            </TabsContent>
+            <TabsContent value="event-management" className="space-y-6">
+              <EventManagement />
             </TabsContent>
           </Tabs>
         </div>

@@ -140,7 +140,7 @@ const eventSchema = new Schema<IEvent>(
         },
         status: {
           type: String,
-          enum: ["registered", "attended", "cancelled", "pending_payment"],
+          enum: ["registered", "attended", "cancelled", "pending_payment", "pending_approval"],
           default: "registered",
         },
         // Additional registration details
@@ -172,6 +172,30 @@ const eventSchema = new Schema<IEvent>(
         reminderSent: {
           type: Boolean,
           default: false,
+        },
+        // Approval fields for free events
+        approvalStatus: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: "pending",
+        },
+        approvedBy: {
+          type: mongoose.Types.ObjectId as any,
+          ref: "User",
+        },
+        approvedAt: {
+          type: Date,
+        },
+        rejectedBy: {
+          type: mongoose.Types.ObjectId as any,
+          ref: "User",
+        },
+        rejectedAt: {
+          type: Date,
+        },
+        rejectionReason: {
+          type: String,
+          trim: true,
         },
       },
     ],

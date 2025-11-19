@@ -1660,6 +1660,39 @@ export const eventAPI = {
       url: "/events/saved",
     });
   },
+
+  // Approve event registration
+  approveRegistration: async (eventId: string, attendeeId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${eventId}/registrations/${attendeeId}/approve`,
+    });
+  },
+
+  // Reject event registration
+  rejectRegistration: async (eventId: string, attendeeId: string, rejectionReason?: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${eventId}/registrations/${attendeeId}/reject`,
+      data: { rejectionReason },
+    });
+  },
+
+  // Get pending registrations for an event
+  getPendingRegistrations: async (eventId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/events/${eventId}/pending-registrations`,
+    });
+  },
+
+  // Get all events with pending registrations
+  getEventsWithPendingRegistrations: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/events/pending-registrations/all",
+    });
+  },
 };
 
 // Invitation API functions

@@ -417,7 +417,7 @@ export interface IEvent extends Document {
   attendees: Array<{
     userId: string;
     registeredAt: Date;
-    status: "registered" | "attended" | "cancelled" | "pending_payment";
+    status: "registered" | "attended" | "cancelled" | "pending_payment" | "pending_approval";
     // Additional registration details
     phone?: string;
     dietaryRequirements?: string;
@@ -426,6 +426,13 @@ export interface IEvent extends Document {
     amountPaid?: number;
     paymentStatus?: "free" | "pending" | "successful" | "failed";
     reminderSent?: boolean;
+    // Approval fields for free events
+    approvalStatus?: "pending" | "approved" | "rejected";
+    approvedBy?: string;
+    approvedAt?: Date;
+    rejectedBy?: string;
+    rejectedAt?: Date;
+    rejectionReason?: string;
   }>;
   photos: string[];
   feedback: Array<{

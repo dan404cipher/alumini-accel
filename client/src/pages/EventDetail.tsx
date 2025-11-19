@@ -96,6 +96,7 @@ const EventDetail = () => {
   const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
   const [isRegistered, setIsRegistered] = useState(false);
   const [isPendingPayment, setIsPendingPayment] = useState(false);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [typeLabel, setTypeLabel] = useState<string>("");
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -173,11 +174,13 @@ const EventDetail = () => {
           attendee.userId === user._id
       );
       setIsRegistered(!!myAttendee && myAttendee.status === "registered");
+      setIsPendingApproval(!!myAttendee && (myAttendee.status === "pending_approval" || myAttendee.approvalStatus === "pending"));
       setIsPendingPayment(
         !!myAttendee && myAttendee.status === "pending_payment"
       );
     } else {
       setIsRegistered(false);
+      setIsPendingApproval(false);
       setIsPendingPayment(false);
     }
   }, [event, user]);
@@ -730,6 +733,15 @@ const EventDetail = () => {
                       <Button variant="secondary" className="w-full sm:w-auto">
                         <Users className="w-4 h-4 mr-2" />
                         Registered
+                      </Button>
+                    ) : isPendingApproval ? (
+                      <Button
+                        variant="outline"
+                        disabled
+                        className="w-full sm:w-auto bg-amber-50 border-amber-200 text-amber-700"
+                      >
+                        <Clock className="w-4 h-4 mr-2" />
+                        Pending Approval
                       </Button>
                     ) : isPendingPayment ? (
                       <Button

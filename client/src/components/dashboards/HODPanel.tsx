@@ -77,6 +77,7 @@ import {
 import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
+import EventManagement from "../EventManagement";
 
 // Type definitions
 interface PendingRequest {
@@ -1150,6 +1151,12 @@ const HODPanel = () => {
                   label: "Categories",
                   icon: Tags,
                   color: "indigo",
+                },
+                {
+                  key: "event-management",
+                  label: "Event Management",
+                  icon: Calendar,
+                  color: "amber",
                 },
               ].map((item) => {
                 const Icon = item.icon;
@@ -2796,6 +2803,9 @@ const HODPanel = () => {
             {/* Category Management */}
             <TabsContent value="categories" className="space-y-6">
               <CategoryManagement />
+            </TabsContent>
+            <TabsContent value="event-management" className="space-y-6">
+              <EventManagement />
             </TabsContent>
 
             {/* Contributions */}

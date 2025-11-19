@@ -1179,6 +1179,138 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     return this.sendEmail({ to: data.to, subject, html, text });
   }
 
+  async sendEventRegistrationPendingEmail(data: {
+    to: string;
+    attendeeName: string;
+    eventTitle: string;
+    eventDescription?: string;
+    startDate: Date | string;
+    endDate?: Date | string;
+    location: string;
+    isOnline?: boolean;
+    meetingLink?: string;
+    collegeName?: string;
+    organizerName?: string;
+  }): Promise<boolean> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #f59e0b; color: white; padding: 30px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 5px 5px; }
+          .status { background-color: #fef3c7; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Event Registration Submitted</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${data.attendeeName},</p>
+            <p>Thank you for registering for <strong>${data.eventTitle}</strong>.</p>
+            <div class="status">
+              <p><strong>Status: Pending Approval</strong></p>
+              <p>Your registration has been submitted and is awaiting approval from the event organizers.</p>
+            </div>
+            <h3>Event Details:</h3>
+            <ul>
+              <li><strong>Date:</strong> ${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}</li>
+              <li><strong>Location:</strong> ${data.isOnline ? "Online" : data.location}</li>
+              ${data.meetingLink ? `<li><strong>Meeting Link:</strong> <a href="${data.meetingLink}">${data.meetingLink}</a></li>` : ""}
+            </ul>
+            ${data.collegeName ? `<p>Best regards,<br>${data.collegeName}</p>` : ""}
+          </div>
+          <div class="footer">
+            <p>You will receive another email once your registration is approved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    const text = `Event Registration Submitted\n\n${data.eventTitle}\nStatus: Pending Approval\n\nYour registration has been submitted and is awaiting approval.\n\nDate: ${new Date(data.startDate).toLocaleString()}\nLocation: ${data.isOnline ? "Online" : data.location}`;
+    const subject = `Registration Submitted: ${data.eventTitle} (Pending Approval)`;
+    return this.sendEmail({ to: data.to, subject, html, text });
+  }
+
+  async sendEventRegistrationApprovedEmail(data: {
+    to: string;
+    attendeeName: string;
+    eventTitle: string;
+    eventDescription?: string;
+    startDate: Date | string;
+    endDate?: Date | string;
+    location: string;
+    isOnline?: boolean;
+    meetingLink?: string;
+    collegeName?: string;
+    organizerName?: string;
+    speakers?: Array<{ name: string; title?: string; company?: string; photo?: string; bio?: string }>;
+    agenda?: Array<{ title: string; speaker?: string; description?: string }>;
+  }): Promise<boolean> {
+    const html = this.generateEventEmailTemplate({
+      type: "registration",
+      ...data,
+    });
+    const text = `Registration Approved\n\n${data.eventTitle}\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}Your registration has been approved!`;
+    const subject = `Registration Approved: ${data.eventTitle}`;
+    return this.sendEmail({ to: data.to, subject, html, text });
+  }
+
+  async sendEventRegistrationRejectedEmail(data: {
+    to: string;
+    attendeeName: string;
+    eventTitle: string;
+    rejectionReason?: string;
+    collegeName?: string;
+    organizerName?: string;
+  }): Promise<boolean> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #ef4444; color: white; padding: 30px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 5px 5px; }
+          .status { background-color: #fee2e2; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ef4444; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Event Registration Update</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${data.attendeeName},</p>
+            <p>We regret to inform you that your registration for <strong>${data.eventTitle}</strong> has not been approved at this time.</p>
+            <div class="status">
+              <p><strong>Status: Registration Rejected</strong></p>
+              ${data.rejectionReason ? `<p><strong>Reason:</strong> ${data.rejectionReason}</p>` : ""}
+            </div>
+            <p>If you have any questions, please contact the event organizers.</p>
+            ${data.collegeName ? `<p>Best regards,<br>${data.collegeName}</p>` : ""}
+          </div>
+          <div class="footer">
+            <p>Thank you for your interest in our events.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    const text = `Registration Rejected\n\n${data.eventTitle}\n\nYour registration has been rejected.${data.rejectionReason ? `\nReason: ${data.rejectionReason}` : ""}`;
+    const subject = `Registration Update: ${data.eventTitle}`;
+    return this.sendEmail({ to: data.to, subject, html, text });
+  }
+
   async sendDonationThankYouEmail(data: {
     to: string;
     donorName: string;

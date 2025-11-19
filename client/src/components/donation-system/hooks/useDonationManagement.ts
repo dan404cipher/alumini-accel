@@ -171,11 +171,14 @@ const transformDonationFromApi = (
     amount: safeAmount,
     dateISO: (apiDonation.createdAt as string) || "",
     status:
-      apiDonation.paymentStatus === "completed"
+      apiDonation.paymentStatus === "completed" ||
+      apiDonation.paymentStatus === "successful"
         ? "Completed"
         : apiDonation.paymentStatus === "pending"
         ? "Processing"
-        : "Failed",
+        : apiDonation.paymentStatus === "failed"
+        ? "Failed"
+        : "Processing", // Default to Processing for unknown statuses
     method: ((apiDonation.paymentMethod as string) ||
       "Bank Transfer") as PaymentMethod,
     taxDeductible: (apiDonation.taxDeductible as boolean) || true,
@@ -494,50 +497,74 @@ export const useDonationManagement = () => {
       try {
         const { donation, receipt, campaign } = event.detail;
 
-        // Try to refresh from API first
+        // Refresh donations from API with current pagination
         try {
-          const donationsResponse = await donationApi.getMyDonations();
-          const donationsData = (
-            donationsResponse.data as unknown as Record<string, unknown>[]
-          ).map(transformDonationFromApi);
-          setUserDonations(donationsData);
+          const donationsResponse = await donationApi.getMyDonations({
+            page: donationsPage,
+            limit: donationsLimit,
+          });
+          
+          if (
+            donationsResponse.data &&
+            donationsResponse.data.donations &&
+            Array.isArray(donationsResponse.data.donations)
+          ) {
+            const donationsData = donationsResponse.data.donations.map(
+              transformDonationFromApi
+            );
+            setUserDonations(donationsData);
+            setDonationsPagination(donationsResponse.data.pagination);
+          }
 
           // Refresh campaigns to update raised amounts
-          const campaignsResponse = await donationApi.getAllCampaigns();
-          const campaignsData = (
-            campaignsResponse.data as unknown as Record<string, unknown>[]
-          ).map(transformCampaignFromApi);
-          setCampaigns(campaignsData);
-          setDonationCampaignsArr(campaignsData);
+          const campaignsResponse = await donationApi.getAllCampaigns({
+            category: categoryFilter || undefined,
+            page: campaignsPage,
+            limit: campaignsLimit,
+          });
+          
+          if (
+            campaignsResponse.data &&
+            campaignsResponse.data.campaigns &&
+            Array.isArray(campaignsResponse.data.campaigns)
+          ) {
+            const campaignsData = campaignsResponse.data.campaigns.map(
+              transformCampaignFromApi
+            );
+            setCampaigns(campaignsData);
+            setDonationCampaignsArr(campaignsData);
+            setCampaignsPagination(campaignsResponse.data.pagination);
+          }
         } catch (apiError) {
-          // If API fails, add the donation to existing mock data
+          console.error("Error refreshing donation data from API:", apiError);
+          // If API fails, add the donation to existing list as fallback
           const newDonation: DonationHistoryItem = {
-            id: donation?.id || generateDonationId(),
+            id: donation?.id || donation?._id || generateDonationId(),
             campaignTitle: campaign?.title || "New Campaign",
-            receiptId: receipt?.receiptId || generateReceiptId(),
+            receiptId: receipt?.receiptId || receipt?.transactionId || generateReceiptId(),
             amount: donation?.amount || 0,
             dateISO: new Date().toISOString(),
             status: "Completed" as DonationStatus,
-            method: donation?.paymentMethod || "Bank Transfer",
-            taxDeductible: donation?.taxDeductible || true,
+            method: (donation?.paymentMethod || "Bank Transfer") as PaymentMethod,
+            taxDeductible: donation?.taxDeductible !== false,
             donorInfo: {
-              firstName: donation?.donorInfo?.firstName || "Unknown",
-              lastName: donation?.donorInfo?.lastName || "Donor",
-              email: donation?.donorInfo?.email || "donor@email.com",
-              phone: donation?.donorInfo?.phone || "+91 00000 00000",
-              address: donation?.donorInfo?.address || "Address not provided",
-              city: donation?.donorInfo?.city || "City not provided",
-              state: donation?.donorInfo?.state || "State not provided",
-              pincode: donation?.donorInfo?.pincode || "000000",
-              anonymous: donation?.donorInfo?.anonymous || false,
+              firstName: donation?.donorInfo?.firstName || donation?.donorName?.split(" ")[0] || "Unknown",
+              lastName: donation?.donorInfo?.lastName || donation?.donorName?.split(" ").slice(1).join(" ") || "Donor",
+              email: donation?.donorInfo?.email || donation?.donorEmail || "donor@email.com",
+              phone: donation?.donorInfo?.phone || donation?.donorPhone || "+91 00000 00000",
+              address: donation?.donorInfo?.address || donation?.donorAddress || "",
+              city: donation?.donorInfo?.city || "",
+              state: donation?.donorInfo?.state || "",
+              pincode: donation?.donorInfo?.pincode || "",
+              anonymous: donation?.donorInfo?.anonymous || donation?.anonymous || false,
             },
           };
 
           // Add new donation to existing list
-          setUserDonations((prevDonations) => [...prevDonations, newDonation]);
+          setUserDonations((prevDonations) => [newDonation, ...prevDonations]);
         }
       } catch (error) {
-        console.error("Error refreshing donation data:", error);
+        console.error("Error handling donation completion:", error);
       }
     };
 

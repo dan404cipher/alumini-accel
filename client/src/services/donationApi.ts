@@ -22,6 +22,7 @@ export interface Campaign {
   featured: boolean;
   tags: string[];
   location?: string;
+  fundId?: string;
   contactInfo: {
     email: string;
     phone?: string;
@@ -94,6 +95,19 @@ export interface CreateCampaignData {
   };
   tags?: string[];
   allowAnonymous?: boolean;
+  fundId?: string;
+  targetAudience?: {
+    batchYears?: number[];
+    locations?: string[];
+    professions?: string[];
+    interests?: string[];
+    departments?: string[];
+    graduationYears?: number[];
+    donationHistory?: {
+      minAmount?: number;
+      minDonations?: number;
+    };
+  };
 }
 
 export interface CreateDonationData {
@@ -339,6 +353,31 @@ class DonationApiService {
 
   async getDonationStats(): Promise<{ success: boolean; data: any }> {
     return this.makeRequest("/donations/stats");
+  }
+
+  async downloadReceipt(
+    donationId: string
+  ): Promise<Blob> {
+    const token = getAuthTokenOrNull();
+    if (!token) {
+      throw new Error("Access token is required");
+    }
+
+    const response = await fetch(`${this.baseUrl}/donations/${donationId}/receipt`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `HTTP error! status: ${response.status}`
+      );
+    }
+
+    return response.blob();
   }
 }
 

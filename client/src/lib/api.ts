@@ -3004,6 +3004,123 @@ export const notificationAPI = {
   },
 };
 
+// Fund API
+export const fundAPI = {
+  // Get all funds
+  getAllFunds: async (params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/funds?${queryString}` : "/funds",
+    });
+  },
+
+  // Get fund by ID
+  getFundById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/funds/${id}`,
+    });
+  },
+
+  // Create fund
+  createFund: async (data: {
+    name: string;
+    description: string;
+    status?: "active" | "archived" | "suspended";
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/funds",
+      data,
+    });
+  },
+
+  // Update fund
+  updateFund: async (
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      status?: "active" | "archived" | "suspended";
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/funds/${id}`,
+      data,
+    });
+  },
+
+  // Delete fund
+  deleteFund: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/funds/${id}`,
+    });
+  },
+
+  // Get fund statistics
+  getFundStats: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/funds/${id}/stats`,
+    });
+  },
+};
+
+// Campaign Targeting API
+export const campaignTargetingAPI = {
+  // Preview target audience
+  previewAudience: async (filters: {
+    batchYears?: number[];
+    locations?: string[];
+    professions?: string[];
+    interests?: string[];
+    departments?: string[];
+    graduationYears?: number[];
+    donationHistory?: {
+      minAmount?: number;
+      minDonations?: number;
+    };
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/campaigns/preview-audience",
+      data: { filters },
+    });
+  },
+
+  // Get targeted alumni
+  getTargetedAlumni: async (filters: {
+    batchYears?: number[];
+    locations?: string[];
+    professions?: string[];
+    interests?: string[];
+    departments?: string[];
+    graduationYears?: number[];
+    donationHistory?: {
+      minAmount?: number;
+      minDonations?: number;
+    };
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/campaigns/targeted-alumni",
+      data: { filters },
+    });
+  },
+};
+
 // Report API functions
 export const reportAPI = {
   // Create a report

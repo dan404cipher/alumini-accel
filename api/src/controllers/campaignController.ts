@@ -3,6 +3,7 @@ import Campaign from "../models/Campaign";
 import Donation from "../models/Donation";
 import { asyncHandler } from "../middleware/errorHandler";
 import { logger } from "../utils/logger";
+import { AuthenticatedRequest } from "../types";
 
 // Get all campaigns
 export const getAllCampaigns = asyncHandler(
@@ -835,6 +836,71 @@ export const exportCampaignDonors = asyncHandler(
   }
 );
 
+// Preview target audience for campaign
+export const previewTargetAudience = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { filters } = req.body;
+
+    if (!filters) {
+      return res.status(400).json({
+        success: false,
+        message: "Targeting filters are required",
+      });
+    }
+
+    const { previewAudience } = require("../services/campaignTargetingService");
+
+    try {
+      const result = await previewAudience(filters, req.user?.tenantId?.toString());
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error previewing target audience:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error previewing target audience",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Get targeted alumni
+export const getTargetedAlumni = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { filters } = req.body;
+
+    if (!filters) {
+      return res.status(400).json({
+        success: false,
+        message: "Targeting filters are required",
+      });
+    }
+
+    const { getTargetedAlumni } = require("../services/campaignTargetingService");
+
+    try {
+      const alumni = await getTargetedAlumni(filters, req.user?.tenantId?.toString());
+
+      return res.status(200).json({
+        success: true,
+        data: alumni,
+        count: alumni.length,
+      });
+    } catch (error) {
+      logger.error("Error getting targeted alumni:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error getting targeted alumni",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 export default {
   getAllCampaigns,
   getCampaignById,
@@ -847,4 +913,6 @@ export default {
   getCampaignDonors,
   getCampaignDonorStats,
   exportCampaignDonors,
+  previewTargetAudience,
+  getTargetedAlumni,
 };

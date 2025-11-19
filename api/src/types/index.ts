@@ -293,6 +293,13 @@ export interface IAlumniProfile extends Document {
     }>;
   }>;
   careerInterests: string[];
+  donationHistory?: {
+    totalDonated: number;
+    totalDonations: number;
+    lastDonationDate?: Date;
+    lifetimeGiving: number;
+  };
+  updateDonationHistory(amount: number): Promise<void>;
   createdAt: Date;
   updatedAt: Date;
 }

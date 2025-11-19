@@ -120,6 +120,7 @@ const DonationManagementSystem: React.FC = () => {
     };
   }, []);
 
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex flex-1 overflow-hidden">
@@ -577,6 +578,7 @@ const DonationManagementSystem: React.FC = () => {
           handleShareCampaign(selectedCampaignForDetails);
         }}
       />
+
       <Footer />
     </div>
   );

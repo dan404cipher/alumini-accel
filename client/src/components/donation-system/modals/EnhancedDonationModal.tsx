@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Heart,
   X,
@@ -25,6 +25,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { donationApi, CreateDonationData } from "../../../services/donationApi";
 import RazorpayService from "../../../services/razorpayService";
+import ReceiptDownload from "../components/ReceiptDownload";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FormStep {
   id: string;
@@ -46,11 +48,13 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
   campaignIndex,
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [generatedReceipt, setGeneratedReceipt] =
     useState<DonationReceipt | null>(null);
+  const [donationId, setDonationId] = useState<string>("");
 
   // Form data
   const [formData, setFormData] = useState<DonationFormData>({
@@ -76,6 +80,29 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
     recurring: false,
     recurringFrequency: "monthly",
   });
+
+  // Pre-populate form with user data when modal opens (only once per open)
+  const hasPopulatedRef = useRef(false);
+  useEffect(() => {
+    if (open && user && !hasPopulatedRef.current) {
+      setFormData((prev) => ({
+        ...prev,
+        donorInfo: {
+          ...prev.donorInfo,
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          email: user.email || "",
+          phone: user.phone || "",
+          // Address fields (address, city, state, pincode) are not available in User model
+          // They will remain empty and user needs to fill them if required for tax receipt
+        },
+      }));
+      hasPopulatedRef.current = true;
+    } else if (!open) {
+      // Reset the flag when modal closes
+      hasPopulatedRef.current = false;
+    }
+  }, [open, user]);
 
   // Form errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -195,6 +222,7 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
               };
 
               setGeneratedReceipt(receipt);
+              setDonationId(response.data?._id || response.data?.id || "");
               setCurrentStep(3); // Go to receipt step
 
               toast({
@@ -263,6 +291,7 @@ const EnhancedDonationModal: React.FC<DonationModalProps> = ({
       };
 
       setGeneratedReceipt(receipt);
+      setDonationId(response.data?._id || response.data?.id || "");
       setCurrentStep(3);
 
       toast({
@@ -954,13 +983,23 @@ Thank you for your generous contribution!
 
               {/* Action Buttons */}
               <div className="flex gap-3">
-                <button
-                  onClick={downloadReceipt}
-                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-3 rounded-lg transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Receipt
-                </button>
+                {donationId ? (
+                  <ReceiptDownload
+                    donationId={donationId}
+                    receiptId={generatedReceipt.receiptId}
+                    variant="default"
+                    size="md"
+                    disabled={false}
+                  />
+                ) : (
+                  <button
+                    onClick={downloadReceipt}
+                    className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-3 rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Receipt
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     // Share functionality could be added here

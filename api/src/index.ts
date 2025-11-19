@@ -65,6 +65,7 @@ dotenv.config();
 import paymentRoutes from "./routes/payment";
 import reportRoutes from "./routes/reports";
 import categoryRoutes from "./routes/category";
+import fundRoutes from "./routes/funds";
 import cron from "node-cron";
 import Event from "./models/Event";
 import Tenant from "./models/Tenant";
@@ -574,6 +575,7 @@ app.use("/api/v1", sharesRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/funds", fundRoutes);
 
 // Serve static files with CORS headers
 app.use(

@@ -11,6 +11,11 @@ interface EmailOptions {
   templateId?: string;
   metadata?: Record<string, any>;
   fromName?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer | string;
+    contentType?: string;
+  }>;
 }
 
 interface BatchEmailOptions {
@@ -214,13 +219,21 @@ class EmailService {
       this.transporter = nodemailer.createTransport(smtpConfig);
 
       const fromName = options.fromName || "Alumni Accel";
-      const mailOptions = {
+      const mailOptions: any = {
         from: `"${fromName}" <${smtpUser}>`,
         to: options.to,
         subject: options.subject || "No Subject",
         html: options.html || "",
         text: options.text || "",
       };
+
+      if (options.attachments && options.attachments.length > 0) {
+        mailOptions.attachments = options.attachments.map((att) => ({
+          filename: att.filename,
+          content: att.content,
+          contentType: att.contentType,
+        }));
+      }
 
       const result = await this.transporter.sendMail(mailOptions);
       logger.info(
@@ -1164,6 +1177,135 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     const text = `Reminder: ${data.eventTitle} (Tomorrow)\n\n${new Date(data.startDate).toLocaleString()}${data.endDate ? ` - ${new Date(data.endDate).toLocaleString()}` : ""}\n${data.isOnline ? "Online" : data.location}\n${data.meetingLink ? `Link: ${data.meetingLink}\n` : ""}${typeof data.price === "number" && data.price > 0 ? `Price: ₹${Number(data.price).toFixed(2)}` : "Price: Free"}`;
     const subject = `Reminder: ${data.eventTitle} is tomorrow`;
     return this.sendEmail({ to: data.to, subject, html, text });
+  }
+
+  async sendDonationThankYouEmail(data: {
+    to: string;
+    donorName: string;
+    amount: number;
+    currency: string;
+    campaignName?: string;
+    fundName?: string;
+    collegeName?: string;
+    impactMessage?: string;
+  }): Promise<boolean> {
+    const formattedAmount = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: data.currency || "USD",
+    }).format(data.amount);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #10b981; color: white; padding: 30px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 5px 5px; }
+          .amount { font-size: 32px; font-weight: bold; color: #10b981; margin: 20px 0; text-align: center; }
+          .impact { background-color: #ecfdf5; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #10b981; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Thank You for Your Generous Donation!</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${data.donorName},</p>
+            <p>We are incredibly grateful for your generous contribution of <span class="amount">${formattedAmount}</span>.</p>
+            ${data.campaignName ? `<p><strong>Campaign:</strong> ${data.campaignName}</p>` : ""}
+            ${data.fundName ? `<p><strong>Fund:</strong> ${data.fundName}</p>` : ""}
+            ${data.impactMessage ? `<div class="impact"><p><strong>Your Impact:</strong></p><p>${data.impactMessage}</p></div>` : ""}
+            <p>Your support helps us continue our mission and make a meaningful difference. Every contribution, no matter the size, creates positive change.</p>
+            <p>Your donation receipt has been sent to this email address. Please keep it for your records.</p>
+            <p>Once again, thank you for your generosity and support!</p>
+            <p>With gratitude,<br>${data.collegeName || "Alumni Relations Team"}</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated email. If you have any questions, please contact us.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `Thank You for Your Generous Donation!\n\nDear ${data.donorName},\n\nWe are incredibly grateful for your generous contribution of ${formattedAmount}.\n\n${data.campaignName ? `Campaign: ${data.campaignName}\n` : ""}${data.fundName ? `Fund: ${data.fundName}\n` : ""}${data.impactMessage ? `\nYour Impact:\n${data.impactMessage}\n` : ""}\nYour support helps us continue our mission and make a meaningful difference.\n\nYour donation receipt has been sent to this email address.\n\nThank you for your generosity!\n\n${data.collegeName || "Alumni Relations Team"}`;
+
+    const subject = `Thank You for Your Donation of ${formattedAmount}`;
+    return this.sendEmail({ to: data.to, subject, html, text });
+  }
+
+  async sendDonationReceiptEmail(data: {
+    to: string;
+    donorName: string;
+    amount: number;
+    currency: string;
+    receiptNumber: string;
+    campaignName?: string;
+    fundName?: string;
+    pdfBuffer: Buffer;
+  }): Promise<boolean> {
+    const formattedAmount = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: data.currency || "USD",
+    }).format(data.amount);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #10b981; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background-color: #f9fafb; padding: 20px; border-radius: 0 0 5px 5px; }
+          .amount { font-size: 24px; font-weight: bold; color: #10b981; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Donation Receipt</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${data.donorName},</p>
+            <p>Thank you for your donation of <span class="amount">${formattedAmount}</span>.</p>
+            <p>Your receipt is attached to this email for your records.</p>
+            ${data.campaignName ? `<p><strong>Campaign:</strong> ${data.campaignName}</p>` : ""}
+            ${data.fundName ? `<p><strong>Fund:</strong> ${data.fundName}</p>` : ""}
+            <p>Receipt Number: <strong>${data.receiptNumber}</strong></p>
+            <p>Your contribution makes a real difference. We truly appreciate your support!</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated receipt. Please keep it for your records.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `Donation Receipt\n\nDear ${data.donorName},\n\nThank you for your donation of ${formattedAmount}.\n\nYour receipt is attached to this email.\n\nReceipt Number: ${data.receiptNumber}\n\nThank you for your support!`;
+
+    const subject = `Donation Receipt - ${data.receiptNumber}`;
+    return this.sendEmail({
+      to: data.to,
+      subject,
+      html,
+      text,
+      attachments: [
+        {
+          filename: `receipt-${data.receiptNumber}.pdf`,
+          content: data.pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
   }
 }
 

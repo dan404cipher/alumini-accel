@@ -1,4 +1,29 @@
 // Donation Management Types
+export interface Fund {
+  _id: string;
+  name: string;
+  description: string;
+  totalRaised: number;
+  campaigns: string[] | Campaign[];
+  status: "active" | "archived" | "suspended";
+  createdAt?: string;
+  updatedAt?: string;
+  campaignCount?: number;
+}
+
+export interface TargetAudience {
+  batchYears?: number[];
+  locations?: string[];
+  professions?: string[];
+  interests?: string[];
+  departments?: string[];
+  graduationYears?: number[];
+  donationHistory?: {
+    minAmount?: number;
+    minDonations?: number;
+  };
+}
+
 export interface Campaign {
   _id?: string; // For API compatibility
   title: string;
@@ -9,6 +34,8 @@ export interface Campaign {
   imageUrl: string;
   raised: number;
   donors: number;
+  fundId?: string;
+  targetAudience?: TargetAudience;
 }
 
 export interface CampaignForm
@@ -19,6 +46,8 @@ export interface CampaignForm
   imageFile?: File | null;
   imagePreviewUrl?: string;
   campaignId?: string; // For editing existing campaigns
+  fundId?: string;
+  targetAudience?: TargetAudience;
 }
 
 export interface ErrorState {
@@ -137,4 +166,23 @@ export interface CampaignModalProps {
   onClose: () => void;
   editData?: CampaignForm;
   editIndex?: number | null;
+}
+
+export interface DonationHistory {
+  totalDonated: number;
+  totalDonations: number;
+  lastDonationDate?: string;
+  lifetimeGiving: number;
+}
+
+export interface FundModalProps {
+  open: boolean;
+  onClose: () => void;
+  editData?: Fund;
+}
+
+export interface CampaignTargetingProps {
+  value: TargetAudience;
+  onChange: (filters: TargetAudience) => void;
+  onPreview?: (count: number) => void;
 }

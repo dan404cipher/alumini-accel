@@ -5,6 +5,7 @@ export interface ICampaign extends Document {
   description: string;
   tenantId: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
+  fundId?: mongoose.Types.ObjectId;
   category: string;
   targetAmount: number;
   currentAmount: number;
@@ -67,6 +68,12 @@ const campaignSchema = new Schema<ICampaign>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    fundId: {
+      type: Schema.Types.ObjectId,
+      ref: "Fund",
+      required: false,
+      index: true,
     },
     category: {
       type: String,
@@ -233,6 +240,7 @@ campaignSchema.index({ category: 1 });
 campaignSchema.index({ featured: 1, status: 1 });
 campaignSchema.index({ endDate: 1 });
 campaignSchema.index({ tags: 1 });
+campaignSchema.index({ fundId: 1 });
 
 // Virtual for progress percentage
 campaignSchema.virtual("progressPercentage").get(function () {
@@ -261,7 +269,7 @@ campaignSchema.methods.updateStatistics = async function () {
   const Donation = mongoose.model("Donation");
 
   const stats = await Donation.aggregate([
-    { $match: { campaignId: this._id, status: "completed" } },
+    { $match: { campaignId: this._id, paymentStatus: { $in: ["completed", "successful"] } } },
     {
       $group: {
         _id: null,
@@ -281,6 +289,15 @@ campaignSchema.methods.updateStatistics = async function () {
   }
 
   await this.save();
+
+  // Update linked Fund's totalRaised if campaign has fundId
+  if (this.fundId) {
+    const Fund = mongoose.model("Fund");
+    const fund = await Fund.findById(this.fundId);
+    if (fund) {
+      await fund.updateTotalRaised();
+    }
+  }
 };
 
 // Pre-save middleware

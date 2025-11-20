@@ -296,7 +296,7 @@ const AlumniProfile = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation activeTab="alumni" onTabChange={() => {}} />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4  pt-24">
         {/* Header */}
         <div className="mb-6">
           <Button

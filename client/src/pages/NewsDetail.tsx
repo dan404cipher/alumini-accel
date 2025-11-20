@@ -95,17 +95,14 @@ const NewsDetail = () => {
   });
 
   // Filter and prepare suggested news (exclude current news, prioritize recent)
-  const allNews = ((suggestedNewsResponse?.data as { news?: News[] })
-    ?.news ||
+  const allNews = ((suggestedNewsResponse?.data as { news?: News[] })?.news ||
     (suggestedNewsResponse?.data as News[]) ||
     []) as News[];
   const suggestedNews = allNews
     .filter((n: News) => n._id !== news?._id)
     .sort((a: News, b: News) => {
       // Sort by date (newest first)
-      return (
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     })
     .slice(0, 5);
 
@@ -190,7 +187,7 @@ const NewsDetail = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 container mx-auto px-4 py-8">
+          <div className="flex-1 container mx-auto px-4 py-8 pt-24">
             <div className="animate-pulse space-y-6">
               <div className="h-8 bg-gray-200 rounded w-1/4"></div>
               <div className="h-64 bg-gray-200 rounded-lg"></div>
@@ -211,19 +208,19 @@ const NewsDetail = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 container mx-auto px-4 py-8">
+          <div className="flex-1 container mx-auto px-4 py-8 pt-24">
             <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              News Not Found
-            </h1>
-            <p className="text-gray-600 mb-6">
-              The news article you're looking for doesn't exist or has been
-              removed.
-            </p>
-            <Button onClick={() => navigate("/news")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to News
-            </Button>
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                News Not Found
+              </h1>
+              <p className="text-gray-600 mb-6">
+                The news article you're looking for doesn't exist or has been
+                removed.
+              </p>
+              <Button onClick={() => navigate("/news")}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to News
+              </Button>
             </div>
           </div>
         </div>
@@ -359,7 +356,7 @@ const NewsDetail = () => {
 
         {/* Main Content */}
         <div className="flex-1 lg:ml-80 overflow-y-auto">
-          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 pt-24">
             {/* Mobile Sidebar Toggle */}
             <div className="lg:hidden mb-4">
               <Button
@@ -373,8 +370,8 @@ const NewsDetail = () => {
               </Button>
             </div>
 
-          {/* Back Button and Share Button */}
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
+            {/* Back Button and Share Button */}
+            <div className="flex items-center justify-between mb-4 sm:mb-6 mt-10">
               <Button
                 variant="ghost"
                 onClick={() => navigate("/news")}
@@ -383,26 +380,26 @@ const NewsDetail = () => {
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden sm:inline">Back to News</span>
                 <span className="sm:hidden">Back</span>
-            </Button>
-            <Button variant="outline" onClick={handleShareNews}>
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-          </div>
+              </Button>
+              <Button variant="outline" onClick={handleShareNews}>
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+            </div>
 
             {/* News Image */}
             {imageUrl && (
               <div className="mb-6 sm:mb-8 relative group cursor-pointer">
                 <div className="aspect-video overflow-hidden rounded-lg bg-gray-100">
-                <img
+                  <img
                     src={imageUrl}
-                  alt={news.title}
-                  className="w-full h-full object-cover"
+                    alt={news.title}
+                    className="w-full h-full object-cover"
                     onClick={() => setIsImageModalOpen(true)}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
                     <Maximize2 className="w-8 h-8 sm:w-10 sm:h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
@@ -412,79 +409,79 @@ const NewsDetail = () => {
 
             {/* News Title and Meta Info */}
             <Card className="mb-4 sm:mb-6">
-            <CardHeader>
+              <CardHeader>
                 <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
+                  <div className="flex-1">
                     <CardTitle className="text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6">
                       {news.title}
                     </CardTitle>
 
-                  {/* Author and Date Info */}
+                    {/* Author and Date Info */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-sm text-gray-500 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4" />
-                      <span>
-                        {news.author?.firstName || "Unknown"}{" "}
-                        {news.author?.lastName || "Author"}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4" />
+                        <span>
+                          {news.author?.firstName || "Unknown"}{" "}
+                          {news.author?.lastName || "Author"}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatDate(news.createdAt)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>{formatDate(news.createdAt)}</span>
+
+                    {/* Share Status */}
+                    <div className="flex items-center space-x-2 mb-4">
+                      {news.isShared ? (
+                        <Badge
+                          variant="default"
+                          className="bg-green-100 text-green-800"
+                        >
+                          <Share2 className="w-3 h-3 mr-1" />
+                          Shared with Community
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Draft</Badge>
+                      )}
                     </div>
                   </div>
 
-                  {/* Share Status */}
-                  <div className="flex items-center space-x-2 mb-4">
-                    {news.isShared ? (
-                      <Badge
-                        variant="default"
-                        className="bg-green-100 text-green-800"
-                      >
-                        <Share2 className="w-3 h-3 mr-1" />
-                        Shared with Community
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Draft</Badge>
-                    )}
-                  </div>
+                  {/* Action Menu */}
+                  {canManageNews && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleEditNews}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={handleDeleteNews}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
-
-                {/* Action Menu */}
-                {canManageNews && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handleEditNews}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={handleDeleteNews}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            </CardHeader>
+              </CardHeader>
             </Card>
 
             {/* News Summary */}
             <Card>
               <CardContent className="pt-6">
                 <CardDescription className="text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
-                {news.summary}
-              </CardDescription>
-            </CardContent>
-          </Card>
+                  {news.summary}
+                </CardDescription>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -512,34 +509,34 @@ const NewsDetail = () => {
         </Dialog>
       )}
 
-          {/* Edit News Dialog */}
-          {selectedNews && (
-            <EditNewsDialog
-              open={isEditNewsOpen}
-              onOpenChange={setIsEditNewsOpen}
-              news={selectedNews}
-              onNewsUpdated={handleNewsUpdated}
-            />
-          )}
+      {/* Edit News Dialog */}
+      {selectedNews && (
+        <EditNewsDialog
+          open={isEditNewsOpen}
+          onOpenChange={setIsEditNewsOpen}
+          news={selectedNews}
+          onNewsUpdated={handleNewsUpdated}
+        />
+      )}
 
-          {/* Delete News Dialog */}
-          {selectedNews && (
-            <DeleteNewsDialog
-              open={isDeleteNewsOpen}
-              onOpenChange={setIsDeleteNewsOpen}
-              news={selectedNews}
-              onNewsDeleted={handleNewsDeleted}
-            />
-          )}
+      {/* Delete News Dialog */}
+      {selectedNews && (
+        <DeleteNewsDialog
+          open={isDeleteNewsOpen}
+          onOpenChange={setIsDeleteNewsOpen}
+          news={selectedNews}
+          onNewsDeleted={handleNewsDeleted}
+        />
+      )}
 
-          {/* Share News Dialog */}
-          {selectedNews && (
-            <ShareNewsDialog
-              open={isShareNewsOpen}
-              onOpenChange={setIsShareNewsOpen}
-              news={selectedNews}
-            />
-          )}
+      {/* Share News Dialog */}
+      {selectedNews && (
+        <ShareNewsDialog
+          open={isShareNewsOpen}
+          onOpenChange={setIsShareNewsOpen}
+          news={selectedNews}
+        />
+      )}
     </div>
   );
 };

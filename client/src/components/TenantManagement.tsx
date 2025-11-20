@@ -420,8 +420,8 @@ const TenantManagement: React.FC = () => {
 
   const filteredTenants = tenants.filter((tenant) => {
     const matchesSearch =
-      tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tenant.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (tenant.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (tenant.domain?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
       (tenant.contactInfo?.email &&
         tenant.contactInfo.email
           .toLowerCase()

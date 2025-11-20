@@ -918,7 +918,7 @@ const AlumniPortal = () => {
             <img
               src={collegeBanner}
               alt="College Banner"
-              className="w-full h-64 object-cover"
+              className="w-full h-96 object-cover"
             />
             <div className="absolute inset-0 bg-black/40"></div>
             <div className="absolute bottom-0 left-0 right-0 p-6">

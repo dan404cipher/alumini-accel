@@ -293,7 +293,7 @@ const AlumniProfile = () => {
       <Navigation activeTab="alumni" onTabChange={() => {}} />
       <div className="container mx-auto px-4  pt-24">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-2">
           <Button
             onClick={() => navigate("/alumni")}
             variant="ghost"

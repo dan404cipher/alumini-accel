@@ -1321,15 +1321,6 @@ const Profile = () => {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                   <label className="text-sm font-medium text-gray-500">
-                                    University
-                                  </label>
-                                  <p className="text-sm font-medium">
-                                    {(profileData.university as string) ||
-                                      "Not specified"}
-                                  </p>
-                                </div>
-                                <div>
-                                  <label className="text-sm font-medium text-gray-500">
                                     Department
                                   </label>
                                   <p className="text-sm font-medium">

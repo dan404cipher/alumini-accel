@@ -66,8 +66,12 @@ export const EducationalDetailsForm = ({
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [departments, setDepartments] = useState<Array<{ _id: string; name: string; programs?: string[] }>>([]);
-  const [programs, setPrograms] = useState<Array<{ _id: string; name: string }>>([]);
+  const [departments, setDepartments] = useState<
+    Array<{ _id: string; name: string; programs?: string[] }>
+  >([]);
+  const [programs, setPrograms] = useState<
+    Array<{ _id: string; name: string }>
+  >([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
   const {
@@ -197,25 +201,29 @@ export const EducationalDetailsForm = ({
   const filteredDepartments = selectedProgram
     ? (() => {
         // Find the selected program's ID
-        const selectedProgramObj = programs.find((p) => p.name === selectedProgram);
+        const selectedProgramObj = programs.find(
+          (p) => p.name === selectedProgram
+        );
         if (!selectedProgramObj) {
           return []; // If program not found, show no departments
         }
-        
+
         // Only show departments that are linked to the selected program
         return departments.filter((dept) => {
           // If department has no programs linked, don't show it (must be linked to a program)
           if (!dept.programs || dept.programs.length === 0) {
             return false;
           }
-          
+
           // Handle both string IDs and populated objects
-          const deptProgramIds = dept.programs.map((p: any) => {
-            if (typeof p === 'string') return p;
-            if (p && typeof p === 'object' && p._id) return p._id;
-            return null;
-          }).filter((id: string | null) => id !== null);
-          
+          const deptProgramIds = dept.programs
+            .map((p: any) => {
+              if (typeof p === "string") return p;
+              if (p && typeof p === "object" && p._id) return p._id;
+              return null;
+            })
+            .filter((id: string | null) => id !== null);
+
           // Only show if this department is linked to the selected program
           return deptProgramIds.includes(selectedProgramObj._id);
         });
@@ -227,18 +235,28 @@ export const EducationalDetailsForm = ({
     if (selectedProgram) {
       const currentDepartment = watch("department");
       if (currentDepartment) {
-        const selectedProgramObj = programs.find((p) => p.name === selectedProgram);
+        const selectedProgramObj = programs.find(
+          (p) => p.name === selectedProgram
+        );
         if (selectedProgramObj) {
-          const currentDeptObj = departments.find((d) => d.name === currentDepartment);
+          const currentDeptObj = departments.find(
+            (d) => d.name === currentDepartment
+          );
           // If current department is not valid for selected program, clear it
-          if (currentDeptObj && currentDeptObj.programs && currentDeptObj.programs.length > 0) {
+          if (
+            currentDeptObj &&
+            currentDeptObj.programs &&
+            currentDeptObj.programs.length > 0
+          ) {
             // Handle both string IDs and populated objects
-            const deptProgramIds = currentDeptObj.programs.map((p: any) => {
-              if (typeof p === 'string') return p;
-              if (p && typeof p === 'object' && p._id) return p._id;
-              return null;
-            }).filter((id: string | null) => id !== null);
-            
+            const deptProgramIds = currentDeptObj.programs
+              .map((p: any) => {
+                if (typeof p === "string") return p;
+                if (p && typeof p === "object" && p._id) return p._id;
+                return null;
+              })
+              .filter((id: string | null) => id !== null);
+
             if (!deptProgramIds.includes(selectedProgramObj._id)) {
               setValue("department", "");
             }
@@ -282,30 +300,12 @@ export const EducationalDetailsForm = ({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="university">College *</Label>
-            <div className="relative">
-              <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="university"
-                {...register("university")}
-                placeholder="Enter your college name"
-                className="pl-10"
-                disabled={!!tenantName}
-                readOnly={!!tenantName}
-              />
-            </div>
-            {tenantName && (
-              <p className="text-xs text-gray-500">
-                This field is automatically set from your college information
-              </p>
-            )}
-            {errors.university && (
-              <p className="text-sm text-red-600">
-                {errors.university.message}
-              </p>
-            )}
-          </div>
+          {/* University field is hidden but kept in form data for submission */}
+          <input
+            type="hidden"
+            {...register("university")}
+            value={tenantName || profileData?.university || ""}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -353,14 +353,14 @@ export const EducationalDetailsForm = ({
                 disabled={loadingCategories || !selectedProgram}
               >
                 <SelectTrigger>
-                  <SelectValue 
+                  <SelectValue
                     placeholder={
-                      !selectedProgram 
-                        ? "Select program first" 
-                        : filteredDepartments.length === 0 
+                      !selectedProgram
+                        ? "Select program first"
+                        : filteredDepartments.length === 0
                         ? "No departments available"
                         : "Select department"
-                    } 
+                    }
                   />
                 </SelectTrigger>
                 <SelectContent>
@@ -387,7 +387,8 @@ export const EducationalDetailsForm = ({
               )}
               {selectedProgram && filteredDepartments.length === 0 && (
                 <p className="text-xs text-yellow-600">
-                  No departments available for this program. Please contact admin to link departments.
+                  No departments available for this program. Please contact
+                  admin to link departments.
                 </p>
               )}
               {loadingCategories && (

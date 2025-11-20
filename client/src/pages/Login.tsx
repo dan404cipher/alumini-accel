@@ -34,7 +34,7 @@ import {
   GraduationCap,
   Loader2,
 } from "lucide-react";
-import { tenantAPI } from "@/lib/api";
+import { tenantAPI , API_BASE_URL} from "@/lib/api";
 
 interface CollegeInfo {
   name: string;
@@ -138,7 +138,7 @@ const Login = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/auth/forgot-password`,
         {
           method: "POST",

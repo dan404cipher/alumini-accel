@@ -75,6 +75,8 @@ import {
   campaignAPI,
   galleryAPI,
   newsAPI,
+  getImageUrl,
+  API_BASE_URL,
 } from "@/lib/api";
 import AlumniManagement from "../AlumniManagement";
 import CampaignManagement from "../CampaignManagement";
@@ -855,8 +857,7 @@ const CollegeAdminDashboard = () => {
 
     try {
       setLoading((prev) => ({ ...prev, donations: true }));
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -887,8 +888,7 @@ const CollegeAdminDashboard = () => {
 
     try {
       setLoading((prev) => ({ ...prev, mentorships: true }));
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -1449,7 +1449,7 @@ const CollegeAdminDashboard = () => {
       try {
         const logoResponse = await tenantAPI.getLogo(tenantId);
         if (typeof logoResponse === "string") {
-          setLogoPreview(logoResponse);
+          setLogoPreview(getImageUrl(logoResponse));
         }
       } catch (error) {
         // Logo not found or error loading logo
@@ -1459,7 +1459,7 @@ const CollegeAdminDashboard = () => {
       try {
         const bannerResponse = await tenantAPI.getBanner(tenantId);
         if (typeof bannerResponse === "string") {
-          setBannerPreview(bannerResponse);
+          setBannerPreview(getImageUrl(bannerResponse));
         }
       } catch (error) {
         // Check localStorage as fallback
@@ -1551,10 +1551,7 @@ const CollegeAdminDashboard = () => {
         role?: string;
       }
       const userWithTenant = user as UserWithTenant;
-      const tenantId =
-        userWithTenant?.tenantId ||
-        userWithTenant?.tenant?._id ||
-        (userWithTenant?.role === "college_admin" ? userWithTenant._id : null);
+      const tenantId = userWithTenant?.tenantId || userWithTenant?.tenant?._id;
       if (tenantId) {
         loadCollegeSettings(tenantId);
       }
@@ -1777,7 +1774,7 @@ const CollegeAdminDashboard = () => {
           {activeTab === "dashboard" && bannerPreview && (
             <div className="relative overflow-hidden rounded-lg shadow-lg">
               <img
-                src={bannerPreview}
+                src={bannerPreview ? getImageUrl(bannerPreview) : ""}
                 alt="College Banner"
                 className="w-full h-80 object-cover"
               />
@@ -2877,7 +2874,9 @@ const CollegeAdminDashboard = () => {
                       <div className="space-y-4">
                         <div className="relative">
                           <img
-                            src={bannerPreview}
+                            src={
+                              bannerPreview ? getImageUrl(bannerPreview) : ""
+                            }
                             alt="Banner Preview"
                             className="w-full h-48 object-cover border rounded-lg"
                           />

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +55,7 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${community._id}`,
         {
           method: "DELETE",

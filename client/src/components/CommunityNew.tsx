@@ -79,7 +79,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
-import { communityAPI, categoryAPI, getImageUrl } from "@/lib/api";
+import { communityAPI, categoryAPI, getImageUrl , API_BASE_URL} from "@/lib/api";
 
 // Helper function to get auth token
 const getAuthToken = (): string => {
@@ -657,7 +657,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities?${params}`,
         {
           headers: {
@@ -719,7 +719,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/community/${communityId}`,
         {
           headers: {
@@ -750,7 +750,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${communityId}`,
         {
           headers: {
@@ -880,7 +880,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/upload/community/${type}`,
         {
           method: "POST",
@@ -920,7 +920,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/users/search?q=${encodeURIComponent(query)}`,
         {
           headers: {
@@ -1112,7 +1112,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities`,
         {
           method: "POST",
@@ -1176,7 +1176,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${communityId}/join`,
         {
           method: "POST",
@@ -1215,7 +1215,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${communityId}/leave`,
         {
           method: "DELETE",
@@ -1354,7 +1354,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts`,
         {
           method: "POST",
@@ -1423,7 +1423,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-memberships/approve`,
         {
           method: "POST",
@@ -1465,7 +1465,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-memberships/remove`,
         {
           method: "POST",
@@ -1507,7 +1507,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-memberships/promote`,
         {
           method: "POST",
@@ -1547,7 +1547,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/${postId}/pin`,
         {
           method: "POST",
@@ -1587,7 +1587,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/${postId}/announcement`,
         {
           method: "POST",
@@ -1635,7 +1635,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/${postId}`,
         {
           method: "DELETE",

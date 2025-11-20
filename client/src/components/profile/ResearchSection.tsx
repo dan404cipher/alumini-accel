@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -82,7 +83,7 @@ export const ResearchSection = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const response = await fetch(
         `${apiUrl}/students/profile/research/${researchId}`,
         {
@@ -264,8 +265,7 @@ export const ResearchSection = ({
                             size="sm"
                             onClick={() => {
                               const apiUrl =
-                                import.meta.env.VITE_API_BASE_URL ||
-                                "http://localhost:3000/api/v1";
+                                API_BASE_URL;
                               const baseUrl = apiUrl.replace("/api/v1", "");
                               const fullUrl = `${baseUrl}${item.publicationFile}`;
                               window.open(fullUrl, "_blank");
@@ -298,8 +298,7 @@ export const ResearchSection = ({
                             size="sm"
                             onClick={() => {
                               const apiUrl =
-                                import.meta.env.VITE_API_BASE_URL ||
-                                "http://localhost:3000/api/v1";
+                                API_BASE_URL;
                               const baseUrl = apiUrl.replace("/api/v1", "");
                               const fullUrl = `${baseUrl}${item.conferenceFile}`;
                               window.open(fullUrl, "_blank");

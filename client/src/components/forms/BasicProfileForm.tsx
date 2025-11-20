@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -122,7 +123,7 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
       };
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const response = await fetch(`${apiUrl}/users/profile`, {
         method: "PUT",
         headers: {

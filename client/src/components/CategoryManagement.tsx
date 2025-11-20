@@ -52,6 +52,7 @@ interface Category {
   entityType: string;
   isActive: boolean;
   order: number;
+  programs?: string[] | Array<{ _id: string; name: string }>;
   createdAt: string;
   createdBy?: {
     firstName: string;
@@ -68,6 +69,7 @@ const ENTITY_TYPES = [
     section: "community",
   },
   { value: "department", label: "Departments", section: "departments" },
+  { value: "program", label: "Programs", section: "departments" },
   { value: "event_type", label: "Event Types", section: "events" },
   { value: "event_location", label: "Event Locations", section: "events" },
   {
@@ -118,7 +120,11 @@ export const CategoryManagement = () => {
     order: 0,
     isActive: true,
     entityType: "community",
+    programs: [] as string[],
   });
+  const [availablePrograms, setAvailablePrograms] = useState<Array<{ _id: string; name: string }>>([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [selectedProgramForDept, setSelectedProgramForDept] = useState<string>("");
 
   // Check if user can manage categories
   const canManage = ["college_admin", "hod", "staff"].includes(
@@ -200,23 +206,52 @@ export const CategoryManagement = () => {
           return;
         }
       }
+      // Validate: For new departments, program must be selected
+      if (activeTab === "department" && !editingCategory && !selectedProgramForDept) {
+        toast({
+          title: "Program Required",
+          description: "Please select a program before creating a department.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (editingCategory) {
-        await categoryAPI.update(editingCategory._id, {
+        const updateData: any = {
           ...formData,
           order: undefined as unknown as number, // ensure order not sent if removed
           name: trimmedName,
-        });
+        };
+        // Only include programs if entityType is department
+        if (formData.entityType === "department") {
+          updateData.programs = formData.programs;
+        } else {
+          delete updateData.programs;
+        }
+        await categoryAPI.update(editingCategory._id, updateData);
         toast({
           title: "Success",
           description: "Category updated successfully",
         });
       } else {
-        await categoryAPI.create({
+        const createData: any = {
           ...formData,
           order: undefined as unknown as number,
           name: trimmedName,
           entityType: activeTab,
-        });
+        };
+        // Only include programs if entityType is department
+        if (activeTab === "department") {
+          // If selectedProgramForDept is set, use it; otherwise use formData.programs
+          if (selectedProgramForDept) {
+            createData.programs = [selectedProgramForDept];
+          } else {
+            createData.programs = formData.programs;
+          }
+        } else {
+          delete createData.programs;
+        }
+        await categoryAPI.create(createData);
         toast({
           title: "Success",
           description: "Category created successfully",
@@ -262,7 +297,7 @@ export const CategoryManagement = () => {
     }
   };
 
-  const handleEdit = (category: Category) => {
+  const handleEdit = async (category: Category) => {
     setEditingCategory(category);
     setFormData({
       name: category.name,
@@ -270,14 +305,45 @@ export const CategoryManagement = () => {
       order: category.order,
       isActive: category.isActive,
       entityType: category.entityType,
+      programs: (category.programs as any)?.map((p: any) => typeof p === 'string' ? p : p._id || p) || [],
     });
+    
+    // Fetch programs if editing a department category
+    if (category.entityType === "department") {
+      await fetchPrograms();
+    }
+    
     setIsDialogOpen(true);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     resetForm();
     setFormData((prev) => ({ ...prev, entityType: activeTab }));
+    setSelectedProgramForDept("");
+    
+    // Fetch programs if adding a department category
+    if (activeTab === "department") {
+      await fetchPrograms();
+    }
+    
     setIsDialogOpen(true);
+  };
+
+  const fetchPrograms = async () => {
+    try {
+      setLoadingPrograms(true);
+      const response = await categoryAPI.getAll({
+        entityType: "program",
+        isActive: "true",
+      });
+      if (response.success && response.data) {
+        setAvailablePrograms(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching programs:", error);
+    } finally {
+      setLoadingPrograms(false);
+    }
   };
 
   const resetForm = () => {
@@ -288,7 +354,10 @@ export const CategoryManagement = () => {
       order: 0,
       isActive: true,
       entityType: activeTab,
+      programs: [],
     });
+    setAvailablePrograms([]);
+    setSelectedProgramForDept("");
   };
 
   if (!canManage) {
@@ -613,21 +682,42 @@ export const CategoryManagement = () => {
             <DialogDescription>
               {editingCategory
                 ? "Update the category details below."
+                : activeTab === "department"
+                ? "Select a program first, then create a department for that program."
                 : `Add a new ${currentEntityLabel.toLowerCase()} for your college.`}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4 py-4">
               {/* Category Type removed; entity type inferred from active tab */}
+              {/* Show program selector first for new departments */}
+              {formData.entityType === "department" && !editingCategory && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                  <p className="text-sm text-blue-800 font-medium mb-1">
+                    Step 1: Select Program
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Choose which program this department belongs to. You can add this department to more programs later by editing it.
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  Name <span className="text-red-500">*</span>
+                  {formData.entityType === "department" && !editingCategory
+                    ? "Department Name"
+                    : "Name"}{" "}
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
+                  }
+                  disabled={
+                    formData.entityType === "department" &&
+                    !editingCategory &&
+                    !selectedProgramForDept
                   }
                   placeholder={
                     formData.entityType === "event_type"
@@ -643,11 +733,20 @@ export const CategoryManagement = () => {
                       : formData.entityType === "job_industry"
                       ? "e.g., AI/ML, FinTech"
                       : formData.entityType === "department"
-                      ? "e.g., Alumni Department, HOD Department, Staffs Department, Computer Science"
+                      ? !selectedProgramForDept && !editingCategory
+                        ? "Select a program first"
+                        : "e.g., Computer Science, Electrical Engineering"
                       : "e.g., Workshop, Full-time, Entry Level"
                   }
                   required
                 />
+                {formData.entityType === "department" &&
+                  !editingCategory &&
+                  !selectedProgramForDept && (
+                    <p className="text-xs text-muted-foreground">
+                      Please select a program above to continue
+                    </p>
+                  )}
                 {formData.entityType === "event_price_range" && (
                   <p className="text-xs text-muted-foreground">
                     Allowed formats: Free, min-max (e.g., 0-25), min+ (e.g.,
@@ -667,6 +766,116 @@ export const CategoryManagement = () => {
                   rows={3}
                 />
               </div>
+              {/* Program selection for NEW department categories - must select program first */}
+              {formData.entityType === "department" && !editingCategory && (
+                <div className="space-y-2">
+                  <Label htmlFor="selectProgram">
+                    Select Program <span className="text-red-500">*</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (Choose the program this department belongs to)
+                    </span>
+                  </Label>
+                  {loadingPrograms ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading programs...
+                    </div>
+                  ) : availablePrograms.length === 0 ? (
+                    <div className="border rounded-md p-4 bg-yellow-50 border-yellow-200">
+                      <p className="text-sm text-yellow-800 font-medium mb-1">
+                        No programs available
+                      </p>
+                      <p className="text-xs text-yellow-700">
+                        Please create programs first before creating departments.
+                      </p>
+                    </div>
+                  ) : (
+                    <Select
+                      value={selectedProgramForDept}
+                      onValueChange={(value) => {
+                        setSelectedProgramForDept(value);
+                        setFormData({ ...formData, programs: [value] });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a program (required)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availablePrograms.map((program) => (
+                          <SelectItem key={program._id} value={program._id}>
+                            {program.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {selectedProgramForDept && (
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Department will be created for:{" "}
+                      {availablePrograms.find((p) => p._id === selectedProgramForDept)?.name}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Programs selection for EDITING department categories - multi-select */}
+              {formData.entityType === "department" && editingCategory && (
+                <div className="space-y-2">
+                  <Label htmlFor="programs">
+                    Linked Programs
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (Select which programs this department is available for)
+                    </span>
+                  </Label>
+                  {loadingPrograms ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading programs...
+                    </div>
+                  ) : availablePrograms.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No programs available. Please create programs first.
+                    </p>
+                  ) : (
+                    <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                      {availablePrograms.map((program) => (
+                        <label
+                          key={program._id}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.programs.includes(program._id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  programs: [...formData.programs, program._id],
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  programs: formData.programs.filter(
+                                    (id) => id !== program._id
+                                  ),
+                                });
+                              }
+                            }}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-sm">{program.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {formData.programs.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {formData.programs.length} program(s) selected
+                    </p>
+                  )}
+                </div>
+              )}
               {/* Display Order removed */}
               {editingCategory && (
                 <div className="space-y-2">
@@ -700,7 +909,15 @@ export const CategoryManagement = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button
+                type="submit"
+                disabled={
+                  submitting ||
+                  (formData.entityType === "department" &&
+                    !editingCategory &&
+                    !selectedProgramForDept)
+                }
+              >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -708,6 +925,8 @@ export const CategoryManagement = () => {
                   </>
                 ) : editingCategory ? (
                   "Update Category"
+                ) : formData.entityType === "department" && !selectedProgramForDept ? (
+                  "Select Program First"
                 ) : (
                   "Create Category"
                 )}

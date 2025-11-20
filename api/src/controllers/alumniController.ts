@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import AlumniProfile from "../models/AlumniProfile";
 import User from "../models/User";
+import Tenant from "../models/Tenant";
 import { logger } from "../utils/logger";
 import { UserRole } from "../types";
 import { updateProfileCompletion } from "../utils/profileCompletion";
@@ -477,9 +478,18 @@ export const createProfile = async (req: Request, res: Response) => {
       });
     }
 
+    // Auto-populate university from tenant if not provided
+    let finalUniversity = university;
+    if (!finalUniversity && req.user?.tenantId) {
+      const tenant = await Tenant.findById(req.user.tenantId);
+      if (tenant) {
+        finalUniversity = tenant.name;
+      }
+    }
+
     const alumniProfile = new AlumniProfile({
       userId: req.user.id,
-      university,
+      university: finalUniversity || "Not specified",
       program,
       batchYear,
       graduationYear,
@@ -686,8 +696,17 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
+    // Auto-populate university from tenant if not provided or empty
+    let finalUniversity = university;
+    if ((!finalUniversity || finalUniversity.trim() === "") && req.user?.tenantId) {
+      const tenant = await Tenant.findById(req.user.tenantId);
+      if (tenant) {
+        finalUniversity = tenant.name;
+      }
+    }
+
     // Update fields if provided
-    if (university !== undefined) alumniProfile.university = university;
+    if (finalUniversity !== undefined) alumniProfile.university = finalUniversity;
     if (program !== undefined) alumniProfile.program = program;
     if (batchYear !== undefined) alumniProfile.batchYear = batchYear;
     if (graduationYear !== undefined)

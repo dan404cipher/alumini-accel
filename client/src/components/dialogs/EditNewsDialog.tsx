@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Image as ImageIcon } from "lucide-react";
-import { newsAPI } from "@/lib/api";
+import { newsAPI, API_BASE_URL } from "@/lib/api";
 
 interface News {
   _id: string;
@@ -379,12 +379,7 @@ export const EditNewsDialog = ({
                     src={
                       news.image.startsWith("http")
                         ? news.image
-                        : `${
-                            import.meta.env.VITE_API_BASE_URL?.replace(
-                              "/api/v1",
-                              ""
-                            ) || "http://localhost:3000"
-                          }${news.image}`
+                        : `${API_BASE_URL.replace("/api/v1", "")}${news.image}`
                     }
                     alt="Current news image"
                     className="w-full h-full object-cover"

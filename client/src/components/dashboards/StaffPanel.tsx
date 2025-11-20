@@ -65,8 +65,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import {
-  userAPI,
+import { userAPI,
   campaignAPI,
   tenantAPI,
   alumniAPI,
@@ -74,7 +73,7 @@ import {
   galleryAPI,
   newsAPI,
   communityAPI,
-} from "@/lib/api";
+  getImageUrl, API_BASE_URL } from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
 import EventManagement from "../EventManagement";
@@ -634,7 +633,7 @@ const StaffPanel = () => {
         try {
           const bannerResponse = await tenantAPI.getBanner(user.tenantId);
           if (typeof bannerResponse === "string") {
-            setCollegeBanner(bannerResponse);
+            setCollegeBanner(getImageUrl(bannerResponse));
           }
         } catch (error) {
           console.log("No banner found or error loading banner:", error);
@@ -813,7 +812,7 @@ const StaffPanel = () => {
     try {
       setLoading((prev) => ({ ...prev, donations: true }));
       const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -844,7 +843,7 @@ const StaffPanel = () => {
     try {
       setLoading((prev) => ({ ...prev, mentorships: true }));
       const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -1176,7 +1175,7 @@ const StaffPanel = () => {
           {activeTab === "dashboard" && collegeBanner && (
             <div className="relative overflow-hidden rounded-lg shadow-lg mt-6">
               <img
-                src={collegeBanner}
+                src={collegeBanner ? getImageUrl(collegeBanner) : ""}
                 alt="College Banner"
                 className="w-full h-80 object-cover"
               />
@@ -2569,8 +2568,7 @@ const StaffPanel = () => {
                                       )
                                       ? alumniItem.userId.profilePicture
                                       : `${(
-                                          import.meta.env.VITE_API_BASE_URL ||
-                                          "http://localhost:3000/api/v1"
+                                          API_BASE_URL
                                         ).replace("/api/v1", "")}${
                                           alumniItem.userId.profilePicture
                                         }`

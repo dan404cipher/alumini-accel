@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -177,7 +178,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
       const token = getAuthToken();
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/upload/image`,
         {
           method: "POST",
@@ -241,7 +242,7 @@ const EditPostModal: React.FC<EditPostModalProps> = ({
       const token = getAuthToken();
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/${post._id}`,
         {
           method: "PUT",

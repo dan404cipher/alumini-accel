@@ -4,6 +4,7 @@ export type EntityType =
   | "community" // For communities
   | "community_post_category" // For community post categories
   | "department" // For departments within a college
+  | "program" // For academic programs (B.Tech, MBA, B.Sc, etc.)
   | "event_type" // For event types
   | "event_location" // For event locations
   | "event_price_range" // For event price ranges
@@ -23,6 +24,7 @@ export interface ICategory extends Document {
   createdBy: mongoose.Types.ObjectId;
   isActive: boolean;
   order: number; // For sorting/display order
+  programs?: mongoose.Types.ObjectId[]; // For department categories: linked program category IDs
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,7 @@ const CategorySchema = new Schema<ICategory>(
         "community",
         "community_post_category",
         "department",
+        "program",
         "event_type",
         "event_location",
         "event_price_range",
@@ -83,6 +86,22 @@ const CategorySchema = new Schema<ICategory>(
     order: {
       type: Number,
       default: 0,
+    },
+    programs: {
+      type: [Schema.Types.ObjectId],
+      ref: "Category",
+      default: [],
+      // Only applicable for department entityType
+      validate: {
+        validator: function (this: ICategory, value: mongoose.Types.ObjectId[]) {
+          // Only allow programs field for department entityType
+          if (this.entityType !== "department") {
+            return !value || value.length === 0;
+          }
+          return true;
+        },
+        message: "Programs field is only applicable for department categories",
+      },
     },
   },
   {

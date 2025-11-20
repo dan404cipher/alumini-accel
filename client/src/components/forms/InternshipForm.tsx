@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { Plus, X } from "lucide-react";
 
+import { API_BASE_URL } from "@/lib/api";
 const internshipSchema = z.object({
   company: z.string().min(1, "Company name is required"),
   position: z.string().min(1, "Position is required"),
@@ -100,7 +101,7 @@ export const InternshipForm = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const baseEndpoint =
         userRole === "student"
           ? `${apiUrl}/students/profile/internships`

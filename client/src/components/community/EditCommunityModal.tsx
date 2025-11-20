@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -155,7 +156,7 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({
 
           const uploadResponse = await fetch(
             `${
-              import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+              API_BASE_URL
             }/upload/community/cover`,
             {
               method: "POST",
@@ -190,7 +191,7 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({
 
           const uploadResponse = await fetch(
             `${
-              import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+              API_BASE_URL
             }/upload/community/logo`,
             {
               method: "POST",
@@ -250,7 +251,7 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${community._id}`,
         {
           method: "PUT",

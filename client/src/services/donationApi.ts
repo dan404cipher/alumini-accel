@@ -1,8 +1,5 @@
 import { getAuthTokenOrNull } from "@/utils/auth";
-
-// API base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+import { API_BASE_URL } from "@/lib/api";
 
 // Types matching your frontend
 export interface Campaign {

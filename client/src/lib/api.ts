@@ -6,15 +6,20 @@ import axios, {
 } from "axios";
 import { getAuthTokenOrNull } from "@/utils/auth";
 
-// API base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+// API base URL - must be set in environment variables
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+if (!API_BASE_URL) {
+  throw new Error(
+    "VITE_API_BASE_URL is not set. Please configure it in your .env file."
+  );
+}
 
 // Utility function to get full image URL
 // Handles both absolute URLs (for backward compatibility) and relative URLs
 export const getImageUrl = (url: string | null | undefined): string => {
   if (!url) return "";
-  
+
   // If it's an absolute URL, check if it's an old localhost URL that needs to be converted
   if (url.startsWith("http://") || url.startsWith("https://")) {
     // Check if it's a localhost URL pointing to uploads (old format)
@@ -30,7 +35,7 @@ export const getImageUrl = (url: string | null | undefined): string => {
     // For external URLs (not localhost), return as-is
     return url;
   }
-  
+
   // For relative URLs, construct full URL
   // Remove /api/v1 from base URL since static files are served at root /uploads
   const baseUrl = API_BASE_URL.replace("/api/v1", "");
@@ -49,6 +54,22 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token and check rate limits
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Validate tenantId in URL for tenant routes (prevent invalid API calls)
+    if (config.url?.includes("/tenants/")) {
+      const match = config.url.match(/\/tenants\/([^/]+)/);
+      if (match && match[1]) {
+        const tenantId = match[1];
+        // MongoDB ObjectId is 24 hex characters - validate format
+        if (!/^[0-9a-fA-F]{24}$/.test(tenantId)) {
+          // Reject invalid tenantId before making the request
+          const error = new Error("Invalid tenant ID format");
+          (error as any).isValidationError = true;
+          (error as any).skipLogging = true;
+          return Promise.reject(error);
+        }
+      }
+    }
+
     // Check client-side rate limiting for auth endpoints (excluding /auth/me)
     if (config.url?.includes("/auth/") && !config.url?.includes("/auth/me")) {
       const rateLimitKey = `auth-${config.url}`;
@@ -145,6 +166,22 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // Suppress 404 errors for logo/banner endpoints (expected when not set)
+    if (
+      error.response?.status === 404 &&
+      (originalRequest.url?.includes("/logo") ||
+        originalRequest.url?.includes("/banner"))
+    ) {
+      // Mark as handled to prevent console logging
+      error._isHandled = true;
+      error._skipLogging = true;
+    }
+
+    // Suppress validation errors (invalid tenantId format)
+    if ((error as any).isValidationError || (error as any).skipLogging) {
+      error._skipLogging = true;
+    }
 
     // Handle 429 errors (rate limited) with exponential backoff
     if (error.response?.status === 429) {
@@ -470,10 +507,7 @@ export const userAPI = {
   },
 
   // Get eligible students for alumni promotion (admin only)
-  getEligibleStudents: async (params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getEligibleStudents: async (params?: { page?: number; limit?: number }) => {
     return apiRequest({
       method: "GET",
       url: "/users/eligible-students",
@@ -1670,7 +1704,11 @@ export const eventAPI = {
   },
 
   // Reject event registration
-  rejectRegistration: async (eventId: string, attendeeId: string, rejectionReason?: string) => {
+  rejectRegistration: async (
+    eventId: string,
+    attendeeId: string,
+    rejectionReason?: string
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/events/${eventId}/registrations/${attendeeId}/reject`,
@@ -2449,10 +2487,23 @@ export const tenantAPI = {
 
   // Get tenant by ID
   getTenantById: async (id: string) => {
-    return apiRequest({
-      method: "GET",
-      url: `/tenants/${id}`,
-    });
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (!id || typeof id !== "string" || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return { success: false, message: "Invalid tenant ID format" };
+    }
+
+    try {
+      return await apiRequest({
+        method: "GET",
+        url: `/tenants/${id}`,
+      });
+    } catch (error: any) {
+      // Handle 404 gracefully
+      if (error?.response?.status === 404) {
+        return { success: false, message: "Tenant not found" };
+      }
+      throw error;
+    }
   },
 
   // Create new tenant
@@ -2552,6 +2603,15 @@ export const tenantAPI = {
 
   // Get college logo
   getLogo: async (tenantId: string) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return null;
+    }
+
     try {
       const response = await apiRequest({
         method: "GET",
@@ -2564,9 +2624,16 @@ export const tenantAPI = {
       }
 
       return null;
-    } catch (error) {
-      console.error("Error fetching logo:", error);
-      throw error;
+    } catch (error: any) {
+      // Handle 404 gracefully - tenant or logo not found (don't log to console)
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      // Only log non-404 errors
+      if (error?.response?.status !== 404) {
+        console.error("Error fetching logo:", error);
+      }
+      return null; // Return null instead of throwing
     }
   },
 
@@ -2595,6 +2662,15 @@ export const tenantAPI = {
 
   // Get college banner
   getBanner: async (tenantId: string) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return null;
+    }
+
     try {
       const response = await apiRequest({
         method: "GET",
@@ -2607,9 +2683,16 @@ export const tenantAPI = {
       }
 
       return null;
-    } catch (error) {
-      console.error("Error fetching banner:", error);
-      throw error;
+    } catch (error: any) {
+      // Handle 404 gracefully - tenant or banner not found (don't log to console)
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      // Only log non-404 errors
+      if (error?.response?.status !== 404) {
+        console.error("Error fetching banner:", error);
+      }
+      return null; // Return null instead of throwing
     }
   },
 
@@ -2791,9 +2874,12 @@ export const campaignAPI = {
   // Export campaign donors
   exportCampaignDonors: async (id: string, format: "csv" | "json" = "csv") => {
     if (format === "csv") {
-      const response = await api.get(`/campaigns/${id}/donors/export?format=csv`, {
-        responseType: "blob",
-      });
+      const response = await api.get(
+        `/campaigns/${id}/donors/export?format=csv`,
+        {
+          responseType: "blob",
+        }
+      );
       return response.data;
     } else {
       return apiRequest({

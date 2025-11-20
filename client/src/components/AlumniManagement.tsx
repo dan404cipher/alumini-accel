@@ -43,7 +43,7 @@ import {
   MapPin,
   Calendar,
 } from "lucide-react";
-import { alumniAPI } from "@/lib/api";
+import { alumniAPI, API_BASE_URL } from "@/lib/api";
 
 interface AlumniProfile {
   _id: string;
@@ -172,7 +172,7 @@ const AlumniManagement = () => {
 
         const response = await fetch(
           `${
-            import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+            API_BASE_URL
           }/tenants`,
           {
             headers: {
@@ -786,8 +786,7 @@ const AlumniManagement = () => {
                             ? alumni.userId.profileImage ||
                               alumni.userId.profilePicture
                             : `${(
-                                import.meta.env.VITE_API_BASE_URL ||
-                                "http://localhost:3000/api/v1"
+                                API_BASE_URL
                               ).replace("/api/v1", "")}${
                                 alumni.userId.profileImage ||
                                 alumni.userId.profilePicture

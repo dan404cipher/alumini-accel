@@ -66,6 +66,7 @@ import { ConnectionsSection } from "@/components/profile/ConnectionsSection";
 import { EventsSection } from "@/components/profile/EventsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import { tenantAPI , API_BASE_URL} from "@/lib/api";
 
 // Define specific types for profile data
 interface Project {
@@ -290,6 +291,7 @@ const Profile = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string>("");
   const imgRef = useRef<HTMLImageElement>(null);
+  const [tenantName, setTenantName] = useState<string | null>(null);
 
   // Image processing utility functions
   const createImage = (url: string): Promise<HTMLImageElement> =>
@@ -474,7 +476,7 @@ const Profile = () => {
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       // Add cache-busting parameter to prevent browser caching
       const response = await fetch(`${apiUrl}/auth/me?t=${Date.now()}`, {
         headers: {
@@ -508,6 +510,27 @@ const Profile = () => {
     fetchProfile();
   }, [fetchProfile]);
 
+  // Fetch tenant name
+  useEffect(() => {
+    const fetchTenantName = async () => {
+      if (user?.tenantId) {
+        try {
+          const response = await tenantAPI.getTenantById(user.tenantId);
+          if (response.success && response.data) {
+            const tenant = (response.data as { tenant?: { name: string } })
+              ?.tenant;
+            if (tenant?.name) {
+              setTenantName(tenant.name);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching tenant name:", error);
+        }
+      }
+    };
+    fetchTenantName();
+  }, [user?.tenantId]);
+
   const handleProfileUpdate = () => {
     fetchProfile();
     setIsEditing(false);
@@ -531,7 +554,7 @@ const Profile = () => {
       const formData = new FormData();
       formData.append("profileImage", file);
       const apiUrl = `${
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+        API_BASE_URL
       }/users/profile-image`;
 
       const response = await fetch(apiUrl, {
@@ -1278,6 +1301,7 @@ const Profile = () => {
                   <EducationalDetailsForm
                     profileData={profileData}
                     userRole={profile.user.role}
+                    tenantName={tenantName}
                     onUpdate={handleProfileUpdate}
                   />
                 ) : (

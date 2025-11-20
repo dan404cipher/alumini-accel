@@ -31,6 +31,7 @@ export const getAllCategories = async (req: Request, res: Response) => {
 
     const categories = await Category.find(filter)
       .populate("createdBy", "firstName lastName email")
+      .populate("programs", "name _id")
       .sort({ order: 1, createdAt: -1 });
 
     return res.json({
@@ -57,6 +58,7 @@ export const createCategory = async (req: Request, res: Response) => {
       "community",
       "community_post_category",
       "department",
+      "program",
       "event_type",
       "event_location",
       "event_price_range",
@@ -110,7 +112,7 @@ export const createCategory = async (req: Request, res: Response) => {
       });
     }
 
-    const category = await Category.create({
+    const categoryData: any = {
       name,
       description,
       slug,
@@ -119,7 +121,14 @@ export const createCategory = async (req: Request, res: Response) => {
       createdBy: user._id,
       order: order || 0,
       isActive: true,
-    });
+    };
+
+    // Add programs field only for department entityType
+    if (entityType === "department" && req.body.programs) {
+      categoryData.programs = req.body.programs;
+    }
+
+    const category = await Category.create(categoryData);
 
     const populatedCategory = await Category.findById(category._id).populate(
       "createdBy",
@@ -184,6 +193,11 @@ export const updateCategory = async (req: Request, res: Response) => {
     if (description !== undefined) category.description = description;
     if (isActive !== undefined) category.isActive = isActive;
     if (order !== undefined) category.order = order;
+    
+    // Update programs field only for department entityType
+    if (category.entityType === "department" && req.body.programs !== undefined) {
+      category.programs = req.body.programs;
+    }
 
     await category.save();
 

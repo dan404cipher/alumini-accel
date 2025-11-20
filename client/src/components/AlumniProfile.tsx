@@ -21,7 +21,7 @@ import {
   Github,
   MessageCircle,
 } from "lucide-react";
-import { alumniAPI } from "@/lib/api";
+import { alumniAPI, API_BASE_URL } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import Navigation from "@/components/Navigation";
@@ -185,18 +185,13 @@ const AlumniProfile = () => {
       formData.append("profileImage", file);
 
       // Upload the image
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-        }/users/profile-image`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/users/profile-image`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
       if (!response.ok) {
         throw new Error("Failed to upload image");
@@ -784,12 +779,9 @@ const AlumniProfile = () => {
                         {cert.credentialFile && (
                           <div className="mt-2">
                             <a
-                              href={`${
-                                import.meta.env.VITE_API_BASE_URL?.replace(
-                                  "/api/v1",
-                                  ""
-                                ) || "http://localhost:3000"
-                              }${cert.credentialFile}`}
+                              href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                cert.credentialFile
+                              }`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline text-sm flex items-center"
@@ -1064,12 +1056,9 @@ const AlumniProfile = () => {
                           {internship.certificateFile && (
                             <div className="mt-2">
                               <a
-                                href={`${
-                                  import.meta.env.VITE_API_BASE_URL?.replace(
-                                    "/api/v1",
-                                    ""
-                                  ) || "http://localhost:3000"
-                                }${internship.certificateFile}`}
+                                href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                  internship.certificateFile
+                                }`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:underline text-sm flex items-center"
@@ -1175,12 +1164,9 @@ const AlumniProfile = () => {
                           )}
                           {research.publicationFile && (
                             <a
-                              href={`${
-                                import.meta.env.VITE_API_BASE_URL?.replace(
-                                  "/api/v1",
-                                  ""
-                                ) || "http://localhost:3000"
-                              }${research.publicationFile}`}
+                              href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                research.publicationFile
+                              }`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline text-sm flex items-center"
@@ -1202,12 +1188,9 @@ const AlumniProfile = () => {
                           )}
                           {research.conferenceFile && (
                             <a
-                              href={`${
-                                import.meta.env.VITE_API_BASE_URL?.replace(
-                                  "/api/v1",
-                                  ""
-                                ) || "http://localhost:3000"
-                              }${research.conferenceFile}`}
+                              href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                research.conferenceFile
+                              }`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline text-sm flex items-center"

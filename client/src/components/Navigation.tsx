@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { tenantAPI, getImageUrl } from "@/lib/api";
+import { tenantAPI, getImageUrl, API_BASE_URL } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -112,12 +112,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   // Load college logo from localStorage and listen for changes
   useEffect(() => {
     const loadCollegeLogo = async () => {
-      // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+      // Get tenantId - don't use user._id as fallback (it's not a tenant ID)
       const tenantId =
         user?.tenantId ||
         (user as { tenant?: { _id: string } })?.tenant?._id ||
-        (user as { tenantId?: string })?.tenantId ||
-        (user?.role === "college_admin" ? user._id : null);
+        (user as { tenantId?: string })?.tenantId;
 
       if (tenantId) {
         try {
@@ -573,10 +572,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                           src={
                             user.profilePicture.startsWith("http")
                               ? user.profilePicture
-                              : `${(
-                                  import.meta.env.VITE_API_BASE_URL ||
-                                  "http://localhost:3000/api/v1"
-                                ).replace("/api/v1", "")}${user.profilePicture}`
+                              : `${API_BASE_URL.replace("/api/v1", "")}${user.profilePicture}`
                           }
                           alt={`${user.firstName} ${user.lastName}`}
                           className="w-full h-full object-cover"
@@ -622,10 +618,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                               src={
                                 user.profilePicture.startsWith("http")
                                   ? user.profilePicture
-                                  : `${(
-                                      import.meta.env.VITE_API_BASE_URL ||
-                                      "http://localhost:3000/api/v1"
-                                    ).replace("/api/v1", "")}${
+                                  : `${API_BASE_URL.replace("/api/v1", "")}${
                                       user.profilePicture
                                     }`
                               }

@@ -3,8 +3,7 @@
 // Purpose: API service layer for mentorship management
 
 import { getAuthTokenOrNull } from "@/utils/auth";
-
-const API_BASE_URL = "http://localhost:3000/api/v1";
+import { API_BASE_URL } from "@/lib/api";
 
 // Types for API responses
 interface ApiResponse<T> {

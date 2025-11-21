@@ -1358,13 +1358,25 @@ export const addInternship = async (req: Request, res: Response) => {
       description,
       startDate,
       endDate,
-      isOngoing,
+      isOngoing: isOngoingRaw,
       location,
-      isRemote,
+      isRemote: isRemoteRaw,
       stipendAmount,
       stipendCurrency,
       skills,
     } = req.body;
+
+    // Convert FormData string booleans to actual booleans
+    // FormData sends booleans as strings "true" or "false"
+    const isOngoing = 
+      isOngoingRaw === true || 
+      isOngoingRaw === "true" || 
+      isOngoingRaw === "1";
+    
+    const isRemote = 
+      isRemoteRaw === true || 
+      isRemoteRaw === "true" || 
+      isRemoteRaw === "1";
 
     // Handle file upload
     let certificateFile = "";
@@ -1425,6 +1437,22 @@ export const updateInternship = async (req: Request, res: Response) => {
   try {
     const { internshipId } = req.params;
     const updateData = req.body;
+
+    // Convert FormData string booleans to actual booleans
+    // FormData sends booleans as strings "true" or "false"
+    if (updateData.isOngoing !== undefined) {
+      updateData.isOngoing = 
+        updateData.isOngoing === true || 
+        updateData.isOngoing === "true" || 
+        updateData.isOngoing === "1";
+    }
+    
+    if (updateData.isRemote !== undefined) {
+      updateData.isRemote = 
+        updateData.isRemote === true || 
+        updateData.isRemote === "true" || 
+        updateData.isRemote === "1";
+    }
 
     // Handle file upload
     if (req.file) {

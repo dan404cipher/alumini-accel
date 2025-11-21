@@ -61,7 +61,10 @@ export const uploadOptionalDocument = (fieldName: string) => {
   return multer({
     storage: documentStorage,
     fileFilter: documentFilter,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { 
+      fileSize: 10 * 1024 * 1024, // 10MB limit for documents/certificates
+      files: 1, // Only one file allowed
+    },
   }).single(fieldName) as any;
 };
 

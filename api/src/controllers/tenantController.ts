@@ -77,12 +77,15 @@ export const getTenantById = asyncHandler(
 
     if (!tenant) {
       // If user is college_admin and tenant doesn't exist, try to create it
-      if (req.user?.role === "college_admin" && req.user?.tenantId?.toString() === tenantId) {
+      if (
+        req.user?.role === "college_admin" &&
+        req.user?.tenantId?.toString() === tenantId
+      ) {
         try {
           // Extract domain from user's email
           const emailDomain = req.user.email?.split("@")[1] || "unknown.edu";
           const domainName = emailDomain.split(".")[0];
-          
+
           // Create tenant for this college admin with the user's tenantId to maintain consistency
           const newTenant = new Tenant({
             _id: new mongoose.Types.ObjectId(tenantId), // Use the user's tenantId
@@ -107,7 +110,10 @@ export const getTenantById = asyncHandler(
           });
 
           await newTenant.save();
-          logger.info(`Auto-created tenant ${newTenant._id} for college_admin ${req.user.email}`);
+          // Log prominently for production monitoring
+          logger.info(
+            `✅ AUTO-CREATED TENANT: ID=${newTenant._id}, Name=${newTenant.name}, Admin=${req.user.email}, Environment=${process.env.NODE_ENV || "development"}`
+          );
 
           // Return the newly created tenant
           const populatedTenant = await Tenant.findById(newTenant._id)
@@ -125,10 +131,14 @@ export const getTenantById = asyncHandler(
           const User = require("@/models/User").default;
           const AlumniProfile = require("@/models/AlumniProfile").default;
 
-          const totalUsers = await User.countDocuments({ tenantId: populatedTenant._id });
+          const totalUsers = await User.countDocuments({
+            tenantId: populatedTenant._id,
+          });
           const totalAlumni = await AlumniProfile.countDocuments({
             userId: {
-              $in: await User.find({ tenantId: populatedTenant._id }).distinct("_id"),
+              $in: await User.find({ tenantId: populatedTenant._id }).distinct(
+                "_id"
+              ),
             },
           });
           const activeUsers = await User.countDocuments({
@@ -152,23 +162,34 @@ export const getTenantById = asyncHandler(
             },
           });
         } catch (createError: any) {
-          logger.error(`Failed to auto-create tenant for ${req.user.email}:`, createError);
+          // Log error with context for production debugging
+          logger.error(
+            `❌ FAILED TO AUTO-CREATE TENANT: Admin=${req.user?.email}, TenantID=${tenantId}, Error=${createError.message}, Environment=${process.env.NODE_ENV || "development"}`,
+            createError
+          );
           // If it's a duplicate key error, the tenant might have been created by another request
-          if (createError.code === 11000 || createError.message?.includes("duplicate")) {
+          if (
+            createError.code === 11000 ||
+            createError.message?.includes("duplicate")
+          ) {
             // Try to fetch the tenant again
             const existingTenant = await Tenant.findById(tenantId)
               .populate("superAdminId", "firstName lastName email role")
               .select("-__v");
-            
+
             if (existingTenant) {
               // Get tenant statistics
               const User = require("@/models/User").default;
               const AlumniProfile = require("@/models/AlumniProfile").default;
 
-              const totalUsers = await User.countDocuments({ tenantId: existingTenant._id });
+              const totalUsers = await User.countDocuments({
+                tenantId: existingTenant._id,
+              });
               const totalAlumni = await AlumniProfile.countDocuments({
                 userId: {
-                  $in: await User.find({ tenantId: existingTenant._id }).distinct("_id"),
+                  $in: await User.find({
+                    tenantId: existingTenant._id,
+                  }).distinct("_id"),
                 },
               });
               const activeUsers = await User.countDocuments({
@@ -192,7 +213,7 @@ export const getTenantById = asyncHandler(
               });
             }
           }
-          
+
           return res.status(500).json({
             success: false,
             message: `Failed to auto-create tenant: ${createError.message}. Please contact support.`,
@@ -204,7 +225,7 @@ export const getTenantById = asyncHandler(
       const userTenantId = req.user?.tenantId?.toString();
       return res.status(404).json({
         success: false,
-        message: `Tenant not found. Requested ID: ${tenantId}${userTenantId ? `, Your tenant ID: ${userTenantId}` : ', No tenant ID in your account'}. Please contact support to ensure your account is properly linked to a college.`,
+        message: `Tenant not found. Requested ID: ${tenantId}${userTenantId ? `, Your tenant ID: ${userTenantId}` : ", No tenant ID in your account"}. Please contact support to ensure your account is properly linked to a college.`,
       });
     }
 
@@ -618,8 +639,10 @@ export const uploadTenantLogo = asyncHandler(
     const tenant = await Tenant.findById(tenantId);
     if (!tenant) {
       // Log for debugging
-      logger.error(`Tenant not found: ${tenantId}. User: ${req.user?.email}, User tenantId: ${req.user?.tenantId}`);
-      
+      logger.error(
+        `Tenant not found: ${tenantId}. User: ${req.user?.email}, User tenantId: ${req.user?.tenantId}`
+      );
+
       return res.status(404).json({
         success: false,
         message: `Tenant not found. The college with ID ${tenantId} does not exist in the database. Please contact support to ensure your account is properly linked to a college.`,
@@ -630,9 +653,11 @@ export const uploadTenantLogo = asyncHandler(
     if (req.user?.role === "college_admin") {
       const userTenantId = req.user?.tenantId?.toString();
       const requestTenantId = tenantId.toString();
-      
+
       if (userTenantId !== requestTenantId) {
-        logger.warn(`Unauthorized tenant access attempt. User: ${req.user?.email || 'unknown'}, User tenantId: ${userTenantId}, Requested tenantId: ${requestTenantId}`);
+        logger.warn(
+          `Unauthorized tenant access attempt. User: ${req.user?.email || "unknown"}, User tenantId: ${userTenantId}, Requested tenantId: ${requestTenantId}`
+        );
         return res.status(403).json({
           success: false,
           message: "You can only upload logo for your own college.",
@@ -748,8 +773,10 @@ export const uploadTenantBanner = asyncHandler(
     const tenant = await Tenant.findById(tenantId);
     if (!tenant) {
       // Log for debugging
-      logger.error(`Tenant not found: ${tenantId}. User: ${req.user?.email}, User tenantId: ${req.user?.tenantId}`);
-      
+      logger.error(
+        `Tenant not found: ${tenantId}. User: ${req.user?.email}, User tenantId: ${req.user?.tenantId}`
+      );
+
       return res.status(404).json({
         success: false,
         message: `Tenant not found. The college with ID ${tenantId} does not exist in the database. Please contact support to ensure your account is properly linked to a college.`,
@@ -760,9 +787,11 @@ export const uploadTenantBanner = asyncHandler(
     if (req.user?.role === "college_admin") {
       const userTenantId = req.user?.tenantId?.toString();
       const requestTenantId = tenantId.toString();
-      
+
       if (userTenantId !== requestTenantId) {
-        logger.warn(`Unauthorized tenant access attempt. User: ${req.user?.email || 'unknown'}, User tenantId: ${userTenantId}, Requested tenantId: ${requestTenantId}`);
+        logger.warn(
+          `Unauthorized tenant access attempt. User: ${req.user?.email || "unknown"}, User tenantId: ${userTenantId}, Requested tenantId: ${requestTenantId}`
+        );
         return res.status(403).json({
           success: false,
           message: "You can only upload banner for your own college.",

@@ -1220,13 +1220,194 @@ export const validateInvitation = [
 
 // Internship validation
 export const addInternshipValidation = [
-  body("company").notEmpty().withMessage("Company name is required"),
-  body("position").notEmpty().withMessage("Position is required"),
-  body("startDate").isISO8601().withMessage("Start date must be a valid date"),
+  body("company")
+    .trim()
+    .notEmpty()
+    .withMessage("Company name is required")
+    .isLength({ max: 100 })
+    .withMessage("Company name must be less than 100 characters"),
+  body("position")
+    .trim()
+    .notEmpty()
+    .withMessage("Position is required")
+    .isLength({ max: 100 })
+    .withMessage("Position must be less than 100 characters"),
+  body("description")
+    .optional()
+    .isLength({ max: 2000 })
+    .withMessage("Description must be less than 2000 characters"),
+  body("startDate")
+    .isISO8601()
+    .withMessage("Start date must be a valid date in ISO 8601 format"),
+  // Validate isOngoing FIRST and convert to boolean, so endDate can use it
+  body("isOngoing")
+    .optional()
+    .custom((value) => {
+      // Accept boolean or string boolean from FormData
+      if (
+        value === true ||
+        value === false ||
+        value === "true" ||
+        value === "false" ||
+        value === "1" ||
+        value === "0" ||
+        value === ""
+      ) {
+        return true;
+      }
+      throw new Error("isOngoing must be a boolean");
+    })
+    .withMessage("isOngoing must be a boolean")
+    .customSanitizer((value) => {
+      // Convert to actual boolean for use in other validations
+      if (value === true || value === "true" || value === "1") {
+        return true;
+      }
+      return false;
+    }),
   body("endDate")
     .optional()
-    .isISO8601()
-    .withMessage("End date must be a valid date"),
+    .custom((value, { req }) => {
+      // Get isOngoing value (could be boolean, string, or undefined)
+      const isOngoingRaw = req.body.isOngoing;
+      
+      // Convert to boolean - handle all possible formats from FormData
+      const isOngoing = 
+        isOngoingRaw === true || 
+        isOngoingRaw === "true" || 
+        isOngoingRaw === "1" ||
+        String(isOngoingRaw).toLowerCase() === "true";
+      
+      // If isOngoing is true, endDate is optional (skip validation)
+      if (isOngoing) {
+        // If endDate is provided, validate it's a valid date
+        if (value) {
+          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          if (!dateRegex.test(value)) {
+            throw new Error("End date must be a valid date in ISO 8601 format (YYYY-MM-DD)");
+          }
+          // If both dates exist, endDate should be after or equal to startDate
+          if (req.body.startDate) {
+            const startDate = new Date(req.body.startDate);
+            const endDate = new Date(value);
+            if (endDate < startDate) {
+              throw new Error("End date must be after or equal to start date");
+            }
+          }
+        }
+        return true; // End date is optional when ongoing
+      }
+      
+      // If isOngoing is false or undefined, endDate is required
+      if (!value) {
+        throw new Error("End date is required when internship is not ongoing");
+      }
+      
+      // Validate date format
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(value)) {
+        throw new Error("End date must be a valid date in ISO 8601 format (YYYY-MM-DD)");
+      }
+      
+      // If both dates exist, endDate should be after or equal to startDate
+      if (value && req.body.startDate) {
+        const startDate = new Date(req.body.startDate);
+        const endDate = new Date(value);
+        if (endDate < startDate) {
+          throw new Error("End date must be after or equal to start date");
+        }
+      }
+      return true;
+    }),
+  body("isRemote")
+    .optional()
+    .custom((value) => {
+      // Accept boolean or string boolean from FormData
+      if (
+        value === true ||
+        value === false ||
+        value === "true" ||
+        value === "false" ||
+        value === "1" ||
+        value === "0" ||
+        value === ""
+      ) {
+        return true;
+      }
+      throw new Error("isRemote must be a boolean");
+    })
+    .withMessage("isRemote must be a boolean"),
+  body("location")
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage("Location must be less than 200 characters")
+    .custom((value, { req }) => {
+      // Convert isRemote to boolean (FormData sends it as string)
+      const isRemote = 
+        req.body.isRemote === true || 
+        req.body.isRemote === "true" || 
+        req.body.isRemote === "1";
+      
+      // If remote work, location is optional (can be empty)
+      // If not remote, location is still optional but can be provided
+      // No validation error - location is always optional
+      return true;
+    }),
+  body("stipendAmount")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Stipend amount must be a positive number"),
+  body("stipendCurrency")
+    .optional()
+    .trim()
+    .isLength({ max: 10 })
+    .withMessage("Currency code must be less than 10 characters"),
+  body("skills")
+    .optional()
+    .custom((value) => {
+      // Handle both array and JSON string from FormData
+      let skillsArray: any[] = [];
+      
+      if (Array.isArray(value)) {
+        skillsArray = value;
+      } else if (typeof value === "string") {
+        try {
+          // Try to parse JSON string
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            skillsArray = parsed;
+          } else {
+            throw new Error("Skills must be an array");
+          }
+        } catch (parseError) {
+          // If it's not valid JSON, treat as single skill or empty
+          if (value.trim() === "") {
+            skillsArray = [];
+          } else {
+            throw new Error("Skills must be an array or valid JSON string");
+          }
+        }
+      } else if (value === undefined || value === null || value === "") {
+        // Empty or undefined is fine (optional field)
+        return true;
+      } else {
+        throw new Error("Skills must be an array");
+      }
+      
+      // Validate array length
+      if (skillsArray.length > 20) {
+        throw new Error("Maximum 20 skills allowed");
+      }
+      
+      // Validate each skill is a string
+      if (!skillsArray.every((skill) => typeof skill === "string")) {
+        throw new Error("All skills must be strings");
+      }
+      
+      return true;
+    })
+    .withMessage("Skills must be an array"),
   body("certificateUrl")
     .optional()
     .isURL()

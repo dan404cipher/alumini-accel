@@ -1305,7 +1305,7 @@ const CollegeAdminDashboard = () => {
 
   const handleSaveCollegeSettings = async () => {
     // Check for tenantId in multiple possible locations
-    // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+    // NOTE: Do NOT use user._id as tenantId - they are different entities
     interface UserWithTenant {
       tenantId?: string;
       tenant?: { _id?: string };
@@ -1316,12 +1316,13 @@ const CollegeAdminDashboard = () => {
     const tenantId =
       userWithTenant?.tenantId ||
       userWithTenant?.tenant?._id ||
-      (userWithTenant?.role === "college_admin" ? userWithTenant._id : null);
+      null;
 
-    if (!tenantId) {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (!tenantId || typeof tenantId !== "string" || !/^[0-9a-fA-F]{24}$/.test(tenantId)) {
       toast({
         title: "Error",
-        description: `No college ID found. User: ${user?.firstName} ${user?.lastName}, Role: ${user?.role}. Please contact support to ensure your account is properly linked to a college.`,
+        description: `Invalid college ID. User: ${user?.firstName} ${user?.lastName}, Role: ${user?.role}. Please contact support to ensure your account is properly linked to a college.`,
         variant: "destructive",
       });
       return;
@@ -1330,6 +1331,26 @@ const CollegeAdminDashboard = () => {
     setSettingsLoading(true);
 
     try {
+      // First, verify the tenant exists (will auto-create if missing for college_admin)
+      const tenantCheck = await tenantAPI.getTenantById(tenantId);
+      if (!tenantCheck.success) {
+        toast({
+          title: "Error",
+          description: tenantCheck.message || "College not found. Please contact support to ensure your account is properly linked to a college.",
+          variant: "destructive",
+        });
+        setSettingsLoading(false);
+        return;
+      }
+      
+      // If tenant was auto-created, show a success message
+      if (tenantCheck.message?.includes("auto-created")) {
+        toast({
+          title: "College Setup",
+          description: "Your college has been automatically set up. You can now upload logo and banner.",
+        });
+      }
+
       // Upload logo to database
       if (collegeLogo) {
         setLogoLoading(true);
@@ -1347,21 +1368,32 @@ const CollegeAdminDashboard = () => {
             // Also dispatch event for banner update
             window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
-            throw new Error(logoResponse.message || "Failed to upload logo");
+            const errorMessage = logoResponse.message || "Failed to upload logo";
+            // If it's an invalid tenant ID error, don't fallback to localStorage
+            if (errorMessage.includes("Invalid tenant ID") || errorMessage.includes("Tenant not found")) {
+              throw new Error(errorMessage);
+            }
+            // For other errors, fallback to localStorage
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const logoData = e.target?.result as string;
+              localStorage.setItem(`college_logo_${tenantId}`, logoData);
+
+              // Dispatch custom event to notify navbar of logo update (with small delay)
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("collegeLogoUpdated"));
+              }, 100);
+            };
+            reader.readAsDataURL(collegeLogo);
           }
         } catch (error) {
-          // Fallback to localStorage
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const logoData = e.target?.result as string;
-            localStorage.setItem(`college_logo_${tenantId}`, logoData);
-
-            // Dispatch custom event to notify navbar of logo update (with small delay)
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("collegeLogoUpdated"));
-            }, 100);
-          };
-          reader.readAsDataURL(collegeLogo);
+          // If it's a tenant ID error, re-throw to be handled by outer catch
+          if (error instanceof Error && 
+              (error.message.includes("Invalid tenant ID") || 
+               error.message.includes("Tenant not found"))) {
+            throw error; // Re-throw to prevent success toast and show error
+          }
+          // For other errors, silently fallback to localStorage (already handled above)
         }
         setLogoLoading(false);
       }
@@ -1380,23 +1412,32 @@ const CollegeAdminDashboard = () => {
             // Dispatch custom event to notify of banner update
             window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
-            throw new Error(
-              bannerResponse.message || "Failed to upload banner"
-            );
+            const errorMessage = bannerResponse.message || "Failed to upload banner";
+            // If it's an invalid tenant ID error, don't fallback to localStorage
+            if (errorMessage.includes("Invalid tenant ID") || errorMessage.includes("Tenant not found")) {
+              throw new Error(errorMessage);
+            }
+            // For other errors, fallback to localStorage
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const bannerData = e.target?.result as string;
+              localStorage.setItem(`college_banner_${tenantId}`, bannerData);
+
+              // Dispatch custom event to notify of banner update (with small delay)
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
+              }, 100);
+            };
+            reader.readAsDataURL(collegeBanner);
           }
         } catch (error) {
-          // Fallback to localStorage
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const bannerData = e.target?.result as string;
-            localStorage.setItem(`college_banner_${tenantId}`, bannerData);
-
-            // Dispatch custom event to notify of banner update (with small delay)
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
-            }, 100);
-          };
-          reader.readAsDataURL(collegeBanner);
+          // If it's a tenant ID error, re-throw to be handled by outer catch
+          if (error instanceof Error && 
+              (error.message.includes("Invalid tenant ID") || 
+               error.message.includes("Tenant not found"))) {
+            throw error; // Re-throw to prevent success toast and show error
+          }
+          // For other errors, silently fallback to localStorage (already handled above)
         }
         setBannerLoading(false);
       }
@@ -1510,7 +1551,7 @@ const CollegeAdminDashboard = () => {
     fetchMentorships();
 
     // Load existing college settings from database
-    // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+    // NOTE: Do NOT use user._id as tenantId - they are different entities
     interface UserWithTenant {
       tenantId?: string;
       tenant?: { _id?: string };
@@ -1521,8 +1562,10 @@ const CollegeAdminDashboard = () => {
     const tenantId =
       userWithTenant?.tenantId ||
       userWithTenant?.tenant?._id ||
-      (userWithTenant?.role === "college_admin" ? userWithTenant._id : null);
-    if (tenantId) {
+      null;
+    
+    // Only load if tenantId is valid (24 hex characters)
+    if (tenantId && typeof tenantId === "string" && /^[0-9a-fA-F]{24}$/.test(tenantId)) {
       loadCollegeSettings(tenantId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1552,7 +1595,8 @@ const CollegeAdminDashboard = () => {
       }
       const userWithTenant = user as UserWithTenant;
       const tenantId = userWithTenant?.tenantId || userWithTenant?.tenant?._id;
-      if (tenantId) {
+      // Only load if tenantId is valid (24 hex characters)
+      if (tenantId && typeof tenantId === "string" && /^[0-9a-fA-F]{24}$/.test(tenantId)) {
         loadCollegeSettings(tenantId);
       }
     };

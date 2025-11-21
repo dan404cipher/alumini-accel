@@ -170,12 +170,21 @@ api.interceptors.response.use(
     // Suppress 404 errors for logo/banner endpoints (expected when not set)
     if (
       error.response?.status === 404 &&
-      (originalRequest.url?.includes("/logo") ||
-        originalRequest.url?.includes("/banner"))
+      (originalRequest?.url?.includes("/logo") ||
+        originalRequest?.url?.includes("/banner"))
     ) {
       // Mark as handled to prevent console logging
       error._isHandled = true;
       error._skipLogging = true;
+      // Return a silent rejection that won't be logged
+      return Promise.reject({
+        ...error,
+        silent: true,
+        config: {
+          ...originalRequest,
+          _skipErrorLog: true,
+        },
+      });
     }
 
     // Suppress validation errors (invalid tenantId format)
@@ -294,7 +303,27 @@ export const apiRequest = async <T>(
     return response.data;
   } catch (error: unknown) {
     if (error && typeof error === "object" && "response" in error) {
-      const axiosError = error as { response?: { data?: ApiResponse<T> } };
+      const axiosError = error as { 
+        response?: { 
+          status?: number;
+          data?: ApiResponse<T> 
+        };
+        config?: { url?: string };
+      };
+      
+      // Handle 404 for logo/banner endpoints gracefully (suppress error)
+      if (
+        axiosError.response?.status === 404 &&
+        (axiosError.config?.url?.includes("/logo") ||
+          axiosError.config?.url?.includes("/banner"))
+      ) {
+        return {
+          success: false,
+          message: "Not found",
+          data: null as any,
+        };
+      }
+      
       if (axiosError.response?.data) {
         return axiosError.response.data;
       }
@@ -2588,6 +2617,18 @@ export const tenantAPI = {
 
   // Upload college logo
   uploadLogo: async (tenantId: string, logoFile: File) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return {
+        success: false,
+        message: "Invalid tenant ID format. Please ensure you are properly linked to a college.",
+      };
+    }
+
     const formData = new FormData();
     formData.append("logo", logoFile);
 
@@ -2616,24 +2657,19 @@ export const tenantAPI = {
       const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/logo`,
-      });
+        _skipErrorLog: true, // Suppress error logging for 404s
+      } as any);
 
       // Handle both JSON response (external URL) and direct image response
       if (response.success && (response.data as any)?.logo) {
         return (response.data as any).logo; // Return the URL string directly
       }
 
+      // 404 or no logo - return null silently
       return null;
     } catch (error: any) {
-      // Handle 404 gracefully - tenant or logo not found (don't log to console)
-      if (error?.response?.status === 404) {
-        return null;
-      }
-      // Only log non-404 errors
-      if (error?.response?.status !== 404) {
-        console.error("Error fetching logo:", error);
-      }
-      return null; // Return null instead of throwing
+      // Silently handle all errors (404 is expected when logo doesn't exist)
+      return null;
     }
   },
 
@@ -2647,6 +2683,18 @@ export const tenantAPI = {
 
   // Upload college banner
   uploadBanner: async (tenantId: string, bannerFile: File) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return {
+        success: false,
+        message: "Invalid tenant ID format. Please ensure you are properly linked to a college.",
+      };
+    }
+
     const formData = new FormData();
     formData.append("banner", bannerFile);
 
@@ -2675,24 +2723,19 @@ export const tenantAPI = {
       const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/banner`,
-      });
+        _skipErrorLog: true, // Suppress error logging for 404s
+      } as any);
 
       // Handle both JSON response (external URL) and direct image response
       if (response.success && (response.data as any)?.banner) {
         return (response.data as any).banner; // Return the URL string directly
       }
 
+      // 404 or no banner - return null silently
       return null;
     } catch (error: any) {
-      // Handle 404 gracefully - tenant or banner not found (don't log to console)
-      if (error?.response?.status === 404) {
-        return null;
-      }
-      // Only log non-404 errors
-      if (error?.response?.status !== 404) {
-        console.error("Error fetching banner:", error);
-      }
-      return null; // Return null instead of throwing
+      // Silently handle all errors (404 is expected when banner doesn't exist)
+      return null;
     }
   },
 

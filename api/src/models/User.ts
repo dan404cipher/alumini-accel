@@ -151,6 +151,21 @@ const userSchema = new Schema<IUser>(
         "Graduation year cannot be in the future",
       ],
     },
+    currentYear: {
+      type: String,
+      enum: ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "Final Year", "Graduate"],
+      trim: true,
+    },
+    currentCGPA: {
+      type: Number,
+      min: [0, "CGPA cannot be negative"],
+      max: [10, "CGPA cannot exceed 10"],
+    },
+    currentGPA: {
+      type: Number,
+      min: [0, "GPA cannot be negative"],
+      max: [4, "GPA cannot exceed 4"],
+    },
     eligibleForAlumni: {
       type: Boolean,
       default: false,

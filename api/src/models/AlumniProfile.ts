@@ -20,15 +20,9 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
       required: true,
       min: [1950, "Graduation year must be after 1950"],
       max: [
-        new Date().getFullYear() + 1,
-        "Graduation year cannot be in the future",
+        new Date().getFullYear() + 5,
+        "Graduation year cannot be more than 5 years in the future",
       ],
-    },
-    university: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: [100, "University cannot exceed 100 characters"],
     },
     program: {
       type: String,

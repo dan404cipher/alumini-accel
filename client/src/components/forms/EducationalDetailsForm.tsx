@@ -25,42 +25,100 @@ import { GraduationCap, Calendar, Hash } from "lucide-react";
 import { categoryAPI, API_BASE_URL } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
-const educationalDetailsSchema = z.object({
-  university: z.string().min(1, "University is required"),
-  department: z.string().min(1, "Department is required"),
-  program: z.string().min(1, "Program is required"),
-  batchYear: z.number().min(2020, "Batch year must be 2020 or later"),
-  graduationYear: z.number().min(2020, "Graduation year must be 2020 or later"),
-  rollNumber: z.string().min(1, "Roll number is required"),
-  studentId: z.string().optional(),
-  currentYear: z
-    .enum([
-      "1st Year",
-      "2nd Year",
-      "3rd Year",
-      "4th Year",
-      "5th Year",
-      "Final Year",
-      "Graduate",
-    ])
-    .optional(),
-  currentCGPA: z.number().min(0).max(10).optional(),
-  currentGPA: z.number().min(0).max(4).optional(),
-});
+const educationalDetailsSchema = z
+  .object({
+    department: z.string().min(1, "Department is required"),
+    program: z.string().min(1, "Program is required"),
+    batchYear: z
+      .number()
+      .min(2000, "Batch year must be 2000 or later")
+      .max(
+        new Date().getFullYear() + 1,
+        "Batch year cannot be in the far future"
+      ),
+    graduationYear: z
+      .number()
+      .min(2000, "Graduation year must be 2000 or later")
+      .max(
+        new Date().getFullYear() + 10,
+        "Graduation year cannot be more than 10 years in the future"
+      ),
+    rollNumber: z
+      .string()
+      .min(1, "Roll number is required")
+      .max(50, "Roll number cannot exceed 50 characters")
+      .regex(
+        /^[A-Za-z0-9\-_]+$/,
+        "Roll number can only contain letters, numbers, hyphens, and underscores"
+      ),
+    studentId: z
+      .string()
+      .max(50, "Student ID cannot exceed 50 characters")
+      .regex(
+        /^[A-Za-z0-9\-_]*$/,
+        "Student ID can only contain letters, numbers, hyphens, and underscores"
+      )
+      .optional()
+      .or(z.literal("")),
+    currentYear: z
+      .enum([
+        "1st Year",
+        "2nd Year",
+        "3rd Year",
+        "4th Year",
+        "5th Year",
+        "Final Year",
+        "Graduate",
+      ])
+      .optional(),
+    currentCGPA: z
+      .union([
+        z
+          .number()
+          .min(0, "CGPA cannot be negative")
+          .max(10, "CGPA cannot exceed 10"),
+        z.nan(),
+        z.undefined(),
+        z.null(),
+      ])
+      .optional(),
+    currentGPA: z
+      .union([
+        z
+          .number()
+          .min(0, "GPA cannot be negative")
+          .max(4, "GPA cannot exceed 4"),
+        z.nan(),
+        z.undefined(),
+        z.null(),
+      ])
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      // Graduation year should be greater than or equal to batch year
+      if (data.graduationYear && data.batchYear) {
+        return data.graduationYear >= data.batchYear;
+      }
+      return true;
+    },
+    {
+      message: "Graduation year must be greater than or equal to batch year",
+      path: ["graduationYear"],
+    }
+  );
 
 type EducationalDetailsFormData = z.infer<typeof educationalDetailsSchema>;
 
 interface EducationalDetailsFormProps {
   profileData: any;
   userRole: string;
-  tenantName?: string | null;
   onUpdate: () => void;
 }
 
 export const EducationalDetailsForm = ({
   profileData,
   userRole,
-  tenantName,
   onUpdate,
 }: EducationalDetailsFormProps) => {
   const { toast } = useToast();
@@ -83,7 +141,6 @@ export const EducationalDetailsForm = ({
   } = useForm<EducationalDetailsFormData>({
     resolver: zodResolver(educationalDetailsSchema),
     defaultValues: {
-      university: profileData?.university || tenantName || "",
       department: profileData?.department || "",
       program: profileData?.program || "",
       batchYear: profileData?.batchYear || new Date().getFullYear(),
@@ -100,6 +157,8 @@ export const EducationalDetailsForm = ({
   const selectedProgram = watch("program");
 
   const onSubmit = async (data: EducationalDetailsFormData) => {
+    console.log("Form submitted with data:", data);
+
     try {
       setIsLoading(true);
 
@@ -118,12 +177,56 @@ export const EducationalDetailsForm = ({
         : `${apiUrl}/alumni/profile`;
 
       // Ensure numeric fields are properly converted
-      const processedData = {
+      const processedData: any = {
         ...data,
         batchYear: Number(data.batchYear),
         graduationYear: Number(data.graduationYear),
-        cgpa: data.cgpa ? Number(data.cgpa) : undefined,
       };
+
+      // For alumni, remove currentYear but keep CGPA/GPA (historical student data)
+      if (!isStudent) {
+        delete processedData.currentYear;
+        // Keep CGPA and GPA for alumni (they might want to preserve their student academic records)
+        if (
+          data.currentCGPA !== undefined &&
+          data.currentCGPA !== null &&
+          !isNaN(Number(data.currentCGPA))
+        ) {
+          processedData.currentCGPA = Number(data.currentCGPA);
+        }
+        if (
+          data.currentGPA !== undefined &&
+          data.currentGPA !== null &&
+          !isNaN(Number(data.currentGPA))
+        ) {
+          processedData.currentGPA = Number(data.currentGPA);
+        }
+      } else {
+        // For students, handle CGPA and GPA - only include if they have valid values
+        if (
+          data.currentCGPA !== undefined &&
+          data.currentCGPA !== null &&
+          !isNaN(Number(data.currentCGPA))
+        ) {
+          processedData.currentCGPA = Number(data.currentCGPA);
+        }
+        if (
+          data.currentGPA !== undefined &&
+          data.currentGPA !== null &&
+          !isNaN(Number(data.currentGPA))
+        ) {
+          processedData.currentGPA = Number(data.currentGPA);
+        }
+      }
+
+      // Remove undefined values to avoid sending them
+      Object.keys(processedData).forEach((key) => {
+        if (processedData[key] === undefined) {
+          delete processedData[key];
+        }
+      });
+
+      console.log("Processed data to send:", processedData);
 
       const response = await fetch(endpoint, {
         method: profileData ? "PUT" : "POST",
@@ -166,7 +269,9 @@ export const EducationalDetailsForm = ({
     }
   };
 
-  const isStudent = profileData?.currentYear !== undefined;
+  // Determine if user is a student - check role or if currentYear exists
+  const isStudent =
+    userRole === "student" || profileData?.currentYear !== undefined;
 
   // Fetch categories for department and program
   useEffect(() => {
@@ -266,10 +371,9 @@ export const EducationalDetailsForm = ({
     }
   }, [selectedProgram, programs, departments, setValue, watch]);
 
-  // Update form values when profileData or tenantName changes
+  // Update form values when profileData changes
   useEffect(() => {
     if (profileData) {
-      setValue("university", profileData.university || tenantName || "");
       setValue("department", profileData.department || "");
       setValue("program", profileData.program || "");
       setValue("batchYear", profileData.batchYear || new Date().getFullYear());
@@ -282,11 +386,8 @@ export const EducationalDetailsForm = ({
       setValue("currentYear", profileData.currentYear || "1st Year");
       setValue("currentCGPA", profileData.currentCGPA || undefined);
       setValue("currentGPA", profileData.currentGPA || undefined);
-    } else if (tenantName) {
-      // If no profileData but tenantName exists, set it
-      setValue("university", tenantName);
     }
-  }, [profileData, tenantName, setValue]);
+  }, [profileData, setValue]);
 
   return (
     <Card>
@@ -299,14 +400,28 @@ export const EducationalDetailsForm = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* University field is hidden but kept in form data for submission */}
-          <input
-            type="hidden"
-            {...register("university")}
-            value={tenantName || profileData?.university || ""}
-          />
-
+        <form
+          onSubmit={handleSubmit(
+            (data) => {
+              console.log("Form validation passed, submitting:", data);
+              onSubmit(data);
+            },
+            (errors) => {
+              console.error("Form validation errors:", errors);
+              // Show first error to user
+              const firstError = Object.values(errors)[0];
+              if (firstError) {
+                toast({
+                  title: "Validation Error",
+                  description:
+                    firstError.message || "Please check the form for errors",
+                  variant: "destructive",
+                });
+              }
+            }
+          )}
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="program">Program *</Label>
@@ -413,8 +528,8 @@ export const EducationalDetailsForm = ({
                   {...register("batchYear", { valueAsNumber: true })}
                   placeholder="e.g., 2020"
                   className="pl-10"
-                  min="2020"
-                  max={new Date().getFullYear() + 5}
+                  min="2000"
+                  max={new Date().getFullYear() + 1}
                 />
               </div>
               {errors.batchYear && (
@@ -434,8 +549,8 @@ export const EducationalDetailsForm = ({
                   {...register("graduationYear", { valueAsNumber: true })}
                   placeholder="e.g., 2024"
                   className="pl-10"
-                  min="2020"
-                  max={new Date().getFullYear() + 5}
+                  min="2000"
+                  max={new Date().getFullYear() + 10}
                 />
               </div>
               {errors.graduationYear && (
@@ -454,8 +569,9 @@ export const EducationalDetailsForm = ({
                 <Input
                   id="rollNumber"
                   {...register("rollNumber")}
-                  placeholder="Enter your roll number"
+                  placeholder="e.g., 20CS001 or CS20-001"
                   className="pl-10"
+                  maxLength={50}
                 />
               </div>
               {errors.rollNumber && (
@@ -463,6 +579,9 @@ export const EducationalDetailsForm = ({
                   {errors.rollNumber.message}
                 </p>
               )}
+              <p className="text-xs text-gray-500">
+                Letters, numbers, hyphens, and underscores only
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -472,8 +591,9 @@ export const EducationalDetailsForm = ({
                 <Input
                   id="studentId"
                   {...register("studentId")}
-                  placeholder="Enter your student ID"
+                  placeholder="e.g., STU2024001 (optional)"
                   className="pl-10"
+                  maxLength={50}
                 />
               </div>
               {errors.studentId && (
@@ -481,78 +601,77 @@ export const EducationalDetailsForm = ({
                   {errors.studentId.message}
                 </p>
               )}
+              <p className="text-xs text-gray-500">
+                Optional. Letters, numbers, hyphens, and underscores only
+              </p>
             </div>
           </div>
 
           {isStudent && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="currentYear">Current Year</Label>
-                <Select
-                  value={watch("currentYear") || ""}
-                  onValueChange={(value) =>
-                    setValue("currentYear", value as any)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select current year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1st Year">1st Year</SelectItem>
-                    <SelectItem value="2nd Year">2nd Year</SelectItem>
-                    <SelectItem value="3rd Year">3rd Year</SelectItem>
-                    <SelectItem value="4th Year">4th Year</SelectItem>
-                    <SelectItem value="5th Year">5th Year</SelectItem>
-                    <SelectItem value="Final Year">Final Year</SelectItem>
-                    <SelectItem value="Graduate">Graduate</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.currentYear && (
-                  <p className="text-sm text-red-600">
-                    {errors.currentYear.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentCGPA">Current CGPA</Label>
-                  <Input
-                    id="currentCGPA"
-                    type="number"
-                    step="0.01"
-                    {...register("currentCGPA", { valueAsNumber: true })}
-                    placeholder="e.g., 8.5"
-                    min="0"
-                    max="10"
-                  />
-                  {errors.currentCGPA && (
-                    <p className="text-sm text-red-600">
-                      {errors.currentCGPA.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="currentGPA">Current GPA</Label>
-                  <Input
-                    id="currentGPA"
-                    type="number"
-                    step="0.01"
-                    {...register("currentGPA", { valueAsNumber: true })}
-                    placeholder="e.g., 3.5"
-                    min="0"
-                    max="4"
-                  />
-                  {errors.currentGPA && (
-                    <p className="text-sm text-red-600">
-                      {errors.currentGPA.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </>
+            <div className="space-y-2">
+              <Label htmlFor="currentYear">Current Year</Label>
+              <Select
+                value={watch("currentYear") || ""}
+                onValueChange={(value) => setValue("currentYear", value as any)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select current year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1st Year">1st Year</SelectItem>
+                  <SelectItem value="2nd Year">2nd Year</SelectItem>
+                  <SelectItem value="3rd Year">3rd Year</SelectItem>
+                  <SelectItem value="4th Year">4th Year</SelectItem>
+                  <SelectItem value="5th Year">5th Year</SelectItem>
+                  <SelectItem value="Final Year">Final Year</SelectItem>
+                  <SelectItem value="Graduate">Graduate</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.currentYear && (
+                <p className="text-sm text-red-600">
+                  {errors.currentYear.message}
+                </p>
+              )}
+            </div>
           )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentCGPA">Current CGPA</Label>
+              <Input
+                id="currentCGPA"
+                type="number"
+                step="0.01"
+                {...register("currentCGPA", { valueAsNumber: true })}
+                placeholder="e.g., 8.5"
+                min="0"
+                max="10"
+              />
+              {errors.currentCGPA && (
+                <p className="text-sm text-red-600">
+                  {errors.currentCGPA.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="currentGPA">Current GPA</Label>
+              <Input
+                id="currentGPA"
+                type="number"
+                step="0.01"
+                {...register("currentGPA", { valueAsNumber: true })}
+                placeholder="e.g., 3.5"
+                min="0"
+                max="4"
+              />
+              {errors.currentGPA && (
+                <p className="text-sm text-red-600">
+                  {errors.currentGPA.message}
+                </p>
+              )}
+            </div>
+          </div>
 
           <div className="flex justify-end space-x-2">
             <Button type="submit" disabled={isLoading}>

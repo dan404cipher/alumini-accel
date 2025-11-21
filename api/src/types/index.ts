@@ -166,6 +166,9 @@ export interface IUser extends Document {
   currentCompany?: string;
   currentPosition?: string;
   graduationYear?: number;
+  currentYear?: string;
+  currentCGPA?: number;
+  currentGPA?: number;
   eligibleForAlumni?: boolean;
   timezone?: string;
   preferences: {
@@ -189,7 +192,6 @@ export interface IUser extends Document {
 export interface IAlumniProfile extends Document {
   _id: string;
   userId: string;
-  university: string;
   program: string;
   batchYear: number;
   graduationYear: number;

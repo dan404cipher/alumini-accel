@@ -66,7 +66,7 @@ import { ConnectionsSection } from "@/components/profile/ConnectionsSection";
 import { EventsSection } from "@/components/profile/EventsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { tenantAPI , API_BASE_URL} from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api";
 
 // Define specific types for profile data
 interface Project {
@@ -190,7 +190,6 @@ interface UserProfile {
     gender?: string;
     bio?: string;
     location?: string;
-    university?: string;
     linkedinProfile?: string;
     githubProfile?: string;
     twitterHandle?: string;
@@ -224,7 +223,6 @@ interface UserProfile {
     testimonials?: Testimonial[];
     skills?: string[];
     careerInterests?: string[];
-    university?: string;
     department?: string;
     program?: string;
     rollNumber?: string;
@@ -236,7 +234,6 @@ interface UserProfile {
     currentGPA?: number;
   };
   studentProfile?: {
-    university?: string;
     department?: string;
     program?: string;
     rollNumber?: string;
@@ -291,7 +288,6 @@ const Profile = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string>("");
   const imgRef = useRef<HTMLImageElement>(null);
-  const [tenantName, setTenantName] = useState<string | null>(null);
 
   // Image processing utility functions
   const createImage = (url: string): Promise<HTMLImageElement> =>
@@ -475,8 +471,7 @@ const Profile = () => {
         throw new Error("No authentication token found");
       }
 
-      const apiUrl =
-        API_BASE_URL;
+      const apiUrl = API_BASE_URL;
       // Add cache-busting parameter to prevent browser caching
       const response = await fetch(`${apiUrl}/auth/me?t=${Date.now()}`, {
         headers: {
@@ -511,25 +506,7 @@ const Profile = () => {
   }, [fetchProfile]);
 
   // Fetch tenant name
-  useEffect(() => {
-    const fetchTenantName = async () => {
-      if (user?.tenantId) {
-        try {
-          const response = await tenantAPI.getTenantById(user.tenantId);
-          if (response.success && response.data) {
-            const tenant = (response.data as { tenant?: { name: string } })
-              ?.tenant;
-            if (tenant?.name) {
-              setTenantName(tenant.name);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching tenant name:", error);
-        }
-      }
-    };
-    fetchTenantName();
-  }, [user?.tenantId]);
+  useEffect(() => {}, [user?.tenantId]);
 
   const handleProfileUpdate = () => {
     fetchProfile();
@@ -553,9 +530,7 @@ const Profile = () => {
 
       const formData = new FormData();
       formData.append("profileImage", file);
-      const apiUrl = `${
-        API_BASE_URL
-      }/users/profile-image`;
+      const apiUrl = `${API_BASE_URL}/users/profile-image`;
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -666,6 +641,14 @@ const Profile = () => {
   const profileData = isStudent
     ? profile.studentProfile
     : profile.alumniProfile;
+  
+  // Merge user-level fields (like CGPA/GPA) into profileData for easier access
+  const enrichedProfileData = profileData ? {
+    ...profileData,
+    currentCGPA: profileData.currentCGPA ?? profile.user.currentCGPA,
+    currentGPA: profileData.currentGPA ?? profile.user.currentGPA,
+    currentYear: profileData.currentYear ?? profile.user.currentYear,
+  } : null;
 
   return (
     <div className="min-h-screen flex flex-col pt-16">
@@ -893,12 +876,6 @@ const Profile = () => {
                     <div className="flex items-center text-sm text-gray-600">
                       <MapPin className="w-4 h-4 mr-2" />
                       {profile.user.location}
-                    </div>
-                  )}
-                  {profile.user.university && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <GraduationCap className="w-4 h-4 mr-2" />
-                      {profile.user.university}
                     </div>
                   )}
                 </div>
@@ -1299,9 +1276,8 @@ const Profile = () => {
               >
                 {isEditing ? (
                   <EducationalDetailsForm
-                    profileData={profileData}
+                    profileData={enrichedProfileData || profileData}
                     userRole={profile.user.role}
-                    tenantName={tenantName}
                     onUpdate={handleProfileUpdate}
                   />
                 ) : (
@@ -1383,13 +1359,13 @@ const Profile = () => {
                                       "Not specified"}
                                   </p>
                                 </div>
-                                {isStudent && profileData.currentYear && (
+                                {isStudent && enrichedProfileData?.currentYear && (
                                   <div>
                                     <label className="text-sm font-medium text-gray-500">
                                       Current Year
                                     </label>
                                     <p className="text-sm font-medium">
-                                      {profileData.currentYear as string}
+                                      {enrichedProfileData.currentYear as string}
                                     </p>
                                   </div>
                                 )}
@@ -1397,30 +1373,30 @@ const Profile = () => {
                             </div>
 
                             {/* Academic Performance */}
-                            {(profileData.currentCGPA ||
-                              profileData.currentGPA) && (
+                            {((enrichedProfileData?.currentCGPA !== undefined && enrichedProfileData.currentCGPA !== null) ||
+                              (enrichedProfileData?.currentGPA !== undefined && enrichedProfileData.currentGPA !== null)) && (
                               <div>
                                 <h4 className="text-lg font-semibold text-gray-900 mb-4">
                                   Academic Performance
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {profileData.currentCGPA && (
+                                  {enrichedProfileData?.currentCGPA !== undefined && enrichedProfileData.currentCGPA !== null && (
                                     <div>
                                       <label className="text-sm font-medium text-gray-500">
                                         Current CGPA
                                       </label>
                                       <p className="text-sm font-medium">
-                                        {profileData.currentCGPA as number}/10
+                                        {enrichedProfileData.currentCGPA as number}/10
                                       </p>
                                     </div>
                                   )}
-                                  {profileData.currentGPA && (
+                                  {enrichedProfileData?.currentGPA !== undefined && enrichedProfileData.currentGPA !== null && (
                                     <div>
                                       <label className="text-sm font-medium text-gray-500">
                                         Current GPA
                                       </label>
                                       <p className="text-sm font-medium">
-                                        {profileData.currentGPA as number}/4
+                                        {enrichedProfileData.currentGPA as number}/4
                                       </p>
                                     </div>
                                   )}

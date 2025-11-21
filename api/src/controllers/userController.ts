@@ -252,6 +252,9 @@ export const updateProfile = async (req: Request, res: Response) => {
       githubProfile,
       website,
       preferences,
+      currentYear,
+      currentCGPA,
+      currentGPA,
     } = req.body;
 
     const user = await User.findById(req.user.id);
@@ -810,6 +813,60 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
   }
 };
 
+// Update student profile
+export const updateStudentProfile = async (req: Request, res: Response) => {
+  try {
+    const {
+      department,
+      program,
+      batchYear,
+      graduationYear,
+      rollNumber,
+      studentId,
+      currentYear,
+      currentCGPA,
+      currentGPA,
+    } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Verify user is a student
+    if (user.role !== UserRole.STUDENT) {
+      return res.status(403).json({
+        success: false,
+        message: "This endpoint is only for students",
+      });
+    }
+
+    // Update student profile fields
+    if (department !== undefined) user.department = department;
+    if (graduationYear !== undefined) user.graduationYear = graduationYear;
+    if (currentYear !== undefined) user.currentYear = currentYear;
+    if (currentCGPA !== undefined) user.currentCGPA = currentCGPA;
+    if (currentGPA !== undefined) user.currentGPA = currentGPA;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Student profile updated successfully",
+      data: { user },
+    });
+  } catch (error) {
+    logger.error("Update student profile error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update student profile",
+    });
+  }
+};
+
 // Bulk create alumni from CSV/Excel data
 export const bulkCreateAlumni = async (req: Request, res: Response) => {
   try {
@@ -1353,4 +1410,5 @@ export default {
   testExport,
   getEligibleStudents,
   promoteStudentToAlumni,
+  updateStudentProfile,
 };

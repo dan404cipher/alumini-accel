@@ -89,15 +89,14 @@ export const validateUserCreation = [
     .optional()
     .isInt({ min: 1950, max: new Date().getFullYear() + 5 })
     .withMessage("Graduation year must be a valid year"),
-  body("graduationYear")
-    .custom((value, { req }) => {
-      const role = req.body.role;
-      // If role is "student", graduationYear is required
-      if (role === "student" && !value) {
-        throw new Error("Graduation year is required when role is student");
-      }
-      return true;
-    }),
+  body("graduationYear").custom((value, { req }) => {
+    const role = req.body.role;
+    // If role is "student", graduationYear is required
+    if (role === "student" && !value) {
+      throw new Error("Graduation year is required when role is student");
+    }
+    return true;
+  }),
   body("tenantId").custom((value, { req }) => {
     const role = req.body.role;
     if (role && role !== "super_admin") {
@@ -141,20 +140,20 @@ export const validateAlumniSkillsInterests = [
 
 // Alumni profile validation (for creation)
 export const validateAlumniProfile = [
-  body("university")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("University must be between 2 and 100 characters"),
   body("program")
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage("Program must be between 2 and 100 characters"),
   body("batchYear")
     .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
-    .withMessage("Batch year must be a valid year"),
+    .withMessage(
+      `Batch year must be between 1950 and ${new Date().getFullYear() + 1}`
+    ),
   body("graduationYear")
     .isInt({ min: 2020, max: new Date().getFullYear() + 5 })
-    .withMessage("Graduation year must be a valid year"),
+    .withMessage(
+      `Graduation year must be between 2020 and ${new Date().getFullYear() + 5}`
+    ),
   body("department")
     .trim()
     .isLength({ min: 2, max: 100 })
@@ -194,11 +193,6 @@ export const validateAlumniProfile = [
 
 // Alumni profile update validation (all fields optional)
 export const validateAlumniProfileUpdate = [
-  body("university")
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("University must be between 2 and 100 characters"),
   body("program")
     .optional()
     .trim()
@@ -207,11 +201,15 @@ export const validateAlumniProfileUpdate = [
   body("batchYear")
     .optional()
     .isInt({ min: 1950, max: new Date().getFullYear() + 1 })
-    .withMessage("Batch year must be a valid year"),
+    .withMessage(
+      `Batch year must be between 1950 and ${new Date().getFullYear() + 1}`
+    ),
   body("graduationYear")
     .optional()
     .isInt({ min: 2020, max: new Date().getFullYear() + 5 })
-    .withMessage("Graduation year must be a valid year"),
+    .withMessage(
+      `Graduation year must be between 2020 and ${new Date().getFullYear() + 5}`
+    ),
   body("department")
     .optional()
     .trim()
@@ -335,7 +333,9 @@ export const validateJobPost = [
       if (typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value)) {
         return true;
       }
-      throw new Error("Experience level must be a valid enum value or ObjectId");
+      throw new Error(
+        "Experience level must be a valid enum value or ObjectId"
+      );
     })
     .withMessage("Invalid experience level"),
   body("industry")
@@ -546,18 +546,14 @@ export const validateMentoringProgram = [
     .isLength({ min: 1, max: 75 })
     .withMessage("Name must be between 1 and 75 characters")
     .matches(/^[a-zA-Z0-9\s\-]+$/)
-    .withMessage(
-      "Name can only contain letters, numbers, spaces, and hyphens"
-    ),
+    .withMessage("Name can only contain letters, numbers, spaces, and hyphens"),
   body("shortDescription")
     .trim()
     .isLength({ min: 1, max: 250 })
     .withMessage("Short description must be between 1 and 250 characters")
     .matches(/^[a-zA-Z0-9\s\-.,!?()]+$/)
     .withMessage("Short description contains invalid characters"),
-  body("longDescription")
-    .optional()
-    .trim(),
+  body("longDescription").optional().trim(),
   body("programSchedule")
     .isIn(["One-time", "Recurring"])
     .withMessage("Program schedule must be either 'One-time' or 'Recurring'"),
@@ -622,7 +618,9 @@ export const validateMentoringProgram = [
       ];
       for (const pattern of dangerousPatterns) {
         if (pattern.test(value)) {
-          throw new Error("Entry criteria contains invalid characters or potentially unsafe content");
+          throw new Error(
+            "Entry criteria contains invalid characters or potentially unsafe content"
+          );
         }
       }
       return true;
@@ -633,10 +631,10 @@ export const validateMentoringProgram = [
     .withMessage("Mentee registration end date must be a valid date")
     .custom((value, { req }) => {
       const date = new Date(value);
-      const programStart = req.body.programDuration?.startDate 
+      const programStart = req.body.programDuration?.startDate
         ? new Date(req.body.programDuration.startDate)
         : null;
-      
+
       if (programStart && date <= programStart) {
         throw new Error(
           "Mentee registration end date must be after program start date"
@@ -649,10 +647,10 @@ export const validateMentoringProgram = [
     .withMessage("Mentor registration end date must be a valid date")
     .custom((value, { req }) => {
       const date = new Date(value);
-      const programStart = req.body.programDuration?.startDate 
+      const programStart = req.body.programDuration?.startDate
         ? new Date(req.body.programDuration.startDate)
         : null;
-      
+
       if (programStart && date <= programStart) {
         throw new Error(
           "Mentor registration end date must be after program start date"
@@ -674,9 +672,7 @@ export const validateMentoringProgram = [
       }
       return true;
     }),
-  body("manager")
-    .isMongoId()
-    .withMessage("Manager must be a valid user ID"),
+  body("manager").isMongoId().withMessage("Manager must be a valid user ID"),
   body("coordinators")
     .optional()
     .isArray()
@@ -692,24 +688,18 @@ export const validateMentoringProgram = [
   body("reportsEscalationsTo.*")
     .optional()
     .isMongoId()
-    .withMessage(
-      "Each reports/escalations user must be a valid user ID"
-    ),
+    .withMessage("Each reports/escalations user must be a valid user ID"),
   body("registrationApprovalBy")
     .isMongoId()
     .withMessage("Registration approval by must be a valid user ID"),
   body("emailTemplateMentorInvitation")
     .optional()
     .isMongoId()
-    .withMessage(
-      "Email template for mentor invitation must be a valid ID"
-    ),
+    .withMessage("Email template for mentor invitation must be a valid ID"),
   body("emailTemplateMenteeInvitation")
     .optional()
     .isMongoId()
-    .withMessage(
-      "Email template for mentee invitation must be a valid ID"
-    ),
+    .withMessage("Email template for mentee invitation must be a valid ID"),
   handleValidationErrors,
 ];
 
@@ -793,7 +783,9 @@ export const validateMentorRegistration = [
     .withMessage("SIT email must be a valid email with SIT domain"),
   body("classOf")
     .isInt({ min: 1950, max: new Date().getFullYear() })
-    .withMessage("Class of year must be a valid year between 1950 and current year"),
+    .withMessage(
+      "Class of year must be a valid year between 1950 and current year"
+    ),
   body("sitStudentId")
     .optional()
     .trim()
@@ -825,9 +817,7 @@ export const validateMentorRegistration = [
     .trim()
     .isLength({ max: 100 })
     .withMessage("Dietary restrictions cannot exceed 100 characters"),
-  body("optionToReceiveFB")
-    .optional()
-    .isBoolean(),
+  body("optionToReceiveFB").optional().isBoolean(),
   body("preferredMailingAddress")
     .isEmail()
     .normalizeEmail()
@@ -858,13 +848,12 @@ export const validateMentorRegistration = [
     .trim()
     .isLength({ max: 100 })
     .withMessage("Event meetup preference cannot exceed 100 characters"),
-  body("pdpaConsent")
-    .custom((value) => {
-      if (value !== true && value !== "true") {
-        throw new Error("PDPA consent must be accepted");
-      }
-      return true;
-    }),
+  body("pdpaConsent").custom((value) => {
+    if (value !== true && value !== "true") {
+      throw new Error("PDPA consent must be accepted");
+    }
+    return true;
+  }),
   body("recaptchaToken")
     .trim()
     .notEmpty()
@@ -885,43 +874,44 @@ export const validateMenteeRegistration = [
     .isLength({ min: 1, max: 30 })
     .withMessage("First name must be between 1 and 30 characters")
     .matches(/^[a-zA-Z\s]+$/)
-    .withMessage(
-      "First name can only contain letters (a-z, A-Z) and spaces"
-    ),
+    .withMessage("First name can only contain letters (a-z, A-Z) and spaces"),
   body("lastName")
     .trim()
     .isLength({ min: 1, max: 30 })
     .withMessage("Last name must be between 1 and 30 characters")
     .matches(/^[a-zA-Z\s]+$/)
-    .withMessage(
-      "Last name can only contain letters (a-z, A-Z) and spaces"
-    ),
+    .withMessage("Last name can only contain letters (a-z, A-Z) and spaces"),
   body("mobileNumber")
     .optional()
     .trim()
     .custom((value) => {
       if (!value || !value.trim()) return true;
-      
+
       // Remove all spaces, dashes, and parentheses for validation
       const cleanedNumber = value.replace(/[\s\-\(\)]/g, "");
-      
+
       // Indian mobile number validation: 10 digits starting with 9, 8, 7, or 6
       let digits = cleanedNumber;
-      
+
       // Remove country code if present (+91 or 91)
       if (cleanedNumber.startsWith("+91")) {
         digits = cleanedNumber.substring(3);
-      } else if (cleanedNumber.startsWith("91") && cleanedNumber.length === 12) {
+      } else if (
+        cleanedNumber.startsWith("91") &&
+        cleanedNumber.length === 12
+      ) {
         digits = cleanedNumber.substring(2);
       }
-      
+
       // Validate: exactly 10 digits starting with 9, 8, 7, or 6
       const indianMobileRegex = /^[6789]\d{9}$/;
-      
+
       if (!indianMobileRegex.test(digits)) {
-        throw new Error("Please enter a valid Indian mobile number (10 digits starting with 9, 8, 7, or 6). Example: 9876543210 or +91 9876543210");
+        throw new Error(
+          "Please enter a valid Indian mobile number (10 digits starting with 9, 8, 7, or 6). Example: 9876543210 or +91 9876543210"
+        );
       }
-      
+
       return true;
     }),
   body("dateOfBirth")
@@ -947,12 +937,20 @@ export const validateMenteeRegistration = [
   body("classOf")
     .custom((value) => {
       const classOfNumber = parseInt(value);
-      if (isNaN(classOfNumber) || classOfNumber < 1950 || classOfNumber > new Date().getFullYear()) {
-        throw new Error(`Class of year must be a valid year between 1950 and ${new Date().getFullYear()}`);
+      if (
+        isNaN(classOfNumber) ||
+        classOfNumber < 1950 ||
+        classOfNumber > new Date().getFullYear()
+      ) {
+        throw new Error(
+          `Class of year must be a valid year between 1950 and ${new Date().getFullYear()}`
+        );
       }
       return true;
     })
-    .withMessage("Class of year must be a valid year between 1950 and current year"),
+    .withMessage(
+      "Class of year must be a valid year between 1950 and current year"
+    ),
   body("sitStudentId")
     .optional()
     .trim()
@@ -983,19 +981,21 @@ export const validateMenteeRegistration = [
             : [value];
         }
       }
-      
+
       if (!areasArray || areasArray.length === 0) {
         throw new Error("At least one area of mentoring is required");
       }
-      
+
       // Validate each area
       for (const area of areasArray) {
         const trimmed = String(area).trim();
         if (trimmed.length === 0 || trimmed.length > 100) {
-          throw new Error("Each area of mentoring must be between 1 and 100 characters");
+          throw new Error(
+            "Each area of mentoring must be between 1 and 100 characters"
+          );
         }
       }
-      
+
       return true;
     })
     .withMessage("At least one area of mentoring is required"),
@@ -1015,17 +1015,20 @@ export const validateMenteeRegistration = [
     .withMessage("Preferred mailing address must be a valid email address"),
   body("eventSlotPreference")
     .isIn(["Weekend afternoon", "Weekday evenings"])
-    .withMessage("Event slot preference must be either 'Weekend afternoon' or 'Weekday evenings'"),
+    .withMessage(
+      "Event slot preference must be either 'Weekend afternoon' or 'Weekday evenings'"
+    ),
   body("eventMeetupPreference")
     .isIn(["Virtual", "Physical"])
-    .withMessage("Event meetup preference must be either 'Virtual' or 'Physical'"),
-  body("pdpaConsent")
-    .custom((value) => {
-      if (value !== true && value !== "true") {
-        throw new Error("PDPA consent must be accepted");
-      }
-      return true;
-    }),
+    .withMessage(
+      "Event meetup preference must be either 'Virtual' or 'Physical'"
+    ),
+  body("pdpaConsent").custom((value) => {
+    if (value !== true && value !== "true") {
+      throw new Error("PDPA consent must be accepted");
+    }
+    return true;
+  }),
   body("recaptchaToken")
     .trim()
     .notEmpty()

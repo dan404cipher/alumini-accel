@@ -440,7 +440,6 @@ export const getAlumniById = async (req: Request, res: Response) => {
 export const createProfile = async (req: Request, res: Response) => {
   try {
     const {
-      university,
       program,
       batchYear,
       graduationYear,
@@ -465,6 +464,8 @@ export const createProfile = async (req: Request, res: Response) => {
       availableSlots,
       testimonials,
       photos,
+      currentCGPA,
+      currentGPA,
     } = req.body;
 
     // Check if user already has an alumni profile
@@ -478,18 +479,8 @@ export const createProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Auto-populate university from tenant if not provided
-    let finalUniversity = university;
-    if (!finalUniversity && req.user?.tenantId) {
-      const tenant = await Tenant.findById(req.user.tenantId);
-      if (tenant) {
-        finalUniversity = tenant.name;
-      }
-    }
-
     const alumniProfile = new AlumniProfile({
       userId: req.user.id,
-      university: finalUniversity || "Not specified",
       program,
       batchYear,
       graduationYear,
@@ -518,13 +509,25 @@ export const createProfile = async (req: Request, res: Response) => {
 
     await alumniProfile.save();
 
-    // Update user role to alumni if not already
-    await User.findByIdAndUpdate(req.user.id, { role: UserRole.ALUMNI });
+    // Update user role to alumni if not already, and save CGPA/GPA if provided
+    const updateData: any = { role: UserRole.ALUMNI };
+    if (currentCGPA !== undefined) updateData.currentCGPA = currentCGPA;
+    if (currentGPA !== undefined) updateData.currentGPA = currentGPA;
+    await User.findByIdAndUpdate(req.user.id, updateData);
+
+    // Get updated user to include CGPA/GPA in response
+    const user = await User.findById(req.user.id);
 
     return res.status(201).json({
       success: true,
       message: "Alumni profile created successfully",
-      data: { alumniProfile },
+      data: { 
+        alumniProfile,
+        user: user ? {
+          currentCGPA: user.currentCGPA,
+          currentGPA: user.currentGPA,
+        } : undefined,
+      },
     });
   } catch (error) {
     logger.error("Create alumni profile error:", error);
@@ -560,7 +563,6 @@ export const registerAsMentor = async (req: Request, res: Response) => {
       // Create a basic alumni profile if one doesn't exist
       alumniProfile = new AlumniProfile({
         userId: req.user.id,
-        university: "Not specified",
         program: "Not specified",
         batchYear: new Date().getFullYear() - 4, // Default to 4 years ago
         graduationYear: new Date().getFullYear() - 4,
@@ -660,7 +662,6 @@ export const registerAsMentor = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const {
-      university,
       program,
       batchYear,
       graduationYear,
@@ -685,6 +686,8 @@ export const updateProfile = async (req: Request, res: Response) => {
       availableSlots,
       testimonials,
       photos,
+      currentCGPA,
+      currentGPA,
     } = req.body;
 
     const alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
@@ -696,17 +699,6 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Auto-populate university from tenant if not provided or empty
-    let finalUniversity = university;
-    if ((!finalUniversity || finalUniversity.trim() === "") && req.user?.tenantId) {
-      const tenant = await Tenant.findById(req.user.tenantId);
-      if (tenant) {
-        finalUniversity = tenant.name;
-      }
-    }
-
-    // Update fields if provided
-    if (finalUniversity !== undefined) alumniProfile.university = finalUniversity;
     if (program !== undefined) alumniProfile.program = program;
     if (batchYear !== undefined) alumniProfile.batchYear = batchYear;
     if (graduationYear !== undefined)
@@ -744,13 +736,35 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     await alumniProfile.save();
 
+    // Update CGPA/GPA in User model if provided (these are student fields stored in User model)
+    let user = null;
+    if (currentCGPA !== undefined || currentGPA !== undefined) {
+      user = await User.findById(req.user.id);
+      if (user) {
+        if (currentCGPA !== undefined) user.currentCGPA = currentCGPA;
+        if (currentGPA !== undefined) user.currentGPA = currentGPA;
+        await user.save();
+      }
+    }
+
     // Update profile completion
     await updateProfileCompletion(req.user.id);
+
+    // Get updated user data to include CGPA/GPA in response
+    if (!user) {
+      user = await User.findById(req.user.id);
+    }
 
     return res.json({
       success: true,
       message: "Alumni profile updated successfully",
-      data: { alumniProfile },
+      data: { 
+        alumniProfile,
+        user: user ? {
+          currentCGPA: user.currentCGPA,
+          currentGPA: user.currentGPA,
+        } : undefined,
+      },
     });
   } catch (error) {
     logger.error("Update alumni profile error:", error);
@@ -1045,7 +1059,6 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
       // Create basic alumni profile
       alumniProfile = new AlumniProfile({
         userId: req.user.id,
-        university: "Default University", // Will be updated when user fills profile
         program: "Default Program",
         batchYear: new Date().getFullYear() - 4, // Default batch year
         graduationYear: new Date().getFullYear(),

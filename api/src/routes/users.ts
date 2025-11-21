@@ -89,6 +89,15 @@ router.put(
   asyncHandler(userController.updateProfile)
 );
 
+// @route   PUT /api/v1/students/profile
+// @desc    Update student profile (educational details)
+// @access  Private/Student
+router.put(
+  "/students/profile",
+  authenticateToken,
+  asyncHandler(userController.updateStudentProfile)
+);
+
 // @route   GET /api/v1/users/eligible-students
 // @desc    Get eligible students for alumni promotion (admin only)
 // @access  Private/Admin

@@ -81,10 +81,6 @@ const basicProfileSchema = z.object({
     .string()
     .max(100, "Location cannot exceed 100 characters")
     .optional(),
-  university: z
-    .string()
-    .max(200, "University name cannot exceed 200 characters")
-    .optional(),
 });
 
 type BasicProfileFormData = z.infer<typeof basicProfileSchema>;
@@ -99,7 +95,6 @@ interface BasicProfileFormProps {
     gender?: string;
     bio?: string;
     location?: string;
-    university?: string;
   };
   onUpdate: () => void;
 }
@@ -125,7 +120,6 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
       gender: user.gender as "male" | "female" | "other" | undefined,
       bio: user.bio || "",
       location: user.location || "",
-      university: user.university || "",
     },
   });
 

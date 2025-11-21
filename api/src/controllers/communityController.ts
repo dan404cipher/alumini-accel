@@ -783,13 +783,7 @@ export const getUserMembershipStatus = async (
       userId: userId,
     });
 
-    console.log(
-      "🔍 Backend - Checking membership for user:",
-      userId,
-      "community:",
-      id
-    );
-    console.log("🔍 Backend - Found membership:", membership);
+   
 
     return res.json({
       success: true,
@@ -1046,8 +1040,7 @@ export const getTopCommunities = asyncHandler(
     // Get communities sorted by member count and activity
     const topCommunities = await Community.aggregate(pipeline);
 
-    console.log("🎯 Top communities found:", topCommunities.length);
-    console.log("📋 Communities data:", topCommunities);
+    
 
     // If no communities found, return empty array
     if (topCommunities.length === 0) {

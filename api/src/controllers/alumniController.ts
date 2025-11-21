@@ -90,19 +90,7 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
     );
 
-    // Debug: Log alumni profiles found
-    console.log("Found alumni profiles:", alumniProfiles.length);
-    console.log(
-      "Alumni profiles data:",
-      alumniProfiles.map((p) => ({
-        userId: p.userId,
-        graduationYear: p.graduationYear,
-        currentCompany: p.currentCompany,
-        currentPosition: p.currentPosition,
-        experience: p.experience,
-      }))
-    );
-
+    
     // Create maps for quick lookup
     const alumniMap = new Map();
     alumniProfiles.forEach((profile: any) => {
@@ -514,6 +502,9 @@ export const createProfile = async (req: Request, res: Response) => {
     if (currentCGPA !== undefined) updateData.currentCGPA = currentCGPA;
     if (currentGPA !== undefined) updateData.currentGPA = currentGPA;
     await User.findByIdAndUpdate(req.user.id, updateData);
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     // Get updated user to include CGPA/GPA in response
     const user = await User.findById(req.user.id);
@@ -1243,6 +1234,9 @@ export const addProject = async (req: Request, res: Response) => {
     profile.projects.push(project);
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Project added successfully",
@@ -1296,6 +1290,9 @@ export const updateProject = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Project updated successfully",
@@ -1335,6 +1332,9 @@ export const deleteProject = async (req: Request, res: Response) => {
 
     profile.projects.splice(projectIndex, 1);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1417,6 +1417,9 @@ export const addInternship = async (req: Request, res: Response) => {
 
     profile.internshipExperience.push(internship);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1507,6 +1510,9 @@ export const updateInternship = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Internship experience updated successfully",
@@ -1547,6 +1553,9 @@ export const deleteInternship = async (req: Request, res: Response) => {
 
     profile.internshipExperience.splice(internshipIndex, 1);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1622,6 +1631,9 @@ export const addResearch = async (req: Request, res: Response) => {
 
     profile.researchWork.push(research);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1707,6 +1719,9 @@ export const updateResearch = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Research work updated successfully",
@@ -1747,6 +1762,9 @@ export const deleteResearch = async (req: Request, res: Response) => {
 
     profile.researchWork.splice(researchIndex, 1);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1790,6 +1808,9 @@ export const addCertification = async (req: Request, res: Response) => {
 
     profile.certifications.push(certification);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1846,6 +1867,9 @@ export const updateCertification = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Certification updated successfully",
@@ -1886,6 +1910,9 @@ export const deleteCertification = async (req: Request, res: Response) => {
 
     profile.certifications.splice(certificationIndex, 1);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,

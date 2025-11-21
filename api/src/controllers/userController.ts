@@ -853,6 +853,9 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
 
     await user.save();
 
+    // Update profile completion for students
+    await updateProfileCompletion(user._id);
+
     return res.json({
       success: true,
       message: "Student profile updated successfully",

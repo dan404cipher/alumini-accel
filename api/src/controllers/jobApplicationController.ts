@@ -262,21 +262,19 @@ export const getUserApplications = async (
       });
     }
 
-    if (!tenantId) {
-      return res.status(400).json({
-        success: false,
-        message: "Tenant ID is required",
-      });
-    }
-
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const applications = await JobApplication.find({
+    // Build query - tenantId is optional
+    const query: any = {
       applicantId: new mongoose.Types.ObjectId(userId),
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-    })
+    };
+    if (tenantId) {
+      query.tenantId = new mongoose.Types.ObjectId(tenantId);
+    }
+
+    const applications = await JobApplication.find(query)
       .populate({
         path: "jobId",
         select: "title company position location type",
@@ -289,10 +287,7 @@ export const getUserApplications = async (
       .skip(skip)
       .limit(limit);
 
-    const totalCount = await JobApplication.countDocuments({
-      applicantId: new mongoose.Types.ObjectId(userId),
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-    });
+    const totalCount = await JobApplication.countDocuments(query);
 
     return res.status(200).json({
       success: true,

@@ -230,7 +230,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                 onClick={() => setIsOpen(false)}
                 className="h-8 w-8 p-0 hover:bg-gray-100"
               >
-                <X className="h-4 w-4" />
+                
               </Button>
             </div>
           </DialogHeader>

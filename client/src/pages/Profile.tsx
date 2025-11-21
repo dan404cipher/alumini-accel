@@ -676,24 +676,26 @@ const Profile = () => {
           </div>
 
           {/* Profile Completion Progress */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">
-                Profile Completion
-              </span>
-              <span className="text-sm text-gray-500">
-                {profile.user.profileCompletionPercentage}%
-              </span>
+          {profile?.user && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Profile Completion
+                </span>
+                <span className="text-sm text-gray-500">
+                  {profile.user.profileCompletionPercentage ?? 0}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${profile.user.profileCompletionPercentage ?? 0}%`,
+                  }}
+                ></div>
+              </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${profile.user.profileCompletionPercentage}%`,
-                }}
-              ></div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

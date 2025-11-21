@@ -191,7 +191,7 @@ const JobBoard = () => {
     useState<Job | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const postedJobsCount = useMemo(
-    () => jobs.filter((j) => j.postedBy._id === user?._id).length,
+    () => jobs.filter((j) => j.postedBy && j.postedBy._id === user?._id).length,
     [jobs, user?._id]
   );
   const [activeTab, setActiveTab] = useState("jobs");
@@ -208,14 +208,14 @@ const JobBoard = () => {
 
   // Helper function to check if user can edit a specific job
   const canEditJob = (job: Job) => {
-    if (!user) return false;
+    if (!user || !job.postedBy) return false;
     // Can edit if they have permission to edit all jobs OR if they own the job
     return canEditAllJobs || job.postedBy._id === user._id;
   };
 
   // Helper function to check if user can delete a specific job
   const canDeleteJob = (job: Job) => {
-    if (!user) return false;
+    if (!user || !job.postedBy) return false;
     // Can delete if they have permission to delete all jobs OR if they own the job
     return canDeleteJobs || job.postedBy._id === user._id;
   };
@@ -727,8 +727,8 @@ const JobBoard = () => {
                         No saved types
                       </SelectItem>
                     ) : (
-                      typeOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
+                      typeOptions.map((name, index) => (
+                        <SelectItem key={`type-${index}-${name}`} value={name}>
                           {name}
                         </SelectItem>
                       ))
@@ -756,8 +756,8 @@ const JobBoard = () => {
                         No saved levels
                       </SelectItem>
                     ) : (
-                      experienceOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
+                      experienceOptions.map((name, index) => (
+                        <SelectItem key={`exp-${index}-${name}`} value={name}>
                           {name}
                         </SelectItem>
                       ))
@@ -783,8 +783,8 @@ const JobBoard = () => {
                         No saved industries
                       </SelectItem>
                     ) : (
-                      industryOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
+                      industryOptions.map((name, index) => (
+                        <SelectItem key={`industry-${index}-${name}`} value={name}>
                           {name}
                         </SelectItem>
                       ))
@@ -1449,13 +1449,15 @@ const JobBoard = () => {
                                 </div>
 
                                 <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">
-                                  <div className="text-xs lg:text-sm text-muted-foreground">
-                                    Posted by{" "}
-                                    <span className="text-primary font-medium">
-                                      {job.postedBy.firstName}{" "}
-                                      {job.postedBy.lastName}
-                                    </span>
-                                  </div>
+                                  {job.postedBy && (
+                                    <div className="text-xs lg:text-sm text-muted-foreground">
+                                      Posted by{" "}
+                                      <span className="text-primary font-medium">
+                                        {job.postedBy.firstName}{" "}
+                                        {job.postedBy.lastName}
+                                      </span>
+                                    </div>
+                                  )}
                                   <div className="flex flex-wrap gap-2">
                                     <Button
                                       variant="ghost"
@@ -1578,7 +1580,7 @@ const JobBoard = () => {
                 </div>
 
                 {/* Show jobs posted by current user */}
-                {jobs.filter((job) => job.postedBy._id === user?._id).length ===
+                {jobs.filter((job) => job.postedBy && job.postedBy._id === user?._id).length ===
                 0 ? (
                   <div className="text-center py-8">
                     <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -1604,7 +1606,7 @@ const JobBoard = () => {
                     {/* Job Selection */}
                     <div className="grid gap-4">
                       {jobs
-                        .filter((job) => job.postedBy._id === user?._id)
+                        .filter((job) => job.postedBy && job.postedBy._id === user?._id)
                         .map((job) => (
                           <Card
                             key={job._id}

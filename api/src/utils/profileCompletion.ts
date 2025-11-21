@@ -14,9 +14,9 @@ export const calculateProfileCompletion = async (
     if (!user) return 0;
 
     let completionScore = 0;
-    const totalFields = 10; // Total number of fields we're checking
+    let totalFields = 10; // Base fields for all users
 
-    // Basic profile fields (40% weight)
+    // Basic profile fields (10 fields)
     if (user.firstName) completionScore += 1;
     if (user.lastName) completionScore += 1;
     if (user.email) completionScore += 1;
@@ -28,13 +28,14 @@ export const calculateProfileCompletion = async (
     if (user.gender) completionScore += 1;
     if (user.university) completionScore += 1;
 
-    // Additional fields for alumni (20% weight)
+    // Additional fields for alumni (5 more fields = 15 total)
     if (user.role === "alumni") {
+      totalFields = 15; // Update total for alumni
       const alumniProfile = await AlumniProfile.findOne({ userId });
       if (alumniProfile) {
         if (alumniProfile.currentCompany) completionScore += 1;
         if (alumniProfile.currentPosition) completionScore += 1;
-        if (alumniProfile.experience) completionScore += 1;
+        if (alumniProfile.experience !== undefined && alumniProfile.experience !== null) completionScore += 1;
         if (alumniProfile.specialization) completionScore += 1;
         if (alumniProfile.skills && alumniProfile.skills.length > 0)
           completionScore += 1;

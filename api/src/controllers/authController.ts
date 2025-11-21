@@ -431,6 +431,9 @@ export const getCurrentUser = async (req: Request, res: Response) => {
           currentYear: user.currentYear,
           currentCGPA: user.currentCGPA,
           currentGPA: user.currentGPA,
+          // Include profile completion percentage
+          profileCompletionPercentage: user.profileCompletionPercentage ?? 0,
+          isProfileComplete: user.isProfileComplete ?? false,
         },
         alumniProfile,
         studentProfile,

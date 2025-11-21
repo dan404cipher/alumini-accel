@@ -394,17 +394,61 @@ const Messages = () => {
   // Handle auto-selecting conversation when user parameter is provided
   useEffect(() => {
     const userId = searchParams.get("user");
-    if (userId && conversations.length > 0) {
-      const targetConversation = conversations.find(
-        (conv) => conv.user.id === userId
-      );
-      if (targetConversation && !selectedConversation) {
-        setSelectedConversation(targetConversation);
-        fetchMessages(targetConversation.user.id);
+    if (userId) {
+      // Check if we already have this conversation selected
+      const isAlreadySelected = selectedConversation?.user.id === userId;
+      
+      if (isAlreadySelected) {
+        return; // Already selected, no need to do anything
+      }
+
+      // First, try to find in existing conversations
+      if (conversations.length > 0) {
+        const targetConversation = conversations.find(
+          (conv) => conv.user.id === userId
+        );
+        if (targetConversation) {
+          setSelectedConversation(targetConversation);
+          fetchMessages(targetConversation.user.id);
+          return;
+        }
+      }
+
+      // If conversation doesn't exist yet, fetch user info and create a temporary conversation
+      // This allows starting a new conversation with a user
+      const fetchUserAndCreateConversation = async () => {
+        try {
+          // Import alumniAPI dynamically to avoid circular dependencies
+          const { alumniAPI } = await import("@/lib/api");
+          const response = await alumniAPI.getUserById(userId);
+          
+          if (response.success && response.data && "user" in response.data) {
+            const userData = (response.data as { user: any }).user;
+            const tempConversation: Conversation = {
+              user: {
+                id: userData.id,
+                firstName: userData.name?.split(" ")[0] || "",
+                lastName: userData.name?.split(" ").slice(1).join(" ") || "",
+                email: userData.email || "",
+                profilePicture: userData.profileImage,
+              },
+              unreadCount: 0,
+            };
+            setSelectedConversation(tempConversation);
+            fetchMessages(userId);
+          }
+        } catch (error) {
+          console.error("Error fetching user for conversation:", error);
+        }
+      };
+
+      // Only fetch if conversations have been loaded (to avoid duplicate calls)
+      if (!loading) {
+        fetchUserAndCreateConversation();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversations, searchParams, selectedConversation]);
+  }, [conversations, searchParams, selectedConversation, loading]);
 
   // Cleanup socket connections on unmount
   useEffect(() => {

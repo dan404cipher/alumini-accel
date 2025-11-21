@@ -21,7 +21,7 @@ import {
   Github,
   MessageCircle,
 } from "lucide-react";
-import { alumniAPI, API_BASE_URL } from "@/lib/api";
+import { alumniAPI, API_BASE_URL, connectionAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import Navigation from "@/components/Navigation";
@@ -125,9 +125,21 @@ const AlumniProfile = () => {
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
 
   // Check if this is the current user's own profile
   const isOwnProfile = currentUser && user && currentUser._id === user.id;
+
+  // Check if user has admin privileges to send messages without connection
+  const canSendMessage =
+    currentUser?.role &&
+    ["super_admin", "college_admin", "hod", "staff"].includes(currentUser.role);
+
+  // Check if users are connected (status === "accepted")
+  const isConnected = connectionStatus === "accepted";
+
+  // Can show message button if: admin OR connected
+  const canShowMessageButton = canSendMessage || isConnected;
 
   const fetchUserProfile = useCallback(
     async (userId: string) => {
@@ -232,6 +244,33 @@ const AlumniProfile = () => {
     }
   };
 
+  // Check connection status
+  const checkConnectionStatus = useCallback(
+    async (userId: string) => {
+      if (!currentUser?._id || currentUser._id === userId) {
+        setConnectionStatus(null);
+        return;
+      }
+
+      try {
+        const response = await connectionAPI.checkConnectionStatus(userId);
+        if (response.success && response.data) {
+          const data = response.data as {
+            exists: boolean;
+            connection: { status: string } | null;
+          };
+          setConnectionStatus(data.connection?.status || null);
+        } else {
+          setConnectionStatus(null);
+        }
+      } catch (error) {
+        console.error("Error checking connection status:", error);
+        setConnectionStatus(null);
+      }
+    },
+    [currentUser?._id]
+  );
+
   useEffect(() => {
     if (id && id !== "undefined") {
       fetchUserProfile(id);
@@ -240,6 +279,15 @@ const AlumniProfile = () => {
       setLoading(false);
     }
   }, [id, fetchUserProfile]);
+
+  // Check connection status when user profile is loaded (only for non-admin users)
+  useEffect(() => {
+    if (user?.id && !isOwnProfile && !canSendMessage) {
+      checkConnectionStatus(user.id);
+    } else {
+      setConnectionStatus(null);
+    }
+  }, [user?.id, isOwnProfile, canSendMessage, checkConnectionStatus]);
 
   if (loading) {
     return (
@@ -390,18 +438,6 @@ const AlumniProfile = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Connection Button - Only show for other users' profiles */}
-                {!isOwnProfile && (
-                  <div className="mb-4">
-                    <ConnectionButton
-                      userId={user.id}
-                      userName={user.name}
-                      variant="default"
-                      size="default"
-                    />
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
                   <div className="flex items-center">
@@ -1211,61 +1247,78 @@ const AlumniProfile = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Contact Actions */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Connect</h3>
-                <div className="space-y-3">
-                  {!isOwnProfile && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => navigate(`/messages?user=${user.id}`)}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Send Message
-                    </Button>
-                  )}
+            {(!isOwnProfile ||
+              user.linkedinProfile ||
+              user.githubProfile ||
+              user.website) && (
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Connect</h3>
+                  <div className="space-y-3">
+                    {!isOwnProfile && (
+                      <ConnectionButton
+                        userId={user.id}
+                        userName={user.name}
+                        variant="default"
+                        size="default"
+                        className="w-full"
+                      />
+                    )}
 
-                  {user.linkedinProfile && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() =>
-                        window.open(user.linkedinProfile, "_blank")
-                      }
-                    >
-                      <Linkedin className="w-4 h-4 mr-2" />
-                      LinkedIn
-                      <ExternalLink className="w-3 h-3 ml-auto" />
-                    </Button>
-                  )}
+                    {!isOwnProfile && canShowMessageButton && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => navigate(`/messages?user=${user.id}`)}
+                      >
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Send Message
+                      </Button>
+                    )}
 
-                  {user.githubProfile && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => window.open(user.githubProfile, "_blank")}
-                    >
-                      <Phone className="w-4 h-4 mr-2" />
-                      GitHub
-                      <ExternalLink className="w-3 h-3 ml-auto" />
-                    </Button>
-                  )}
+                    {user.linkedinProfile && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() =>
+                          window.open(user.linkedinProfile, "_blank")
+                        }
+                      >
+                        <Linkedin className="w-4 h-4 mr-2" />
+                        LinkedIn
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </Button>
+                    )}
 
-                  {user.website && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => window.open(user.website, "_blank")}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Website
-                      <ExternalLink className="w-3 h-3 ml-auto" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {user.githubProfile && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() =>
+                          window.open(user.githubProfile, "_blank")
+                        }
+                      >
+                        <Phone className="w-4 h-4 mr-2" />
+                        GitHub
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </Button>
+                    )}
+
+                    {user.website && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => window.open(user.website, "_blank")}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Website
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Quick Stats */}
             <Card>

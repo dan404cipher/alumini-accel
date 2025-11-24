@@ -73,7 +73,6 @@ const campaignSchema = new Schema<ICampaign>(
       type: Schema.Types.ObjectId,
       ref: "Fund",
       required: false,
-      index: true,
     },
     category: {
       type: String,

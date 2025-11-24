@@ -68,4 +68,4 @@ const recreateSuperAdmin = async () => {
   }
 };
 
-recreateSuperAdmin();
+// recreateSuperAdmin();

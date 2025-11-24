@@ -1,0 +1,12 @@
+   # Logs
+   logs/
+   *.log
+   
+   # Build outputs
+   dist/
+   build/
+   
+   # Test files
+   test-*.js
+   test-*.txt
+   check-*.js

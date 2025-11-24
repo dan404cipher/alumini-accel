@@ -1366,6 +1366,34 @@ export const jobAPI = {
     });
   },
 
+  // Get pending jobs for admin approval
+  getPendingJobs: async (params?: {
+    page?: number;
+    limit?: number;
+  }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/jobs/pending",
+      params,
+    });
+  },
+
+  // Approve a job post
+  approveJob: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/jobs/${id}/approve`,
+    });
+  },
+
+  // Reject a job post
+  rejectJob: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/jobs/${id}/reject`,
+    });
+  },
+
   // Get jobs by company
   getJobsByCompany: async (
     company: string,

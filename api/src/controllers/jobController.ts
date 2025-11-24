@@ -34,15 +34,29 @@ export const getAllJobs = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const filter: any = {
-      status: { $in: [JobPostStatus.ACTIVE, JobPostStatus.PENDING] },
-    };
+    const filter: any = {};
 
     // 🔒 MULTI-TENANT FILTERING: Only show jobs from same college (unless super admin)
     if (req.query.tenantId) {
       filter.tenantId = req.query.tenantId;
     } else if (req.user?.role !== "super_admin" && req.user?.tenantId) {
       filter.tenantId = req.user.tenantId;
+    }
+
+    // Only show ACTIVE jobs to non-admin users (alumni, students)
+    // Admins (super_admin, college_admin, hod, staff) can see both ACTIVE and PENDING
+    const isAdmin =
+      req.user?.role === "super_admin" ||
+      req.user?.role === "college_admin" ||
+      req.user?.role === "hod" ||
+      req.user?.role === "staff";
+
+    if (isAdmin) {
+      // Admins can see both ACTIVE and PENDING jobs
+      filter.status = { $in: [JobPostStatus.ACTIVE, JobPostStatus.PENDING] };
+    } else {
+      // Non-admin users (alumni, students) can only see ACTIVE jobs
+      filter.status = JobPostStatus.ACTIVE;
     }
 
     // Apply filters
@@ -783,6 +797,193 @@ export const getJobStats = async (req: Request, res: Response) => {
   }
 };
 
+// Get pending jobs for admin approval
+export const getPendingJobs = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    // Check if user is admin
+    const isAdmin =
+      req.user?.role === "super_admin" ||
+      req.user?.role === "college_admin" ||
+      req.user?.role === "hod" ||
+      req.user?.role === "staff";
+
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view pending jobs",
+      });
+    }
+
+    const filter: any = {
+      status: JobPostStatus.PENDING,
+    };
+
+    // 🔒 MULTI-TENANT FILTERING: Only show jobs from same college (unless super admin)
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    const jobs = await JobPost.find(filter)
+      .populate("postedBy", "firstName lastName email profilePicture")
+      .populate("customJobType", "name")
+      .populate("customExperience", "name")
+      .populate("customIndustry", "name")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await JobPost.countDocuments(filter);
+
+    // Transform jobs to replace ObjectId strings with category names
+    const transformedJobs = jobs.map(transformJob);
+
+    return res.json({
+      success: true,
+      data: {
+        jobs: transformedJobs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get pending jobs error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch pending jobs",
+    });
+  }
+};
+
+// Approve a job post
+export const approveJob = async (req: Request, res: Response) => {
+  try {
+    const job = await JobPost.findById(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job post not found",
+      });
+    }
+
+    // Check if user is admin
+    const isAdmin =
+      req.user?.role === "super_admin" ||
+      req.user?.role === "college_admin" ||
+      req.user?.role === "hod" ||
+      req.user?.role === "staff";
+
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to approve jobs",
+      });
+    }
+
+    // Check tenant access (unless super admin)
+    if (
+      req.user?.role !== "super_admin" &&
+      job.tenantId.toString() !== req.user?.tenantId?.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to approve this job post",
+      });
+    }
+
+    if (job.status !== JobPostStatus.PENDING) {
+      return res.status(400).json({
+        success: false,
+        message: "Job post is not pending approval",
+      });
+    }
+
+    job.status = JobPostStatus.ACTIVE;
+    await job.save();
+
+    return res.json({
+      success: true,
+      message: "Job post approved successfully",
+      data: { job: transformJob(job) },
+    });
+  } catch (error) {
+    logger.error("Approve job error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to approve job post",
+    });
+  }
+};
+
+// Reject a job post
+export const rejectJob = async (req: Request, res: Response) => {
+  try {
+    const job = await JobPost.findById(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job post not found",
+      });
+    }
+
+    // Check if user is admin
+    const isAdmin =
+      req.user?.role === "super_admin" ||
+      req.user?.role === "college_admin" ||
+      req.user?.role === "hod" ||
+      req.user?.role === "staff";
+
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to reject jobs",
+      });
+    }
+
+    // Check tenant access (unless super admin)
+    if (
+      req.user?.role !== "super_admin" &&
+      job.tenantId.toString() !== req.user?.tenantId?.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to reject this job post",
+      });
+    }
+
+    if (job.status !== JobPostStatus.PENDING) {
+      return res.status(400).json({
+        success: false,
+        message: "Job post is not pending approval",
+      });
+    }
+
+    job.status = JobPostStatus.CLOSED;
+    await job.save();
+
+    return res.json({
+      success: true,
+      message: "Job post rejected successfully",
+      data: { job: transformJob(job) },
+    });
+  } catch (error) {
+    logger.error("Reject job error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reject job post",
+    });
+  }
+};
+
 // Save a job
 export const saveJob = async (req: Request, res: Response) => {
   try {
@@ -963,6 +1164,9 @@ export default {
   getJobsByType,
   getMyJobPosts,
   getJobStats,
+  getPendingJobs,
+  approveJob,
+  rejectJob,
   saveJob,
   unsaveJob,
   getSavedJobs,

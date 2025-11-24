@@ -83,6 +83,7 @@ import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
 import EventManagement from "../EventManagement";
+import JobManagement from "../admin/JobManagement";
 import Footer from "../Footer";
 // Note: College Admin only manages their own college, not all colleges
 
@@ -1709,6 +1710,12 @@ const CollegeAdminDashboard = () => {
                   label: "Event Management",
                   icon: Calendar,
                   color: "amber",
+                },
+                {
+                  key: "job-management",
+                  label: "Job Management",
+                  icon: Briefcase,
+                  color: "blue",
                 },
               ].map((item) => {
                 const Icon = item.icon;
@@ -3683,6 +3690,11 @@ const CollegeAdminDashboard = () => {
             </TabsContent>
             <TabsContent value="event-management" className="space-y-6">
               <EventManagement />
+            </TabsContent>
+
+            {/* Job Management */}
+            <TabsContent value="job-management" className="space-y-6">
+              <JobManagement />
             </TabsContent>
           </Tabs>
         </div>

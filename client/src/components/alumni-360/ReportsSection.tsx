@@ -35,8 +35,19 @@ const COLORS = {
   teal: "#14b8a6",
   pink: "#ec4899",
   indigo: "#6366f1",
+  cyan: "#06b6d4",
+  emerald: "#059669",
+  amber: "#f59e0b",
+  rose: "#f43f5e",
+  violet: "#8b5cf6",
+  sky: "#0ea5e9",
+  lime: "#84cc16",
+  fuchsia: "#d946ef",
+  slate: "#64748b",
+  stone: "#78716c",
 };
 
+// Extended color palette to ensure unique colors for all activities
 const PIE_CHART_COLORS = [
   COLORS.blue,
   COLORS.green,
@@ -44,6 +55,16 @@ const PIE_CHART_COLORS = [
   COLORS.purple,
   COLORS.teal,
   COLORS.pink,
+  COLORS.indigo,
+  COLORS.cyan,
+  COLORS.emerald,
+  COLORS.rose,
+  COLORS.violet,
+  COLORS.sky,
+  COLORS.lime,
+  COLORS.fuchsia,
+  COLORS.red,
+  COLORS.slate,
 ];
 
 export const ReportsSection = ({ alumniId }: ReportsSectionProps) => {
@@ -262,7 +283,7 @@ export const ReportsSection = ({ alumniId }: ReportsSectionProps) => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={false}
+                        label={({ name, value }) => `${name} ${value}%`}
                         outerRadius="60%"
                         innerRadius="0%"
                         fill="#8884d8"

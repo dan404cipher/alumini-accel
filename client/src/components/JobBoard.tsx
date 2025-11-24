@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -46,6 +56,7 @@ import {
   Edit,
   Share2,
   Menu,
+  Trash2,
 } from "lucide-react";
 import { PostJobDialog } from "./dialogs/PostJobDialog";
 import { EditJobDialog } from "./dialogs/EditJobDialog";
@@ -102,6 +113,8 @@ const JobBoard = () => {
   const [isShareJobOpen, setIsShareJobOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [sharingJob, setSharingJob] = useState<Job | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -478,6 +491,35 @@ const JobBoard = () => {
     setEditingJob(job);
     setIsEditJobOpen(true);
   }, []);
+
+  // Handle delete job confirmation
+  const handleDeleteClick = useCallback((job: Job) => {
+    setJobToDelete(job);
+    setShowDeleteDialog(true);
+  }, []);
+
+  // Handle delete job
+  const handleDeleteJob = useCallback(async () => {
+    if (!jobToDelete) return;
+
+    try {
+      const response = await jobAPI.deleteJob(jobToDelete._id);
+      if (response.success) {
+        // Remove job from local state
+        setJobs((prevJobs) => prevJobs.filter((j) => j._id !== jobToDelete._id));
+        // Refresh the jobs list
+        fetchJobs();
+        setShowDeleteDialog(false);
+        setJobToDelete(null);
+      } else {
+        throw new Error(response.message || "Failed to delete job");
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete job";
+      alert(errorMessage);
+    }
+  }, [jobToDelete, fetchJobs]);
 
   // Handle job updated
   const handleJobUpdated = useCallback(() => {
@@ -1156,6 +1198,16 @@ const JobBoard = () => {
                                         <Edit className="w-4 h-4" />
                                       </Button>
                                     )}
+                                    {canDeleteJob(job) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteClick(job)}
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -1487,6 +1539,16 @@ const JobBoard = () => {
                                         <Edit className="w-4 h-4" />
                                       </Button>
                                     )}
+                                    {canDeleteJob(job) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteClick(job)}
+                                        className="text-red-600 hover:text-red-700 p-2"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -1767,6 +1829,29 @@ const JobBoard = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Job Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this job post? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setJobToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteJob}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -59,6 +59,7 @@ import emailTemplateRoutes from "./routes/emailTemplate";
 import matchingRoutes from "./routes/matching";
 import mentorshipCommunicationRoutes from "./routes/mentorshipCommunication";
 import programChatRoutes from "./routes/programChat";
+import alumni360Routes from "./routes/alumni360";
 
 // Load environment variables
 dotenv.config();
@@ -88,38 +89,47 @@ const startServer = async () => {
   try {
     // Try to connect to database, but don't block server startup if it fails
     connectDB().catch((error) => {
-      logger.error("MongoDB connection failed, but continuing server startup:", error);
-      logger.warn("Server will start without database connection. Some features may not work.");
+      logger.error(
+        "MongoDB connection failed, but continuing server startup:",
+        error
+      );
+      logger.warn(
+        "Server will start without database connection. Some features may not work."
+      );
     });
 
     // Initialize Socket.IO
     socketService = new SocketService(server);
 
     // Start server
-    server.listen(PORT, () => {
-      logger.info(
-        `🚀 AlumniAccel API server running on port ${PORT} in ${NODE_ENV} mode`
-      );
-      logger.info(
-        `📊 Health check available at http://localhost:${PORT}/health`
-      );
-      logger.info(
-        `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
-      );
-    }).on("error", (error: NodeJS.ErrnoException) => {
-      if (error.code === "EADDRINUSE") {
-        logger.error(`Port ${PORT} is already in use. Please kill the process using this port or use a different port.`);
-        logger.info(`To find and kill the process: lsof -ti:${PORT} | xargs kill -9`);
-        process.exit(1);
-      } else {
-        logger.error("Failed to start server:", error);
-        process.exit(1);
-      }
-    });
+    server
+      .listen(PORT, () => {
+        logger.info(
+          `🚀 AlumniAccel API server running on port ${PORT} in ${NODE_ENV} mode`
+        );
+        logger.info(
+          `📊 Health check available at http://localhost:${PORT}/health`
+        );
+        logger.info(
+          `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
+        );
+      })
+      .on("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "EADDRINUSE") {
+          logger.error(
+            `Port ${PORT} is already in use. Please kill the process using this port or use a different port.`
+          );
+          logger.info(
+            `To find and kill the process: lsof -ti:${PORT} | xargs kill -9`
+          );
+          process.exit(1);
+        } else {
+          logger.error("Failed to start server:", error);
+          process.exit(1);
+        }
+      });
 
-    logger.info(
-      `🔌 Socket.IO server initialized for real-time communication`
-    );
+    logger.info(`🔌 Socket.IO server initialized for real-time communication`);
 
     // Schedule daily event reminder emails at 9:00 AM server time
     try {
@@ -149,7 +159,9 @@ const startServer = async () => {
                 : null;
               await emailService.sendEventReminderEmail({
                 to: user.email,
-                attendeeName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+                attendeeName:
+                  `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+                  user.email,
                 eventTitle: (evt as any).title,
                 eventDescription: (evt as any).description,
                 startDate: (evt as any).startDate,
@@ -160,9 +172,15 @@ const startServer = async () => {
                 price: (evt as any).price,
                 image: (evt as any).image,
                 collegeName: tenant?.name,
-                organizerName: (evt as any).organizer ? `${(evt as any).organizer.firstName || ""} ${(evt as any).organizer.lastName || ""}`.trim() : undefined,
-                speakers: Array.isArray((evt as any).speakers) ? ((evt as any).speakers as any) : undefined,
-                agenda: Array.isArray((evt as any).agenda) ? ((evt as any).agenda as any) : undefined,
+                organizerName: (evt as any).organizer
+                  ? `${(evt as any).organizer.firstName || ""} ${(evt as any).organizer.lastName || ""}`.trim()
+                  : undefined,
+                speakers: Array.isArray((evt as any).speakers)
+                  ? ((evt as any).speakers as any)
+                  : undefined,
+                agenda: Array.isArray((evt as any).agenda)
+                  ? ((evt as any).agenda as any)
+                  : undefined,
               });
               a.reminderSent = true;
             }
@@ -539,6 +557,7 @@ app.post("/test-send-welcome-email", async (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/alumni", alumniRoutes);
+app.use("/api/v1/alumni-360", alumni360Routes);
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/job-applications", jobApplicationRoutes);
 app.use("/api/v1/events", eventRoutes);
@@ -643,7 +662,10 @@ process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
   });
   // Don't exit immediately - log and continue
   // Only exit if it's a critical error
-  if (err.message?.includes("ECONNREFUSED") || err.message?.includes("EADDRINUSE")) {
+  if (
+    err.message?.includes("ECONNREFUSED") ||
+    err.message?.includes("EADDRINUSE")
+  ) {
     logger.error("Critical error detected, exiting...");
     process.exit(1);
   }
@@ -656,7 +678,10 @@ process.on("uncaughtException", (err: Error) => {
     stack: err.stack,
   });
   // Only exit for critical errors
-  if (err.message?.includes("ECONNREFUSED") || err.message?.includes("EADDRINUSE")) {
+  if (
+    err.message?.includes("ECONNREFUSED") ||
+    err.message?.includes("EADDRINUSE")
+  ) {
     logger.error("Critical error detected, exiting...");
     process.exit(1);
   }
@@ -667,17 +692,22 @@ process.on("uncaughtException", (err: Error) => {
 // Setup cron job for auto-rejecting expired matches
 const setupMatchingCronJob = () => {
   // Run every hour to check for expired matches
-  setInterval(async () => {
-    try {
-      const { autoRejectExpiredMatches } = await import("./controllers/matchingController");
-      const count = await autoRejectExpiredMatches();
-      if (count > 0) {
-        logger.info(`Auto-rejected ${count} expired match requests`);
+  setInterval(
+    async () => {
+      try {
+        const { autoRejectExpiredMatches } = await import(
+          "./controllers/matchingController"
+        );
+        const count = await autoRejectExpiredMatches();
+        if (count > 0) {
+          logger.info(`Auto-rejected ${count} expired match requests`);
+        }
+      } catch (error) {
+        logger.error("Cron job error:", error);
       }
-    } catch (error) {
-      logger.error("Cron job error:", error);
-    }
-  }, 60 * 60 * 1000); // Every hour
+    },
+    60 * 60 * 1000
+  ); // Every hour
 
   logger.info("Matching cron job scheduled (runs every hour)");
 };
@@ -685,19 +715,24 @@ const setupMatchingCronJob = () => {
 // Setup cron job for auto-sending mentee selection emails
 const setupMenteeSelectionEmailCronJob = () => {
   // Run every 6 hours to check for programs where registration end dates have passed
-  setInterval(async () => {
-    try {
-      const { autoSendMenteeSelectionEmails } = await import("./controllers/matchingController");
-      const result = await autoSendMenteeSelectionEmails();
-      if (result.programsProcessed > 0) {
-        logger.info(
-          `Auto-sent mentee selection emails: ${result.programsProcessed} programs processed, ${result.emailsSent} emails sent, ${result.errors} errors`
+  setInterval(
+    async () => {
+      try {
+        const { autoSendMenteeSelectionEmails } = await import(
+          "./controllers/matchingController"
         );
+        const result = await autoSendMenteeSelectionEmails();
+        if (result.programsProcessed > 0) {
+          logger.info(
+            `Auto-sent mentee selection emails: ${result.programsProcessed} programs processed, ${result.emailsSent} emails sent, ${result.errors} errors`
+          );
+        }
+      } catch (error) {
+        logger.error("Mentee selection email cron job error:", error);
       }
-    } catch (error) {
-      logger.error("Mentee selection email cron job error:", error);
-    }
-  }, 6 * 60 * 60 * 1000); // Every 6 hours
+    },
+    6 * 60 * 60 * 1000
+  ); // Every 6 hours
 
   logger.info("Mentee selection email cron job scheduled (runs every 6 hours)");
 };

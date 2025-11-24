@@ -1010,6 +1010,99 @@ export const alumniAPI = {
   },
 };
 
+// Alumni 360 API functions
+export const alumni360API = {
+  // Get complete 360 view data
+  getAlumni360Data: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}`,
+    });
+  },
+
+  // Notes
+  addNote: async (id: string, data: { content: string; category?: string; isPrivate?: boolean }) => {
+    return apiRequest({
+      method: "POST",
+      url: `/alumni-360/${id}/notes`,
+      data,
+    });
+  },
+
+  getNotes: async (id: string, params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/notes`,
+      params,
+    });
+  },
+
+  // Issues
+  createIssue: async (id: string, data: { title: string; description: string; priority?: string; assignedTo?: string; tags?: string[] }) => {
+    return apiRequest({
+      method: "POST",
+      url: `/alumni-360/${id}/issues`,
+      data,
+    });
+  },
+
+  updateIssue: async (id: string, issueId: string, data: { status?: string; priority?: string; assignedTo?: string; response?: string; tags?: string[] }) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/alumni-360/${id}/issues/${issueId}`,
+      data,
+    });
+  },
+
+  getIssues: async (id: string, params?: { status?: string }) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/issues`,
+      params,
+    });
+  },
+
+  // Flags
+  addFlag: async (id: string, data: { flagType: string; flagValue: string; description?: string }) => {
+    return apiRequest({
+      method: "POST",
+      url: `/alumni-360/${id}/flags`,
+      data,
+    });
+  },
+
+  removeFlag: async (id: string, flagType: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/alumni-360/${id}/flags/${flagType}`,
+    });
+  },
+
+  getFlags: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/flags`,
+    });
+  },
+
+  // Communication
+  getCommunicationHistory: async (id: string, params?: { type?: string; page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/communication`,
+      params,
+    });
+  },
+
+  // Engagement
+  getEngagementMetrics: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/engagement`,
+    });
+  },
+};
+
 // Job API functions
 export const jobAPI = {
   // Get all jobs

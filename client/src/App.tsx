@@ -28,6 +28,7 @@ import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";
 import NewsDetail from "./pages/NewsDetail";
 import AlumniProfile from "./components/AlumniProfile";
+import Alumni360View from "./components/alumni-360/Alumni360View";
 import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
 import Connections from "./pages/Connections";
@@ -165,6 +166,15 @@ const App = () => {
                   />
 
                   <Route path="/alumni/:id" element={<AlumniProfile />} />
+
+                  <Route
+                    path="/alumni-360/:id"
+                    element={
+                      <ProtectedRoute>
+                        <Alumni360View />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   <Route
                     path="/settings"

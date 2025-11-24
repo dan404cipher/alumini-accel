@@ -171,6 +171,11 @@ const AlumniDirectory = () => {
     user?.role &&
     ["super_admin", "college_admin", "hod", "staff"].includes(user.role);
 
+  // Check if user can view 360 (staff/admin roles)
+  const canView360 =
+    user?.role &&
+    ["super_admin", "college_admin", "hod", "staff"].includes(user.role);
+
   // Function to check connection status for a user
   const checkUserConnectionStatus = useCallback(async (userId: string) => {
     try {
@@ -1187,6 +1192,21 @@ const AlumniDirectory = () => {
                                       className="flex-1"
                                     >
                                       View Profile
+                                    </Button>
+                                  )}
+                                  {canView360 && directoryUser.role === "alumni" && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/alumni-360/${directoryUser.id}`);
+                                      }}
+                                      className="flex-1"
+                                    >
+                                      <Eye className="w-4 h-4 mr-1" />
+                                      <span className="hidden sm:inline">360 View</span>
+                                      <span className="sm:hidden">360</span>
                                     </Button>
                                   )}
                                   {canSendMessage ? (

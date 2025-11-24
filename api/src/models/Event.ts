@@ -274,12 +274,12 @@ eventSchema.virtual("organizerDetails", {
 
 // Virtual for attendees count
 eventSchema.virtual("totalAttendees").get(function () {
-  return this.attendees.length;
+  return this.attendees && Array.isArray(this.attendees) ? this.attendees.length : 0;
 });
 
 // Virtual for average rating
 eventSchema.virtual("averageRating").get(function () {
-  if (this.feedback.length === 0) return 0;
+  if (!this.feedback || !Array.isArray(this.feedback) || this.feedback.length === 0) return 0;
   const totalRating = this.feedback.reduce(
     (sum, feedback) => sum + feedback.rating,
     0

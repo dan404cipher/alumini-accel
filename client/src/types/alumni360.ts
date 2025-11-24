@@ -153,3 +153,21 @@ export interface AddFlagRequest {
   description?: string;
 }
 
+export interface AlumniAnalytics {
+  summaryStats: {
+    totalActivities: number;
+    engagementScore: number;
+    activeInteractions: number;
+    pendingItems: number;
+  };
+  activityBreakdown: Array<{
+    name: string;
+    value: number;
+    count: number;
+  }>;
+  engagementStatus: Array<{
+    status: string;
+    count: number;
+  }>;
+}
+

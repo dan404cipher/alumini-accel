@@ -16,6 +16,7 @@ import { CommunicationHistory } from "./CommunicationHistory";
 import { FlagsSection } from "./FlagsSection";
 import { ProgressTracking } from "./ProgressTracking";
 import { JobsSection } from "./JobsSection";
+import { ReportsSection } from "./ReportsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
@@ -437,10 +438,14 @@ const Alumni360View = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 h-auto">
+            <TabsTrigger value="reports" className="text-xs sm:text-sm">
+              Reports
+            </TabsTrigger>
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               Overview
             </TabsTrigger>
+
             <TabsTrigger value="notes" className="text-xs sm:text-sm">
               Notes
             </TabsTrigger>
@@ -498,6 +503,10 @@ const Alumni360View = () => {
               jobsPosted={data.jobsPosted}
               jobsApplied={data.jobsApplied}
             />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ReportsSection alumniId={id || ""} />
           </TabsContent>
 
           <TabsContent value="progress">

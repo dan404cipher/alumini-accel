@@ -1249,6 +1249,237 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
   }
 };
 
+// Get alumni analytics for reports dashboard
+export const getAlumniAnalytics = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Find alumni profile and check access
+    const alumniProfile = await findAlumniProfile(id);
+    if (!alumniProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    if (!checkAccess(req, alumniProfile)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to view analytics",
+      });
+    }
+
+    const userId = (alumniProfile.userId as any)?._id || alumniProfile.userId;
+    const userIdObjectId = new mongoose.Types.ObjectId(userId.toString());
+    const alumniProfileId = alumniProfile._id.toString();
+
+    // Get counts for all activity types
+    const [
+      donationCount,
+      eventCount,
+      messageCount,
+      jobsPostedCount,
+      jobsAppliedCount,
+      notesCount,
+      openIssuesCount,
+      totalIssuesCount,
+    ] = await Promise.all([
+      Donation.countDocuments({
+        donor: userIdObjectId,
+        paymentStatus: { $in: ["completed", "successful"] },
+      }),
+      Event.countDocuments({
+        $or: [
+          { "attendees.userId": userIdObjectId },
+          { "registrations.userId": userIdObjectId },
+        ],
+      }),
+      Message.countDocuments({
+        $or: [
+          { sender: userIdObjectId },
+          { recipient: userIdObjectId },
+        ],
+      }),
+      JobPost.countDocuments({ postedBy: userIdObjectId }),
+      JobApplication.countDocuments({ applicantId: userIdObjectId }),
+      AlumniNote.countDocuments({ alumniId: alumniProfileId }),
+      AlumniIssue.countDocuments({
+        alumniId: alumniProfileId,
+        status: { $in: ["open", "in_progress"] },
+      }),
+      AlumniIssue.countDocuments({ alumniId: alumniProfileId }),
+    ]);
+
+    // Calculate total activities
+    const totalActivities =
+      donationCount +
+      eventCount +
+      messageCount +
+      jobsPostedCount +
+      jobsAppliedCount +
+      notesCount +
+      totalIssuesCount;
+
+    // Get engagement metrics
+    const donationStats = await Donation.aggregate([
+      {
+        $match: {
+          donor: userIdObjectId,
+          paymentStatus: { $in: ["completed", "successful"] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalDonated: { $sum: "$amount" },
+          donationCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const eventStats = await Event.aggregate([
+      {
+        $match: {
+          $or: [
+            { "attendees.userId": userIdObjectId },
+            { "registrations.userId": userIdObjectId },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          eventsAttended: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const messageStats = await Message.countDocuments({
+      $or: [
+        { sender: userIdObjectId },
+        { recipient: userIdObjectId },
+      ],
+    });
+
+    // Calculate engagement score
+    let engagementScore = 0;
+    if (donationStats[0]?.donationCount > 0) engagementScore += 30;
+    if (donationStats[0]?.totalDonated > 10000) engagementScore += 20;
+    if (eventStats[0]?.eventsAttended > 0) engagementScore += 25;
+    if (eventStats[0]?.eventsAttended > 5) engagementScore += 10;
+    if (messageStats > 0) engagementScore += 10;
+
+    // Get recent activity (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentActivityCount = await Promise.all([
+      Donation.countDocuments({
+        donor: userIdObjectId,
+        createdAt: { $gte: thirtyDaysAgo },
+        paymentStatus: { $in: ["completed", "successful"] },
+      }),
+      Event.countDocuments({
+        $or: [
+          { "attendees.userId": userIdObjectId },
+          { "registrations.userId": userIdObjectId },
+        ],
+        startDate: { $gte: thirtyDaysAgo },
+      }),
+      Message.countDocuments({
+        $or: [
+          { sender: userIdObjectId },
+          { recipient: userIdObjectId },
+        ],
+        createdAt: { $gte: thirtyDaysAgo },
+      }),
+    ]).then((counts) => counts.reduce((sum, count) => sum + count, 0));
+
+    // Calculate activity breakdown percentages
+    const activityBreakdown = [
+      {
+        name: "Donations",
+        value: donationCount,
+        count: donationCount,
+      },
+      {
+        name: "Events",
+        value: eventCount,
+        count: eventCount,
+      },
+      {
+        name: "Messages",
+        value: messageCount,
+        count: messageCount,
+      },
+      {
+        name: "Jobs",
+        value: jobsPostedCount + jobsAppliedCount,
+        count: jobsPostedCount + jobsAppliedCount,
+      },
+      {
+        name: "Notes",
+        value: notesCount,
+        count: notesCount,
+      },
+      {
+        name: "Issues",
+        value: totalIssuesCount,
+        count: totalIssuesCount,
+      },
+    ]
+      .filter((item) => item.count > 0)
+      .map((item) => ({
+        ...item,
+        value: totalActivities > 0 ? Math.round((item.count / totalActivities) * 100) : 0,
+      }));
+
+    // Calculate engagement status distribution
+    const engagementStatus = [
+      {
+        status: "High Engagement",
+        count: engagementScore >= 80 ? 1 : 0,
+      },
+      {
+        status: "Medium Engagement",
+        count: engagementScore >= 50 && engagementScore < 80 ? 1 : 0,
+      },
+      {
+        status: "Low Engagement",
+        count: engagementScore > 0 && engagementScore < 50 ? 1 : 0,
+      },
+      {
+        status: "Inactive",
+        count: engagementScore === 0 ? 1 : 0,
+      },
+    ];
+
+    const summaryStats = {
+      totalActivities,
+      engagementScore: Math.min(engagementScore, 100),
+      activeInteractions: recentActivityCount,
+      pendingItems: openIssuesCount,
+    };
+
+    return res.json({
+      success: true,
+      data: {
+        summaryStats,
+        activityBreakdown,
+        engagementStatus,
+      },
+    });
+  } catch (error) {
+    logger.error("Get alumni analytics error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch alumni analytics",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
 // Get engagement metrics
 export const getEngagementMetrics = async (req: Request, res: Response) => {
   try {

@@ -1123,6 +1123,14 @@ export const alumni360API = {
       url: `/alumni-360/${id}/engagement`,
     });
   },
+
+  // Get analytics data for reports dashboard
+  getAlumniAnalytics: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/analytics`,
+    });
+  },
 };
 
 // Job API functions

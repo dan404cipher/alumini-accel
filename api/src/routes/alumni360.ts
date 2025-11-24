@@ -78,5 +78,10 @@ router.get("/:id/communication", asyncHandler(alumni360Controller.getCommunicati
 // @access  Private (Staff, HOD, College Admin, Super Admin)
 router.get("/:id/engagement", asyncHandler(alumni360Controller.getEngagementMetrics));
 
+// @route   GET /api/v1/alumni-360/:id/analytics
+// @desc    Get analytics data for reports dashboard
+// @access  Private (Staff, HOD, College Admin, Super Admin)
+router.get("/:id/analytics", asyncHandler(alumni360Controller.getAlumniAnalytics));
+
 export default router;
 

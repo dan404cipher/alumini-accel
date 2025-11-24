@@ -212,7 +212,7 @@ export const ReportsSection = ({ alumniId }: ReportsSectionProps) => {
                     }),
                     {} as Record<string, { label: string; color: string }>
                   )}
-                  className="h-[300px]"
+                  className="h-[250px] sm:h-[300px]"
                 >
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -250,7 +250,7 @@ export const ReportsSection = ({ alumniId }: ReportsSectionProps) => {
                         cy="50%"
                         labelLine={false}
                         label={({ name, value }) => `${name}: ${value}%`}
-                        outerRadius={80}
+                        outerRadius={70}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -321,7 +321,7 @@ export const ReportsSection = ({ alumniId }: ReportsSectionProps) => {
                 }),
                 {} as Record<string, { label: string; color: string }>
               )}
-              className="h-[300px]"
+              className="h-[250px] sm:h-[300px]"
             >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -333,8 +333,8 @@ export const ReportsSection = ({ alumniId }: ReportsSectionProps) => {
                   <YAxis
                     dataKey="status"
                     type="category"
-                    width={120}
-                    tick={{ fontSize: 12 }}
+                    width={100}
+                    tick={{ fontSize: 11 }}
                   />
                   <ChartTooltip
                     content={({ active, payload }) => {

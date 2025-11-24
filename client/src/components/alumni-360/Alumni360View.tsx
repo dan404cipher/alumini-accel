@@ -401,9 +401,9 @@ const Alumni360View = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen w-full bg-background flex flex-col">
       <Navigation activeTab="dashboard" onTabChange={() => {}} />
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
+      <div className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-24 pb-8">
         {/* Header Actions */}
         <div className="flex items-center justify-between mb-6">
           <Button
@@ -438,32 +438,47 @@ const Alumni360View = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 h-auto">
-            <TabsTrigger value="reports" className="text-xs sm:text-sm">
-              Reports
-            </TabsTrigger>
-            <TabsTrigger value="overview" className="text-xs sm:text-sm">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto overflow-x-auto">
+            <TabsTrigger
+              value="overview"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
               Overview
             </TabsTrigger>
-
-            <TabsTrigger value="notes" className="text-xs sm:text-sm">
+            <TabsTrigger
+              value="notes"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
               Notes
             </TabsTrigger>
-            <TabsTrigger value="issues" className="text-xs sm:text-sm">
+            <TabsTrigger
+              value="issues"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
               Issues
             </TabsTrigger>
-            <TabsTrigger value="communication" className="text-xs sm:text-sm">
+            <TabsTrigger
+              value="communication"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
               Communication
             </TabsTrigger>
-            <TabsTrigger value="jobs" className="text-xs sm:text-sm">
+            <TabsTrigger
+              value="jobs"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
               Jobs
             </TabsTrigger>
-            <TabsTrigger value="progress" className="text-xs sm:text-sm">
+            <TabsTrigger
+              value="progress"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
               Progress
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            <ReportsSection alumniId={id || ""} />
             <EngagementMetrics metrics={data.engagementMetrics} />
             <FlagsSection
               flags={data.flags}
@@ -503,10 +518,6 @@ const Alumni360View = () => {
               jobsPosted={data.jobsPosted}
               jobsApplied={data.jobsApplied}
             />
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <ReportsSection alumniId={id || ""} />
           </TabsContent>
 
           <TabsContent value="progress">

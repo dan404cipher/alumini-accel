@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { FlagsSection } from "./FlagsSection";
 import { ProgressTracking } from "./ProgressTracking";
 import { JobsSection } from "./JobsSection";
 import { ReportsSection } from "./ReportsSection";
+import { DonationsSection } from "./DonationsSection";
+import { EventsSection } from "./EventsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
@@ -35,6 +37,41 @@ const Alumni360View = () => {
     user?.role &&
     ["staff", "hod", "college_admin", "super_admin"].includes(user.role);
 
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await alumni360API.getAlumni360Data(id);
+
+      if (response.success && response.data) {
+        setData(response.data as Alumni360Data);
+      } else {
+        setError(response.message || "Failed to load alumni data");
+      }
+    } catch (err: unknown) {
+      console.error("Error fetching alumni 360 data:", err);
+      const errorMessage =
+        (err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : null) ||
+        (err instanceof Error ? err.message : null) ||
+        "Failed to load alumni 360 view data";
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: "Failed to load alumni data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [id, toast]);
+
   useEffect(() => {
     if (!hasAccess) {
       setError("You do not have permission to view this page");
@@ -45,39 +82,7 @@ const Alumni360View = () => {
     if (id) {
       fetchData();
     }
-  }, [id, hasAccess]);
-
-  const fetchData = async () => {
-    if (!id) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await alumni360API.getAlumni360Data(id);
-
-      if (response.success && response.data) {
-        setData(response.data);
-      } else {
-        setError(response.message || "Failed to load alumni data");
-      }
-    } catch (err: any) {
-      console.error("Error fetching alumni 360 data:", err);
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to load alumni 360 view data"
-      );
-      toast({
-        title: "Error",
-        description: "Failed to load alumni data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  }, [id, hasAccess, fetchData]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -106,10 +111,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to add note");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to add note";
       toast({
         title: "Error",
-        description: err.message || "Failed to add note",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -139,10 +146,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to update note");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update note";
       toast({
         title: "Error",
-        description: err.message || "Failed to update note",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -163,10 +172,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to delete note");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete note";
       toast({
         title: "Error",
-        description: err.message || "Failed to delete note",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -191,10 +202,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to create issue");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create issue";
       toast({
         title: "Error",
-        description: err.message || "Failed to create issue",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -226,10 +239,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to update issue");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update issue";
       toast({
         title: "Error",
-        description: err.message || "Failed to update issue",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -250,10 +265,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to delete issue");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete issue";
       toast({
         title: "Error",
-        description: err.message || "Failed to delete issue",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -278,10 +295,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to add flag");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to add flag";
       toast({
         title: "Error",
-        description: err.message || "Failed to add flag",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -302,10 +321,12 @@ const Alumni360View = () => {
       } else {
         throw new Error(response.message || "Failed to remove flag");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to remove flag";
       toast({
         title: "Error",
-        description: err.message || "Failed to remove flag",
+        description: errorMessage,
         variant: "destructive",
       });
       throw err;
@@ -404,29 +425,6 @@ const Alumni360View = () => {
     <div className="min-h-screen w-full bg-background flex flex-col">
       <Navigation activeTab="dashboard" onTabChange={() => {}} />
       <div className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-24 pb-8">
-        {/* Header Actions */}
-        <div className="flex items-center justify-between mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back</span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-            />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-        </div>
-
         {/* Alumni Header */}
         <AlumniHeader
           alumni={data.alumni}
@@ -437,8 +435,8 @@ const Alumni360View = () => {
         />
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto overflow-x-auto">
+        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 h-auto overflow-x-auto gap-1 sm:gap-2">
             <TabsTrigger
               value="overview"
               className="text-xs sm:text-sm whitespace-nowrap"
@@ -468,6 +466,18 @@ const Alumni360View = () => {
               className="text-xs sm:text-sm whitespace-nowrap"
             >
               Jobs
+            </TabsTrigger>
+            <TabsTrigger
+              value="donations"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
+              Donations
+            </TabsTrigger>
+            <TabsTrigger
+              value="events"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
+              Events
             </TabsTrigger>
             <TabsTrigger
               value="progress"
@@ -517,6 +527,20 @@ const Alumni360View = () => {
             <JobsSection
               jobsPosted={data.jobsPosted}
               jobsApplied={data.jobsApplied}
+            />
+          </TabsContent>
+
+          <TabsContent value="donations">
+            <DonationsSection
+              donations={data.donations}
+              engagementMetrics={data.engagementMetrics}
+            />
+          </TabsContent>
+
+          <TabsContent value="events">
+            <EventsSection
+              events={data.events}
+              engagementMetrics={data.engagementMetrics}
             />
           </TabsContent>
 

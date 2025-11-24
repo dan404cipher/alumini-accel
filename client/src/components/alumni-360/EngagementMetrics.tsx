@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, DollarSign, Calendar, MessageSquare, Activity } from "lucide-react";
+import { TrendingUp, DollarSign, Calendar, MessageSquare, Activity, Briefcase, FileText } from "lucide-react";
 import { EngagementMetrics as EngagementMetricsType } from "@/types/alumni360";
 import { format } from "date-fns";
 
@@ -58,7 +58,7 @@ export const EngagementMetrics = ({ metrics }: EngagementMetricsProps) => {
       </Card>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Donations */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -103,6 +103,38 @@ export const EngagementMetrics = ({ metrics }: EngagementMetricsProps) => {
           <CardContent>
             <div className="text-2xl font-bold">{metrics.messageCount}</div>
             <p className="text-xs text-muted-foreground mt-1">Total exchanges</p>
+          </CardContent>
+        </Card>
+
+        {/* Jobs Posted */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Jobs Posted</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.jobsPosted || 0}</div>
+            {metrics.lastJobPostedDate && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Last: {formatDate(metrics.lastJobPostedDate)}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Jobs Applied */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Jobs Applied</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.jobsApplied || 0}</div>
+            {metrics.lastJobAppliedDate && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Last: {formatDate(metrics.lastJobAppliedDate)}
+              </p>
+            )}
           </CardContent>
         </Card>
 

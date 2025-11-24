@@ -13,9 +13,9 @@ import { EngagementMetrics } from "./EngagementMetrics";
 import { NotesSection } from "./NotesSection";
 import { IssuesSection } from "./IssuesSection";
 import { CommunicationHistory } from "./CommunicationHistory";
-import { DocumentsSection } from "./DocumentsSection";
 import { FlagsSection } from "./FlagsSection";
 import { ProgressTracking } from "./ProgressTracking";
+import { JobsSection } from "./JobsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
@@ -91,7 +91,11 @@ const Alumni360View = () => {
     if (!id) return;
 
     try {
-      const response = await alumni360API.addNote(id, { content, category, isPrivate });
+      const response = await alumni360API.addNote(id, {
+        content,
+        category,
+        isPrivate,
+      });
       if (response.success) {
         toast({
           title: "Success",
@@ -105,6 +109,63 @@ const Alumni360View = () => {
       toast({
         title: "Error",
         description: err.message || "Failed to add note",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
+  const handleUpdateNote = async (
+    noteId: string,
+    content: string,
+    category?: string,
+    isPrivate?: boolean
+  ) => {
+    if (!id) return;
+
+    try {
+      const response = await alumni360API.updateNote(id, noteId, {
+        content,
+        category,
+        isPrivate,
+      });
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Note updated successfully",
+        });
+        fetchData();
+      } else {
+        throw new Error(response.message || "Failed to update note");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update note",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!id) return;
+
+    try {
+      const response = await alumni360API.deleteNote(id, noteId);
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Note deleted successfully",
+        });
+        fetchData();
+      } else {
+        throw new Error(response.message || "Failed to delete note");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete note",
         variant: "destructive",
       });
       throw err;
@@ -141,7 +202,15 @@ const Alumni360View = () => {
 
   const handleUpdateIssue = async (
     issueId: string,
-    updateData: { status?: string; response?: string }
+    updateData: {
+      title?: string;
+      description?: string;
+      status?: string;
+      priority?: string;
+      response?: string;
+      responseId?: string;
+      responseIdToDelete?: string;
+    }
   ) => {
     if (!id) return;
 
@@ -160,6 +229,30 @@ const Alumni360View = () => {
       toast({
         title: "Error",
         description: err.message || "Failed to update issue",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
+  const handleDeleteIssue = async (issueId: string) => {
+    if (!id) return;
+
+    try {
+      const response = await alumni360API.deleteIssue(id, issueId);
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Issue deleted successfully",
+        });
+        fetchData();
+      } else {
+        throw new Error(response.message || "Failed to delete issue");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete issue",
         variant: "destructive",
       });
       throw err;
@@ -251,7 +344,9 @@ const Alumni360View = () => {
               <p className="text-muted-foreground mb-4">
                 You do not have permission to view this page.
               </p>
-              <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
+              <Button onClick={() => navigate("/dashboard")}>
+                Go to Dashboard
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -284,9 +379,14 @@ const Alumni360View = () => {
             <CardContent className="py-12 text-center">
               <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
               <h2 className="text-2xl font-bold mb-2">Error</h2>
-              <p className="text-muted-foreground mb-4">{error || "Failed to load data"}</p>
+              <p className="text-muted-foreground mb-4">
+                {error || "Failed to load data"}
+              </p>
               <div className="flex gap-2 justify-center">
-                <Button variant="outline" onClick={() => navigate("/dashboard")}>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/dashboard")}
+                >
                   Go to Dashboard
                 </Button>
                 <Button onClick={handleRefresh}>Try Again</Button>
@@ -319,7 +419,9 @@ const Alumni360View = () => {
             disabled={refreshing}
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
@@ -335,7 +437,7 @@ const Alumni360View = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto">
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               Overview
             </TabsTrigger>
@@ -348,8 +450,8 @@ const Alumni360View = () => {
             <TabsTrigger value="communication" className="text-xs sm:text-sm">
               Communication
             </TabsTrigger>
-            <TabsTrigger value="documents" className="text-xs sm:text-sm">
-              Documents
+            <TabsTrigger value="jobs" className="text-xs sm:text-sm">
+              Jobs
             </TabsTrigger>
             <TabsTrigger value="progress" className="text-xs sm:text-sm">
               Progress
@@ -366,7 +468,14 @@ const Alumni360View = () => {
           </TabsContent>
 
           <TabsContent value="notes">
-            <NotesSection notes={data.notes} onAddNote={handleAddNote} />
+            <NotesSection
+              notes={data.notes}
+              onAddNote={handleAddNote}
+              onUpdateNote={handleUpdateNote}
+              onDeleteNote={handleDeleteNote}
+              currentUserId={user?._id}
+              currentUserRole={user?.role}
+            />
           </TabsContent>
 
           <TabsContent value="issues">
@@ -374,6 +483,9 @@ const Alumni360View = () => {
               issues={data.issues}
               onCreateIssue={handleCreateIssue}
               onUpdateIssue={handleUpdateIssue}
+              onDeleteIssue={handleDeleteIssue}
+              currentUserId={user?._id}
+              currentUserRole={user?.role}
             />
           </TabsContent>
 
@@ -381,12 +493,18 @@ const Alumni360View = () => {
             <CommunicationHistory alumniId={id || ""} />
           </TabsContent>
 
-          <TabsContent value="documents">
-            <DocumentsSection documents={[]} />
+          <TabsContent value="jobs">
+            <JobsSection
+              jobsPosted={data.jobsPosted}
+              jobsApplied={data.jobsApplied}
+            />
           </TabsContent>
 
           <TabsContent value="progress">
-            <ProgressTracking alumni={data.alumni} engagementMetrics={data.engagementMetrics} />
+            <ProgressTracking
+              alumni={data.alumni}
+              engagementMetrics={data.engagementMetrics}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -396,4 +514,3 @@ const Alumni360View = () => {
 };
 
 export default Alumni360View;
-

@@ -106,6 +106,10 @@ export interface EngagementMetrics {
   lastEventDate: string | null;
   lastInteraction: string | null;
   messageCount: number;
+  jobsPosted: number;
+  jobsApplied: number;
+  lastJobPostedDate: string | null;
+  lastJobAppliedDate: string | null;
 }
 
 export interface Alumni360Data {
@@ -115,6 +119,8 @@ export interface Alumni360Data {
   flags: AlumniFlag[];
   donations: any[]; // Donation type
   events: any[]; // Event type
+  jobsPosted?: any[]; // JobPost type
+  jobsApplied?: any[]; // JobApplication type
   communicationHistory: CommunicationItem[];
   engagementMetrics: EngagementMetrics;
 }

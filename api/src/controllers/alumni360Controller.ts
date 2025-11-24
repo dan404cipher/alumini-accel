@@ -8,6 +8,8 @@ import Donation from "../models/Donation";
 import Event from "../models/Event";
 import Message from "../models/Message";
 import MentorshipCommunication from "../models/MentorshipCommunication";
+import JobPost from "../models/JobPost";
+import JobApplication from "../models/JobApplication";
 import { logger } from "../utils/logger";
 import { UserRole } from "../types";
 import mongoose from "mongoose";
@@ -171,7 +173,26 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
     const userIdString = userId.toString();
     const userIdObjectId = new mongoose.Types.ObjectId(userIdString);
 
-    // Fetch all data in parallel
+    // Build notes query: filter private notes - only show private notes to their creator (or admins see all)
+    const currentUserId = req.user?.id;
+    const currentUserIdObjectId = currentUserId ? new mongoose.Types.ObjectId(currentUserId) : null;
+    const userRole = req.user?.role;
+    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+    
+    // Notes query: show all non-private notes, and private notes only if user is creator (admins see all)
+    const notesQuery: any = {
+      alumniId: alumniProfileId,
+    };
+    
+    if (!isAdmin && currentUserIdObjectId) {
+      // Regular users: only see non-private notes OR their own private notes
+      notesQuery.$or = [
+        { isPrivate: false },
+        { isPrivate: true, staffId: currentUserIdObjectId },
+      ];
+    }
+    // Admins see all notes (no additional filter needed)
+
     const [
       notes,
       issues,
@@ -180,9 +201,11 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
       events,
       messages,
       mentorshipCommunications,
+      jobsPosted,
+      jobsApplied,
     ] = await Promise.all([
-      // Notes - use alumniProfileId
-      AlumniNote.find({ alumniId: alumniProfileId })
+      // Notes - use alumniProfileId, filter private notes
+      AlumniNote.find(notesQuery)
         .populate("staffId", "firstName lastName email profilePicture")
         .sort({ createdAt: -1 })
         .limit(50),
@@ -241,6 +264,18 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
         .populate("toUserId", "firstName lastName email")
         .sort({ sentAt: -1 })
         .limit(50),
+
+      // Jobs Posted by this alumnus
+      JobPost.find({ postedBy: userIdObjectId })
+        .select("title company position status createdAt")
+        .sort({ createdAt: -1 })
+        .limit(50),
+
+      // Jobs Applied by this alumnus
+      JobApplication.find({ applicantId: userIdObjectId })
+        .populate("jobId", "title company position")
+        .sort({ appliedAt: -1 })
+        .limit(50),
     ]);
 
     // Calculate engagement metrics (userIdObjectId already defined above)
@@ -279,6 +314,18 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
       },
     ]);
 
+    // Get job statistics
+    const jobStats = await Promise.all([
+      JobPost.countDocuments({ postedBy: userIdObjectId }),
+      JobApplication.countDocuments({ applicantId: userIdObjectId }),
+      JobPost.findOne({ postedBy: userIdObjectId })
+        .sort({ createdAt: -1 })
+        .select("createdAt"),
+      JobApplication.findOne({ applicantId: userIdObjectId })
+        .sort({ appliedAt: -1 })
+        .select("appliedAt"),
+    ]);
+
     const lastMessage = messages[0] || null;
     const lastInteraction = lastMessage
       ? lastMessage.createdAt
@@ -305,6 +352,10 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
       lastEventDate: eventStats[0]?.lastEventDate || null,
       lastInteraction: lastInteraction,
       messageCount: messages.length,
+      jobsPosted: jobStats[0] || 0,
+      jobsApplied: jobStats[1] || 0,
+      lastJobPostedDate: jobStats[2]?.createdAt || null,
+      lastJobAppliedDate: jobStats[3]?.appliedAt || null,
     };
 
     // Note: Communication history is now fetched separately with pagination
@@ -318,6 +369,8 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
         flags: flags,
         donations: donations,
         events: events,
+        jobsPosted: jobsPosted,
+        jobsApplied: jobsApplied,
         communicationHistory: [], // Empty - fetched separately with pagination
         engagementMetrics: engagementMetrics,
       },
@@ -387,6 +440,147 @@ export const addNote = async (req: Request, res: Response) => {
   }
 };
 
+// Update note
+export const updateNote = async (req: Request, res: Response) => {
+  try {
+    const { id, noteId } = req.params;
+    const { content, category, isPrivate } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Note content is required",
+      });
+    }
+
+    // Find alumni profile and check access
+    const alumniProfile = await findAlumniProfile(id);
+    if (!alumniProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    if (!checkAccess(req, alumniProfile)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to update notes for this alumni",
+      });
+    }
+
+    const alumniProfileId = alumniProfile._id.toString();
+    const note = await AlumniNote.findOne({
+      _id: noteId,
+      alumniId: alumniProfileId,
+    });
+
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: "Note not found",
+      });
+    }
+
+    // Check if user is the creator or has admin privileges
+    const userRole = req.user?.role;
+    const isCreator = note.staffId.toString() === req.user?.id;
+    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only edit your own notes",
+      });
+    }
+
+    // Update note
+    note.content = content.trim();
+    if (category) note.category = category;
+    if (isPrivate !== undefined) note.isPrivate = isPrivate;
+
+    await note.save();
+
+    const populatedNote = await AlumniNote.findById(note._id)
+      .populate("staffId", "firstName lastName email profilePicture");
+
+    return res.json({
+      success: true,
+      data: { note: populatedNote },
+      message: "Note updated successfully",
+    });
+  } catch (error) {
+    logger.error("Update note error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update note",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Delete note
+export const deleteNote = async (req: Request, res: Response) => {
+  try {
+    const { id, noteId } = req.params;
+
+    // Find alumni profile and check access
+    const alumniProfile = await findAlumniProfile(id);
+    if (!alumniProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    if (!checkAccess(req, alumniProfile)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to delete notes for this alumni",
+      });
+    }
+
+    const alumniProfileId = alumniProfile._id.toString();
+    const note = await AlumniNote.findOne({
+      _id: noteId,
+      alumniId: alumniProfileId,
+    });
+
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: "Note not found",
+      });
+    }
+
+    // Check if user is the creator or has admin privileges
+    const userRole = req.user?.role;
+    const isCreator = note.staffId.toString() === req.user?.id;
+    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete your own notes",
+      });
+    }
+
+    await AlumniNote.findByIdAndDelete(noteId);
+
+    return res.json({
+      success: true,
+      message: "Note deleted successfully",
+    });
+  } catch (error) {
+    logger.error("Delete note error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete note",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
 // Get notes
 export const getNotes = async (req: Request, res: Response) => {
   try {
@@ -412,13 +606,32 @@ export const getNotes = async (req: Request, res: Response) => {
     }
 
     const alumniProfileId = alumniProfile._id.toString();
-    const notes = await AlumniNote.find({ alumniId: alumniProfileId })
+    const currentUserId = req.user?.id;
+    const currentUserIdObjectId = currentUserId ? new mongoose.Types.ObjectId(currentUserId) : null;
+    const userRole = req.user?.role;
+    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+    
+    // Build notes query: filter private notes - only show private notes to their creator (or admins see all)
+    const notesQuery: any = {
+      alumniId: alumniProfileId,
+    };
+    
+    if (!isAdmin && currentUserIdObjectId) {
+      // Regular users: only see non-private notes OR their own private notes
+      notesQuery.$or = [
+        { isPrivate: false },
+        { isPrivate: true, staffId: currentUserIdObjectId },
+      ];
+    }
+    // Admins see all notes (no additional filter needed)
+
+    const notes = await AlumniNote.find(notesQuery)
       .populate("staffId", "firstName lastName email profilePicture")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await AlumniNote.countDocuments({ alumniId: alumniProfileId });
+    const total = await AlumniNote.countDocuments(notesQuery);
 
     return res.json({
       success: true,
@@ -543,14 +756,72 @@ export const updateIssue = async (req: Request, res: Response) => {
     if (priority) issue.priority = priority;
     if (assignedTo !== undefined) issue.assignedTo = assignedTo;
     if (tags) issue.tags = tags;
+    if (req.body.title) issue.title = req.body.title;
+    if (req.body.description) issue.description = req.body.description;
 
     // Add response if provided
-    if (response) {
+    if (response && !req.body.responseId) {
       issue.responses.push({
         staffId: req.user?.id as mongoose.Types.ObjectId,
         content: response,
         createdAt: new Date(),
       });
+    }
+
+    // Update response if responseId is provided
+    if (req.body.responseId && response) {
+      const responseIndex = issue.responses.findIndex(
+        (r: any) => r._id?.toString() === req.body.responseId
+      );
+      if (responseIndex !== -1) {
+        const existingResponse = issue.responses[responseIndex];
+        // Check if user is the creator or admin
+        const userRole = req.user?.role;
+        const isCreator = existingResponse.staffId?.toString() === req.user?.id;
+        const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+
+        if (!isCreator && !isAdmin) {
+          return res.status(403).json({
+            success: false,
+            message: "You can only edit your own responses",
+          });
+        }
+
+        issue.responses[responseIndex].content = response;
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "Response not found",
+        });
+      }
+    }
+
+    // Delete response if responseIdToDelete is provided
+    if (req.body.responseIdToDelete) {
+      const responseIndex = issue.responses.findIndex(
+        (r: any) => r._id?.toString() === req.body.responseIdToDelete
+      );
+      if (responseIndex !== -1) {
+        const existingResponse = issue.responses[responseIndex];
+        // Check if user is the creator or admin
+        const userRole = req.user?.role;
+        const isCreator = existingResponse.staffId?.toString() === req.user?.id;
+        const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+
+        if (!isCreator && !isAdmin) {
+          return res.status(403).json({
+            success: false,
+            message: "You can only delete your own responses",
+          });
+        }
+
+        issue.responses.splice(responseIndex, 1);
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "Response not found",
+        });
+      }
     }
 
     // Update resolved fields if status is resolved
@@ -577,6 +848,68 @@ export const updateIssue = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update issue",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+// Delete issue
+export const deleteIssue = async (req: Request, res: Response) => {
+  try {
+    const { id, issueId } = req.params;
+
+    // Find alumni profile and check access
+    const alumniProfile = await findAlumniProfile(id);
+    if (!alumniProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Alumni profile not found",
+      });
+    }
+
+    if (!checkAccess(req, alumniProfile)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to delete issues for this alumni",
+      });
+    }
+
+    const alumniProfileId = alumniProfile._id.toString();
+    const issue = await AlumniIssue.findOne({
+      _id: issueId,
+      alumniId: alumniProfileId,
+    });
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        message: "Issue not found",
+      });
+    }
+
+    // Check if user is the creator or has admin privileges
+    const userRole = req.user?.role;
+    const isCreator = issue.raisedBy?.toString() === req.user?.id;
+    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete issues you created",
+      });
+    }
+
+    await AlumniIssue.findByIdAndDelete(issueId);
+
+    return res.json({
+      success: true,
+      message: "Issue deleted successfully",
+    });
+  } catch (error) {
+    logger.error("Delete issue error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete issue",
       error: error instanceof Error ? error.message : "Unknown error",
     });
   }
@@ -767,7 +1100,7 @@ export const getFlags = async (req: Request, res: Response) => {
 export const getCommunicationHistory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { type, page, limit } = req.query;
+    const { type, page, limit, search } = req.query;
 
     // Find alumni profile and check access
     const alumniProfile = await findAlumniProfile(id);
@@ -809,13 +1142,15 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
       ],
     };
 
-    // Get total counts for pagination
+    // Get total counts for pagination (before search filtering)
+    // We'll calculate the actual total after filtering
     const [totalMessages, totalMentorshipComms] = await Promise.all([
       Message.countDocuments(messageFilter),
       MentorshipCommunication.countDocuments(mentorshipFilter),
     ]);
 
-    const totalCommunications = totalMessages + totalMentorshipComms;
+    // Initial total (will be recalculated after search filter)
+    let totalCommunications = totalMessages + totalMentorshipComms;
 
     // Fetch more than needed to ensure we have enough after filtering and sorting
     // Fetch up to (skip + limit) * 2 to account for filtering by type
@@ -862,8 +1197,32 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
         isRead: comm.isRead,
       })),
     ]
-      .filter((comm) => !type || comm.type === type)
+      .filter((comm) => {
+        // Filter by type if specified
+        if (type && comm.type !== type) return false;
+        
+        // Filter by search term if specified
+        if (search && typeof search === "string") {
+          const searchLower = search.toLowerCase();
+          const fromName = `${comm.from?.firstName || ""} ${comm.from?.lastName || ""}`.toLowerCase();
+          const toName = `${comm.to?.firstName || ""} ${comm.to?.lastName || ""}`.toLowerCase();
+          const content = (comm.content || "").toLowerCase();
+          const subject = ((comm as any).subject || "").toLowerCase(); // Subject only exists for mentorship
+          
+          return (
+            fromName.includes(searchLower) ||
+            toName.includes(searchLower) ||
+            content.includes(searchLower) ||
+            subject.includes(searchLower)
+          );
+        }
+        
+        return true;
+      })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Update total after search filtering
+    totalCommunications = communicationHistory.length;
 
     // Apply pagination
     const paginatedHistory = communicationHistory.slice(skip, skip + limitNum);

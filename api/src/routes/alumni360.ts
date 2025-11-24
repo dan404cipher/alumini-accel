@@ -23,6 +23,16 @@ router.post("/:id/notes", asyncHandler(alumni360Controller.addNote));
 // @access  Private (Staff, HOD, College Admin, Super Admin)
 router.get("/:id/notes", asyncHandler(alumni360Controller.getNotes));
 
+// @route   PUT /api/v1/alumni-360/:id/notes/:noteId
+// @desc    Update a note
+// @access  Private (Staff, HOD, College Admin, Super Admin)
+router.put("/:id/notes/:noteId", asyncHandler(alumni360Controller.updateNote));
+
+// @route   DELETE /api/v1/alumni-360/:id/notes/:noteId
+// @desc    Delete a note
+// @access  Private (Staff, HOD, College Admin, Super Admin)
+router.delete("/:id/notes/:noteId", asyncHandler(alumni360Controller.deleteNote));
+
 // @route   POST /api/v1/alumni-360/:id/issues
 // @desc    Create a new issue for an alumnus
 // @access  Private (Staff, HOD, College Admin, Super Admin)
@@ -37,6 +47,11 @@ router.put("/:id/issues/:issueId", asyncHandler(alumni360Controller.updateIssue)
 // @desc    Get all issues for an alumnus
 // @access  Private (Staff, HOD, College Admin, Super Admin)
 router.get("/:id/issues", asyncHandler(alumni360Controller.getIssues));
+
+// @route   DELETE /api/v1/alumni-360/:id/issues/:issueId
+// @desc    Delete an issue
+// @access  Private (Staff, HOD, College Admin, Super Admin)
+router.delete("/:id/issues/:issueId", asyncHandler(alumni360Controller.deleteIssue));
 
 // @route   POST /api/v1/alumni-360/:id/flags
 // @desc    Add or update a flag for an alumnus

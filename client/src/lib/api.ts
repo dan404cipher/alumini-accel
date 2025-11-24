@@ -1037,6 +1037,21 @@ export const alumni360API = {
     });
   },
 
+  updateNote: async (id: string, noteId: string, data: { content: string; category?: string; isPrivate?: boolean }) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/alumni-360/${id}/notes/${noteId}`,
+      data,
+    });
+  },
+
+  deleteNote: async (id: string, noteId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/alumni-360/${id}/notes/${noteId}`,
+    });
+  },
+
   // Issues
   createIssue: async (id: string, data: { title: string; description: string; priority?: string; assignedTo?: string; tags?: string[] }) => {
     return apiRequest({
@@ -1046,11 +1061,18 @@ export const alumni360API = {
     });
   },
 
-  updateIssue: async (id: string, issueId: string, data: { status?: string; priority?: string; assignedTo?: string; response?: string; tags?: string[] }) => {
+  updateIssue: async (id: string, issueId: string, data: { title?: string; description?: string; status?: string; priority?: string; assignedTo?: string; response?: string; responseId?: string; responseIdToDelete?: string; tags?: string[] }) => {
     return apiRequest({
       method: "PUT",
       url: `/alumni-360/${id}/issues/${issueId}`,
       data,
+    });
+  },
+
+  deleteIssue: async (id: string, issueId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/alumni-360/${id}/issues/${issueId}`,
     });
   },
 
@@ -1086,7 +1108,7 @@ export const alumni360API = {
   },
 
   // Communication
-  getCommunicationHistory: async (id: string, params?: { type?: string; page?: number; limit?: number }) => {
+  getCommunicationHistory: async (id: string, params?: { type?: string; page?: number; limit?: number; search?: string }) => {
     return apiRequest({
       method: "GET",
       url: `/alumni-360/${id}/communication`,

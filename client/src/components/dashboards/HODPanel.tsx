@@ -61,10 +61,19 @@ import {
   Activity,
   Briefcase,
   IndianRupee,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { userAPI,
+import {
+  userAPI,
   campaignAPI,
   tenantAPI,
   alumniAPI,
@@ -72,12 +81,15 @@ import { userAPI,
   galleryAPI,
   newsAPI,
   communityAPI,
-  getImageUrl, API_BASE_URL } from "@/lib/api";
+  getImageUrl,
+  API_BASE_URL,
+} from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
 import EventManagement from "../EventManagement";
 import JobManagement from "../admin/JobManagement";
+import { AnalyticsDashboard } from "../admin/AnalyticsDashboard";
 
 // Type definitions
 interface PendingRequest {
@@ -905,8 +917,7 @@ const HODPanel = () => {
 
     try {
       setLoading((prev) => ({ ...prev, donations: true }));
-      const baseUrl =
-        API_BASE_URL;
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -937,8 +948,7 @@ const HODPanel = () => {
 
     try {
       setLoading((prev) => ({ ...prev, mentorships: true }));
-      const baseUrl =
-        API_BASE_URL;
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -1020,6 +1030,7 @@ const HODPanel = () => {
   };
 
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const staffUnderHOD = [
     {
@@ -1098,23 +1109,63 @@ const HODPanel = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="flex h-screen overflow-hidden pt-16">
         {/* Enhanced Sidebar */}
-        <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm z-40">
+        <aside
+          className={`
+            hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] z-40
+            ${sidebarCollapsed ? "w-20" : "w-72"}
+            flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm transition-all duration-300
+          `}
+        >
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
-            <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
-                  <Users className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold text-lg">HOD</h3>
-                  <p className="text-blue-100 text-xs">Management Portal</p>
-                </div>
+            <div
+              className={`p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700 ${
+                sidebarCollapsed ? "px-3" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                {!sidebarCollapsed && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Users className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg">HOD</h3>
+                      <p className="text-blue-100 text-xs">Management Portal</p>
+                    </div>
+                  </div>
+                )}
+                {sidebarCollapsed && (
+                  <div className="w-full flex justify-center">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Users className="h-6 w-6 text-blue-600" />
+                    </div>
+                  </div>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/20 p-1.5"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  title={
+                    sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                  }
+                >
+                  {sidebarCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronLeft className="w-4 h-4" />
+                  )}
+                </Button>
               </div>
             </div>
 
             {/* Navigation Menu */}
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <nav
+              className={`flex-1 space-y-1 overflow-y-auto ${
+                sidebarCollapsed ? "p-2" : "p-4"
+              }`}
+            >
               {[
                 {
                   key: "dashboard",
@@ -1211,49 +1262,86 @@ const HODPanel = () => {
 
                 const activeColors = colorMap[item.color] || colorMap.blue;
 
-                return (
+                const buttonContent = (
                   <button
                     key={item.key}
                     onClick={() => setActiveTab(item.key)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`w-full flex items-center ${
+                      sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
+                    } py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
                         ? `${activeColors.bg} ${activeColors.border} ${activeColors.text} border-l-4 shadow-sm`
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent"
                     }`}
                   >
                     <Icon
-                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`}
+                      className={`h-5 w-5 flex-shrink-0 ${
+                        isActive ? "" : "text-gray-500"
+                      }`}
                     />
-                    <span className="flex-1">{item.label}</span>
-                    {isActive && (
-                      <div
-                        className={`w-2 h-2 rounded-full ${activeColors.dot}`}
-                      />
+                    {!sidebarCollapsed && (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {isActive && (
+                          <div
+                            className={`w-2 h-2 rounded-full ${activeColors.dot}`}
+                          />
+                        )}
+                      </>
                     )}
                   </button>
+                );
+
+                return sidebarCollapsed ? (
+                  <TooltipProvider key={item.key}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>{item.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  buttonContent
                 );
               })}
             </nav>
 
             {/* Sidebar Footer */}
-            <div className="p-4 border-t bg-gray-50">
-              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 text-white" />
+            <div
+              className={`border-t bg-gray-50 ${
+                sidebarCollapsed ? "p-2" : "p-4"
+              }`}
+            >
+              {sidebarCollapsed ? (
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {user?.email}
-                  </p>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {user?.firstName} {user?.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user?.email}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-72">
+        <div
+          className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-all duration-300 ${
+            sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+          }`}
+        >
           {/* Header - only on Dashboard tab */}
           {activeTab === "dashboard" && (
             <div className="flex items-center justify-between">
@@ -1372,168 +1460,8 @@ const HODPanel = () => {
                 </Card>
               </div>
 
-              {/* Detailed Statistics Section */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                {/* Alumni by Department */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5" />
-                      Alumni by Department
-                    </CardTitle>
-                    <CardDescription>
-                      Distribution across departments
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.keys(alumniByDepartment).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No data available
-                        </p>
-                      ) : (
-                        Object.entries(alumniByDepartment)
-                          .sort(([, a], [, b]) => b - a)
-                          .slice(0, 5)
-                          .map(([dept, count]) => (
-                            <div key={dept} className="space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className="font-medium truncate">
-                                  {dept}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {count}
-                                </span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div
-                                  className="bg-blue-500 h-1.5 rounded-full"
-                                  style={{
-                                    width: `${
-                                      (count / stats.totalAlumniVerified) *
-                                        100 || 0
-                                    }%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Events by Status */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Events by Status
-                    </CardTitle>
-                    <CardDescription>Event status breakdown</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.keys(eventsByStatus).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No events yet
-                        </p>
-                      ) : (
-                        Object.entries(eventsByStatus).map(
-                          ([status, count]) => (
-                            <div
-                              key={status}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-3 h-3 rounded-full ${
-                                    status === "upcoming"
-                                      ? "bg-green-500"
-                                      : status === "completed"
-                                      ? "bg-blue-500"
-                                      : "bg-gray-400"
-                                  }`}
-                                />
-                                <span className="text-sm font-medium capitalize">
-                                  {status}
-                                </span>
-                              </div>
-                              <Badge variant="secondary">{count}</Badge>
-                            </div>
-                          )
-                        )
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Campaign Performance */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5" />
-                      Campaign Performance
-                    </CardTitle>
-                    <CardDescription>
-                      Overall fundraising progress
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Raised</span>
-                          <span className="font-bold text-lg">
-                            ₹{stats.totalCampaignRaised.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Target</span>
-                          <span className="font-medium">
-                            ₹{stats.totalCampaignTarget.toLocaleString()}
-                          </span>
-                        </div>
-                        {stats.totalCampaignTarget > 0 && (
-                          <>
-                            <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                              <div
-                                className="bg-rose-500 h-3 rounded-full transition-all"
-                                style={{
-                                  width: `${Math.min(
-                                    (stats.totalCampaignRaised /
-                                      stats.totalCampaignTarget) *
-                                      100,
-                                    100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                            <p className="text-xs text-center text-muted-foreground">
-                              {Math.round(
-                                (stats.totalCampaignRaised /
-                                  stats.totalCampaignTarget) *
-                                  100
-                              )}
-                              % Complete
-                            </p>
-                          </>
-                        )}
-                      </div>
-                      <div className="pt-2 border-t">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">
-                            Active Campaigns:
-                          </span>
-                          <span className="font-medium text-green-600">
-                            {stats.activeCampaigns}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Analytics Dashboard */}
+              <AnalyticsDashboard hideSummaryCards={true} />
 
               {/* Recent Activity - All Models */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
@@ -2731,11 +2659,10 @@ const HODPanel = () => {
                                         "http"
                                       )
                                       ? alumniItem.userId.profileImage
-                                      : `${(
-                                          API_BASE_URL
-                                        ).replace("/api/v1", "")}${
-                                          alumniItem.userId.profileImage
-                                        }`
+                                      : `${API_BASE_URL.replace(
+                                          "/api/v1",
+                                          ""
+                                        )}${alumniItem.userId.profileImage}`
                                     : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                         `${
                                           alumniItem.userId?.firstName || ""

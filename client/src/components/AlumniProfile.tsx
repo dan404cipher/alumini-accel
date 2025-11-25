@@ -455,12 +455,7 @@ const AlumniProfile = () => {
                       <span>{user.currentLocation || user.location}</span>
                     </div>
                   )}
-                  {user.experience && user.experience > 0 && (
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      <span>{user.experience} years experience</span>
-                    </div>
-                  )}
+               
                   {user.currentCGPA && (
                     <div className="flex items-center">
                       <Award className="w-4 h-4 mr-2" />

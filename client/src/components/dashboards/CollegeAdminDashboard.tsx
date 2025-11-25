@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,6 +28,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Users,
   GraduationCap,
@@ -62,6 +68,8 @@ import {
   FolderKanban,
   Menu,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -75,6 +83,7 @@ import {
   campaignAPI,
   galleryAPI,
   newsAPI,
+  adminAnalyticsAPI,
   getImageUrl,
   API_BASE_URL,
 } from "@/lib/api";
@@ -84,6 +93,8 @@ import { CategoryManagement } from "../CategoryManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
 import EventManagement from "../EventManagement";
 import JobManagement from "../admin/JobManagement";
+import { AnalyticsDashboard } from "../admin/AnalyticsDashboard";
+import { DepartmentAnalytics } from "../admin/analytics/DepartmentAnalytics";
 import Footer from "../Footer";
 // Note: College Admin only manages their own college, not all colleges
 
@@ -300,6 +311,8 @@ const CollegeAdminDashboard = () => {
 
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Desktop sidebar collapse state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // College Settings state
   const [collegeLogo, setCollegeLogo] = useState<File | null>(null);
@@ -471,9 +484,28 @@ const CollegeAdminDashboard = () => {
           tenantId: user.tenantId,
         }),
         userAPI.getPendingUserRequests(),
-        communityAPI
-          .getTopCommunities(100)
-          .catch(() => ({ success: false, data: [] })),
+        adminAnalyticsAPI
+          .getAdminAnalytics()
+          .then(
+            (response: {
+              success: boolean;
+              data?: { summary?: { totalCommunities?: number } };
+            }) => {
+              if (
+                response.success &&
+                response.data?.summary?.totalCommunities !== undefined
+              ) {
+                return {
+                  success: true,
+                  data: {
+                    totalCommunities: response.data.summary.totalCommunities,
+                  },
+                };
+              }
+              return { success: false, data: { totalCommunities: 0 } };
+            }
+          )
+          .catch(() => ({ success: false, data: { totalCommunities: 0 } })),
         campaignAPI
           .getAllCampaigns({
             limit: 100,
@@ -522,14 +554,14 @@ const CollegeAdminDashboard = () => {
         (s) => s.role === "college_admin"
       ).length;
 
-      // Process communities
-      const communitiesResponseTyped =
-        communitiesResponse as APIResponse<CommunityResponse>;
-      const communitiesData =
-        (communitiesResponseTyped.data as CommunityResponse)?.data || [];
-      const totalCommunities = Array.isArray(communitiesData)
-        ? communitiesData.length
-        : 0;
+      // Process communities - get count from admin analytics
+      const totalCommunities =
+        (
+          communitiesResponse as {
+            success: boolean;
+            data?: { totalCommunities?: number };
+          }
+        )?.data?.totalCommunities || 0;
 
       // Process campaigns
       const campaignsResponseTyped =
@@ -1315,12 +1347,14 @@ const CollegeAdminDashboard = () => {
     }
     const userWithTenant = user as UserWithTenant;
     const tenantId =
-      userWithTenant?.tenantId ||
-      userWithTenant?.tenant?._id ||
-      null;
+      userWithTenant?.tenantId || userWithTenant?.tenant?._id || null;
 
     // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
-    if (!tenantId || typeof tenantId !== "string" || !/^[0-9a-fA-F]{24}$/.test(tenantId)) {
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
       toast({
         title: "Error",
         description: `Invalid college ID. User: ${user?.firstName} ${user?.lastName}, Role: ${user?.role}. Please contact support to ensure your account is properly linked to a college.`,
@@ -1337,18 +1371,21 @@ const CollegeAdminDashboard = () => {
       if (!tenantCheck.success) {
         toast({
           title: "Error",
-          description: tenantCheck.message || "College not found. Please contact support to ensure your account is properly linked to a college.",
+          description:
+            tenantCheck.message ||
+            "College not found. Please contact support to ensure your account is properly linked to a college.",
           variant: "destructive",
         });
         setSettingsLoading(false);
         return;
       }
-      
+
       // If tenant was auto-created, show a success message
       if (tenantCheck.message?.includes("auto-created")) {
         toast({
           title: "College Setup",
-          description: "Your college has been automatically set up. You can now upload logo and banner.",
+          description:
+            "Your college has been automatically set up. You can now upload logo and banner.",
         });
       }
 
@@ -1369,9 +1406,13 @@ const CollegeAdminDashboard = () => {
             // Also dispatch event for banner update
             window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
-            const errorMessage = logoResponse.message || "Failed to upload logo";
+            const errorMessage =
+              logoResponse.message || "Failed to upload logo";
             // If it's an invalid tenant ID error, don't fallback to localStorage
-            if (errorMessage.includes("Invalid tenant ID") || errorMessage.includes("Tenant not found")) {
+            if (
+              errorMessage.includes("Invalid tenant ID") ||
+              errorMessage.includes("Tenant not found")
+            ) {
               throw new Error(errorMessage);
             }
             // For other errors, fallback to localStorage
@@ -1389,9 +1430,11 @@ const CollegeAdminDashboard = () => {
           }
         } catch (error) {
           // If it's a tenant ID error, re-throw to be handled by outer catch
-          if (error instanceof Error && 
-              (error.message.includes("Invalid tenant ID") || 
-               error.message.includes("Tenant not found"))) {
+          if (
+            error instanceof Error &&
+            (error.message.includes("Invalid tenant ID") ||
+              error.message.includes("Tenant not found"))
+          ) {
             throw error; // Re-throw to prevent success toast and show error
           }
           // For other errors, silently fallback to localStorage (already handled above)
@@ -1413,9 +1456,13 @@ const CollegeAdminDashboard = () => {
             // Dispatch custom event to notify of banner update
             window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
-            const errorMessage = bannerResponse.message || "Failed to upload banner";
+            const errorMessage =
+              bannerResponse.message || "Failed to upload banner";
             // If it's an invalid tenant ID error, don't fallback to localStorage
-            if (errorMessage.includes("Invalid tenant ID") || errorMessage.includes("Tenant not found")) {
+            if (
+              errorMessage.includes("Invalid tenant ID") ||
+              errorMessage.includes("Tenant not found")
+            ) {
               throw new Error(errorMessage);
             }
             // For other errors, fallback to localStorage
@@ -1433,9 +1480,11 @@ const CollegeAdminDashboard = () => {
           }
         } catch (error) {
           // If it's a tenant ID error, re-throw to be handled by outer catch
-          if (error instanceof Error && 
-              (error.message.includes("Invalid tenant ID") || 
-               error.message.includes("Tenant not found"))) {
+          if (
+            error instanceof Error &&
+            (error.message.includes("Invalid tenant ID") ||
+              error.message.includes("Tenant not found"))
+          ) {
             throw error; // Re-throw to prevent success toast and show error
           }
           // For other errors, silently fallback to localStorage (already handled above)
@@ -1561,12 +1610,14 @@ const CollegeAdminDashboard = () => {
     }
     const userWithTenant = user as UserWithTenant;
     const tenantId =
-      userWithTenant?.tenantId ||
-      userWithTenant?.tenant?._id ||
-      null;
-    
+      userWithTenant?.tenantId || userWithTenant?.tenant?._id || null;
+
     // Only load if tenantId is valid (24 hex characters)
-    if (tenantId && typeof tenantId === "string" && /^[0-9a-fA-F]{24}$/.test(tenantId)) {
+    if (
+      tenantId &&
+      typeof tenantId === "string" &&
+      /^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
       loadCollegeSettings(tenantId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1597,7 +1648,11 @@ const CollegeAdminDashboard = () => {
       const userWithTenant = user as UserWithTenant;
       const tenantId = userWithTenant?.tenantId || userWithTenant?.tenant?._id;
       // Only load if tenantId is valid (24 hex characters)
-      if (tenantId && typeof tenantId === "string" && /^[0-9a-fA-F]{24}$/.test(tenantId)) {
+      if (
+        tenantId &&
+        typeof tenantId === "string" &&
+        /^[0-9a-fA-F]{24}$/.test(tenantId)
+      ) {
         loadCollegeSettings(tenantId);
       }
     };
@@ -1610,6 +1665,7 @@ const CollegeAdminDashboard = () => {
   }, [user?.tenantId]);
 
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [adminStaffSubTab, setAdminStaffSubTab] = useState("management");
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="flex flex-1 overflow-hidden">
@@ -1629,39 +1685,75 @@ const CollegeAdminDashboard = () => {
               ? "fixed inset-y-0 left-0 z-50"
               : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
           }
-          top-16 w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm ${
+          top-16 ${
+            sidebarCollapsed ? "w-20" : "w-72"
+          } flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm transition-all duration-300 ${
             sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"
           }
         `}
         >
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
-            <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+            <div
+              className={`p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700 ${
+                sidebarCollapsed ? "px-3" : ""
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
-                    <Building2 className="h-6 w-6 text-blue-600" />
+                {!sidebarCollapsed && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Building2 className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg">
+                        College Admin
+                      </h3>
+                      <p className="text-blue-100 text-xs">Management Portal</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-white font-bold text-lg">
-                      College Admin
-                    </h3>
-                    <p className="text-blue-100 text-xs">Management Portal</p>
+                )}
+                {sidebarCollapsed && (
+                  <div className="w-full flex justify-center">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Building2 className="h-6 w-6 text-blue-600" />
+                    </div>
                   </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden lg:flex text-white hover:bg-white/20 p-1.5"
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    title={
+                      sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                    }
+                  >
+                    {sidebarCollapsed ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronLeft className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden text-white hover:bg-white/20"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden text-white hover:bg-white/20"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
               </div>
             </div>
 
             {/* Navigation Menu */}
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <nav
+              className={`flex-1 space-y-1 overflow-y-auto ${
+                sidebarCollapsed ? "p-2" : "p-4"
+              }`}
+            >
               {[
                 {
                   key: "dashboard",
@@ -1677,7 +1769,7 @@ const CollegeAdminDashboard = () => {
                 },
                 {
                   key: "admin-staff",
-                  label: "Admin & Staff",
+                  label: "HOD & Staffs Management",
                   icon: Users2,
                   color: "green",
                 },
@@ -1764,32 +1856,57 @@ const CollegeAdminDashboard = () => {
 
                 const activeColors = colorMap[item.color] || colorMap.blue;
 
-                return (
+                const buttonContent = (
                   <button
                     key={item.key}
                     onClick={() => setActiveTab(item.key)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`w-full flex items-center ${
+                      sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
+                    } py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
                         ? `${activeColors.bg} ${activeColors.border} ${activeColors.text} border-l-4 shadow-sm`
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent"
                     }`}
                   >
                     <Icon
-                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`}
+                      className={`h-5 w-5 flex-shrink-0 ${
+                        isActive ? "" : "text-gray-500"
+                      }`}
                     />
-                    <span className="flex-1">{item.label}</span>
-                    {isActive && (
-                      <div
-                        className={`w-2 h-2 rounded-full ${activeColors.dot}`}
-                      />
+                    {!sidebarCollapsed && (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {isActive && (
+                          <div
+                            className={`w-2 h-2 rounded-full ${activeColors.dot}`}
+                          />
+                        )}
+                      </>
                     )}
                   </button>
+                );
+
+                return sidebarCollapsed ? (
+                  <TooltipProvider key={item.key}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>{item.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  buttonContent
                 );
               })}
             </nav>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 lg:ml-72 pb-20">
+        <div
+          className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 transition-all duration-300 pb-20 ${
+            sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+          }`}
+        >
           {/* Mobile Menu Button */}
           <div className="lg:hidden mb-4">
             <Button
@@ -2029,7 +2146,7 @@ const CollegeAdminDashboard = () => {
                 <Card className="border-l-4 border-l-cyan-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Communities
+                      Communi
                     </CardTitle>
                     <MessageSquare className="h-5 w-5 text-cyan-500" />
                   </CardHeader>
@@ -2128,717 +2245,8 @@ const CollegeAdminDashboard = () => {
                 </Card>
               </div>
 
-              {/* Detailed Statistics Section */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Alumni by Department */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5" />
-                      Alumni by Department
-                    </CardTitle>
-                    <CardDescription>
-                      Distribution across departments
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.keys(alumniByDepartment).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No data available
-                        </p>
-                      ) : (
-                        Object.entries(alumniByDepartment)
-                          .sort(([, a], [, b]) => b - a)
-                          .slice(0, 5)
-                          .map(([dept, count]) => (
-                            <div key={dept} className="space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className="font-medium truncate">
-                                  {dept}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {count}
-                                </span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div
-                                  className="bg-blue-500 h-1.5 rounded-full"
-                                  style={{
-                                    width: `${
-                                      (count / stats.totalAlumni) * 100 || 0
-                                    }%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Events by Status */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Events by Status
-                    </CardTitle>
-                    <CardDescription>Event status breakdown</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.keys(eventsByStatus).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No events yet
-                        </p>
-                      ) : (
-                        Object.entries(eventsByStatus).map(
-                          ([status, count]) => (
-                            <div
-                              key={status}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-3 h-3 rounded-full ${
-                                    status === "upcoming"
-                                      ? "bg-green-500"
-                                      : status === "completed"
-                                      ? "bg-blue-500"
-                                      : "bg-gray-400"
-                                  }`}
-                                />
-                                <span className="text-sm font-medium capitalize">
-                                  {status}
-                                </span>
-                              </div>
-                              <Badge variant="secondary">{count}</Badge>
-                            </div>
-                          )
-                        )
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Campaign Performance */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5" />
-                      Campaign Performance
-                    </CardTitle>
-                    <CardDescription>
-                      Overall fundraising progress
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Raised</span>
-                          <span className="font-bold text-lg">
-                            ₹{stats.totalCampaignRaised.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Target</span>
-                          <span className="font-medium">
-                            ₹{stats.totalCampaignTarget.toLocaleString()}
-                          </span>
-                        </div>
-                        {stats.totalCampaignTarget > 0 && (
-                          <>
-                            <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                              <div
-                                className="bg-rose-500 h-3 rounded-full transition-all"
-                                style={{
-                                  width: `${Math.min(
-                                    (stats.totalCampaignRaised /
-                                      stats.totalCampaignTarget) *
-                                      100,
-                                    100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                            <p className="text-xs text-center text-muted-foreground">
-                              {Math.round(
-                                (stats.totalCampaignRaised /
-                                  stats.totalCampaignTarget) *
-                                  100
-                              )}
-                              % Complete
-                            </p>
-                          </>
-                        )}
-                      </div>
-                      <div className="pt-2 border-t">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">
-                            Active Campaigns:
-                          </span>
-                          <span className="font-medium text-green-600">
-                            {stats.activeCampaigns}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Recent Activity - All Models */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Recent Events */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-purple-500" />
-                        <CardTitle>Recent Events</CardTitle>
-                      </div>
-                      <Badge variant="outline">{recentEvents.length}</Badge>
-                    </div>
-                    <CardDescription>
-                      Latest events and their performance
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.events ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading events...
-                          </p>
-                        </div>
-                      ) : recentEvents.length === 0 ? (
-                        <div className="text-center py-4">
-                          <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No events found
-                          </p>
-                        </div>
-                      ) : (
-                        recentEvents.slice(0, 5).map((event) => {
-                          const attendeesCount = Array.isArray(event.attendees)
-                            ? event.attendees.length
-                            : typeof event.attendees === "number"
-                            ? event.attendees
-                            : 0;
-                          const eventDate = new Date(
-                            event.date || event.startDate
-                          );
-                          const isUpcoming = eventDate > new Date();
-                          const eventStatus =
-                            event.status || (isUpcoming ? "upcoming" : "past");
-
-                          return (
-                            <div
-                              key={event._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {event.image ? (
-                                  <img
-                                    src={event.image}
-                                    alt={event.title}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                                    <Calendar className="h-6 w-6 text-purple-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {event.title}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <p className="text-xs text-muted-foreground">
-                                    {eventDate.toLocaleDateString("en-US", {
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </p>
-                                  {event.location && (
-                                    <>
-                                      <span className="text-muted-foreground">
-                                        •
-                                      </span>
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        {event.location}
-                                      </p>
-                                    </>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between mt-2">
-                                  <span className="text-xs text-muted-foreground">
-                                    {attendeesCount} attendees
-                                  </span>
-                                  <Badge
-                                    variant={
-                                      eventStatus === "completed"
-                                        ? "default"
-                                        : "secondary"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {eventStatus}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Gallery */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Image className="h-5 w-5 text-cyan-500" />
-                        <CardTitle>Gallery</CardTitle>
-                      </div>
-                      <Badge variant="outline">{galleries.length}</Badge>
-                    </div>
-                    <CardDescription>Recent photo galleries</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.galleries ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading galleries...
-                          </p>
-                        </div>
-                      ) : galleries.length === 0 ? (
-                        <div className="text-center py-4">
-                          <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No galleries found
-                          </p>
-                        </div>
-                      ) : (
-                        galleries.slice(0, 5).map((gallery) => {
-                          const galleryDate = new Date(
-                            gallery.createdAt || new Date()
-                          );
-                          const imageCount = Array.isArray(gallery.images)
-                            ? gallery.images.length
-                            : 0;
-                          const firstImage =
-                            Array.isArray(gallery.images) &&
-                            gallery.images.length > 0
-                              ? gallery.images[0]
-                              : null;
-
-                          return (
-                            <div
-                              key={gallery._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {firstImage ? (
-                                  <img
-                                    src={firstImage}
-                                    alt={gallery.title}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-cyan-100 flex items-center justify-center">
-                                    <Image className="h-6 w-6 text-cyan-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {gallery.title}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {galleryDate.toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {imageCount} images
-                                  </Badge>
-                                  {gallery.category && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-xs"
-                                    >
-                                      {gallery.category}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* News Room */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Newspaper className="h-5 w-5 text-blue-500" />
-                        <CardTitle>News Room</CardTitle>
-                      </div>
-                      <Badge variant="outline">{news.length}</Badge>
-                    </div>
-                    <CardDescription>Latest news and updates</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.news ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading news...
-                          </p>
-                        </div>
-                      ) : news.length === 0 ? (
-                        <div className="text-center py-4">
-                          <Newspaper className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No news found</p>
-                        </div>
-                      ) : (
-                        news.slice(0, 5).map((newsItem) => {
-                          const newsDate = new Date(
-                            newsItem.publishedAt ||
-                              newsItem.createdAt ||
-                              new Date()
-                          );
-
-                          return (
-                            <div
-                              key={newsItem._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {newsItem.image ? (
-                                  <img
-                                    src={newsItem.image}
-                                    alt={newsItem.title}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                                    <Newspaper className="h-6 w-6 text-blue-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {newsItem.title}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {newsItem.summary ||
-                                    newsItem.content?.substring(0, 60) ||
-                                    ""}
-                                </p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <p className="text-xs text-muted-foreground">
-                                    {newsDate.toLocaleDateString("en-US", {
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </p>
-                                  {newsItem.author && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {typeof newsItem.author === "string"
-                                        ? newsItem.author
-                                        : `${newsItem.author.firstName || ""} ${
-                                            newsItem.author.lastName || ""
-                                          }`.trim() ||
-                                          newsItem.author.email ||
-                                          "Unknown"}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Community */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="h-5 w-5 text-green-500" />
-                        <CardTitle>Communities</CardTitle>
-                      </div>
-                      <Badge variant="outline">{communities.length}</Badge>
-                    </div>
-                    <CardDescription>Top active communities</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.communities ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading communities...
-                          </p>
-                        </div>
-                      ) : communities.length === 0 ? (
-                        <div className="text-center py-4">
-                          <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No communities found
-                          </p>
-                        </div>
-                      ) : (
-                        communities.slice(0, 5).map((community) => {
-                          const memberCount =
-                            community.members?.length ||
-                            community.memberCount ||
-                            0;
-                          const postCount =
-                            community.posts?.length || community.postCount || 0;
-
-                          return (
-                            <div
-                              key={community._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {community.image ? (
-                                  <img
-                                    src={community.image}
-                                    alt={community.name}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                                    <MessageSquare className="h-6 w-6 text-green-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {community.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {community.description || ""}
-                                </p>
-                                <div className="flex items-center gap-3 mt-2">
-                                  <div className="flex items-center gap-1">
-                                    <Users className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">
-                                      {memberCount} members
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <FileText className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">
-                                      {postCount} posts
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Donations */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <HeartHandshake className="h-5 w-5 text-rose-500" />
-                        <CardTitle>Donations</CardTitle>
-                      </div>
-                      <Badge variant="outline">{donations.length}</Badge>
-                    </div>
-                    <CardDescription>Recent donations</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.donations ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading donations...
-                          </p>
-                        </div>
-                      ) : donations.length === 0 ? (
-                        <div className="text-center py-4">
-                          <HeartHandshake className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No donations found
-                          </p>
-                        </div>
-                      ) : (
-                        donations.slice(0, 5).map((donation) => {
-                          const donationDate = new Date(
-                            donation.createdAt ||
-                              donation.donatedAt ||
-                              new Date()
-                          );
-                          const amount = donation.amount || 0;
-                          const donorName =
-                            donation.donor?.firstName &&
-                            donation.donor?.lastName
-                              ? `${donation.donor.firstName} ${donation.donor.lastName}`
-                              : donation.donorName || "Anonymous";
-
-                          return (
-                            <div
-                              key={donation._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                <div className="w-12 h-12 rounded-lg bg-rose-100 flex items-center justify-center">
-                                  <HeartHandshake className="h-6 w-6 text-rose-500" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {donorName}
-                                </p>
-                                <p className="text-lg font-bold text-rose-600 mt-1">
-                                  ₹{amount.toLocaleString()}
-                                </p>
-                                {donation.campaign?.title && (
-                                  <p className="text-xs text-muted-foreground truncate mt-1">
-                                    {donation.campaign.title}
-                                  </p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  {donationDate.toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Mentorship */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-indigo-500" />
-                        <CardTitle>Mentorship</CardTitle>
-                      </div>
-                      <Badge variant="outline">{mentorships.length}</Badge>
-                    </div>
-                    <CardDescription>
-                      Recent mentorship connections
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.mentorships ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading mentorships...
-                          </p>
-                        </div>
-                      ) : mentorships.length === 0 ? (
-                        <div className="text-center py-4">
-                          <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No mentorships found
-                          </p>
-                        </div>
-                      ) : (
-                        mentorships.slice(0, 5).map((mentorship) => {
-                          const mentorshipDate = new Date(
-                            mentorship.createdAt || new Date()
-                          );
-                          const mentorName =
-                            mentorship.mentor?.firstName &&
-                            mentorship.mentor?.lastName
-                              ? `${mentorship.mentor.firstName} ${mentorship.mentor.lastName}`
-                              : mentorship.mentorName || "Unknown";
-                          const menteeName =
-                            mentorship.mentee?.firstName &&
-                            mentorship.mentee?.lastName
-                              ? `${mentorship.mentee.firstName} ${mentorship.mentee.lastName}`
-                              : mentorship.menteeName || "Unknown";
-
-                          return (
-                            <div
-                              key={mentorship._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                  <BookOpen className="h-6 w-6 text-indigo-500" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm">
-                                  Mentor: {mentorName}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Mentee: {menteeName}
-                                </p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <Badge
-                                    variant={
-                                      mentorship.status === "active"
-                                        ? "default"
-                                        : mentorship.status === "completed"
-                                        ? "secondary"
-                                        : "outline"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {mentorship.status || "pending"}
-                                  </Badge>
-                                  <p className="text-xs text-muted-foreground">
-                                    {mentorshipDate.toLocaleDateString(
-                                      "en-US",
-                                      {
-                                        month: "short",
-                                        day: "numeric",
-                                      }
-                                    )}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Analytics Dashboard */}
+              <AnalyticsDashboard hideSummaryCards={true} />
             </TabsContent>
 
             {/* College Settings - Only for the admin's own college */}
@@ -2992,12 +2400,27 @@ const CollegeAdminDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* Admin & Staff Management - Only for this college */}
+            {/* HOD & Staffs Management - Only for this college */}
             <TabsContent value="admin-staff" className="space-y-6">
-              <div className="flex items-center justify-between">
+              <Tabs
+                value={adminStaffSubTab}
+                onValueChange={setAdminStaffSubTab}
+                className="space-y-6"
+              >
+                <TabsList className="w-full max-w-xl">
+                  <TabsTrigger value="management" className="flex-1">
+                    HOD & Staffs Management
+                  </TabsTrigger>
+                  <TabsTrigger value="analytics" className="flex-1">
+                    Reports & Analytics
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="management" className="space-y-6">
+                  <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-semibold">
-                    Admin & Staff Management
+                    HOD & Staffs Management
                   </h2>
                   <p className="text-sm text-muted-foreground mt-1">
                     Manage admins, HODs and staff for your college
@@ -3642,32 +3065,48 @@ const CollegeAdminDashboard = () => {
                 )}
               </div>
 
-              {/* Pagination Controls */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="text-sm text-muted-foreground">
-                  Page {staffPage} of{" "}
-                  {Math.max(1, Math.ceil(totalStaff / staffLimit))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={staffPage <= 1 || loading.staff}
-                    onClick={() => setStaffPage((p) => Math.max(1, p - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    disabled={
-                      staffPage >= Math.ceil(totalStaff / staffLimit) ||
-                      loading.staff
-                    }
-                    onClick={() => setStaffPage((p) => p + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="text-sm text-muted-foreground">
+                      Page {staffPage} of{" "}
+                      {Math.max(1, Math.ceil(totalStaff / staffLimit))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        disabled={staffPage <= 1 || loading.staff}
+                        onClick={() => setStaffPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        disabled={
+                          staffPage >= Math.ceil(totalStaff / staffLimit) ||
+                          loading.staff
+                        }
+                        onClick={() => setStaffPage((p) => p + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="analytics" className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-semibold mb-2">
+                      Department Reports & Analytics
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Comprehensive analytics and reports for HODs and Staff across all departments
+                    </p>
+                    <DepartmentAnalytics />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
             </TabsContent>
+
 
             {/* Alumni Management */}
             <TabsContent value="alumni" className="space-y-6">

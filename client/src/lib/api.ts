@@ -3501,5 +3501,23 @@ export const reportAPI = {
   },
 };
 
+// Admin Analytics API
+export const adminAnalyticsAPI = {
+  // Get comprehensive admin analytics
+  getAdminAnalytics: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/admin/analytics",
+    });
+  },
+  // Get department-wise HOD and Staff analytics
+  getDepartmentAnalytics: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/admin/analytics/department-analytics",
+    });
+  },
+};
+
 // Export the API instance and functions
 export default api;

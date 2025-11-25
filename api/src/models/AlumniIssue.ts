@@ -51,7 +51,6 @@ const alumniIssueSchema = new Schema<IAlumniIssue>(
       type: String,
       enum: ["open", "in_progress", "resolved", "closed"],
       default: "open",
-      index: true,
     },
     priority: {
       type: String,

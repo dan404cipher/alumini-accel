@@ -920,15 +920,7 @@ const AlumniDirectory = () => {
                                       </div>
                                     )}
 
-                                    {/* Experience */}
-                                    {directoryUser.experience &&
-                                      directoryUser.experience > 0 && (
-                                        <div className="flex items-center text-sm text-gray-500 mb-1">
-                                          <Calendar className="w-4 h-4 mr-1 text-teal-600" />
-                                          {directoryUser.experience} years
-                                          experience
-                                        </div>
-                                      )}
+                                  
                                   </>
                                 )}
                               </div>

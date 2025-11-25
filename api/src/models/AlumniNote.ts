@@ -23,7 +23,6 @@ const alumniNoteSchema = new Schema<IAlumniNote>(
       type: mongoose.Types.ObjectId as any,
       ref: "User",
       required: [true, "Staff ID is required"],
-      index: true,
     },
     content: {
       type: String,

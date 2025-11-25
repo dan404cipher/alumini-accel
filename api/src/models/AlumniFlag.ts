@@ -17,7 +17,6 @@ const alumniFlagSchema = new Schema<IAlumniFlag>(
       type: mongoose.Types.ObjectId as any,
       ref: "AlumniProfile",
       required: [true, "Alumni ID is required"],
-      index: true,
     },
     flagType: {
       type: String,
@@ -34,7 +33,6 @@ const alumniFlagSchema = new Schema<IAlumniFlag>(
         "volunteer",
         "custom",
       ],
-      index: true,
     },
     flagValue: {
       type: String,
@@ -51,7 +49,6 @@ const alumniFlagSchema = new Schema<IAlumniFlag>(
       type: mongoose.Types.ObjectId as any,
       ref: "User",
       required: [true, "Created by is required"],
-      index: true,
     },
   },
   {
@@ -60,12 +57,10 @@ const alumniFlagSchema = new Schema<IAlumniFlag>(
 );
 
 // Indexes for better query performance
-alumniFlagSchema.index({ alumniId: 1, flagType: 1 });
+// Prevent duplicate flags of the same type for the same alumni (unique compound index)
+alumniFlagSchema.index({ alumniId: 1, flagType: 1 }, { unique: true });
 alumniFlagSchema.index({ flagType: 1 });
 alumniFlagSchema.index({ createdBy: 1 });
-
-// Prevent duplicate flags of the same type for the same alumni
-alumniFlagSchema.index({ alumniId: 1, flagType: 1 }, { unique: true });
 
 export default mongoose.model<IAlumniFlag>("AlumniFlag", alumniFlagSchema);
 

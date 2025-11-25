@@ -60,6 +60,7 @@ import matchingRoutes from "./routes/matching";
 import mentorshipCommunicationRoutes from "./routes/mentorshipCommunication";
 import programChatRoutes from "./routes/programChat";
 import alumni360Routes from "./routes/alumni360";
+import adminAnalyticsRoutes from "./routes/adminAnalytics";
 
 // Load environment variables
 dotenv.config();
@@ -558,6 +559,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/alumni", alumniRoutes);
 app.use("/api/v1/alumni-360", alumni360Routes);
+app.use("/api/v1/admin/analytics", adminAnalyticsRoutes);
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/job-applications", jobApplicationRoutes);
 app.use("/api/v1/events", eventRoutes);

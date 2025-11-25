@@ -476,25 +476,7 @@ const CampaignAnalyticsDashboard = ({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Reports & Downloads</CardTitle>
-            <CardDescription>Generate detailed analytics for stakeholders</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[
-              "Export Campaign Results",
-              "Engagement Report",
-              "Participation by Department",
-              "Executive Insights",
-            ].map((label) => (
-              <Button key={label} variant="outline" className="gap-2">
-                <Download className="w-4 h-4" />
-                {label}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
+       
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ import {
   MessageCircle,
   Pencil,
 } from "lucide-react";
-import { alumniAPI, API_BASE_URL, connectionAPI } from "@/lib/api";
+import { alumniAPI, API_BASE_URL, connectionAPI, getImageUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import Navigation from "@/components/Navigation";
@@ -37,6 +37,7 @@ interface User {
   name: string;
   email: string;
   profileImage?: string;
+  profilePicture?: string;
   role: string;
   graduationYear?: number;
   batchYear?: number;
@@ -132,7 +133,8 @@ const AlumniProfile = () => {
   const isOwnProfile = currentUser && user && currentUser._id === user.id;
 
   // Check if user is College Admin and can edit this profile
-  const canEditProfile = isOwnProfile || (currentUser?.role === 'college_admin' && !isOwnProfile);
+  const canEditProfile =
+    isOwnProfile || (currentUser?.role === "college_admin" && !isOwnProfile);
 
   // Check if user has admin privileges to send messages without connection
   const canSendMessage =
@@ -199,7 +201,7 @@ const AlumniProfile = () => {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("profileImage", file);
-      
+
       // Build URL with userId query parameter for College Admin
       let uploadUrl = `${API_BASE_URL}/users/profile-image`;
       if (!isOwnProfile && id) {
@@ -221,11 +223,18 @@ const AlumniProfile = () => {
 
       const result = await response.json();
       if (result.success) {
-        const newImageUrl = result.data.profileImage;
+        // Add cache-busting parameter to force reload
+        const newImageUrl = result.data.profileImage + `?t=${Date.now()}`;
 
         // Update the user state with new image URL
         setUser((prev) => {
-          return prev ? { ...prev, profileImage: newImageUrl } : null;
+          return prev
+            ? {
+                ...prev,
+                profileImage: newImageUrl,
+                profilePicture: newImageUrl,
+              }
+            : null;
         });
 
         toast({
@@ -360,18 +369,20 @@ const AlumniProfile = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Alumni Directory
           </Button>
-          
+
           {/* Edit Profile Button for College Admins */}
-          {canEditProfile && currentUser?.role === 'college_admin' && !isOwnProfile && (
-            <Button
-              onClick={() => navigate(`/profile?editUser=${user.id}`)}
-              variant="default"
-              className="mb-4"
-            >
-              <Pencil className="w-4 h-4 mr-2" />
-              Edit Profile
-            </Button>
-          )}
+          {canEditProfile &&
+            currentUser?.role === "college_admin" &&
+            !isOwnProfile && (
+              <Button
+                onClick={() => navigate(`/profile?editUser=${user.id}`)}
+                variant="default"
+                className="mb-4"
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit Profile
+              </Button>
+            )}
         </div>
 
         {/* Profile Header */}
@@ -381,10 +392,8 @@ const AlumniProfile = () => {
               <div className="relative">
                 <img
                   src={
-                    user.profileImage
-                      ? user.profileImage.startsWith("http")
-                        ? user.profileImage
-                        : user.profileImage
+                    user.profileImage || user.profilePicture
+                      ? getImageUrl(user.profileImage || user.profilePicture)
                       : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                           user.name
                         )}&background=random&color=fff`
@@ -416,7 +425,9 @@ const AlumniProfile = () => {
                 {canEditProfile && (
                   <div className="mb-4">
                     <ImageUpload
-                      currentImage={user.profileImage}
+                      currentImage={getImageUrl(
+                        user.profileImage || user.profilePicture
+                      )}
                       onImageChange={setImageFile}
                       onImageUpload={handleImageUpload}
                       isLoading={uploadingImage}
@@ -477,7 +488,7 @@ const AlumniProfile = () => {
                       <span>{user.currentLocation || user.location}</span>
                     </div>
                   )}
-               
+
                   {user.currentCGPA && (
                     <div className="flex items-center">
                       <Award className="w-4 h-4 mr-2" />

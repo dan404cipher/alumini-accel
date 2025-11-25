@@ -187,6 +187,7 @@ interface UserProfile {
     email: string;
     phone?: string;
     profilePicture?: string;
+    profileImage?: string;
     dateOfBirth?: string;
     gender?: string;
     bio?: string;
@@ -515,6 +516,7 @@ const Profile = () => {
               email: userData.email,
               phone: userData.phone,
               profilePicture: userData.profileImage,
+              profileImage: userData.profileImage,
               dateOfBirth: userData.dateOfBirth,
               gender: userData.gender,
               bio: userData.bio,
@@ -627,7 +629,10 @@ const Profile = () => {
 
       const formData = new FormData();
       formData.append("profileImage", file);
-      const apiUrl = `${API_BASE_URL}/users/profile-image`;
+      let apiUrl = `${API_BASE_URL}/users/profile-image`;
+      if (isEditingOtherUser && editUserId) {
+        apiUrl += `?userId=${editUserId}`;
+      }
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -656,6 +661,7 @@ const Profile = () => {
                 user: {
                   ...prev.user,
                   profilePicture: newImageUrl,
+                  profileImage: newImageUrl,
                 },
               }
             : null;
@@ -740,12 +746,16 @@ const Profile = () => {
     : profile.alumniProfile;
   
   // Merge user-level fields (like CGPA/GPA) into profileData for easier access
-  const enrichedProfileData = profileData ? {
-    ...profileData,
-    currentCGPA: profileData.currentCGPA ?? profile.user.currentCGPA,
-    currentGPA: profileData.currentGPA ?? profile.user.currentGPA,
-    currentYear: profileData.currentYear ?? profile.user.currentYear,
-  } : null;
+  const enrichedProfileData = profileData
+    ? {
+        ...profileData,
+        currentCGPA: profileData.currentCGPA ?? profile.user.currentCGPA,
+        currentGPA: profileData.currentGPA ?? profile.user.currentGPA,
+        currentYear: profileData.currentYear ?? profile.user.currentYear,
+      }
+    : null;
+  const profileImageUrl =
+    profile.user.profileImage || profile.user.profilePicture;
 
   return (
     <div className="min-h-screen flex flex-col pt-16">
@@ -809,12 +819,12 @@ const Profile = () => {
               <CardHeader className="text-center">
                 <div className="relative inline-block">
                   <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    {profile.user.profilePicture ? (
+                    {profileImageUrl ? (
                       <img
                         src={
-                          profile.user.profilePicture.startsWith("http")
-                            ? profile.user.profilePicture
-                            : profile.user.profilePicture
+                          profileImageUrl.startsWith("http")
+                            ? profileImageUrl
+                            : profileImageUrl
                         }
                         alt="Profile"
                         className="w-24 h-24 rounded-full object-cover"

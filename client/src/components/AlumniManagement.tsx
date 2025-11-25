@@ -459,12 +459,7 @@ const AlumniManagement = () => {
       <TabsContent value="management" className="space-y-6">
         {/* Enhanced Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-semibold">Alumni Management</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Create and manage alumni accounts for your college
-            </p>
-          </div>
+         
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="text-sm">
               Total: {totalAlumni}

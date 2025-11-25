@@ -1007,12 +1007,7 @@ const CampaignManagement: React.FC = () => {
         <TabsContent value="management" className="space-y-6">
           {/* Enhanced Header */}
           <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-semibold">Campaign Management</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage and track fundraising campaigns for your college
-          </p>
-        </div>
+        
         <div className="flex items-center gap-3">
           {!loading && campaigns.length > 0 && (
             <>

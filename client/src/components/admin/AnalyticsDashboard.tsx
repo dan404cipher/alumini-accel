@@ -10,7 +10,7 @@ import { StudentsAnalytics } from "./analytics/StudentsAnalytics";
 import { JobsAnalytics } from "./analytics/JobsAnalytics";
 import { CampaignsAnalytics } from "./analytics/CampaignsAnalytics";
 import { CommunityAnalytics } from "./analytics/CommunityAnalytics";
-import { MentorshipAnalytics } from "./analytics/MentorshipAnalytics";
+// import { MentorshipAnalytics } from "./analytics/MentorshipAnalytics";
 import { SummaryCards } from "./analytics/SummaryCards";
 
 interface AdminAnalyticsData {
@@ -145,28 +145,28 @@ export const AnalyticsDashboard = ({
       {!hideSummaryCards && <SummaryCards summary={analytics.summary} />}
 
       {/* Events Analytics */}
-      <EventsAnalytics data={analytics.events} />
+      {/* <EventsAnalytics data={analytics.events} /> */}
 
       {/* Donations Analytics */}
-      <DonationsAnalytics data={analytics.donations} />
+      {/* <DonationsAnalytics data={analytics.donations} /> */}
 
       {/* Alumni Analytics */}
-      <AlumniAnalytics data={analytics.alumni} />
+      {/* <AlumniAnalytics data={analytics.alumni} /> */}
 
       {/* Students Analytics */}
-      <StudentsAnalytics data={analytics.students} />
+      {/* <StudentsAnalytics data={analytics.students} /> */}
 
       {/* Jobs Analytics */}
-      <JobsAnalytics data={analytics.jobs} />
+      {/* <JobsAnalytics data={analytics.jobs} /> */}
 
       {/* Campaigns Analytics */}
-      <CampaignsAnalytics data={analytics.campaigns} />
+      {/* <CampaignsAnalytics data={analytics.campaigns} /> */}
 
       {/* Community Analytics */}
-      <CommunityAnalytics data={analytics.community} />
+      {/* <CommunityAnalytics data={analytics.community} /> */}
 
       {/* Mentorship Analytics */}
-      <MentorshipAnalytics data={analytics.mentorship} />
+      {/* <MentorshipAnalytics data={analytics.mentorship} /> */}
     </div>
   );
 };

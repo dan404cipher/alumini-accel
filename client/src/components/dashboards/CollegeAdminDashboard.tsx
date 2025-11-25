@@ -2146,7 +2146,7 @@ const CollegeAdminDashboard = () => {
                 <Card className="border-l-4 border-l-cyan-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Communi
+                      Communities
                     </CardTitle>
                     <MessageSquare className="h-5 w-5 text-cyan-500" />
                   </CardHeader>
@@ -2418,14 +2418,7 @@ const CollegeAdminDashboard = () => {
 
                 <TabsContent value="management" className="space-y-6">
                   <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-semibold">
-                    HOD & Staffs Management
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Manage admins, HODs and staff for your college
-                  </p>
-                </div>
+               
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-sm">
                     Total: {totalStaff}

@@ -30,6 +30,7 @@ interface SkillsInterestsFormProps {
   userRole: string;
   isEditing: boolean;
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
 export const SkillsInterestsForm = ({
@@ -37,6 +38,7 @@ export const SkillsInterestsForm = ({
   userRole,
   isEditing,
   onUpdate,
+  userId,
 }: SkillsInterestsFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -109,15 +111,15 @@ export const SkillsInterestsForm = ({
       }
 
       const isStudent = userRole === "student";
-      const apiUrl =
-        API_BASE_URL;
+      const apiUrl = API_BASE_URL;
       const endpoint = isStudent
-        ? `${apiUrl}/students/profile`
+        ? `${apiUrl}/users/students/profile`
         : `${apiUrl}/alumni/profile/skills-interests`;
 
       const requestData = {
         skills: skills,
         careerInterests: interests, // Now send careerInterests for both students and alumni
+        ...(userId ? { userId } : {}),
       };
 
       console.log("📤 Sending skills/interests data:", requestData);

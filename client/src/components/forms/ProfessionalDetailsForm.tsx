@@ -55,11 +55,13 @@ type ProfessionalDetailsFormData = z.infer<typeof professionalDetailsSchema>;
 interface ProfessionalDetailsFormProps {
   profileData: any;
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
 export const ProfessionalDetailsForm = ({
   profileData,
   onUpdate,
+  userId,
 }: ProfessionalDetailsFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -141,15 +143,18 @@ export const ProfessionalDetailsForm = ({
         throw new Error("No authentication token found");
       }
 
-      const apiUrl =
-        API_BASE_URL;
+      const apiUrl = API_BASE_URL;
+      
+      // Include userId if editing another user (College Admin mode)
+      const payload = userId ? { ...data, userId } : data;
+      
       const response = await fetch(`${apiUrl}/alumni/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       // Check if response is ok before parsing JSON

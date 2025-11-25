@@ -114,12 +114,14 @@ interface EducationalDetailsFormProps {
   profileData: any;
   userRole: string;
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
 export const EducationalDetailsForm = ({
   profileData,
   userRole,
   onUpdate,
+  userId,
 }: EducationalDetailsFormProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -157,7 +159,7 @@ export const EducationalDetailsForm = ({
   const selectedProgram = watch("program");
 
   const onSubmit = async (data: EducationalDetailsFormData) => {
-    console.log("Form submitted with data:", data);
+    // console.log("Form submitted with data:", data);
 
     try {
       setIsLoading(true);
@@ -173,7 +175,7 @@ export const EducationalDetailsForm = ({
       const isStudent = userRole === "student";
       const apiUrl = API_BASE_URL;
       const endpoint = isStudent
-        ? `${apiUrl}/students/profile`
+        ? `${apiUrl}/users/students/profile`
         : `${apiUrl}/alumni/profile`;
 
       // Ensure numeric fields are properly converted
@@ -225,6 +227,11 @@ export const EducationalDetailsForm = ({
           delete processedData[key];
         }
       });
+
+      // Include userId if editing another user (College Admin mode)
+      if (userId) {
+        processedData.userId = userId;
+      }
 
       console.log("Processed data to send:", processedData);
 

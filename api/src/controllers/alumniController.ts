@@ -679,14 +679,31 @@ export const updateProfile = async (req: Request, res: Response) => {
       photos,
       currentCGPA,
       currentGPA,
+      userId, // Optional: for admins to update other users' profiles
     } = req.body;
 
-    const alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
+    // Determine which profile to update
+    const targetUserId = userId || req.user.id;
+    const alumniProfile = await AlumniProfile.findOne({ userId: targetUserId }).populate('userId');
 
     if (!alumniProfile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
+      });
+    }
+
+    // Authorization check: Allow if user is editing their own profile OR if they're a College Admin editing a profile from their tenant
+    const isOwnProfile = req.user.id.toString() === targetUserId.toString();
+    const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
+    const profileUser = alumniProfile.userId as any;
+    const isSameTenant = req.user.tenantId && profileUser.tenantId && 
+                         req.user.tenantId.toString() === profileUser.tenantId.toString();
+
+    if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to update this profile",
       });
     }
 
@@ -1032,14 +1049,41 @@ export const getAlumniStats = async (req: Request, res: Response) => {
 // Update alumni skills and interests only
 export const updateSkillsInterests = async (req: Request, res: Response) => {
   try {
-    const { skills, careerInterests } = req.body;
+    const { skills, careerInterests, userId } = req.body;
 
-    let alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
+    // Determine which user to update
+    const targetUserId = userId || req.user.id;
+    
+    // If userId is provided, verify authorization
+    if (userId) {
+      const targetUser = await User.findById(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Authorization check: Only College Admins from same tenant can update other users
+      const isOwnProfile = req.user.id.toString() === targetUserId.toString();
+      const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
+      const isSameTenant = req.user.tenantId && targetUser.tenantId &&
+                           req.user.tenantId.toString() === targetUser.tenantId.toString();
+
+      if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
+        return res.status(403).json({
+          success: false,
+          message: "You don't have permission to update this profile",
+        });
+      }
+    }
+
+    let alumniProfile = await AlumniProfile.findOne({ userId: targetUserId });
 
     // If no alumni profile exists, create a basic one
     if (!alumniProfile) {
       // Get user details to create basic profile
-      const user = await User.findById(req.user.id);
+      const user = await User.findById(targetUserId);
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -1049,7 +1093,7 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
 
       // Create basic alumni profile
       alumniProfile = new AlumniProfile({
-        userId: req.user.id,
+        userId: targetUserId,
         program: "Default Program",
         batchYear: new Date().getFullYear() - 4, // Default batch year
         graduationYear: new Date().getFullYear(),
@@ -1117,28 +1161,38 @@ export const getUserById = async (req: Request, res: Response) => {
       ? await AlumniProfile.findOne({ userId: user._id })
       : null;
 
-    // Format the response
+    // Format the response with ALL user fields
     const baseUser = {
       id: user._id,
       name: `${user.firstName} ${user.lastName}`,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       profileImage: user.profilePicture,
       role: user.role,
       phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
       bio: user.bio,
       location: user.location,
       linkedinProfile: user.linkedinProfile,
       githubProfile: user.githubProfile,
+      twitterHandle: user.twitterHandle,
       website: user.website,
       createdAt: user.createdAt,
+      // Student-specific fields from User model
+      currentYear: user.currentYear,
+      currentCGPA: user.currentCGPA,
+      currentGPA: user.currentGPA,
+      graduationYear: user.graduationYear,
+      department: user.department,
+      // Default alumni fields
       skills: [],
       careerInterests: [],
       isHiring: false,
       availableForMentorship: false,
       mentorshipDomains: [],
       achievements: [],
-      graduationYear: user.graduationYear,
-      department: user.department,
     };
 
     // Add profile-specific data for alumni
@@ -1146,22 +1200,30 @@ export const getUserById = async (req: Request, res: Response) => {
       const alumniProfile = profile as any;
       const formattedUser = {
         ...baseUser,
+        // Override with profile data
         graduationYear: alumniProfile.graduationYear || user.graduationYear,
         batchYear: alumniProfile.batchYear,
         department: alumniProfile.department || user.department,
+        program: alumniProfile.program,
+        rollNumber: alumniProfile.rollNumber,
+        studentId: alumniProfile.studentId,
         specialization: alumniProfile.specialization,
         currentRole: alumniProfile.currentPosition,
         company: alumniProfile.currentCompany,
         currentLocation: alumniProfile.currentLocation || user.location,
         experience: alumniProfile.experience,
+        salary: alumniProfile.salary,
+        currency: alumniProfile.currency,
         skills: alumniProfile.skills || [],
         careerInterests: alumniProfile.careerInterests || [],
-        isHiring: alumniProfile.isHiring,
-        availableForMentorship: alumniProfile.availableForMentorship,
+        isHiring: alumniProfile.isHiring || false,
+        availableForMentorship: alumniProfile.availableForMentorship || false,
         mentorshipDomains: alumniProfile.mentorshipDomains || [],
+        availableSlots: alumniProfile.availableSlots || [],
         achievements: alumniProfile.achievements || [],
         certifications: alumniProfile.certifications || [],
         careerTimeline: alumniProfile.careerTimeline || [],
+        testimonials: alumniProfile.testimonials || [],
         education: alumniProfile.education || [],
         projects: alumniProfile.projects || [],
         internshipExperience: alumniProfile.internshipExperience || [],
@@ -1173,7 +1235,22 @@ export const getUserById = async (req: Request, res: Response) => {
       });
     }
 
-    // For students or alumni without profile, return base user with User model data
+    // For students, add student-specific data
+    if (user.role === UserRole.STUDENT) {
+      const formattedUser = {
+        ...baseUser,
+        program: (user as any).program,
+        rollNumber: (user as any).rollNumber,
+        studentId: (user as any).studentId,
+        batchYear: (user as any).batchYear,
+      };
+      return res.json({
+        success: true,
+        data: { user: formattedUser },
+      });
+    }
+
+    // For alumni without profile, return base user
     return res.json({
       success: true,
       data: { user: baseUser },

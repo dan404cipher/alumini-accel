@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
@@ -272,6 +273,7 @@ interface UserProfile {
 
 const Profile = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -279,6 +281,11 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Get editUser from query parameters for College Admin editing
+  const searchParams = new URLSearchParams(location.search);
+  const editUserId = searchParams.get('editUser');
+  const isEditingOtherUser = !!editUserId && user?.role === 'college_admin';
 
   // Image cropping states
   const [showCrop, setShowCrop] = useState(false);
@@ -472,12 +479,20 @@ const Profile = () => {
       }
 
       const apiUrl = API_BASE_URL;
-      // Add cache-busting parameter to prevent browser caching
-      const response = await fetch(`${apiUrl}/auth/me?t=${Date.now()}`, {
+      
+      let endpoint = `${apiUrl}/auth/me?t=${Date.now()}`;
+      
+      // If editing another user (College Admin), fetch their profile
+      if (isEditingOtherUser && editUserId) {
+        endpoint = `${apiUrl}/alumni/user/${editUserId}?t=${Date.now()}`;
+      }
+      
+      const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+      
       // Check if response is ok before parsing JSON
       if (!response.ok) {
         const errorText = await response.text();
@@ -487,7 +502,89 @@ const Profile = () => {
 
       const data = await response.json();
       if (data.success) {
-        setProfile(data.data);
+        // If editing another user, transform the response to match the expected structure
+        if (isEditingOtherUser && data.data.user) {
+          const userData = data.data.user;
+          
+          // Transform flat user data into nested structure expected by Profile.tsx
+          const transformedData = {
+            user: {
+              _id: userData.id,
+              firstName: userData.name?.split(' ')[0] || '',
+              lastName: userData.name?.split(' ').slice(1).join(' ') || '',
+              email: userData.email,
+              phone: userData.phone,
+              profilePicture: userData.profileImage,
+              dateOfBirth: userData.dateOfBirth,
+              gender: userData.gender,
+              bio: userData.bio,
+              location: userData.location || userData.currentLocation,
+              linkedinProfile: userData.linkedinProfile,
+              githubProfile: userData.githubProfile,
+              twitterHandle: userData.twitterHandle,
+              website: userData.website,
+              isEmailVerified: true,
+              isPhoneVerified: false,
+              role: userData.role,
+              profileCompletionPercentage: 70,
+              currentCGPA: userData.currentCGPA,
+              currentGPA: userData.currentGPA,
+              currentYear: userData.currentYear,
+            },
+            // Create alumniProfile or studentProfile based on role
+            ...(userData.role === 'alumni' ? {
+              alumniProfile: {
+                currentCompany: userData.company,
+                currentPosition: userData.currentRole,
+                experience: userData.experience,
+                currentLocation: userData.currentLocation,
+                specialization: userData.specialization,
+                isHiring: userData.isHiring,
+                achievements: userData.achievements,
+                availableForMentorship: userData.availableForMentorship,
+                mentorshipDomains: userData.mentorshipDomains,
+                projects: userData.projects,
+                internshipExperience: userData.internshipExperience,
+                researchWork: userData.researchWork,
+                certifications: userData.certifications,
+                careerTimeline: userData.careerTimeline,
+                skills: userData.skills,
+                careerInterests: userData.careerInterests,
+                department: userData.department,
+                batchYear: userData.batchYear,
+                graduationYear: userData.graduationYear,
+                program: userData.program,
+                rollNumber: userData.rollNumber,
+                studentId: userData.studentId,
+                currentCGPA: userData.currentCGPA,
+                currentGPA: userData.currentGPA,
+              }
+            } : {
+              studentProfile: {
+                department: userData.department,
+                program: userData.program,
+                rollNumber: userData.rollNumber,
+                studentId: userData.studentId,
+                batchYear: userData.batchYear,
+                graduationYear: userData.graduationYear,
+                currentYear: userData.currentYear,
+                currentCGPA: userData.currentCGPA,
+                currentGPA: userData.currentGPA,
+                projects: userData.projects,
+                internshipExperience: userData.internshipExperience,
+                researchWork: userData.researchWork,
+                certifications: userData.certifications,
+                skills: userData.skills,
+                careerInterests: userData.careerInterests,
+              }
+            })
+          };
+          
+          setProfile(transformedData);
+        } else {
+          // For /auth/me endpoint, use data as-is
+          setProfile(data.data);
+        }
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -499,7 +596,7 @@ const Profile = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, isEditingOtherUser, editUserId]);
 
   useEffect(() => {
     fetchProfile();
@@ -658,8 +755,15 @@ const Profile = () => {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {isEditingOtherUser ? `Editing Profile` : 'My Profile'}
+              </h1>
               <div className="flex items-center gap-2">
+                {isEditingOtherUser && (
+                  <Badge variant="default" className="text-sm">
+                    College Admin Mode
+                  </Badge>
+                )}
                 <Badge variant="secondary" className="text-sm">
                   {profile.user.role.charAt(0).toUpperCase() +
                     profile.user.role.slice(1)}
@@ -1132,6 +1236,7 @@ const Profile = () => {
                   <BasicProfileForm
                     user={profile.user}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">
@@ -1281,6 +1386,7 @@ const Profile = () => {
                     profileData={enrichedProfileData || profileData}
                     userRole={profile.user.role}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">
@@ -1428,6 +1534,7 @@ const Profile = () => {
                     userRole={profile.user.role}
                     isEditing={isEditing}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">
@@ -1583,8 +1690,9 @@ const Profile = () => {
                 >
                   {isEditing ? (
                     <ProfessionalDetailsForm
-                      profileData={profileData}
+                      profileData={enrichedProfileData}
                       onUpdate={handleProfileUpdate}
+                      userId={editUserId || undefined}
                     />
                   ) : (
                     <div className="space-y-6">
@@ -1832,6 +1940,7 @@ const Profile = () => {
                     user={profile.user}
                     profileData={profileData}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">

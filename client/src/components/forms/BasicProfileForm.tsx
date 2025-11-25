@@ -97,9 +97,10 @@ interface BasicProfileFormProps {
     location?: string;
   };
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
-export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
+export const BasicProfileForm = ({ user, onUpdate, userId }: BasicProfileFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -144,6 +145,8 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
           data.phone && data.phone.trim() !== ""
             ? data.phone.trim()
             : undefined,
+        // Include userId if editing another user (College Admin mode)
+        ...(userId ? { userId } : {}),
       };
 
       const apiUrl = API_BASE_URL;

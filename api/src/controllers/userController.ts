@@ -255,13 +255,30 @@ export const updateProfile = async (req: Request, res: Response) => {
       currentYear,
       currentCGPA,
       currentGPA,
+      userId, // Optional: for admins to update other users
     } = req.body;
 
-    const user = await User.findById(req.user.id);
+    // Determine which user to update
+    const targetUserId = userId || req.user.id;
+    const user = await User.findById(targetUserId);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
+      });
+    }
+
+    // Authorization check: Allow if user is editing themselves OR if they're a College Admin editing a user from their tenant
+    const isOwnProfile = req.user.id.toString() === user._id.toString();
+    const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
+    const isSameTenant = req.user.tenantId && user.tenantId && 
+                         req.user.tenantId.toString() === user.tenantId.toString();
+
+    if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to update this profile",
       });
     }
 
@@ -736,12 +753,38 @@ export const promoteStudentToAlumni = async (req: Request, res: Response) => {
 // Upload profile image
 export const uploadProfileImage = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
+    // userId can be in query params for College Admin editing other users
+    const targetUserId = req.query.userId as string || req.user?.id;
+    
+    if (!targetUserId) {
       return res.status(401).json({
         success: false,
         message: "Unauthorized",
       });
+    }
+
+    // If userId is provided in query, verify authorization
+    if (req.query.userId) {
+      const targetUser = await User.findById(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Authorization check: Only College Admins from same tenant can update other users
+      const isOwnProfile = req.user.id.toString() === targetUserId.toString();
+      const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
+      const isSameTenant = req.user.tenantId && targetUser.tenantId &&
+                           req.user.tenantId.toString() === targetUser.tenantId.toString();
+
+      if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
+        return res.status(403).json({
+          success: false,
+          message: "You don't have permission to update this profile",
+        });
+      }
     }
 
     if (!req.file) {
@@ -779,8 +822,8 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
       });
     }
 
-    // Find the user
-    const user = await User.findById(userId);
+    // Find the user (use targetUserId)
+    const user = await User.findById(targetUserId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -817,18 +860,18 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
 export const updateStudentProfile = async (req: Request, res: Response) => {
   try {
     const {
-      department,
-      program,
-      batchYear,
-      graduationYear,
-      rollNumber,
-      studentId,
       currentYear,
       currentCGPA,
       currentGPA,
+      graduationYear,
+      department,
+      userId, // Optional: for admins to update other students
     } = req.body;
 
-    const user = await User.findById(req.user.id);
+    // Determine which user to update
+    const targetUserId = userId || req.user.id;
+    const user = await User.findById(targetUserId);
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -836,25 +879,27 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Verify user is a student
-    if (user.role !== UserRole.STUDENT) {
+    // Authorization check: Allow if user is editing themselves OR if they're a College Admin editing a user from their tenant
+    const isOwnProfile = req.user.id.toString() === user._id.toString();
+    const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
+    const isSameTenant = req.user.tenantId && user.tenantId &&
+                         req.user.tenantId.toString() === user.tenantId.toString();
+
+    if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
       return res.status(403).json({
         success: false,
-        message: "This endpoint is only for students",
+        message: "You don't have permission to update this profile",
       });
     }
 
-    // Update student profile fields
-    if (department !== undefined) user.department = department;
-    if (graduationYear !== undefined) user.graduationYear = graduationYear;
-    if (currentYear !== undefined) user.currentYear = currentYear;
-    if (currentCGPA !== undefined) user.currentCGPA = currentCGPA;
-    if (currentGPA !== undefined) user.currentGPA = currentGPA;
+    // Update student-specific fields
+    if (currentYear) user.currentYear = currentYear;
+    if (currentCGPA) user.currentCGPA = currentCGPA;
+    if (currentGPA) user.currentGPA = currentGPA;
+    if (graduationYear) user.graduationYear = graduationYear;
+    if (department) user.department = department;
 
     await user.save();
-
-    // Update profile completion for students
-    await updateProfileCompletion(user._id);
 
     return res.json({
       success: true,

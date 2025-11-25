@@ -20,13 +20,14 @@ import {
   BookOpen,
   Github,
   MessageCircle,
+  Pencil,
 } from "lucide-react";
 import { alumniAPI, API_BASE_URL, connectionAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import SimpleImageUpload from "@/components/SimpleImageUpload";
+import ImageUpload from "@/components/ImageUpload";
 import ConnectionButton from "@/components/ConnectionButton";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -130,6 +131,9 @@ const AlumniProfile = () => {
   // Check if this is the current user's own profile
   const isOwnProfile = currentUser && user && currentUser._id === user.id;
 
+  // Check if user is College Admin and can edit this profile
+  const canEditProfile = isOwnProfile || (currentUser?.role === 'college_admin' && !isOwnProfile);
+
   // Check if user has admin privileges to send messages without connection
   const canSendMessage =
     currentUser?.role &&
@@ -195,9 +199,15 @@ const AlumniProfile = () => {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("profileImage", file);
+      
+      // Build URL with userId query parameter for College Admin
+      let uploadUrl = `${API_BASE_URL}/users/profile-image`;
+      if (!isOwnProfile && id) {
+        uploadUrl += `?userId=${id}`;
+      }
 
       // Upload the image
-      const response = await fetch(`${API_BASE_URL}/users/profile-image`, {
+      const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -341,7 +351,7 @@ const AlumniProfile = () => {
       <Navigation activeTab="alumni" onTabChange={() => {}} />
       <div className="container mx-auto px-4  pt-24">
         {/* Header */}
-        <div className="mb-2">
+        <div className="mb-2 flex items-center gap-2">
           <Button
             onClick={() => navigate("/alumni")}
             variant="ghost"
@@ -350,6 +360,18 @@ const AlumniProfile = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Alumni Directory
           </Button>
+          
+          {/* Edit Profile Button for College Admins */}
+          {canEditProfile && currentUser?.role === 'college_admin' && !isOwnProfile && (
+            <Button
+              onClick={() => navigate(`/profile?editUser=${user.id}`)}
+              variant="default"
+              className="mb-4"
+            >
+              <Pencil className="w-4 h-4 mr-2" />
+              Edit Profile
+            </Button>
+          )}
         </div>
 
         {/* Profile Header */}
@@ -390,10 +412,10 @@ const AlumniProfile = () => {
                   {user.currentRole || user.role}
                 </p>
 
-                {/* Profile Image Upload - Only show for own profile */}
-                {isOwnProfile && (
+                {/* Profile Image Upload - Show for own profile OR College Admin */}
+                {canEditProfile && (
                   <div className="mb-4">
-                    <SimpleImageUpload
+                    <ImageUpload
                       currentImage={user.profileImage}
                       onImageChange={setImageFile}
                       onImageUpload={handleImageUpload}

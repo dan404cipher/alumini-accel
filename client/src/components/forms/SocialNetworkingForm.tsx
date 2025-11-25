@@ -111,15 +111,18 @@ interface SocialNetworkingFormProps {
     githubProfile?: string;
     twitterHandle?: string;
     website?: string;
+    role?: string;
   };
   profileData: any;
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
 export const SocialNetworkingForm = ({
   user,
   profileData,
   onUpdate,
+  userId,
 }: SocialNetworkingFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -186,15 +189,17 @@ export const SocialNetworkingForm = ({
           githubProfile: data.githubProfile || undefined,
           twitterHandle: data.twitterHandle || undefined,
           website: data.website || undefined,
+          ...(userId ? { userId } : {}),
         }),
       });
 
       // Update profile-specific data
-      const profileData = {
+      const profilePayload = {
         portfolioUrl: data.portfolioUrl || undefined,
         otherSocialHandles: otherHandles.filter(
           (handle) => handle.platform && handle.handle
         ),
+        ...(userId ? { userId } : {}),
       };
 
       const isStudent = user.role === "student";
@@ -208,7 +213,7 @@ export const SocialNetworkingForm = ({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify(profilePayload),
       });
 
       // Check if user profile update was successful

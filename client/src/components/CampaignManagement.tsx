@@ -75,6 +75,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CampaignAnalyticsDashboard from "./campaign/CampaignAnalyticsDashboard";
 
 const campaignSchema = z.object({
   title: z.string().min(1, "Campaign title is required"),
@@ -156,6 +158,7 @@ const CampaignManagement: React.FC = () => {
   const [campaignLimit] = useState(6);
   const { toast } = useToast();
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("management");
 
   // Donor management state
   const [selectedCampaignForDonors, setSelectedCampaignForDonors] =
@@ -986,9 +989,24 @@ const CampaignManagement: React.FC = () => {
   }, [searchTerm, categoryFilter, statusFilter]);
 
   return (
-    <div className="space-y-6">
-      {/* Enhanced Header */}
-      <div className="flex justify-between items-center">
+    <>
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
+        <TabsList className="w-full max-w-2xl">
+          <TabsTrigger value="management" className="flex-1">
+            Campaign Management
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex-1">
+            Campaign Reports & Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="management" className="space-y-6">
+          {/* Enhanced Header */}
+          <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold">Campaign Management</h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -1698,6 +1716,17 @@ const CampaignManagement: React.FC = () => {
           )}
         </>
       )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <CampaignAnalyticsDashboard
+            campaigns={campaigns}
+            loading={loading}
+            totalAmount={totalAmount}
+            totalTarget={totalTarget}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Donors Dialog */}
       <Dialog open={isDonorsDialogOpen} onOpenChange={setIsDonorsDialogOpen}>
@@ -2005,7 +2034,7 @@ const CampaignManagement: React.FC = () => {
           </Card>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 

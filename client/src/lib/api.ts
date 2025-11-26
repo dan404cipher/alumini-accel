@@ -3521,6 +3521,38 @@ export const rewardsAPI = {
     });
   },
 
+  updateBadge: async (
+    badgeId: string,
+    payload: {
+      name?: string;
+      description?: string;
+      category?: string;
+      icon?: string;
+      color?: string;
+      points?: number;
+      isActive?: boolean;
+      isRare?: boolean;
+      criteria?: {
+        type?: string;
+        value?: number;
+        description?: string;
+      };
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/badges/${badgeId}`,
+      data: payload,
+    });
+  },
+
+  deleteBadge: async (badgeId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/badges/${badgeId}`,
+    });
+  },
+
   getPendingVerifications: async (params?: {
     status?: "pending" | "approved" | "rejected";
     category?: string;

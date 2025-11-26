@@ -184,13 +184,20 @@ const rewardController = {
           ? req.query.userId as string
           : req.user?._id?.toString() || "";
 
+      console.log("[getUserBadges Controller] Request user:", req.user?._id?.toString());
+      console.log("[getUserBadges Controller] Query userId:", req.query.userId);
+      console.log("[getUserBadges Controller] Final userId:", userId);
+
       const badges = await rewardService.getUserBadges(userId);
+
+      console.log("[getUserBadges Controller] Returning badges count:", badges.length);
 
       return res.json({
         success: true,
         data: { badges },
       });
     } catch (error) {
+      console.error("[getUserBadges Controller] Error:", error);
       return res.status(400).json({
         success: false,
         message: error instanceof Error ? error.message : "Failed to get badges",

@@ -13,6 +13,62 @@ import { logger } from "../utils/logger";
  */
 export const badgeEvaluationService = {
   /**
+   * Award badge directly without checking criteria (for reward/task-linked badges)
+   */
+  async awardBadgeDirectly(
+    userId: string,
+    badgeId: string,
+    tenantId?: string,
+    reason?: string
+  ): Promise<boolean> {
+    try {
+      console.log("[awardBadgeDirectly] Starting - userId:", userId, "badgeId:", badgeId);
+      const badge = await Badge.findById(badgeId);
+      if (!badge || !badge.isActive) {
+        console.log("[awardBadgeDirectly] Badge not found or inactive:", badgeId);
+        return false;
+      }
+
+      console.log("[awardBadgeDirectly] Badge found:", badge.name);
+
+      // Check if user already has this badge
+      const existingBadge = await UserBadge.findOne({
+        user: new Types.ObjectId(userId),
+        badge: badge._id,
+      });
+
+      if (existingBadge) {
+        console.log("[awardBadgeDirectly] Badge already awarded to user");
+        return true; // Already awarded, consider it successful
+      }
+
+      // Check if badge has reached max recipients (for rare badges)
+      if (badge.isRare && badge.maxRecipients) {
+        if (badge.currentRecipients >= badge.maxRecipients) {
+          console.log("[awardBadgeDirectly] Badge has reached max recipients");
+          logger.warn(`Badge ${badgeId} has reached max recipients`);
+          return false; // Badge limit reached
+        }
+      }
+
+      console.log("[awardBadgeDirectly] Awarding badge to user...");
+      // Award badge directly without criteria check
+      await this.awardBadgeToUser(
+        userId,
+        badgeId,
+        tenantId,
+        reason || `Awarded for completing reward/task`
+      );
+      console.log("[awardBadgeDirectly] Badge awarded successfully");
+      return true;
+    } catch (error) {
+      console.error("[awardBadgeDirectly] Error:", error);
+      logger.error("Error awarding badge directly:", error);
+      return false;
+    }
+  },
+
+  /**
    * Check if user meets badge criteria and award if eligible
    */
   async evaluateAndAwardBadge(
@@ -234,9 +290,15 @@ export const badgeEvaluationService = {
         if (!user.rewards.badges.some((b) => b.toString() === badgeIdString)) {
           user.rewards.badges.push(badgeObjectId as any);
           await user.save();
+          console.log("[awardBadgeToUser] Badge added to user.rewards.badges array");
+        } else {
+          console.log("[awardBadgeToUser] Badge already in user.rewards.badges array");
         }
+      } else {
+        console.log("[awardBadgeToUser] User not found:", userId);
       }
 
+      console.log("[awardBadgeToUser] Badge awarded successfully - Badge:", badge.name, "User:", userId);
       logger.info(`Badge ${badge.name} awarded to user ${userId}`);
     } catch (error) {
       logger.error("Error awarding badge:", error);

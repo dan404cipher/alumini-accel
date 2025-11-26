@@ -236,50 +236,116 @@ export const rewardService = {
       activity.status === "earned" &&
       !wasAlreadyEarned &&
       previousStatus !== "earned";
+    const verificationSatisfied =
+      !requiresVerification || activity.verification?.status === "approved";
+
     const canAwardPoints =
       justEarned &&
+      verificationSatisfied &&
       activity.pointsAwarded &&
-      activity.pointsAwarded > 0 &&
-      (!requiresVerification || activity.verification?.status === "approved");
+      activity.pointsAwarded > 0;
 
     if (canAwardPoints && activity.pointsAwarded) {
       await this.updateUserPoints(userId, activity.pointsAwarded);
+    }
 
-      // Check and award badges linked to this reward/task (async, don't await to avoid blocking)
+    const shouldAwardBadges = justEarned && verificationSatisfied;
+
+    if (shouldAwardBadges) {
+      console.log(
+        "[recordTaskProgress] Should award badges - checking for badge links"
+      );
+      // Award badges linked to this reward/task directly (without criteria check)
       if (subTask?.badge) {
-        const taskBadgeId =
-          subTask.badge instanceof Types.ObjectId
-            ? subTask.badge.toString()
-            : String(subTask.badge);
-        import("./badgeEvaluationService")
-          .then(({ badgeEvaluationService }) =>
-            badgeEvaluationService.evaluateAndAwardBadge(
-              userId,
-              taskBadgeId,
-              tenantId
+        let taskBadgeId: string | null = null;
+        const taskBadge = subTask.badge as any;
+
+        // Handle different badge formats: ObjectId, populated object, or string
+        if (taskBadge instanceof Types.ObjectId) {
+          taskBadgeId = taskBadge.toString();
+        } else if (typeof taskBadge === "object" && taskBadge._id) {
+          // Badge is populated object
+          taskBadgeId =
+            taskBadge._id instanceof Types.ObjectId
+              ? taskBadge._id.toString()
+              : String(taskBadge._id);
+        } else if (typeof taskBadge === "string") {
+          taskBadgeId = taskBadge;
+        }
+
+        if (taskBadgeId) {
+          console.log(
+            "[recordTaskProgress] Task has badge, awarding:",
+            taskBadgeId
+          );
+          import("./badgeEvaluationService")
+            .then(({ badgeEvaluationService }) =>
+              badgeEvaluationService.awardBadgeDirectly(
+                userId,
+                taskBadgeId,
+                tenantId,
+                `Awarded for completing task: ${subTask.title || "Task"}`
+              )
             )
-          )
-          .catch((error) => {
-            logger.warn("Error awarding badge from task:", error);
-          });
+            .catch((error) => {
+              console.error(
+                "[recordTaskProgress] Error awarding badge from task:",
+                error
+              );
+              logger.warn("Error awarding badge from task:", error);
+            });
+        } else {
+          console.log(
+            "[recordTaskProgress] Unable to extract task badge ID from:",
+            taskBadge
+          );
+        }
       }
 
       if (reward.badge) {
-        const rewardBadgeId =
-          reward.badge instanceof Types.ObjectId
-            ? reward.badge.toString()
-            : String(reward.badge);
-        import("./badgeEvaluationService")
-          .then(({ badgeEvaluationService }) =>
-            badgeEvaluationService.evaluateAndAwardBadge(
-              userId,
-              rewardBadgeId,
-              tenantId
+        let rewardBadgeId: string | null = null;
+        const rewardBadge = reward.badge as any;
+
+        // Handle different badge formats: ObjectId, populated object, or string
+        if (rewardBadge instanceof Types.ObjectId) {
+          rewardBadgeId = rewardBadge.toString();
+        } else if (typeof rewardBadge === "object" && rewardBadge._id) {
+          // Badge is populated object
+          rewardBadgeId =
+            rewardBadge._id instanceof Types.ObjectId
+              ? rewardBadge._id.toString()
+              : String(rewardBadge._id);
+        } else if (typeof rewardBadge === "string") {
+          rewardBadgeId = rewardBadge;
+        }
+
+        if (rewardBadgeId) {
+          console.log(
+            "[recordTaskProgress] Reward has badge, awarding:",
+            rewardBadgeId
+          );
+          import("./badgeEvaluationService")
+            .then(({ badgeEvaluationService }) =>
+              badgeEvaluationService.awardBadgeDirectly(
+                userId,
+                rewardBadgeId,
+                tenantId,
+                `Awarded for completing reward: ${reward.name}`
+              )
             )
-          )
-          .catch((error) => {
-            logger.warn("Error awarding badge from reward:", error);
-          });
+            .catch((error) => {
+              console.error(
+                "[recordTaskProgress] Error awarding badge from reward:",
+                error
+              );
+              logger.warn("Error awarding badge from reward:", error);
+            });
+        } else {
+          console.log(
+            "[recordTaskProgress] Unable to extract reward badge ID from:",
+            rewardBadge
+          );
+        }
       }
 
       // Check all eligible badges (in case user now meets criteria for other badges)
@@ -431,16 +497,79 @@ export const rewardService = {
    * Get user badges
    */
   async getUserBadges(userId: string) {
-    const user = await User.findById(userId).select("rewards").populate({
-      path: "rewards.badges",
-      model: "Badge",
-    });
+    console.log("[getUserBadges Service] Starting - userId:", userId);
 
-    if (!user) {
-      throw new Error("User not found");
+    if (!userId) {
+      console.log(
+        "[getUserBadges Service] No userId provided, returning empty array"
+      );
+      return [];
     }
 
-    return user.rewards?.badges || [];
+    // Query UserBadge collection which is the source of truth for awarded badges
+    const { UserBadge } = await import("../models/Badge");
+
+    // First, check if there are ANY UserBadge records for this user
+    const totalUserBadges = await UserBadge.countDocuments({
+      user: new Types.ObjectId(userId),
+    });
+    console.log(
+      "[getUserBadges Service] Total UserBadge records for user:",
+      totalUserBadges
+    );
+
+    // Also check all UserBadge records to see what's in the database
+    const allUserBadges = await UserBadge.find({}).limit(10).lean();
+    console.log(
+      "[getUserBadges Service] Sample UserBadge records (first 10):",
+      JSON.stringify(allUserBadges, null, 2)
+    );
+
+    const userBadges = await UserBadge.find({
+      user: new Types.ObjectId(userId),
+    })
+      .populate("badge")
+      .sort({ awardedAt: -1 })
+      .lean();
+
+    console.log("[getUserBadges Service] User ID:", userId);
+    console.log("[getUserBadges Service] UserBadges found:", userBadges.length);
+    console.log(
+      "[getUserBadges Service] Raw userBadges:",
+      JSON.stringify(userBadges, null, 2)
+    );
+
+    // Extract badge details from populated userBadges
+    const badges = userBadges
+      .map((ub: any) => {
+        console.log(
+          "[getUserBadges Service] Processing userBadge:",
+          ub._id,
+          "badge:",
+          ub.badge
+        );
+        return ub.badge;
+      })
+      .filter((badge: any) => {
+        const isValid = badge !== null && badge !== undefined;
+        if (!isValid) {
+          console.log(
+            "[getUserBadges Service] Filtered out null/undefined badge"
+          );
+        }
+        return isValid;
+      });
+
+    console.log(
+      "[getUserBadges Service] Extracted badges count:",
+      badges.length
+    );
+    console.log(
+      "[getUserBadges Service] Badges:",
+      JSON.stringify(badges, null, 2)
+    );
+
+    return badges;
   },
 
   async claimReward(
@@ -456,11 +585,13 @@ export const rewardService = {
       reward: rewardId,
       user: userId,
       status: "earned",
-    });
+    }).populate("reward");
 
     if (!activity) {
       throw new Error("Reward not ready for redemption");
     }
+
+    const reward = activity.reward as any;
 
     activity.status = "redeemed";
     activity.redeemedAt = new Date();
@@ -478,6 +609,76 @@ export const rewardService = {
     });
 
     await activity.save();
+
+    console.log("[claimReward] Reward type:", reward?.rewardType);
+    console.log("[claimReward] Reward badge:", reward?.badge);
+    console.log("[claimReward] Reward badge type:", typeof reward?.badge);
+
+    // Award badge if reward type is badge and badge is linked
+    if (reward && (reward.rewardType === "badge" || reward.badge)) {
+      let badgeId: string | null = null;
+
+      if (reward.badge) {
+        // Handle different badge formats: ObjectId, populated object, or string
+        if (reward.badge instanceof Types.ObjectId) {
+          badgeId = reward.badge.toString();
+        } else if (typeof reward.badge === "object" && reward.badge._id) {
+          // Badge is populated object
+          badgeId =
+            reward.badge._id instanceof Types.ObjectId
+              ? reward.badge._id.toString()
+              : String(reward.badge._id);
+        } else if (typeof reward.badge === "string") {
+          badgeId = reward.badge;
+        } else {
+          console.log(
+            "[claimReward] Unable to extract badge ID from:",
+            reward.badge
+          );
+        }
+      }
+
+      console.log("[claimReward] Extracted badgeId:", badgeId);
+
+      if (badgeId) {
+        const tenantId = activity.tenantId
+          ? activity.tenantId instanceof Types.ObjectId
+            ? activity.tenantId.toString()
+            : String(activity.tenantId)
+          : undefined;
+
+        console.log(
+          "[claimReward] Awarding badge - userId:",
+          userId,
+          "badgeId:",
+          badgeId,
+          "tenantId:",
+          tenantId
+        );
+
+        import("./badgeEvaluationService")
+          .then(({ badgeEvaluationService }) =>
+            badgeEvaluationService.awardBadgeDirectly(
+              userId,
+              badgeId,
+              tenantId,
+              `Awarded for claiming reward: ${reward.name}`
+            )
+          )
+          .then((success) => {
+            console.log("[claimReward] Badge award result:", success);
+          })
+          .catch((error) => {
+            console.error("[claimReward] Error awarding badge:", error);
+            logger.warn("Error awarding badge on reward claim:", error);
+          });
+      } else {
+        console.log("[claimReward] No badgeId extracted, skipping badge award");
+      }
+    } else {
+      console.log("[claimReward] Reward type is not badge and no badge linked");
+    }
+
     return activity;
   },
 

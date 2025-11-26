@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
+import { getImageUrl } from "@/lib/api";
 
 interface BadgeCollectionProps {
   badges: BadgeType[];
@@ -28,10 +29,15 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
   showTitle = true,
   limit,
 }) => {
+  console.log("[BadgeCollection] Received badges prop:", badges);
+  console.log("[BadgeCollection] Badges count:", badges.length);
+  console.log("[BadgeCollection] Badges data:", JSON.stringify(badges, null, 2));
+
   const displayBadges = limit ? badges.slice(0, limit) : badges;
   const remainingCount = limit && badges.length > limit ? badges.length - limit : 0;
 
   if (badges.length === 0) {
+    console.log("[BadgeCollection] No badges - showing empty state");
     return (
       <Card>
         <CardContent className="pt-6">
@@ -64,13 +70,26 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
               <DialogTrigger asChild>
                 <button className="group relative">
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-3xl transition-transform duration-200 group-hover:scale-110 group-hover:shadow-lg"
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-3xl transition-transform duration-200 group-hover:scale-110 group-hover:shadow-lg overflow-hidden"
                     style={{
                       backgroundColor: `${badge.color}20`,
                       border: `2px solid ${badge.color}40`,
                     }}
                   >
-                    {badge.icon || "🏅"}
+                    {badge.icon && (badge.icon.startsWith("/") || badge.icon.startsWith("http")) ? (
+                      <img
+                        src={getImageUrl(badge.icon)}
+                        alt={badge.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to emoji if image fails to load
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.parentElement!.textContent = "🏅";
+                        }}
+                      />
+                    ) : (
+                      badge.icon || "🏅"
+                    )}
                   </div>
                   {badge.isRare && (
                     <div className="absolute -top-1 -right-1">
@@ -86,13 +105,26 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
+                      className="w-12 h-12 rounded-full flex items-center justify-center text-2xl overflow-hidden"
                       style={{
                         backgroundColor: `${badge.color}20`,
                         border: `2px solid ${badge.color}40`,
                       }}
                     >
-                      {badge.icon || "🏅"}
+                      {badge.icon && (badge.icon.startsWith("/") || badge.icon.startsWith("http")) ? (
+                        <img
+                          src={getImageUrl(badge.icon)}
+                          alt={badge.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback to emoji if image fails to load
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.parentElement!.textContent = "🏅";
+                          }}
+                        />
+                      ) : (
+                        badge.icon || "🏅"
+                      )}
                     </div>
                     {badge.name}
                     {badge.isRare && (

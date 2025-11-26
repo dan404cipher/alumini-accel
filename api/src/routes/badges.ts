@@ -19,4 +19,18 @@ router.post(
   asyncHandler(badgeController.create)
 );
 
+router.put(
+  "/:id",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(badgeController.update)
+);
+
+router.delete(
+  "/:id",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(badgeController.delete)
+);
+
 export default router;

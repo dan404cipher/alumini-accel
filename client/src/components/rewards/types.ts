@@ -92,6 +92,11 @@ export interface Badge {
   color: string;
   points: number;
   isRare: boolean;
+  isActive?: boolean;
+  currentRecipients?: number;
+  maxRecipients?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TaskVerification {

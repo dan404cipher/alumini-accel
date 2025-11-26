@@ -37,7 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import SimpleImageUpload from "@/components/SimpleImageUpload";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2, Edit, Award } from "lucide-react";
 
 const defaultReward: Partial<RewardTemplate> = {
   name: "",
@@ -70,6 +70,7 @@ interface NewBadgeFormState {
   color: string;
   points: number;
   isRare: boolean;
+  isActive: boolean;
   icon: string;
 }
 
@@ -80,6 +81,7 @@ const initialBadgeForm: NewBadgeFormState = {
   color: "#F97316",
   points: 0,
   isRare: false,
+  isActive: true,
   icon: "",
 };
 
@@ -92,9 +94,11 @@ export const RewardsAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("catalog");
   const [availableBadges, setAvailableBadges] = useState<BadgeType[]>([]);
   const [isBadgeDialogOpen, setIsBadgeDialogOpen] = useState(false);
+  const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null);
   const [newBadge, setNewBadge] = useState<NewBadgeFormState>(initialBadgeForm);
   const [badgeImageUploading, setBadgeImageUploading] = useState(false);
   const [creatingBadge, setCreatingBadge] = useState(false);
+  const [deletingBadgeId, setDeletingBadgeId] = useState<string | null>(null);
   type AdminRewardsResponse = { rewards: RewardTemplate[] };
   type AdminBadgesResponse = { badges: BadgeType[] };
   type CreateBadgeResponse = { badge: BadgeType };
@@ -210,6 +214,55 @@ export const RewardsAdminDashboard: React.FC = () => {
     setIsBadgeDialogOpen(open);
     if (!open) {
       resetBadgeForm();
+      setEditingBadgeId(null);
+    }
+  };
+
+  const handleEditBadge = (badge: BadgeType) => {
+    setEditingBadgeId(badge._id);
+    setNewBadge({
+      name: badge.name,
+      description: badge.description,
+      category: badge.category,
+      color: badge.color || "#F97316",
+      points: badge.points || 0,
+      isRare: badge.isRare || false,
+      isActive: badge.isActive !== false,
+      icon: badge.icon || "",
+    });
+    setIsBadgeDialogOpen(true);
+  };
+
+  const handleDeleteBadge = async (badgeId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this badge? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    setDeletingBadgeId(badgeId);
+    try {
+      const response = await rewardsAPI.deleteBadge(badgeId);
+      if (response.success) {
+        toast({
+          title: "Badge deleted",
+          description: "The badge has been removed.",
+        });
+        await fetchBadges();
+      } else {
+        throw new Error(response.message || "Failed to delete badge");
+      }
+    } catch (error) {
+      toast({
+        title: "Unable to delete badge",
+        description:
+          error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingBadgeId(null);
     }
   };
 
@@ -291,39 +344,74 @@ export const RewardsAdminDashboard: React.FC = () => {
 
     setCreatingBadge(true);
     try {
-      const response = (await rewardsAPI.createBadge({
-        name: newBadge.name.trim(),
-        description: newBadge.description.trim(),
-        category: newBadge.category,
-        icon: newBadge.icon,
-        color: newBadge.color,
-        points: newBadge.points,
-        isRare: newBadge.isRare,
-        criteria: {
-          type: "manual",
-          value: 0,
-          description: newBadge.description.trim(),
-        },
-      })) as ApiResponse<CreateBadgeResponse>;
+      let response: ApiResponse<CreateBadgeResponse>;
 
-      if (!response.success || !response.data?.badge) {
-        throw new Error(response.message || "Failed to create badge");
+      if (editingBadgeId) {
+        // Update existing badge
+        response = (await rewardsAPI.updateBadge(editingBadgeId, {
+          name: newBadge.name.trim(),
+          description: newBadge.description.trim(),
+          category: newBadge.category,
+          icon: newBadge.icon,
+          color: newBadge.color,
+          points: newBadge.points,
+          isRare: newBadge.isRare,
+          isActive: newBadge.isActive,
+          criteria: {
+            type: "manual",
+            value: 0,
+            description: newBadge.description.trim(),
+          },
+        })) as ApiResponse<CreateBadgeResponse>;
+
+        if (!response.success || !response.data?.badge) {
+          throw new Error(response.message || "Failed to update badge");
+        }
+
+        toast({
+          title: "Badge updated",
+          description: `"${response.data.badge.name}" has been updated.`,
+        });
+      } else {
+        // Create new badge
+        response = (await rewardsAPI.createBadge({
+          name: newBadge.name.trim(),
+          description: newBadge.description.trim(),
+          category: newBadge.category,
+          icon: newBadge.icon,
+          color: newBadge.color,
+          points: newBadge.points,
+          isRare: newBadge.isRare,
+          isActive: newBadge.isActive,
+          criteria: {
+            type: "manual",
+            value: 0,
+            description: newBadge.description.trim(),
+          },
+        })) as ApiResponse<CreateBadgeResponse>;
+
+        if (!response.success || !response.data?.badge) {
+          throw new Error(response.message || "Failed to create badge");
+        }
+
+        toast({
+          title: "Badge created",
+          description: `"${response.data.badge.name}" is now available.`,
+        });
+
+        const createdBadge = response.data.badge as BadgeType;
+        handleRewardBadgeSelect(createdBadge._id);
       }
 
-      toast({
-        title: "Badge created",
-        description: `"${response.data.badge.name}" is now available.`,
-      });
-
       await fetchBadges();
-      const createdBadge = response.data.badge as BadgeType;
-
-      handleRewardBadgeSelect(createdBadge._id);
       resetBadgeForm();
+      setEditingBadgeId(null);
       setIsBadgeDialogOpen(false);
     } catch (error) {
       toast({
-        title: "Unable to create badge",
+        title: editingBadgeId
+          ? "Unable to update badge"
+          : "Unable to create badge",
         description:
           error instanceof Error ? error.message : "Please try again later.",
         variant: "destructive",
@@ -587,6 +675,7 @@ export const RewardsAdminDashboard: React.FC = () => {
         <TabsList className="w-full justify-start rounded-2xl bg-gray-100/70 overflow-x-auto">
           <TabsTrigger value="catalog">Reward Catalogue</TabsTrigger>
           <TabsTrigger value="builder">Create / Edit Reward</TabsTrigger>
+          <TabsTrigger value="badges">Badge Management</TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog" className="space-y-4">
@@ -1136,15 +1225,141 @@ export const RewardsAdminDashboard: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="badges" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-semibold">Badge Management</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Create, edit, and manage badges that can be awarded to alumni
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingBadgeId(null);
+                resetBadgeForm();
+                setIsBadgeDialogOpen(true);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Badge
+            </Button>
+          </div>
+
+          {availableBadges.length === 0 ? (
+            <Card className="border-dashed border-2">
+              <CardContent className="py-12 text-center text-gray-500">
+                <Award className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>No badges created yet.</p>
+                <p className="text-sm mt-2">
+                  Create your first badge to get started.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableBadges.map((badge) => (
+                <Card key={badge._id} className="border-gray-100 shadow-sm">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                        style={{
+                          backgroundColor: `${badge.color}20`,
+                          border: `2px solid ${badge.color}40`,
+                        }}
+                      >
+                        {badge.icon &&
+                        (badge.icon.startsWith("/") ||
+                          badge.icon.startsWith("http")) ? (
+                          <img
+                            src={getImageUrl(badge.icon)}
+                            alt={badge.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-xl">{badge.icon || "🏅"}</span>
+                        )}
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">
+                          {badge.name}
+                        </CardTitle>
+                        <p className="text-xs text-gray-500">
+                          {badge.category}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge
+                      variant={
+                        badge.isActive !== false ? "default" : "secondary"
+                      }
+                    >
+                      {badge.isActive !== false ? "Active" : "Inactive"}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-gray-600 line-clamp-2">
+                      {badge.description}
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {badge.points > 0 && (
+                        <Badge variant="outline">{badge.points} pts</Badge>
+                      )}
+                      {badge.isRare && (
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-300"
+                        >
+                          Rare
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditBadge(badge)}
+                        className="flex-1"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteBadge(badge._id)}
+                        disabled={deletingBadgeId === badge._id}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {deletingBadgeId === badge._id ? (
+                          "Deleting..."
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       <Dialog open={isBadgeDialogOpen} onOpenChange={handleBadgeDialogChange}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create a new badge</DialogTitle>
+            <DialogTitle>
+              {editingBadgeId ? "Edit Badge" : "Create a new badge"}
+            </DialogTitle>
             <DialogDescription>
-              Upload a badge image and define its details. Once saved, it will
-              be available to all rewards.
+              {editingBadgeId
+                ? "Update the badge details. Changes will apply to all rewards using this badge."
+                : "Upload a badge image and define its details. Once saved, it will be available to all rewards."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1258,7 +1473,11 @@ export const RewardsAdminDashboard: React.FC = () => {
               Cancel
             </Button>
             <Button onClick={handleCreateBadge} disabled={creatingBadge}>
-              {creatingBadge ? "Saving..." : "Save Badge"}
+              {creatingBadge
+                ? "Saving..."
+                : editingBadgeId
+                ? "Update Badge"
+                : "Create Badge"}
             </Button>
           </DialogFooter>
         </DialogContent>

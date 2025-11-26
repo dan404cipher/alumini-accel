@@ -72,7 +72,16 @@ export const RewardCard: React.FC<RewardCardProps> = ({
       )
     : 0;
 
-  const showClaimButton = activity?.status === "earned" && !!onClaim;
+  // Check if reward can be claimed (earned AND verification approved if required)
+  const canClaim =
+    activity?.status === "earned" &&
+    (!activity.verification?.required ||
+      activity.verification?.status === "approved");
+  const showClaimButton = canClaim && !!onClaim;
+  const isVerificationPending =
+    activity?.status === "earned" &&
+    activity.verification?.required === true &&
+    activity.verification?.status === "pending";
 
   const startDate = reward.startsAt ? new Date(reward.startsAt) : null;
   const endDate = reward.endsAt ? new Date(reward.endsAt) : null;
@@ -460,6 +469,22 @@ export const RewardCard: React.FC<RewardCardProps> = ({
             >
               Claim Reward
             </Button>
+          )}
+          {isVerificationPending && (
+            <div className="flex-1 min-w-[160px] text-center">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                className="w-full cursor-not-allowed"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Awaiting Approval
+              </Button>
+              <p className="text-xs text-amber-600 mt-1">
+                This reward requires staff verification
+              </p>
+            </div>
           )}
         </div>
       </div>

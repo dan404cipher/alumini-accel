@@ -62,6 +62,7 @@ export interface RewardActivity {
   earnedAt?: string;
   redeemedAt?: string;
   metadata?: Record<string, unknown>;
+  verification?: TaskVerification;
 }
 
 export interface RewardSummary {

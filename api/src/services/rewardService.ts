@@ -591,6 +591,16 @@ export const rewardService = {
       throw new Error("Reward not ready for redemption");
     }
 
+    // Prevent claiming if verification is required and not approved
+    if (
+      activity.verification?.required === true &&
+      activity.verification?.status !== "approved"
+    ) {
+      throw new Error(
+        "This reward requires staff verification before it can be claimed. Please wait for approval."
+      );
+    }
+
     const reward = activity.reward as any;
 
     activity.status = "redeemed";

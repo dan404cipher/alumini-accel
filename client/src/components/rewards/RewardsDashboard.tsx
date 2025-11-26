@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gift, RefreshCw, Sparkles, Award } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CelebrationModal } from "./CelebrationModal";
 
 interface RewardsDashboardProps {
   showHeader?: boolean;
@@ -36,6 +37,11 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
   const [filter, setFilter] = useState<
     "all" | "featured" | "points" | "voucher"
   >("all");
+  const [celebrationModal, setCelebrationModal] = useState<{
+    open: boolean;
+    reward?: RewardTemplate;
+    voucherCode?: string;
+  }>({ open: false });
 
   type RewardsListResponse = { rewards: RewardTemplate[] };
   type RewardsSummaryResponse = { summary: RewardSummary };
@@ -157,11 +163,13 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
         description = `Access to "${reward.name}" perk has been enabled!`;
       }
 
-      toast({
-        title,
-        description,
-        duration: reward.rewardType === "voucher" ? 10000 : 5000, // Longer for vouchers
+      // Show celebration modal instead of toast
+      setCelebrationModal({
+        open: true,
+        reward,
+        voucherCode: response.data?.activity?.voucherCode,
       });
+
       fetchRewards();
     } catch (error) {
       toast({
@@ -313,6 +321,15 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
           <RewardProgressList rewards={rewards} activities={activities} />
         </TabsContent>
       </Tabs>
+
+      {/* Celebration Modal */}
+      <CelebrationModal
+        open={celebrationModal.open}
+        onClose={() => setCelebrationModal({ open: false })}
+        rewardName={celebrationModal.reward?.name}
+        rewardType={celebrationModal.reward?.rewardType}
+        voucherCode={celebrationModal.voucherCode}
+      />
     </div>
   );
 };

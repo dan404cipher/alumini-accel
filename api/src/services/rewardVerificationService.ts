@@ -198,6 +198,91 @@ export const rewardVerificationService = {
         }
       }
 
+      // Award badges after approval (if not already awarded)
+      const badgesAlreadyAwarded = activity.metadata?.badgesAwarded === true;
+      if (!badgesAlreadyAwarded && activity.status === "earned") {
+        const reward = activity.reward as any;
+        const tenantId = activity.tenantId
+          ? activity.tenantId instanceof Types.ObjectId
+            ? activity.tenantId.toString()
+            : String(activity.tenantId)
+          : undefined;
+
+        // Award badge from reward if present
+        if (reward?.badge) {
+          let rewardBadgeId: string | null = null;
+          
+          if (reward.badge instanceof Types.ObjectId) {
+            rewardBadgeId = reward.badge.toString();
+          } else if (typeof reward.badge === "object" && reward.badge._id) {
+            rewardBadgeId =
+              reward.badge._id instanceof Types.ObjectId
+                ? reward.badge._id.toString()
+                : String(reward.badge._id);
+          } else if (typeof reward.badge === "string") {
+            rewardBadgeId = reward.badge;
+          }
+
+          if (rewardBadgeId) {
+            import("./badgeEvaluationService")
+              .then(({ badgeEvaluationService }) =>
+                badgeEvaluationService.awardBadgeDirectly(
+                  activity.user.toString(),
+                  rewardBadgeId,
+                  tenantId,
+                  `Awarded for completing reward: ${reward.name || "Reward"}`
+                )
+              )
+              .catch((error) => {
+                console.error("[verifyTask] Error awarding reward badge:", error);
+              });
+          }
+        }
+
+        // Award badge from task if present
+        if (activity.taskId && reward?.tasks) {
+          const task = Array.isArray(reward.tasks)
+            ? reward.tasks.find((t: any) => t._id?.toString() === activity.taskId?.toString())
+            : null;
+
+          if (task?.badge) {
+            let taskBadgeId: string | null = null;
+            
+            if (task.badge instanceof Types.ObjectId) {
+              taskBadgeId = task.badge.toString();
+            } else if (typeof task.badge === "object" && task.badge._id) {
+              taskBadgeId =
+                task.badge._id instanceof Types.ObjectId
+                  ? task.badge._id.toString()
+                  : String(task.badge._id);
+            } else if (typeof task.badge === "string") {
+              taskBadgeId = task.badge;
+            }
+
+            if (taskBadgeId) {
+              import("./badgeEvaluationService")
+                .then(({ badgeEvaluationService }) =>
+                  badgeEvaluationService.awardBadgeDirectly(
+                    activity.user.toString(),
+                    taskBadgeId,
+                    tenantId,
+                    `Awarded for completing task: ${task.title || "Task"}`
+                  )
+                )
+                .catch((error) => {
+                  console.error("[verifyTask] Error awarding task badge:", error);
+                });
+            }
+          }
+        }
+
+        // Mark badges as awarded to prevent duplicate awards
+        activity.metadata = {
+          ...activity.metadata,
+          badgesAwarded: true,
+        };
+      }
+
       activity.history.push({
         action: "verified",
         note: reason || "Task approved by staff",

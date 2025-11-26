@@ -69,7 +69,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const isAdmin = user ? canAccessAdmin(user.role) : false;
   const canManageUsersAccess = user ? canManageUsers(user.role) : false;
   const canManageContentAccess = user ? canManageContent(user.role) : false;
-  
+
   // Check if user is not Alumni (Alumni cannot see mentoring programs management)
   const canViewMentoringPrograms = user && user.role !== "alumni";
 
@@ -96,19 +96,7 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     },
     { id: "community", name: "Community", icon: Users2, count: null },
     { id: "donations", name: "Donations", icon: Heart, count: null },
-    {
-      id: "rewards",
-      name: "Rewards",
-      icon: Gift,
-      count: null,
-      hasDropdown: isAdmin,
-      dropdownItems: isAdmin
-        ? [
-            { id: "rewards", name: "View Rewards", icon: Gift },
-            { id: "admin/rewards", name: "Manage Rewards", icon: Award },
-          ]
-        : undefined,
-    },
+    { id: "rewards", name: "Rewards", icon: Gift, count: null },
     // Mentorship - visible to all roles including Alumni
     {
       id: "mentoring-programs",
@@ -341,28 +329,28 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     );
                   }
 
-                // Render regular items
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onTabChange(item.id);
-                      if (item.id === "mentoring-approvals") {
-                        navigate("/mentoring-approvals");
-                      } else if (item.id === "mentoring-programs") {
-                        navigate("/mentoring-programs");
-                      } else if (item.id === "rewards") {
-                        navigate("/rewards");
-                      } else {
-                        navigate(`/${item.id}`);
-                      }
-                    }}
-                        className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
-                          isActive
-                            ? "text-white bg-blue-600 shadow-lg transform scale-105"
-                            : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
-                        }`}
-                      >
+                  // Render regular items
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onTabChange(item.id);
+                        if (item.id === "mentoring-approvals") {
+                          navigate("/mentoring-approvals");
+                        } else if (item.id === "mentoring-programs") {
+                          navigate("/mentoring-programs");
+                        } else if (item.id === "rewards") {
+                          navigate("/rewards");
+                        } else {
+                          navigate(`/${item.id}`);
+                        }
+                      }}
+                      className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
+                        isActive
+                          ? "text-white bg-blue-600 shadow-lg transform scale-105"
+                          : "text-gray-700 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
+                      }`}
+                    >
                       {/* Background animation for active state */}
                       {isActive && (
                         <div className="absolute inset-0 bg-blue-600 rounded-xl"></div>
@@ -590,7 +578,9 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                           src={
                             user.profilePicture.startsWith("http")
                               ? user.profilePicture
-                              : `${API_BASE_URL.replace("/api/v1", "")}${user.profilePicture}`
+                              : `${API_BASE_URL.replace("/api/v1", "")}${
+                                  user.profilePicture
+                                }`
                           }
                           alt={`${user.firstName} ${user.lastName}`}
                           className="w-full h-full object-cover"

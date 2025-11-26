@@ -86,18 +86,9 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
 
       if (badgesResponse.success && badgesResponse.data?.badges) {
         const fetchedBadges = badgesResponse.data.badges as BadgeType[];
-        console.log("[RewardsDashboard] Badges API Response:", badgesResponse);
-        console.log(
-          "[RewardsDashboard] Fetched badges count:",
-          fetchedBadges.length
-        );
-        console.log("[RewardsDashboard] Fetched badges:", fetchedBadges);
         setBadges(fetchedBadges);
       } else {
-        console.log(
-          "[RewardsDashboard] Badges response not successful or no badges:",
-          badgesResponse
-        );
+        setBadges([]);
       }
     } catch (error) {
       toast({

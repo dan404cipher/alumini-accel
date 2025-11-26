@@ -29,15 +29,10 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
   showTitle = true,
   limit,
 }) => {
-  console.log("[BadgeCollection] Received badges prop:", badges);
-  console.log("[BadgeCollection] Badges count:", badges.length);
-  console.log("[BadgeCollection] Badges data:", JSON.stringify(badges, null, 2));
-
   const displayBadges = limit ? badges.slice(0, limit) : badges;
   const remainingCount = limit && badges.length > limit ? badges.length - limit : 0;
 
   if (badges.length === 0) {
-    console.log("[BadgeCollection] No badges - showing empty state");
     return (
       <Card>
         <CardContent className="pt-6">

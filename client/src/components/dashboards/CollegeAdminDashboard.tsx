@@ -70,6 +70,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -95,6 +96,7 @@ import EventManagement from "../EventManagement";
 import JobManagement from "../admin/JobManagement";
 import { AnalyticsDashboard } from "../admin/AnalyticsDashboard";
 import { DepartmentAnalytics } from "../admin/analytics/DepartmentAnalytics";
+import { RewardsAdminDashboard } from "../rewards/RewardsAdminDashboard";
 import Footer from "../Footer";
 // Note: College Admin only manages their own college, not all colleges
 
@@ -1809,6 +1811,12 @@ const CollegeAdminDashboard = () => {
                   icon: Briefcase,
                   color: "blue",
                 },
+                {
+                  key: "rewards-management",
+                  label: "Rewards Management",
+                  icon: Award,
+                  color: "amber",
+                },
               ].map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.key;
@@ -3127,6 +3135,11 @@ const CollegeAdminDashboard = () => {
             {/* Job Management */}
             <TabsContent value="job-management" className="space-y-6">
               <JobManagement />
+            </TabsContent>
+
+            {/* Rewards Management */}
+            <TabsContent value="rewards-management" className="space-y-6">
+              <RewardsAdminDashboard />
             </TabsContent>
           </Tabs>
         </div>

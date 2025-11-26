@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import Donation from "../models/Donation";
+import rewardIntegrationService from "../services/rewardIntegrationService";
 import PaymentService from "../services/paymentService";
 import { asyncHandler } from "../middleware/errorHandler";
 import { AuthenticatedRequest } from "../types";
@@ -103,6 +105,22 @@ export const createDonation = async (req: Request, res: Response) => {
       if (alumniProfile) {
         await alumniProfile.updateDonationHistory(donation.amount);
       }
+
+      // Track reward progress for donation
+      const rewardIntegrationService = require("../services/rewardIntegrationService").default;
+      const donationId = donation._id instanceof Types.ObjectId 
+        ? donation._id.toString() 
+        : String(donation._id);
+      rewardIntegrationService
+        .trackDonation(
+          donation.donor.toString(),
+          donationId,
+          donation.amount,
+          (req as AuthenticatedRequest).user?.tenantId?.toString()
+        )
+        .catch((error: Error) => {
+          logger.warn("Error tracking reward for donation:", error);
+        });
     }
 
     await donation.populate("donor", "firstName lastName email");

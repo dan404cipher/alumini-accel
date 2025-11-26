@@ -2,6 +2,7 @@ import User from "../models/User";
 import AlumniProfile from "../models/AlumniProfile";
 import { Notification } from "../models/Notification";
 import { logger } from "./logger";
+import rewardIntegrationService from "../services/rewardIntegrationService";
 
 /**
  * Calculate profile completion percentage for a user
@@ -57,6 +58,10 @@ export const updateProfileCompletion = async (
   userId: string
 ): Promise<void> => {
   try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    const previousPercentage = user.profileCompletionPercentage || 0;
     const completionPercentage = await calculateProfileCompletion(userId);
     const isComplete = completionPercentage >= 80; // Consider 80%+ as complete
 
@@ -64,6 +69,19 @@ export const updateProfileCompletion = async (
       profileCompletionPercentage: completionPercentage,
       isProfileComplete: isComplete,
     });
+
+    // Track reward progress if profile just reached 100%
+    if (completionPercentage === 100 && previousPercentage < 100) {
+      rewardIntegrationService
+        .trackProfileCompletion(
+          userId,
+          completionPercentage,
+          user.tenantId?.toString()
+        )
+        .catch((error) => {
+          logger.warn("Error tracking reward for profile completion:", error);
+        });
+    }
 
     logger.info(
       `Profile completion updated for user ${userId}: ${completionPercentage}%`

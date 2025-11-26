@@ -182,6 +182,13 @@ export interface IUser extends Document {
   profileCompletionPercentage: number;
   savedEvents?: string[];
   savedJobs?: string[];
+  rewards?: {
+    totalPoints: number;
+    currentTier: "bronze" | "silver" | "gold" | "platinum";
+    tierPoints: number;
+    badges: string[];
+    lastPointsUpdate?: Date;
+  };
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;

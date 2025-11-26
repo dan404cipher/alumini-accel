@@ -4,6 +4,7 @@ import JobPost from "../models/JobPost";
 import User from "../models/User";
 import { logger } from "../utils/logger";
 import { JobPostStatus } from "../types";
+import rewardIntegrationService from "../services/rewardIntegrationService";
 
 // Helper function to transform job object, replacing ObjectId strings with category names
 const transformJob = (job: any) => {
@@ -908,6 +909,17 @@ export const approveJob = async (req: Request, res: Response) => {
 
     job.status = JobPostStatus.ACTIVE;
     await job.save();
+
+    // Track reward progress for job posting
+    rewardIntegrationService
+      .trackJobPost(
+        (job.postedBy as any).toString(),
+        job._id.toString(),
+        (req.user as any)?.tenantId?.toString()
+      )
+      .catch((error) => {
+        logger.warn("Error tracking reward for job post:", error);
+      });
 
     return res.json({
       success: true,

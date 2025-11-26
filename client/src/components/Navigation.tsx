@@ -33,6 +33,7 @@ import {
   ChevronDown,
   BookOpen,
   Shield,
+  Gift,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -95,6 +96,19 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     },
     { id: "community", name: "Community", icon: Users2, count: null },
     { id: "donations", name: "Donations", icon: Heart, count: null },
+    {
+      id: "rewards",
+      name: "Rewards",
+      icon: Gift,
+      count: null,
+      hasDropdown: isAdmin,
+      dropdownItems: isAdmin
+        ? [
+            { id: "rewards", name: "View Rewards", icon: Gift },
+            { id: "admin/rewards", name: "Manage Rewards", icon: Award },
+          ]
+        : undefined,
+    },
     // Mentorship - visible to all roles including Alumni
     {
       id: "mentoring-programs",
@@ -327,20 +341,22 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     );
                   }
 
-                  // Render regular items
-                  return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          onTabChange(item.id);
-                          if (item.id === "mentoring-approvals") {
-                            navigate("/mentoring-approvals");
-                          } else if (item.id === "mentoring-programs") {
-                            navigate("/mentoring-programs");
-                          } else {
-                            navigate(`/${item.id}`);
-                          }
-                        }}
+                // Render regular items
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      onTabChange(item.id);
+                      if (item.id === "mentoring-approvals") {
+                        navigate("/mentoring-approvals");
+                      } else if (item.id === "mentoring-programs") {
+                        navigate("/mentoring-programs");
+                      } else if (item.id === "rewards") {
+                        navigate("/rewards");
+                      } else {
+                        navigate(`/${item.id}`);
+                      }
+                    }}
                         className={`group flex items-center px-2 py-2 rounded-xl text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden ${
                           isActive
                             ? "text-white bg-blue-600 shadow-lg transform scale-105"
@@ -473,6 +489,8 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                       onTabChange(item.id);
                       if (item.id === "mentoring-approvals") {
                         navigate("/mentoring-approvals");
+                      } else if (item.id === "rewards") {
+                        navigate("/rewards");
                       } else {
                         navigate(`/${item.id}`);
                       }
@@ -775,6 +793,8 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                             onTabChange(item.id);
                             if (item.id === "mentoring-approvals") {
                               navigate("/mentoring-approvals");
+                            } else if (item.id === "rewards") {
+                              navigate("/rewards");
                             } else {
                               navigate(`/${item.id}`);
                             }
@@ -837,7 +857,11 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                       key={item.id}
                       onClick={() => {
                         onTabChange(item.id);
-                        navigate(`/${item.id}`);
+                        if (item.id === "rewards") {
+                          navigate("/rewards");
+                        } else {
+                          navigate(`/${item.id}`);
+                        }
                         setMobileMenuOpen(false);
                       }}
                       className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium w-full transition-all duration-200 ${

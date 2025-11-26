@@ -94,6 +94,10 @@ const Layout = () => {
         return <CommunityNew />;
       case "donations":
         return <Donations />;
+      case "rewards":
+        // Rewards page is handled by its own route component
+        navigate("/rewards");
+        return null;
       case "mentorship":
         // Redirect all users to dashboard if they try to access mentorship page
         navigate("/dashboard");

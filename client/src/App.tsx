@@ -48,6 +48,10 @@ import { RegisteredProgramDetail } from "./pages/RegisteredProgramDetail";
 import SocketTest from "./pages/SocketTest";
 import SocketDebug from "./pages/SocketDebug";
 import TestWelcomeEmail from "./pages/TestWelcomeEmail";
+import RewardsPage from "./pages/Rewards";
+import AdminRewardsPage from "./pages/AdminRewards";
+import RewardsAnalyticsPage from "./pages/RewardsAnalytics";
+import RewardsLeaderboardPage from "./pages/RewardsLeaderboard";
 
 const queryClient = new QueryClient();
 
@@ -270,6 +274,40 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <Layout />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/rewards"
+                    element={
+                      <ProtectedRoute>
+                        <RewardsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/rewards/leaderboard"
+                    element={
+                      <ProtectedRoute>
+                        <RewardsLeaderboardPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/rewards"
+                    element={
+                      <ProtectedRoute>
+                        <AdminRewardsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/admin/rewards/analytics"
+                    element={
+                      <ProtectedRoute>
+                        <RewardsAnalyticsPage />
                       </ProtectedRoute>
                     }
                   />

@@ -4,6 +4,7 @@ import Community from "../models/Community";
 import { Notification } from "../models/Notification";
 import { IUser } from "../types";
 import { socketService } from "../index";
+import rewardIntegrationService from "../services/rewardIntegrationService";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -128,6 +129,17 @@ export const approveMembership = async (
     if (community) {
       (community as any).addMember(membership.userId);
       await community.save();
+
+      // Track reward progress for community join
+      rewardIntegrationService
+        .trackCommunityJoin(
+          membership.userId.toString(),
+          membership.communityId.toString(),
+          req.user?.tenantId?.toString()
+        )
+        .catch((error) => {
+          console.error("Error tracking reward for community join:", error);
+        });
     }
 
     // Send notification to the user who was approved

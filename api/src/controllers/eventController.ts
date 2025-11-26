@@ -6,6 +6,7 @@ import { logger } from "../utils/logger";
 import { emailService } from "../services/emailService";
 import Tenant from "../models/Tenant";
 import { EventType } from "../types";
+import rewardIntegrationService from "../services/rewardIntegrationService";
 
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {
@@ -827,6 +828,17 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
     existingRegistration.amountPaid = event.price;
     await event.save();
 
+    // Track reward progress for event attendance
+    rewardIntegrationService
+      .trackEventRSVP(
+        req.user.id,
+        id,
+        (req.user as any).tenantId?.toString()
+      )
+      .catch((error) => {
+        logger.warn("Error tracking reward for event RSVP:", error);
+      });
+
     // Send registration confirmation email for paid events after success
     try {
       const tenant = event.tenantId ? await Tenant.findById(event.tenantId) : null;
@@ -1448,6 +1460,17 @@ export const approveEventRegistration = async (req: Request, res: Response) => {
     (attendee as any).approvalStatus = "approved";
     (attendee as any).approvedBy = (req as any).user.id;
     (attendee as any).approvedAt = new Date();
+    
+    // Track reward progress for event attendance
+    rewardIntegrationService
+      .trackEventRSVP(
+        (attendee as any).userId.toString(),
+        eventId,
+        (req as any).user?.tenantId?.toString()
+      )
+      .catch((error) => {
+        logger.warn("Error tracking reward for event RSVP:", error);
+      });
     await event.save();
 
     // Get user details for email

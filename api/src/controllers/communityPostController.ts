@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import CommunityPost from "../models/CommunityPost";
 import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import CommunityComment from "../models/CommunityComment";
 import { IUser } from "../types";
+import rewardIntegrationService from "../services/rewardIntegrationService";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -95,6 +97,24 @@ export const createPost = async (req: AuthenticatedRequest, res: Response) => {
     // Update community post count
     community.postCount += 1;
     await community.save();
+
+    // Track reward progress for community post (only if post is approved)
+    if (status === "approved") {
+      const postId = post._id instanceof Types.ObjectId 
+        ? post._id.toString() 
+        : String(post._id);
+      rewardIntegrationService
+        .trackCommunityPost(
+          userId.toString(),
+          postId,
+          communityId,
+          req.user?.tenantId?.toString()
+        )
+        .catch((error: Error) => {
+          // Log but don't fail post creation
+          console.error("Error tracking reward for community post:", error);
+        });
+    }
 
     // Populate author info
     await post.populate("authorId", "firstName lastName profilePicture");
@@ -684,6 +704,24 @@ export const approvePost = async (req: AuthenticatedRequest, res: Response) => {
 
     (post as any).approvePost();
     await post.save();
+
+    // Track reward progress for community post (when approved after creation)
+    if (post.status === "approved") {
+      const postId = post._id instanceof Types.ObjectId 
+        ? post._id.toString() 
+        : String(post._id);
+      rewardIntegrationService
+        .trackCommunityPost(
+          post.authorId.toString(),
+          postId,
+          post.communityId.toString(),
+          req.user?.tenantId?.toString()
+        )
+        .catch((error: Error) => {
+          // Log but don't fail post approval
+          console.error("Error tracking reward for community post approval:", error);
+        });
+    }
 
     return res.json({
       success: true,

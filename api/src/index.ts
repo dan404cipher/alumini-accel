@@ -68,6 +68,10 @@ import paymentRoutes from "./routes/payment";
 import reportRoutes from "./routes/reports";
 import categoryRoutes from "./routes/category";
 import fundRoutes from "./routes/funds";
+import rewardsRoutes from "./routes/rewards";
+import rewardVerificationsRoutes from "./routes/rewardVerifications";
+import rewardAnalyticsRoutes from "./routes/rewardAnalytics";
+import leaderboardRoutes from "./routes/leaderboard";
 import cron from "node-cron";
 import Event from "./models/Event";
 import Tenant from "./models/Tenant";
@@ -597,6 +601,10 @@ app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/funds", fundRoutes);
+app.use("/api/v1/rewards", rewardsRoutes);
+app.use("/api/v1/rewards/verifications", rewardVerificationsRoutes);
+app.use("/api/v1/rewards/analytics", rewardAnalyticsRoutes);
+app.use("/api/v1/leaderboard", leaderboardRoutes);
 
 // Serve static files with CORS headers
 app.use(

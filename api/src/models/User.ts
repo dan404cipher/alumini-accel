@@ -222,6 +222,33 @@ const userSchema = new Schema<IUser>(
         ref: "JobPost",
       },
     ],
+    // Rewards system fields
+    rewards: {
+      totalPoints: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      currentTier: {
+        type: String,
+        enum: ["bronze", "silver", "gold", "platinum"],
+        default: "bronze",
+      },
+      tierPoints: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      badges: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: "Badge",
+        },
+      ],
+      lastPointsUpdate: {
+        type: Date,
+      },
+    },
   },
   {
     timestamps: true,

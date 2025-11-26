@@ -22,7 +22,13 @@ import {
   MessageCircle,
   Pencil,
 } from "lucide-react";
-import { alumniAPI, API_BASE_URL, connectionAPI, getImageUrl } from "@/lib/api";
+import {
+  alumniAPI,
+  API_BASE_URL,
+  connectionAPI,
+  getImageUrl,
+  rewardsAPI,
+} from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import Navigation from "@/components/Navigation";
@@ -30,6 +36,8 @@ import Footer from "@/components/Footer";
 import ImageUpload from "@/components/ImageUpload";
 import ConnectionButton from "@/components/ConnectionButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { BadgeCollection } from "@/components/rewards/BadgeCollection";
+import { Badge as BadgeType } from "@/components/rewards/types";
 
 // User interface (for both students and alumni)
 interface User {
@@ -128,6 +136,7 @@ const AlumniProfile = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
+  const [badges, setBadges] = useState<BadgeType[]>([]);
 
   // Check if this is the current user's own profile
   const isOwnProfile = currentUser && user && currentUser._id === user.id;
@@ -290,14 +299,47 @@ const AlumniProfile = () => {
     [currentUser?._id]
   );
 
+  // Fetch user badges
+  const fetchUserBadges = useCallback(
+    async (userId: string) => {
+      try {
+        // Only fetch badges if viewing own profile or if current user is admin
+        const isOwn = currentUser && userId && currentUser._id === userId;
+        const canViewBadges =
+          isOwn ||
+          (currentUser?.role &&
+            ["super_admin", "college_admin", "staff"].includes(
+              currentUser.role
+            ));
+
+        if (!canViewBadges) {
+          return;
+        }
+
+        const response = await rewardsAPI.getUserBadges(userId);
+        if (response.success && response.data) {
+          const data = response.data as { badges?: BadgeType[] };
+          if (data.badges) {
+            setBadges(data.badges);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching badges:", error);
+        // Don't show error toast for badges - it's not critical
+      }
+    },
+    [currentUser]
+  );
+
   useEffect(() => {
     if (id && id !== "undefined") {
       fetchUserProfile(id);
+      fetchUserBadges(id);
     } else {
       setError("Invalid user ID provided");
       setLoading(false);
     }
-  }, [id, fetchUserProfile]);
+  }, [id, fetchUserProfile, fetchUserBadges]);
 
   // Check connection status when user profile is loaded (only for non-admin users)
   useEffect(() => {
@@ -564,6 +606,18 @@ const AlumniProfile = () => {
                       </Badge>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Badges */}
+            {badges.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Badges & Awards
+                  </h2>
+                  <BadgeCollection badges={badges} showTitle={false} />
                 </CardContent>
               </Card>
             )}

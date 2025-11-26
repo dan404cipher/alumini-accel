@@ -3391,6 +3391,239 @@ export const fundAPI = {
   },
 };
 
+// Rewards API
+export const rewardsAPI = {
+  getRewards: async (params?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards",
+      params,
+    });
+  },
+
+  getRewardById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/rewards/${id}`,
+    });
+  },
+
+  createReward: async (reward: Record<string, unknown>) => {
+    return apiRequest({
+      method: "POST",
+      url: "/rewards",
+      data: reward,
+    });
+  },
+
+  updateReward: async (id: string, reward: Record<string, unknown>) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/rewards/${id}`,
+      data: reward,
+    });
+  },
+
+  deleteReward: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/rewards/${id}`,
+    });
+  },
+
+  logTaskProgress: async (
+    rewardId: string,
+    taskId: string,
+    payload: { amount?: number; context?: Record<string, unknown> }
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/${rewardId}/tasks/${taskId}/progress`,
+      data: payload,
+    });
+  },
+
+  claimReward: async (rewardId: string, payload?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/${rewardId}/claim`,
+      data: payload,
+    });
+  },
+
+  getSummary: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/summary",
+    });
+  },
+
+  getActivities: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/activities",
+    });
+  },
+
+  getUserTier: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/tier",
+    });
+  },
+
+  getUserBadges: async (userId?: string) => {
+    const queryParams = new URLSearchParams();
+    if (userId) queryParams.append("userId", userId);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/badges?${queryString}` : "/rewards/badges",
+    });
+  },
+
+  getPendingVerifications: async (params?: {
+    status?: "pending" | "approved" | "rejected";
+    category?: string;
+    userId?: string;
+    rewardId?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.userId) queryParams.append("userId", params.userId);
+    if (params?.rewardId) queryParams.append("rewardId", params.rewardId);
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/verifications/pending?${queryString}` : "/rewards/verifications/pending",
+    });
+  },
+
+  verifyTask: async (activityId: string, action: "approve" | "reject", reason?: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/verifications/${activityId}/verify`,
+      data: { action, reason },
+    });
+  },
+
+  getVerificationStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/verifications/stats",
+    });
+  },
+
+  getPointsDistribution: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.category) queryParams.append("category", params.category);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/analytics/points-distribution?${queryString}` : "/rewards/analytics/points-distribution",
+    });
+  },
+
+  getTaskCompletion: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.category) queryParams.append("category", params.category);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/analytics/tasks?${queryString}` : "/rewards/analytics/tasks",
+    });
+  },
+
+  getRewardClaims: async (params?: {
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/analytics/claims?${queryString}` : "/rewards/analytics/claims",
+    });
+  },
+
+  getDepartmentAnalytics: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    department?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.department) queryParams.append("department", params.department);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/analytics/departments?${queryString}` : "/rewards/analytics/departments",
+    });
+  },
+
+  getAlumniActivity: async (userId: string, params?: {
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/analytics/activity/${userId}?${queryString}` : `/rewards/analytics/activity/${userId}`,
+    });
+  },
+
+  getLeaderboard: async (params?: {
+    type?: "points" | "mentors" | "donors" | "volunteers" | "departments";
+    department?: string;
+    limit?: number;
+    period?: "all" | "month" | "year";
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.type) queryParams.append("type", params.type);
+    if (params?.department) queryParams.append("department", params.department);
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.period) queryParams.append("period", params.period);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/leaderboard?${queryString}` : "/leaderboard",
+    });
+  },
+};
+
 // Campaign Targeting API
 export const campaignTargetingAPI = {
   // Preview target audience

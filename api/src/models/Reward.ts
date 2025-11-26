@@ -51,12 +51,6 @@ export interface IReward extends Document {
   badge?: mongoose.Types.ObjectId;
   tags: string[];
   tasks: IRewardTask[];
-  eligibility?: {
-    roles?: string[];
-    departments?: string[];
-    graduationYears?: number[];
-    programs?: string[];
-  };
   tenantId?: mongoose.Types.ObjectId;
   createdBy?: mongoose.Types.ObjectId;
   startsAt?: Date;
@@ -170,12 +164,6 @@ const rewardSchema = new Schema<IReward>(
     badge: { type: Schema.Types.ObjectId, ref: "Badge" },
     tags: { type: [String], default: [] },
     tasks: { type: [rewardTaskSchema], default: [] },
-    eligibility: {
-      roles: { type: [String], default: [] },
-      departments: { type: [String], default: [] },
-      graduationYears: { type: [Number], default: [] },
-      programs: { type: [String], default: [] },
-    },
     tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     startsAt: { type: Date },

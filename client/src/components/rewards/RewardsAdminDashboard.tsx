@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { RewardTemplate, RewardTask } from "./types";
-import { rewardsAPI, categoryAPI } from "@/lib/api";
+import { rewardsAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,14 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, Save, Trash2, X } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 
 const defaultReward: Partial<RewardTemplate> = {
   name: "",
@@ -31,11 +24,6 @@ const defaultReward: Partial<RewardTemplate> = {
   isActive: true,
 };
 
-interface Category {
-  _id: string;
-  name: string;
-}
-
 export const RewardsAdminDashboard: React.FC = () => {
   const { toast } = useToast();
   const [rewards, setRewards] = useState<RewardTemplate[]>([]);
@@ -43,8 +31,6 @@ export const RewardsAdminDashboard: React.FC = () => {
     useState<Partial<RewardTemplate>>(defaultReward);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("catalog");
-  const [departments, setDepartments] = useState<Category[]>([]);
-  const [programs, setPrograms] = useState<Category[]>([]);
   const [badges, setBadges] = useState<Array<{ _id: string; name: string; icon?: string; color?: string }>>([]);
 
   const fetchRewards = async () => {
@@ -65,7 +51,6 @@ export const RewardsAdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchRewards();
-    fetchCategories();
     fetchBadges();
   }, []);
 
@@ -80,75 +65,14 @@ export const RewardsAdminDashboard: React.FC = () => {
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const [deptResponse, progResponse] = await Promise.all([
-        categoryAPI.getAll({ entityType: "department", isActive: "true" }),
-        categoryAPI.getAll({ entityType: "program", isActive: "true" }),
-      ]);
-
-      if (deptResponse.success && deptResponse.data) {
-        setDepartments(deptResponse.data);
-      }
-      if (progResponse.success && progResponse.data) {
-        setPrograms(progResponse.data);
-      }
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
-  };
-
   const handleRewardChange = (
     field: keyof RewardTemplate,
-    value: string | number | boolean | string[] | object
+    value: string | number | boolean | string[] | object | null
   ) => {
     setEditingReward((prev) => ({
       ...prev,
       [field]: value,
     }));
-  };
-
-  const handleEligibilityChange = (
-    field: "roles" | "departments" | "graduationYears" | "programs",
-    value: string[] | number[]
-  ) => {
-    setEditingReward((prev) => ({
-      ...prev,
-      eligibility: {
-        ...(prev.eligibility || {}),
-        [field]: value,
-      },
-    }));
-  };
-
-  const addEligibilityItem = (
-    field: "roles" | "departments" | "programs",
-    value: string
-  ) => {
-    const current = (editingReward.eligibility?.[field] as string[]) || [];
-    if (value.trim() && !current.includes(value.trim())) {
-      handleEligibilityChange(field, [...current, value.trim()]);
-    }
-  };
-
-  const removeEligibilityItem = (
-    field: "roles" | "departments" | "programs",
-    index: number
-  ) => {
-    const current = (editingReward.eligibility?.[field] as string[]) || [];
-    handleEligibilityChange(field, current.filter((_, i) => i !== index));
-  };
-
-  const addGraduationYear = (year: number) => {
-    const current = (editingReward.eligibility?.graduationYears as number[]) || [];
-    if (year && !current.includes(year)) {
-      handleEligibilityChange("graduationYears", [...current, year]);
-    }
-  };
-
-  const removeGraduationYear = (index: number) => {
-    const current = (editingReward.eligibility?.graduationYears as number[]) || [];
-    handleEligibilityChange("graduationYears", current.filter((_, i) => i !== index));
   };
 
   const handleTaskChange = (index: number, updatedTask: Partial<RewardTask>) => {
@@ -508,193 +432,6 @@ export const RewardsAdminDashboard: React.FC = () => {
                     handleRewardChange("isFeatured", checked)
                   }
                 />
-              </div>
-            </div>
-
-            {/* Eligibility Section */}
-            <div className="border-t pt-5 space-y-4">
-              <Label className="text-base font-semibold">Eligibility (Optional)</Label>
-              <p className="text-sm text-gray-500">
-                Leave empty to make reward available to all users
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Roles</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="e.g., alumni, student"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addEligibilityItem("roles", e.currentTarget.value);
-                          e.currentTarget.value = "";
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={(e) => {
-                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                        if (input) {
-                          addEligibilityItem("roles", input.value);
-                          input.value = "";
-                        }
-                      }}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(editingReward.eligibility?.roles || []).map((role, idx) => (
-                      <Badge key={idx} variant="secondary" className="flex items-center gap-1">
-                        {role}
-                        <button
-                          type="button"
-                          onClick={() => removeEligibilityItem("roles", idx)}
-                          className="ml-1 hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Departments</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value) {
-                        addEligibilityItem("departments", value);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments
-                        .filter(
-                          (dept) =>
-                            !(editingReward.eligibility?.departments || []).includes(dept.name)
-                        )
-                        .map((dept) => (
-                          <SelectItem key={dept._id} value={dept.name}>
-                            {dept.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(editingReward.eligibility?.departments || []).map((dept, idx) => (
-                      <Badge key={idx} variant="secondary" className="flex items-center gap-1">
-                        {dept}
-                        <button
-                          type="button"
-                          onClick={() => removeEligibilityItem("departments", idx)}
-                          className="ml-1 hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Graduation Years</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="e.g., 2020"
-                      min={1900}
-                      max={2100}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          const year = parseInt(e.currentTarget.value);
-                          if (year) {
-                            addGraduationYear(year);
-                            e.currentTarget.value = "";
-                          }
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={(e) => {
-                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                        if (input && input.value) {
-                          const year = parseInt(input.value);
-                          if (year) {
-                            addGraduationYear(year);
-                            input.value = "";
-                          }
-                        }
-                      }}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(editingReward.eligibility?.graduationYears || []).map((year, idx) => (
-                      <Badge key={idx} variant="secondary" className="flex items-center gap-1">
-                        {year}
-                        <button
-                          type="button"
-                          onClick={() => removeGraduationYear(idx)}
-                          className="ml-1 hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Programs</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      if (value) {
-                        addEligibilityItem("programs", value);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a program" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {programs
-                        .filter(
-                          (prog) =>
-                            !(editingReward.eligibility?.programs || []).includes(prog.name)
-                        )
-                        .map((prog) => (
-                          <SelectItem key={prog._id} value={prog.name}>
-                            {prog.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(editingReward.eligibility?.programs || []).map((program, idx) => (
-                      <Badge key={idx} variant="secondary" className="flex items-center gap-1">
-                        {program}
-                        <button
-                          type="button"
-                          onClick={() => removeEligibilityItem("programs", idx)}
-                          className="ml-1 hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
 

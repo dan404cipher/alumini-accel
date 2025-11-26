@@ -18,6 +18,7 @@ const rewardController = {
             .filter(Boolean)
         : undefined,
       featured: req.query.featured === "true",
+      enforceSchedule: req.query.scope === "admin" ? false : true,
     });
 
     return res.json({

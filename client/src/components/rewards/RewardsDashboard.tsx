@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { RewardTemplate, RewardSummary, RewardActivity, TierInfo, Badge as BadgeType } from "./types";
-import { rewardsAPI } from "@/lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  RewardTemplate,
+  RewardSummary,
+  RewardActivity,
+  TierInfo,
+  Badge as BadgeType,
+} from "./types";
+import { rewardsAPI, type ApiResponse } from "@/lib/api";
 import { RewardCard } from "./RewardCard";
 import { RewardProgressList } from "./RewardProgressList";
 import { TierDisplay } from "./TierDisplay";
@@ -27,21 +33,34 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
   const [activities, setActivities] = useState<RewardActivity[]>([]);
   const [tierInfo, setTierInfo] = useState<TierInfo | null>(null);
   const [badges, setBadges] = useState<BadgeType[]>([]);
-  const [filter, setFilter] = useState<"all" | "featured" | "points" | "voucher">(
-    "all"
-  );
+  const [filter, setFilter] = useState<
+    "all" | "featured" | "points" | "voucher"
+  >("all");
 
-  const fetchRewards = async () => {
+  type RewardsListResponse = { rewards: RewardTemplate[] };
+  type RewardsSummaryResponse = { summary: RewardSummary };
+  type RewardActivitiesResponse = { activities: RewardActivity[] };
+  type UserTierResponse = { tierInfo: TierInfo };
+  type UserBadgesResponse = { badges: BadgeType[] };
+
+  const fetchRewards = useCallback(async () => {
     try {
       setLoading(true);
-      const [rewardResponse, summaryResponse, activityResponse, tierResponse, badgesResponse] =
-        await Promise.all([
-          rewardsAPI.getRewards({}),
-          rewardsAPI.getSummary(),
-          rewardsAPI.getActivities(),
-          rewardsAPI.getUserTier(),
-          rewardsAPI.getUserBadges(),
-        ]);
+      const [
+        rewardResponse,
+        summaryResponse,
+        activityResponse,
+        tierResponse,
+        badgesResponse,
+      ] = await Promise.all([
+        rewardsAPI.getRewards({}) as Promise<ApiResponse<RewardsListResponse>>,
+        rewardsAPI.getSummary() as Promise<ApiResponse<RewardsSummaryResponse>>,
+        rewardsAPI.getActivities() as Promise<
+          ApiResponse<RewardActivitiesResponse>
+        >,
+        rewardsAPI.getUserTier() as Promise<ApiResponse<UserTierResponse>>,
+        rewardsAPI.getUserBadges() as Promise<ApiResponse<UserBadgesResponse>>,
+      ]);
 
       if (rewardResponse.success && rewardResponse.data?.rewards) {
         setRewards(rewardResponse.data.rewards as RewardTemplate[]);
@@ -72,11 +91,11 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchRewards();
-  }, []);
+  }, [fetchRewards]);
 
   const filteredRewards = useMemo(() => {
     if (filter === "featured") {
@@ -93,19 +112,29 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
 
   const handleClaim = async (reward: RewardTemplate) => {
     try {
-      const response = await rewardsAPI.claimReward(reward._id);
-      
+      type ClaimRewardResponse = {
+        activity?: {
+          voucherCode?: string;
+        };
+      };
+
+      const response = (await rewardsAPI.claimReward(
+        reward._id
+      )) as ApiResponse<ClaimRewardResponse>;
+
       let title = "Reward claimed!";
       let description = `${reward.name} has been redeemed.`;
-      
+
       // Handle different reward types
       if (reward.rewardType === "points") {
         title = "Points added!";
-        description = `${reward.points || 0} points have been added to your wallet!`;
+        description = `${
+          reward.points || 0
+        } points have been added to your wallet!`;
       } else if (reward.rewardType === "voucher") {
         const voucherCode = response.data?.activity?.voucherCode;
         title = "Voucher redeemed!";
-        description = voucherCode 
+        description = voucherCode
           ? `Your voucher code is: ${voucherCode}. Please save this code and check your email for redemption details.`
           : `Voucher has been redeemed. Check your email for the code.`;
       } else if (reward.rewardType === "badge") {
@@ -115,7 +144,7 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
         title = "Perk activated!";
         description = `Access to "${reward.name}" perk has been enabled!`;
       }
-      
+
       toast({
         title,
         description,
@@ -208,10 +237,6 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
-              <Button className="bg-white text-blue-600 hover:bg-gray-100">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Discover Rewards
-              </Button>
             </div>
           </div>
           {renderSummary()}
@@ -220,7 +245,9 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
 
       {/* Tier and Badges Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {tierInfo && <TierDisplay tierInfo={tierInfo} className="lg:col-span-2" />}
+        {tierInfo && (
+          <TierDisplay tierInfo={tierInfo} className="lg:col-span-2" />
+        )}
         <BadgeCollection badges={badges} showTitle={true} limit={6} />
       </div>
 
@@ -279,4 +306,3 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
 };
 
 export default RewardsDashboard;
-

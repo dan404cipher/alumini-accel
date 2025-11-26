@@ -16,6 +16,7 @@ interface RewardFilters {
   categories?: string[];
   rewardType?: string;
   featured?: boolean;
+  enforceSchedule?: boolean;
 }
 
 interface TaskProgressPayload {
@@ -89,7 +90,20 @@ export const rewardService = {
       .populate("badge")
       .sort({ isFeatured: -1, createdAt: -1 });
 
-    return rewards;
+    if (filters.enforceSchedule === false) {
+      return rewards;
+    }
+
+    const now = new Date();
+    return rewards.filter((reward) => {
+      if (reward.startsAt && new Date(reward.startsAt) > now) {
+        return false;
+      }
+      if (reward.endsAt && new Date(reward.endsAt) < now) {
+        return false;
+      }
+      return true;
+    });
   },
 
   async getRewardById(id: string, tenantId?: string) {
@@ -324,7 +338,53 @@ export const rewardService = {
       throw new Error("User not found");
     }
 
-    const totalPoints = user.rewards?.totalPoints || 0;
+    const rewardsData = user.rewards || {
+      totalPoints: 0,
+      currentTier: "bronze" as const,
+      tierPoints: 0,
+      badges: [],
+    };
+
+    let totalPoints = rewardsData.totalPoints || 0;
+
+    // If totalPoints appears to be stale (e.g., 0) but the user has earned points
+    // in reward activities, recalculate from the activity history and sync.
+    if (!totalPoints) {
+      const activityPoints = await RewardActivity.aggregate([
+        {
+          $match: {
+            user: new Types.ObjectId(userId),
+            status: { $in: ["earned", "redeemed"] },
+            pointsAwarded: { $gt: 0 },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalPoints: { $sum: "$pointsAwarded" },
+          },
+        },
+      ]);
+
+      const aggregatedPoints = activityPoints[0]?.totalPoints || 0;
+
+      if (aggregatedPoints > totalPoints) {
+        totalPoints = aggregatedPoints;
+        const syncedTierInfo = getTierInfo(totalPoints);
+
+        user.rewards = {
+          ...rewardsData,
+          totalPoints,
+          currentTier: syncedTierInfo.currentTier,
+          tierPoints: syncedTierInfo.tierPoints,
+          badges: rewardsData.badges || [],
+          lastPointsUpdate: new Date(),
+        };
+
+        await user.save();
+      }
+    }
+
     const tierInfo = getTierInfo(totalPoints);
 
     return {

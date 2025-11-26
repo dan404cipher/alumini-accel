@@ -37,12 +37,6 @@ export interface RewardTemplate {
     currency?: string;
     terms?: string;
   };
-  eligibility?: {
-    roles?: string[];
-    departments?: string[];
-    graduationYears?: number[];
-    programs?: string[];
-  };
   isFeatured?: boolean;
   isActive?: boolean;
   startsAt?: string;

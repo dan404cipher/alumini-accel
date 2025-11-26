@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Gift, Star, Award, Clock, Zap, CheckCircle2, Target, Upload } from "lucide-react";
+import {
+  Gift,
+  Star,
+  Award,
+  Clock,
+  Zap,
+  CheckCircle2,
+  Target,
+  Upload,
+  CalendarDays,
+} from "lucide-react";
+import { format } from "date-fns";
 import { RewardTemplate, RewardActivity } from "./types";
 import { rewardsAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +73,39 @@ export const RewardCard: React.FC<RewardCardProps> = ({
     : 0;
 
   const showClaimButton = activity?.status === "earned" && !!onClaim;
+
+  const startDate = reward.startsAt ? new Date(reward.startsAt) : null;
+  const endDate = reward.endsAt ? new Date(reward.endsAt) : null;
+
+  const scheduleInfo = useMemo(() => {
+    if (!startDate && !endDate) return null;
+    const now = new Date();
+    let status: "Upcoming" | "Active" | "Ended" = "Active";
+    let description = "";
+
+    if (startDate && now < startDate) {
+      status = "Upcoming";
+      description = `Opens ${format(startDate, "MMM d, yyyy")}`;
+    } else if (endDate && now > endDate) {
+      status = "Ended";
+      description = `Ended ${format(endDate, "MMM d, yyyy")}`;
+    } else {
+      status = "Active";
+      if (startDate) {
+        description = `Opened ${format(startDate, "MMM d, yyyy")}`;
+      }
+      if (endDate) {
+        description += description
+          ? ` • Ends ${format(endDate, "MMM d, yyyy")}`
+          : `Ends ${format(endDate, "MMM d, yyyy")}`;
+      }
+      if (!description) {
+        description = "Available now";
+      }
+    }
+
+    return { status, description };
+  }, [startDate, endDate]);
 
   const handleManualSubmit = async () => {
     if (!selectedTask) return;
@@ -181,6 +225,35 @@ export const RewardCard: React.FC<RewardCardProps> = ({
             </div>
           )}
         </div>
+
+        {scheduleInfo && (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3 space-y-3">
+            <div className="flex items-start gap-3 text-sm text-gray-600">
+              <CalendarDays className="w-4 h-4 text-indigo-500 mt-0.5" />
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">
+                  Schedule
+                </p>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[11px]",
+                      scheduleInfo.status === "Active"
+                        ? "border-green-200 text-green-600"
+                        : scheduleInfo.status === "Upcoming"
+                        ? "border-amber-200 text-amber-600"
+                        : "border-gray-200 text-gray-500"
+                    )}
+                  >
+                    {scheduleInfo.status}
+                  </Badge>
+                  <span>{scheduleInfo.description}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activity && (
           <div className="space-y-2">

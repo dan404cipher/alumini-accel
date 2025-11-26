@@ -3483,6 +3483,44 @@ export const rewardsAPI = {
     });
   },
 
+  getBadges: async (params?: { isActive?: boolean; category?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (typeof params?.isActive === "boolean") {
+      queryParams.append("isActive", String(params.isActive));
+    }
+    if (params?.category) {
+      queryParams.append("category", params.category);
+    }
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/badges?${queryString}` : "/badges",
+    });
+  },
+
+  createBadge: async (payload: {
+    name: string;
+    description: string;
+    category: string;
+    icon: string;
+    color?: string;
+    points?: number;
+    isActive?: boolean;
+    isRare?: boolean;
+    criteria?: {
+      type?: string;
+      value?: number;
+      description?: string;
+    };
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/badges",
+      data: payload,
+    });
+  },
+
   getPendingVerifications: async (params?: {
     status?: "pending" | "approved" | "rejected";
     category?: string;

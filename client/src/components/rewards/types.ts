@@ -1,5 +1,12 @@
 export type RewardType = "badge" | "voucher" | "points" | "perk";
 
+export interface BadgeSummary {
+  _id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+}
+
 export interface RewardTask {
   _id: string;
   title: string;
@@ -8,14 +15,10 @@ export interface RewardTask {
   metric: "count" | "amount" | "duration";
   targetValue: number;
   points?: number;
-  badge?: {
-    _id: string;
-    name: string;
-    icon?: string;
-    color?: string;
-  };
+  badge?: BadgeSummary;
   isAutomated: boolean;
   displayOrder?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface RewardTemplate {
@@ -37,6 +40,7 @@ export interface RewardTemplate {
     currency?: string;
     terms?: string;
   };
+  badge?: BadgeSummary;
   isFeatured?: boolean;
   isActive?: boolean;
   startsAt?: string;

@@ -72,6 +72,7 @@ import rewardsRoutes from "./routes/rewards";
 import rewardVerificationsRoutes from "./routes/rewardVerifications";
 import rewardAnalyticsRoutes from "./routes/rewardAnalytics";
 import leaderboardRoutes from "./routes/leaderboard";
+import badgeRoutes from "./routes/badges";
 import cron from "node-cron";
 import Event from "./models/Event";
 import Tenant from "./models/Tenant";
@@ -605,6 +606,7 @@ app.use("/api/v1/rewards", rewardsRoutes);
 app.use("/api/v1/rewards/verifications", rewardVerificationsRoutes);
 app.use("/api/v1/rewards/analytics", rewardAnalyticsRoutes);
 app.use("/api/v1/leaderboard", leaderboardRoutes);
+app.use("/api/v1/badges", badgeRoutes);
 
 // Serve static files with CORS headers
 app.use(

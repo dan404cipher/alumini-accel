@@ -88,6 +88,7 @@ export const rewardService = {
 
     const rewards = await Reward.find(query)
       .populate("badge")
+      .populate("tasks.badge")
       .sort({ isFeatured: -1, createdAt: -1 });
 
     if (filters.enforceSchedule === false) {
@@ -112,7 +113,9 @@ export const rewardService = {
       ...(tenantId
         ? { $or: [{ tenantId }, { tenantId: { $exists: false } }] }
         : {}),
-    }).populate("badge");
+    })
+      .populate("badge")
+      .populate("tasks.badge");
 
     return reward;
   },

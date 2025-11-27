@@ -192,6 +192,29 @@ const userSchema = new Schema<IUser>(
         default: true,
       },
     },
+    privacy: {
+      profileVisibility: {
+        type: String,
+        enum: ["public", "alumni", "private"],
+        default: "alumni",
+      },
+      showEmail: {
+        type: Boolean,
+        default: true,
+      },
+      showPhone: {
+        type: Boolean,
+        default: false,
+      },
+      showLocation: {
+        type: Boolean,
+        default: true,
+      },
+      showCompany: {
+        type: Boolean,
+        default: true,
+      },
+    },
     // Additional profile fields
     university: {
       type: String,

@@ -6,13 +6,103 @@ import { logger } from "../utils/logger";
 import { UserRole } from "../types";
 import { updateProfileCompletion } from "../utils/profileCompletion";
 
+const PRIVACY_DEFAULTS = {
+  profileVisibility: "alumni",
+  showEmail: true,
+  showPhone: false,
+  showLocation: true,
+  showCompany: true,
+} as const;
+
+const ADMIN_PRIVACY_ROLES = new Set([
+  UserRole.SUPER_ADMIN,
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD,
+  UserRole.STAFF,
+]);
+
+const getUserPrivacySettings = (user: any) => {
+  if (!user) return { ...PRIVACY_DEFAULTS };
+  const raw =
+    user.privacy && typeof user.privacy === "object"
+      ? user.privacy.toObject
+        ? user.privacy.toObject()
+        : user.privacy
+      : {};
+  return {
+    ...PRIVACY_DEFAULTS,
+    ...(raw || {}),
+  };
+};
+
+const canBypassPrivacy = (req: Request, user: any) => {
+  if (!req.user || !user) return false;
+  if (
+    req.user._id &&
+    user._id &&
+    req.user._id.toString() === user._id.toString()
+  ) {
+    return true;
+  }
+  return ADMIN_PRIVACY_ROLES.has(req.user.role as UserRole);
+};
+
+const applyPrivacyFilters = (
+  req: Request,
+  user: any,
+  data: Record<string, any>
+) => {
+  const privacy = getUserPrivacySettings(user);
+  const canViewSensitive = canBypassPrivacy(req, user);
+
+  const hideField = (field: string) => {
+    if (field in data) {
+      data[field] = undefined;
+    }
+    if (data.user && typeof data.user === "object" && field in data.user) {
+      data.user[field] = undefined;
+    }
+    if (
+      data.userId &&
+      typeof data.userId === "object" &&
+      field in data.userId
+    ) {
+      data.userId[field] = undefined;
+    }
+  };
+
+  if (!canViewSensitive) {
+    if (!privacy.showEmail) {
+      hideField("email");
+    }
+    if (!privacy.showPhone) {
+      hideField("phone");
+    }
+    if (!privacy.showLocation) {
+      hideField("location");
+      if ("currentLocation" in data) {
+        data.currentLocation = undefined;
+      }
+    }
+    if (!privacy.showCompany) {
+      hideField("company");
+      if ("currentCompany" in data) {
+        data.currentCompany = undefined;
+      }
+    }
+  }
+
+  data.privacy = privacy;
+  return data;
+};
+
 // Get all alumni directory
 export const getAllUsersDirectory = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
-    
+
     // Build filter for alumni and students
     const userFilter: any = {
       role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] },
@@ -53,7 +143,10 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
 
     // Apply department filter
     if (req.query.department && req.query.department !== "all") {
-      userFilter.department = { $regex: req.query.department as string, $options: "i" };
+      userFilter.department = {
+        $regex: req.query.department as string,
+        $options: "i",
+      };
     }
 
     // Apply graduation year filter
@@ -63,7 +156,10 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
 
     // Apply location filter (combine with search if exists)
     if (req.query.location && req.query.location !== "all") {
-      const locationRegex = { $regex: req.query.location as string, $options: "i" };
+      const locationRegex = {
+        $regex: req.query.location as string,
+        $options: "i",
+      };
       if (userFilter.$or) {
         // If $or already exists (from search), add location to it
         userFilter.$or.push({ location: locationRegex });
@@ -90,7 +186,6 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
     );
 
-    
     // Create maps for quick lookup
     const alumniMap = new Map();
     alumniProfiles.forEach((profile: any) => {
@@ -127,19 +222,8 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       // Add profile-specific data for alumni (students may not have AlumniProfile)
       if (user.role === UserRole.ALUMNI) {
         const profile = alumniMap.get(user._id.toString());
-        console.log(`User ${user.firstName} ${user.lastName} (${user._id}):`, {
-          hasProfile: !!profile,
-          profileData: profile
-            ? {
-                graduationYear: profile.graduationYear,
-                currentCompany: profile.currentCompany,
-                currentPosition: profile.currentPosition,
-                experience: profile.experience,
-              }
-            : null,
-        });
         if (profile) {
-          return {
+          const formatted = {
             ...baseUser,
             graduationYear: profile.graduationYear,
             batchYear: profile.batchYear,
@@ -156,10 +240,11 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
             mentorshipDomains: profile.mentorshipDomains || [],
             achievements: profile.achievements || [],
           };
+          return applyPrivacyFilters(req, user, formatted);
         }
       } else if (user.role === UserRole.STUDENT) {
         // For students, use User model data directly
-        return {
+        return applyPrivacyFilters(req, user, {
           ...baseUser,
           graduationYear: user.graduationYear,
           department: user.department,
@@ -175,10 +260,10 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
           availableForMentorship: false,
           mentorshipDomains: [],
           achievements: [],
-        };
+        });
       }
 
-      return baseUser;
+      return applyPrivacyFilters(req, user, baseUser);
     });
 
     res.json({
@@ -367,12 +452,14 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     // Combine user data with profile data
     const alumni = alumniUsers.map((user) => {
       const profile = profileMap.get(user._id.toString());
-      return {
+      const userPlain = user.toObject ? user.toObject() : user;
+      const formatted = {
         _id: profile?._id || user._id,
-        userId: user,
-        user: user, // For backward compatibility
-        ...profile?.toObject(),
+        userId: userPlain,
+        user: userPlain, // For backward compatibility
+        ...(profile ? profile.toObject() : {}),
       };
+      return applyPrivacyFilters(req, user, formatted);
     });
 
     res.json({
@@ -411,9 +498,15 @@ export const getAlumniById = async (req: Request, res: Response) => {
       });
     }
 
+    const alumniData = alumni.toObject() as Record<string, any>;
+    const responseData =
+      alumniData.user && typeof alumniData.user === "object"
+        ? applyPrivacyFilters(req, alumniData.user, alumniData)
+        : alumniData;
+
     return res.json({
       success: true,
-      data: { alumni },
+      data: { alumni: responseData },
     });
   } catch (error) {
     logger.error("Get alumni by ID error:", error);
@@ -512,12 +605,14 @@ export const createProfile = async (req: Request, res: Response) => {
     return res.status(201).json({
       success: true,
       message: "Alumni profile created successfully",
-      data: { 
+      data: {
         alumniProfile,
-        user: user ? {
-          currentCGPA: user.currentCGPA,
-          currentGPA: user.currentGPA,
-        } : undefined,
+        user: user
+          ? {
+              currentCGPA: user.currentCGPA,
+              currentGPA: user.currentGPA,
+            }
+          : undefined,
       },
     });
   } catch (error) {
@@ -684,7 +779,9 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     // Determine which profile to update
     const targetUserId = userId || req.user.id;
-    const alumniProfile = await AlumniProfile.findOne({ userId: targetUserId }).populate('userId');
+    const alumniProfile = await AlumniProfile.findOne({
+      userId: targetUserId,
+    }).populate("userId");
 
     if (!alumniProfile) {
       return res.status(404).json({
@@ -697,8 +794,10 @@ export const updateProfile = async (req: Request, res: Response) => {
     const isOwnProfile = req.user.id.toString() === targetUserId.toString();
     const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
     const profileUser = alumniProfile.userId as any;
-    const isSameTenant = req.user.tenantId && profileUser.tenantId && 
-                         req.user.tenantId.toString() === profileUser.tenantId.toString();
+    const isSameTenant =
+      req.user.tenantId &&
+      profileUser.tenantId &&
+      req.user.tenantId.toString() === profileUser.tenantId.toString();
 
     if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
       return res.status(403).json({
@@ -766,12 +865,14 @@ export const updateProfile = async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: "Alumni profile updated successfully",
-      data: { 
+      data: {
         alumniProfile,
-        user: user ? {
-          currentCGPA: user.currentCGPA,
-          currentGPA: user.currentGPA,
-        } : undefined,
+        user: user
+          ? {
+              currentCGPA: user.currentCGPA,
+              currentGPA: user.currentGPA,
+            }
+          : undefined,
       },
     });
   } catch (error) {
@@ -1053,7 +1154,7 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
 
     // Determine which user to update
     const targetUserId = userId || req.user.id;
-    
+
     // If userId is provided, verify authorization
     if (userId) {
       const targetUser = await User.findById(targetUserId);
@@ -1067,8 +1168,10 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
       // Authorization check: Only College Admins from same tenant can update other users
       const isOwnProfile = req.user.id.toString() === targetUserId.toString();
       const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
-      const isSameTenant = req.user.tenantId && targetUser.tenantId &&
-                           req.user.tenantId.toString() === targetUser.tenantId.toString();
+      const isSameTenant =
+        req.user.tenantId &&
+        targetUser.tenantId &&
+        req.user.tenantId.toString() === targetUser.tenantId.toString();
 
       if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
         return res.status(403).json({
@@ -1145,9 +1248,9 @@ export const getUserById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Get user (alumni or student)
-    const user = await User.findOne({ 
-      _id: id, 
-      role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] } 
+    const user = await User.findOne({
+      _id: id,
+      role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] },
     });
     if (!user) {
       return res.status(404).json({
@@ -1157,9 +1260,10 @@ export const getUserById = async (req: Request, res: Response) => {
     }
 
     // Get alumni profile (only if user is alumni)
-    const profile = user.role === UserRole.ALUMNI 
-      ? await AlumniProfile.findOne({ userId: user._id })
-      : null;
+    const profile =
+      user.role === UserRole.ALUMNI
+        ? await AlumniProfile.findOne({ userId: user._id })
+        : null;
 
     // Format the response with ALL user fields
     const baseUser = {
@@ -1231,7 +1335,7 @@ export const getUserById = async (req: Request, res: Response) => {
       };
       return res.json({
         success: true,
-        data: { user: formattedUser },
+        data: { user: applyPrivacyFilters(req, user, formattedUser) },
       });
     }
 
@@ -1246,14 +1350,14 @@ export const getUserById = async (req: Request, res: Response) => {
       };
       return res.json({
         success: true,
-        data: { user: formattedUser },
+        data: { user: applyPrivacyFilters(req, user, formattedUser) },
       });
     }
 
     // For alumni without profile, return base user
     return res.json({
       success: true,
-      data: { user: baseUser },
+      data: { user: applyPrivacyFilters(req, user, baseUser) },
     });
   } catch (error) {
     logger.error("Get user by ID error:", error);
@@ -1445,15 +1549,11 @@ export const addInternship = async (req: Request, res: Response) => {
 
     // Convert FormData string booleans to actual booleans
     // FormData sends booleans as strings "true" or "false"
-    const isOngoing = 
-      isOngoingRaw === true || 
-      isOngoingRaw === "true" || 
-      isOngoingRaw === "1";
-    
-    const isRemote = 
-      isRemoteRaw === true || 
-      isRemoteRaw === "true" || 
-      isRemoteRaw === "1";
+    const isOngoing =
+      isOngoingRaw === true || isOngoingRaw === "true" || isOngoingRaw === "1";
+
+    const isRemote =
+      isRemoteRaw === true || isRemoteRaw === "true" || isRemoteRaw === "1";
 
     // Handle file upload
     let certificateFile = "";
@@ -1521,16 +1621,16 @@ export const updateInternship = async (req: Request, res: Response) => {
     // Convert FormData string booleans to actual booleans
     // FormData sends booleans as strings "true" or "false"
     if (updateData.isOngoing !== undefined) {
-      updateData.isOngoing = 
-        updateData.isOngoing === true || 
-        updateData.isOngoing === "true" || 
+      updateData.isOngoing =
+        updateData.isOngoing === true ||
+        updateData.isOngoing === "true" ||
         updateData.isOngoing === "1";
     }
-    
+
     if (updateData.isRemote !== undefined) {
-      updateData.isRemote = 
-        updateData.isRemote === true || 
-        updateData.isRemote === "true" || 
+      updateData.isRemote =
+        updateData.isRemote === true ||
+        updateData.isRemote === "true" ||
         updateData.isRemote === "1";
     }
 

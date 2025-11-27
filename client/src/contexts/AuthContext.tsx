@@ -29,6 +29,13 @@ export interface User {
   preferences?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  privacy?: {
+    profileVisibility: "public" | "alumni" | "private";
+    showEmail: boolean;
+    showPhone: boolean;
+    showLocation: boolean;
+    showCompany: boolean;
+  };
 }
 
 // Auth context interface

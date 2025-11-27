@@ -89,6 +89,18 @@ router.put(
   asyncHandler(userController.updateProfile)
 );
 
+router.get(
+  "/privacy",
+  authenticateToken,
+  asyncHandler(userController.getPrivacySettings)
+);
+
+router.put(
+  "/privacy",
+  authenticateToken,
+  asyncHandler(userController.updatePrivacySettings)
+);
+
 // @route   PUT /api/v1/students/profile
 // @desc    Update student profile (educational details)
 // @access  Private/Student

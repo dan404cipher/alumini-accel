@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, {
   AxiosInstance,
   AxiosRequestConfig,
@@ -303,14 +304,14 @@ export const apiRequest = async <T>(
     return response.data;
   } catch (error: unknown) {
     if (error && typeof error === "object" && "response" in error) {
-      const axiosError = error as { 
-        response?: { 
+      const axiosError = error as {
+        response?: {
           status?: number;
-          data?: ApiResponse<T> 
+          data?: ApiResponse<T>;
         };
         config?: { url?: string };
       };
-      
+
       // Handle 404 for logo/banner endpoints gracefully (suppress error)
       if (
         axiosError.response?.status === 404 &&
@@ -323,7 +324,7 @@ export const apiRequest = async <T>(
           data: null as any,
         };
       }
-      
+
       if (axiosError.response?.data) {
         return axiosError.response.data;
       }
@@ -425,6 +426,19 @@ export const authAPI = {
 };
 
 // User API functions
+type PendingUserRequest = {
+  requestId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  tenantId?: string;
+  department?: string;
+  password: string;
+  status: string;
+  requestedAt: string;
+};
+
 export const userAPI = {
   // Get all users (admin only)
   getAllUsers: async (params?: {
@@ -573,10 +587,11 @@ export const userAPI = {
           params: { status: "pending" },
         });
 
-        if (response.success && response.data?.users) {
+        const responseData = response.data as { users?: unknown[] } | undefined;
+        if (response.success && responseData?.users) {
           return {
             success: true,
-            data: response.data.users,
+            data: responseData.users,
           };
         }
         return response;
@@ -650,7 +665,7 @@ export const userAPI = {
       // We'll store the request data in localStorage temporarily and use a different endpoint
       // This ensures NO user account is created until approval
 
-      const requestData = {
+      const requestData: PendingUserRequest = {
         ...userData,
         status: "pending_request", // This is NOT a user status
         requestedAt: new Date().toISOString(),
@@ -662,7 +677,7 @@ export const userAPI = {
       // Store in localStorage as a temporary solution
       const existingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
       existingRequests.push(requestData);
       localStorage.setItem(
         "pendingUserRequests",
@@ -688,7 +703,7 @@ export const userAPI = {
       // Read from localStorage since we're storing requests there
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
 
       return {
         success: true,
@@ -706,10 +721,10 @@ export const userAPI = {
       // Get the request from localStorage
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
 
       const request = pendingRequests.find(
-        (req: any) => req.requestId === requestId
+        (req: PendingUserRequest) => req.requestId === requestId
       );
 
       if (!request) {
@@ -737,7 +752,7 @@ export const userAPI = {
       if (createUserResponse.success) {
         // Remove the request from localStorage
         const updatedRequests = pendingRequests.filter(
-          (req: any) => req.requestId !== requestId
+          (req: PendingUserRequest) => req.requestId !== requestId
         );
         localStorage.setItem(
           "pendingUserRequests",
@@ -755,7 +770,7 @@ export const userAPI = {
       } else {
         const errorMessage =
           createUserResponse.message || "Failed to create user account";
-        const errors = createUserResponse.errors || [];
+        const errors = (createUserResponse as any).errors || [];
         console.error("Validation errors:", errors);
         throw new Error(`${errorMessage}: ${errors.join(", ")}`);
       }
@@ -771,9 +786,9 @@ export const userAPI = {
       // Get the request from localStorage
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
       const request = pendingRequests.find(
-        (req: any) => req.requestId === requestId
+        (req: PendingUserRequest) => req.requestId === requestId
       );
 
       if (!request) {
@@ -782,7 +797,7 @@ export const userAPI = {
 
       // Remove the request from localStorage (no user account was created)
       const updatedRequests = pendingRequests.filter(
-        (req: any) => req.requestId !== requestId
+        (req: PendingUserRequest) => req.requestId !== requestId
       );
       localStorage.setItem(
         "pendingUserRequests",
@@ -1021,7 +1036,10 @@ export const alumni360API = {
   },
 
   // Notes
-  addNote: async (id: string, data: { content: string; category?: string; isPrivate?: boolean }) => {
+  addNote: async (
+    id: string,
+    data: { content: string; category?: string; isPrivate?: boolean }
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/alumni-360/${id}/notes`,
@@ -1037,7 +1055,11 @@ export const alumni360API = {
     });
   },
 
-  updateNote: async (id: string, noteId: string, data: { content: string; category?: string; isPrivate?: boolean }) => {
+  updateNote: async (
+    id: string,
+    noteId: string,
+    data: { content: string; category?: string; isPrivate?: boolean }
+  ) => {
     return apiRequest({
       method: "PUT",
       url: `/alumni-360/${id}/notes/${noteId}`,
@@ -1053,7 +1075,16 @@ export const alumni360API = {
   },
 
   // Issues
-  createIssue: async (id: string, data: { title: string; description: string; priority?: string; assignedTo?: string; tags?: string[] }) => {
+  createIssue: async (
+    id: string,
+    data: {
+      title: string;
+      description: string;
+      priority?: string;
+      assignedTo?: string;
+      tags?: string[];
+    }
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/alumni-360/${id}/issues`,
@@ -1061,7 +1092,21 @@ export const alumni360API = {
     });
   },
 
-  updateIssue: async (id: string, issueId: string, data: { title?: string; description?: string; status?: string; priority?: string; assignedTo?: string; response?: string; responseId?: string; responseIdToDelete?: string; tags?: string[] }) => {
+  updateIssue: async (
+    id: string,
+    issueId: string,
+    data: {
+      title?: string;
+      description?: string;
+      status?: string;
+      priority?: string;
+      assignedTo?: string;
+      response?: string;
+      responseId?: string;
+      responseIdToDelete?: string;
+      tags?: string[];
+    }
+  ) => {
     return apiRequest({
       method: "PUT",
       url: `/alumni-360/${id}/issues/${issueId}`,
@@ -1085,7 +1130,10 @@ export const alumni360API = {
   },
 
   // Flags
-  addFlag: async (id: string, data: { flagType: string; flagValue: string; description?: string }) => {
+  addFlag: async (
+    id: string,
+    data: { flagType: string; flagValue: string; description?: string }
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/alumni-360/${id}/flags`,
@@ -1108,7 +1156,10 @@ export const alumni360API = {
   },
 
   // Communication
-  getCommunicationHistory: async (id: string, params?: { type?: string; page?: number; limit?: number; search?: string }) => {
+  getCommunicationHistory: async (
+    id: string,
+    params?: { type?: string; page?: number; limit?: number; search?: string }
+  ) => {
     return apiRequest({
       method: "GET",
       url: `/alumni-360/${id}/communication`,
@@ -1129,6 +1180,30 @@ export const alumni360API = {
     return apiRequest({
       method: "GET",
       url: `/alumni-360/${id}/analytics`,
+    });
+  },
+};
+
+// Settings API
+export const settingsAPI = {
+  getPrivacy: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/users/privacy",
+    });
+  },
+
+  updatePrivacy: async (privacy: {
+    profileVisibility?: "public" | "alumni" | "private";
+    showEmail?: boolean;
+    showPhone?: boolean;
+    showLocation?: boolean;
+    showCompany?: boolean;
+  }) => {
+    return apiRequest({
+      method: "PUT",
+      url: "/users/privacy",
+      data: privacy,
     });
   },
 };
@@ -1367,10 +1442,7 @@ export const jobAPI = {
   },
 
   // Get pending jobs for admin approval
-  getPendingJobs: async (params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getPendingJobs: async (params?: { page?: number; limit?: number }) => {
     return apiRequest({
       method: "GET",
       url: "/jobs/pending",
@@ -2776,7 +2848,8 @@ export const tenantAPI = {
     ) {
       return {
         success: false,
-        message: "Invalid tenant ID format. Please ensure you are properly linked to a college.",
+        message:
+          "Invalid tenant ID format. Please ensure you are properly linked to a college.",
       };
     }
 
@@ -2842,7 +2915,8 @@ export const tenantAPI = {
     ) {
       return {
         success: false,
-        message: "Invalid tenant ID format. Please ensure you are properly linked to a college.",
+        message:
+          "Invalid tenant ID format. Please ensure you are properly linked to a college.",
       };
     }
 
@@ -3581,11 +3655,17 @@ export const rewardsAPI = {
     const queryString = queryParams.toString();
     return apiRequest({
       method: "GET",
-      url: queryString ? `/rewards/verifications/pending?${queryString}` : "/rewards/verifications/pending",
+      url: queryString
+        ? `/rewards/verifications/pending?${queryString}`
+        : "/rewards/verifications/pending",
     });
   },
 
-  verifyTask: async (activityId: string, action: "approve" | "reject", reason?: string) => {
+  verifyTask: async (
+    activityId: string,
+    action: "approve" | "reject",
+    reason?: string
+  ) => {
     return apiRequest({
       method: "POST",
       url: `/rewards/verifications/${activityId}/verify`,
@@ -3613,7 +3693,9 @@ export const rewardsAPI = {
     const queryString = queryParams.toString();
     return apiRequest({
       method: "GET",
-      url: queryString ? `/rewards/analytics/points-distribution?${queryString}` : "/rewards/analytics/points-distribution",
+      url: queryString
+        ? `/rewards/analytics/points-distribution?${queryString}`
+        : "/rewards/analytics/points-distribution",
     });
   },
 
@@ -3630,7 +3712,9 @@ export const rewardsAPI = {
     const queryString = queryParams.toString();
     return apiRequest({
       method: "GET",
-      url: queryString ? `/rewards/analytics/tasks?${queryString}` : "/rewards/analytics/tasks",
+      url: queryString
+        ? `/rewards/analytics/tasks?${queryString}`
+        : "/rewards/analytics/tasks",
     });
   },
 
@@ -3645,7 +3729,9 @@ export const rewardsAPI = {
     const queryString = queryParams.toString();
     return apiRequest({
       method: "GET",
-      url: queryString ? `/rewards/analytics/claims?${queryString}` : "/rewards/analytics/claims",
+      url: queryString
+        ? `/rewards/analytics/claims?${queryString}`
+        : "/rewards/analytics/claims",
     });
   },
 
@@ -3679,14 +3765,19 @@ export const rewardsAPI = {
     const queryString = queryParams.toString();
     return apiRequest({
       method: "GET",
-      url: queryString ? `/rewards/analytics/departments?${queryString}` : "/rewards/analytics/departments",
+      url: queryString
+        ? `/rewards/analytics/departments?${queryString}`
+        : "/rewards/analytics/departments",
     });
   },
 
-  getAlumniActivity: async (userId: string, params?: {
-    startDate?: string;
-    endDate?: string;
-  }) => {
+  getAlumniActivity: async (
+    userId: string,
+    params?: {
+      startDate?: string;
+      endDate?: string;
+    }
+  ) => {
     const queryParams = new URLSearchParams();
     if (params?.startDate) queryParams.append("startDate", params.startDate);
     if (params?.endDate) queryParams.append("endDate", params.endDate);
@@ -3694,7 +3785,9 @@ export const rewardsAPI = {
     const queryString = queryParams.toString();
     return apiRequest({
       method: "GET",
-      url: queryString ? `/rewards/analytics/activity/${userId}?${queryString}` : `/rewards/analytics/activity/${userId}`,
+      url: queryString
+        ? `/rewards/analytics/activity/${userId}?${queryString}`
+        : `/rewards/analytics/activity/${userId}`,
     });
   },
 

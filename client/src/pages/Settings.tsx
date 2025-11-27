@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Card,
@@ -32,6 +32,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import { settingsAPI } from "@/lib/api";
+
+type PrivacySettings = {
+  profileVisibility: "public" | "alumni" | "private";
+  showEmail: boolean;
+  showPhone: boolean;
+  showLocation: boolean;
+  showCompany: boolean;
+};
 
 const Settings = () => {
   const { user } = useAuth();
@@ -59,6 +68,8 @@ const Settings = () => {
     language: "en",
     timezone: "America/Los_Angeles",
   });
+  const [privacyLoading, setPrivacyLoading] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const handleSettingChange = (
     key: string,
@@ -70,13 +81,82 @@ const Settings = () => {
     }));
   };
 
-  const handleSaveSettings = () => {
-    // Here you would typically call an API to save settings
-    toast({
-      title: "Settings Saved",
-      description: "Your settings have been successfully updated.",
-    });
+  const handleSaveSettings = async () => {
+    try {
+      setSavingSettings(true);
+      const response = await settingsAPI.updatePrivacy({
+        profileVisibility: settings.profileVisibility as
+          | "public"
+          | "alumni"
+          | "private",
+        showEmail: settings.showEmail,
+        showPhone: settings.showPhone,
+        showLocation: settings.showLocation,
+        showCompany: settings.showCompany,
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || "Failed to save settings");
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: "Your privacy settings have been updated.",
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to save settings",
+        description:
+          error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingSettings(false);
+    }
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPrivacySettings = async () => {
+      try {
+        setPrivacyLoading(true);
+        const response = await settingsAPI.getPrivacy();
+        const privacyData = (
+          response.data as { privacy: PrivacySettings } | undefined
+        )?.privacy;
+        if (isMounted && response.success && privacyData) {
+          setSettings((prev) => ({
+            ...prev,
+            ...privacyData,
+          }));
+        }
+      } catch (error) {
+        if (isMounted) {
+          toast({
+            title: "Unable to load privacy settings",
+            description:
+              error instanceof Error
+                ? error.message
+                : "Please try again later.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setPrivacyLoading(false);
+        }
+      }
+    };
+
+    if (user) {
+      fetchPrivacySettings();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [toast, user]);
 
   if (!user) {
     return (
@@ -109,9 +189,12 @@ const Settings = () => {
                 Manage your account preferences and privacy settings
               </p>
             </div>
-            <Button onClick={handleSaveSettings}>
+            <Button
+              onClick={handleSaveSettings}
+              disabled={privacyLoading || savingSettings}
+            >
               <Save className="w-4 h-4 mr-2" />
-              Save Changes
+              {savingSettings ? "Saving..." : "Save Changes"}
             </Button>
           </div>
 
@@ -221,7 +304,6 @@ const Settings = () => {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   
-
                   <Separator />
 
                   <div className="space-y-4">
@@ -234,6 +316,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showEmail}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showEmail", checked)
                         }
@@ -249,6 +332,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showPhone}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showPhone", checked)
                         }
@@ -264,6 +348,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showLocation}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showLocation", checked)
                         }
@@ -279,6 +364,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showCompany}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showCompany", checked)
                         }
@@ -288,7 +374,6 @@ const Settings = () => {
                 </div>
               </CardContent>
             </Card>
-
 
             {/* Prefer
 

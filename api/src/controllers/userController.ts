@@ -2,13 +2,153 @@ import { Request, Response } from "express";
 import User from "../models/User";
 import Tenant from "../models/Tenant";
 import { logger } from "../utils/logger";
-import { UserRole, UserStatus } from "../types";
+import { AuthenticatedRequest, UserRole, UserStatus } from "../types";
 import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
 import { updateProfileCompletion } from "../utils/profileCompletion";
 import { emailService } from "../services/emailService";
 import crypto from "crypto";
+
+const DEFAULT_PRIVACY_SETTINGS = {
+  profileVisibility: "alumni",
+  showEmail: true,
+  showPhone: false,
+  showLocation: true,
+  showCompany: true,
+} as const;
+
+const mergePrivacySettings = (
+  privacy?: Partial<typeof DEFAULT_PRIVACY_SETTINGS>
+) => ({
+  ...DEFAULT_PRIVACY_SETTINGS,
+  ...(privacy ? (privacy as Record<string, boolean | string>) : {}),
+});
+
+const normalizePrivacy = (privacy?: unknown) => {
+  if (!privacy || typeof privacy !== "object") {
+    return {};
+  }
+  return (privacy as any).toObject ? (privacy as any).toObject() : privacy;
+};
+
+export const getPrivacySettings = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const userId = req.user?._id?.toString();
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const user = await User.findById(userId).select("privacy");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        privacy: mergePrivacySettings(normalizePrivacy(user.privacy)),
+      },
+    });
+  } catch (error) {
+    logger.error("Get privacy settings error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch privacy settings",
+    });
+  }
+};
+
+export const updatePrivacySettings = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const userId = req.user?._id?.toString();
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const {
+      profileVisibility,
+      showEmail,
+      showPhone,
+      showLocation,
+      showCompany,
+    } = req.body;
+
+    const updatePayload: Record<string, unknown> = {};
+
+    if (
+      profileVisibility &&
+      ["public", "alumni", "private"].includes(profileVisibility)
+    ) {
+      updatePayload["privacy.profileVisibility"] = profileVisibility;
+    }
+
+    if (typeof showEmail === "boolean") {
+      updatePayload["privacy.showEmail"] = showEmail;
+    }
+
+    if (typeof showPhone === "boolean") {
+      updatePayload["privacy.showPhone"] = showPhone;
+    }
+
+    if (typeof showLocation === "boolean") {
+      updatePayload["privacy.showLocation"] = showLocation;
+    }
+
+    if (typeof showCompany === "boolean") {
+      updatePayload["privacy.showCompany"] = showCompany;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid privacy fields provided",
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updatePayload },
+      { new: true, select: "privacy" }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Privacy settings updated",
+      data: {
+        privacy: mergePrivacySettings(normalizePrivacy(updatedUser.privacy)),
+      },
+    });
+  } catch (error) {
+    logger.error("Update privacy settings error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update privacy settings",
+    });
+  }
+};
 
 // Get all users (admin only)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -261,7 +401,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     // Determine which user to update
     const targetUserId = userId || req.user.id;
     const user = await User.findById(targetUserId);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -272,8 +412,10 @@ export const updateProfile = async (req: Request, res: Response) => {
     // Authorization check: Allow if user is editing themselves OR if they're a College Admin editing a user from their tenant
     const isOwnProfile = req.user.id.toString() === user._id.toString();
     const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
-    const isSameTenant = req.user.tenantId && user.tenantId && 
-                         req.user.tenantId.toString() === user.tenantId.toString();
+    const isSameTenant =
+      req.user.tenantId &&
+      user.tenantId &&
+      req.user.tenantId.toString() === user.tenantId.toString();
 
     if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
       return res.status(403).json({
@@ -754,8 +896,8 @@ export const promoteStudentToAlumni = async (req: Request, res: Response) => {
 export const uploadProfileImage = async (req: Request, res: Response) => {
   try {
     // userId can be in query params for College Admin editing other users
-    const targetUserId = req.query.userId as string || req.user?.id;
-    
+    const targetUserId = (req.query.userId as string) || req.user?.id;
+
     if (!targetUserId) {
       return res.status(401).json({
         success: false,
@@ -776,8 +918,10 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
       // Authorization check: Only College Admins from same tenant can update other users
       const isOwnProfile = req.user.id.toString() === targetUserId.toString();
       const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
-      const isSameTenant = req.user.tenantId && targetUser.tenantId &&
-                           req.user.tenantId.toString() === targetUser.tenantId.toString();
+      const isSameTenant =
+        req.user.tenantId &&
+        targetUser.tenantId &&
+        req.user.tenantId.toString() === targetUser.tenantId.toString();
 
       if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
         return res.status(403).json({
@@ -882,8 +1026,10 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
     // Authorization check: Allow if user is editing themselves OR if they're a College Admin editing a user from their tenant
     const isOwnProfile = req.user.id.toString() === user._id.toString();
     const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
-    const isSameTenant = req.user.tenantId && user.tenantId &&
-                         req.user.tenantId.toString() === user.tenantId.toString();
+    const isSameTenant =
+      req.user.tenantId &&
+      user.tenantId &&
+      req.user.tenantId.toString() === user.tenantId.toString();
 
     if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
       return res.status(403).json({
@@ -1022,13 +1168,13 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
           const genderMap: Record<string, string> = {
             male: "male",
             female: "female",
-            "m": "male",
-            "f": "female",
-            "other": "other",
-            "o": "other",
+            m: "male",
+            f: "female",
+            other: "other",
+            o: "other",
             "prefer not to say": "other",
             "not specified": "other",
-            "unspecified": "other",
+            unspecified: "other",
           };
           normalizedGender = genderMap[genderLower];
           if (!normalizedGender) {
@@ -1459,4 +1605,6 @@ export default {
   getEligibleStudents,
   promoteStudentToAlumni,
   updateStudentProfile,
+  getPrivacySettings,
+  updatePrivacySettings,
 };

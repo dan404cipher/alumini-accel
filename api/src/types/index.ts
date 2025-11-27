@@ -189,6 +189,13 @@ export interface IUser extends Document {
     badges: string[];
     lastPointsUpdate?: Date;
   };
+  privacy?: {
+    profileVisibility: "public" | "alumni" | "private";
+    showEmail: boolean;
+    showPhone: boolean;
+    showLocation: boolean;
+    showCompany: boolean;
+  };
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;

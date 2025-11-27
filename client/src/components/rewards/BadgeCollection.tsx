@@ -59,41 +59,70 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="flex flex-col gap-3">
           {displayBadges.map((badge) => (
             <Dialog key={badge._id}>
               <DialogTrigger asChild>
-                <button className="group relative">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-3xl transition-transform duration-200 group-hover:scale-110 group-hover:shadow-lg overflow-hidden"
-                    style={{
-                      backgroundColor: `${badge.color}20`,
-                      border: `2px solid ${badge.color}40`,
-                    }}
-                  >
-                    {badge.icon && (badge.icon.startsWith("/") || badge.icon.startsWith("http")) ? (
-                      <img
-                        src={getImageUrl(badge.icon)}
-                        alt={badge.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback to emoji if image fails to load
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.parentElement!.textContent = "🏅";
-                        }}
-                      />
-                    ) : (
-                      badge.icon || "🏅"
-                    )}
-                  </div>
-                  {badge.isRare && (
-                    <div className="absolute -top-1 -right-1">
-                      <Sparkles className="w-4 h-4 text-yellow-500" />
+                <button className="w-full">
+                  <div className="flex items-center gap-4 p-3 border rounded-xl hover:border-primary/50 transition-colors">
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-3xl shrink-0 overflow-hidden"
+                      style={{
+                        backgroundColor: `${badge.color}20`,
+                        border: `2px solid ${badge.color}30`,
+                        color: badge.color,
+                      }}
+                    >
+                      {badge.icon &&
+                      (badge.icon.startsWith("/") || badge.icon.startsWith("http")) ? (
+                        <img
+                          src={getImageUrl(badge.icon)}
+                          alt={badge.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            e.currentTarget.parentElement!.textContent = "🏅";
+                          }}
+                        />
+                      ) : (
+                        badge.icon || "🏅"
+                      )}
                     </div>
-                  )}
-                  <p className="text-xs font-medium text-center text-gray-700 mt-2 line-clamp-2">
-                    {badge.name}
-                  </p>
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {badge.name}
+                        </p>
+                        {badge.isRare && (
+                          <Sparkles className="w-4 h-4 text-yellow-500 shrink-0" />
+                        )}
+                      </div>
+                      {badge.category && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {badge.category}
+                        </p>
+                      )}
+                      {(badge as UserBadge).awardedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Earned{" "}
+                          {format(
+                            new Date((badge as UserBadge).awardedAt!),
+                            "MMM d, yyyy"
+                          )}
+                        </p>
+                      )}
+                    </div>
+                    {badge.points ? (
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-blue-600">
+                          +{badge.points}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase">
+                          points
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
                 </button>
               </DialogTrigger>
               <DialogContent>

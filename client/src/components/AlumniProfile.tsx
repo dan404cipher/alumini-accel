@@ -431,27 +431,45 @@ const AlumniProfile = () => {
         <Card className="mb-6">
           <CardContent className="p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
-              <div className="relative">
-                <img
-                  src={
-                    user.profileImage || user.profilePicture
-                      ? getImageUrl(user.profileImage || user.profilePicture)
-                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          user.name
-                        )}&background=random&color=fff`
-                  }
-                  alt={user.name}
-                  className="w-24 h-24 rounded-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      user.name
-                    )}&background=random&color=fff`;
-                  }}
-                />
-                {user.isHiring && (
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <Star className="w-4 h-4 text-white" />
+              <div className="relative w-full md:w-auto">
+                {canEditProfile ? (
+                  <div className="max-w-xs">
+                    <ImageUpload
+                      currentImage={
+                        user.profileImage || user.profilePicture
+                          ? getImageUrl(user.profileImage || user.profilePicture)
+                          : undefined
+                      }
+                      onImageChange={setImageFile}
+                      onImageUpload={handleImageUpload}
+                      isLoading={uploadingImage}
+                      maxSize={5}
+                    />
                   </div>
+                ) : (
+                  <>
+                    <img
+                      src={
+                        user.profileImage || user.profilePicture
+                          ? getImageUrl(user.profileImage || user.profilePicture)
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              user.name
+                            )}&background=random&color=fff`
+                      }
+                      alt={user.name}
+                      className="w-24 h-24 rounded-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          user.name
+                        )}&background=random&color=fff`;
+                      }}
+                    />
+                    {user.isHiring && (
+                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <Star className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -462,21 +480,6 @@ const AlumniProfile = () => {
                 <p className="text-lg text-gray-600 mb-4">
                   {user.currentRole || user.role}
                 </p>
-
-                {/* Profile Image Upload - Show for own profile OR College Admin */}
-                {canEditProfile && (
-                  <div className="mb-4">
-                    <ImageUpload
-                      currentImage={getImageUrl(
-                        user.profileImage || user.profilePicture
-                      )}
-                      onImageChange={setImageFile}
-                      onImageUpload={handleImageUpload}
-                      isLoading={uploadingImage}
-                      maxSize={5}
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="flex-1">

@@ -674,16 +674,19 @@ export const RewardsSection = ({
             </p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="flex flex-col gap-3">
               {badges.map((badge) => (
                 <div
                   key={badge._id}
-                  className="flex flex-col items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-4 p-3 border rounded-xl hover:border-primary/50 transition-colors"
                 >
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl mb-2 overflow-hidden"
+                    className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shrink-0 overflow-hidden"
                     style={{
                       backgroundColor: `${badge.color || COLORS.blue}20`,
+                      border: `2px solid ${
+                        badge.color ? `${badge.color}30` : `${COLORS.blue}30`
+                      }`,
                       color: badge.color || COLORS.blue,
                     }}
                   >
@@ -702,14 +705,38 @@ export const RewardsSection = ({
                       badge.icon || "🏅"
                     )}
                   </div>
-                  <p className="text-xs sm:text-sm font-medium text-center truncate w-full">
-                    {badge.name}
-                  </p>
-                  {badge.isRare && (
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      Rare
-                    </Badge>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {badge.name}
+                      </p>
+                      {badge.isRare && (
+                        <Badge variant="secondary" className="text-xs py-0 px-2">
+                          Rare
+                        </Badge>
+                      )}
+                    </div>
+                    {badge.category && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {badge.category}
+                      </p>
+                    )}
+                    {badge.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {badge.description}
+                      </p>
+                    )}
+                  </div>
+                  {badge.points ? (
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-blue-600">
+                        +{badge.points}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground uppercase">
+                        points
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

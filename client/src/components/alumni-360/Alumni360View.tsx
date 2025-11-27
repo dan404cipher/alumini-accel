@@ -19,6 +19,7 @@ import { JobsSection } from "./JobsSection";
 import { ReportsSection } from "./ReportsSection";
 import { DonationsSection } from "./DonationsSection";
 import { EventsSection } from "./EventsSection";
+import { RewardsSection } from "./RewardsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
@@ -436,7 +437,7 @@ const Alumni360View = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 h-auto overflow-x-auto gap-1 sm:gap-2">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-9 h-auto overflow-x-auto gap-1 sm:gap-2">
             <TabsTrigger
               value="overview"
               className="text-xs sm:text-sm whitespace-nowrap"
@@ -478,6 +479,12 @@ const Alumni360View = () => {
               className="text-xs sm:text-sm whitespace-nowrap"
             >
               Events
+            </TabsTrigger>
+            <TabsTrigger
+              value="rewards"
+              className="text-xs sm:text-sm whitespace-nowrap"
+            >
+              Rewards
             </TabsTrigger>
             <TabsTrigger
               value="progress"
@@ -541,6 +548,15 @@ const Alumni360View = () => {
             <EventsSection
               events={data.events}
               engagementMetrics={data.engagementMetrics}
+            />
+          </TabsContent>
+
+          <TabsContent value="rewards">
+            <RewardsSection
+              tierInfo={data.rewards?.tierInfo}
+              badges={data.rewards?.badges}
+              activities={data.rewards?.activities}
+              summary={data.rewards?.summary}
             />
           </TabsContent>
 

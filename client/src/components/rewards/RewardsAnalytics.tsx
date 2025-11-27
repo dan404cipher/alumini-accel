@@ -652,6 +652,8 @@ export const RewardsAnalytics: React.FC = () => {
                           {dept.totalPoints.toLocaleString()}
                         </div>
                       </div>
+
+                      
                     ))}
                   </div>
                 </CardContent>

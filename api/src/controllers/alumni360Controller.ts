@@ -11,8 +11,9 @@ import MentorshipCommunication from "../models/MentorshipCommunication";
 import JobPost from "../models/JobPost";
 import JobApplication from "../models/JobApplication";
 import { logger } from "../utils/logger";
-import { UserRole } from "../types";
+import { UserRole, AuthenticatedRequest } from "../types";
 import mongoose from "mongoose";
+import { rewardService } from "../services/rewardService";
 
 // Helper function to find alumni profile by _id or userId
 const findAlumniProfile = async (id: string) => {
@@ -74,7 +75,7 @@ const checkAccess = (req: Request, alumniProfile: any): boolean => {
 };
 
 // Get complete 360 view data for an alumnus
-export const getAlumni360Data = async (req: Request, res: Response) => {
+export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -358,6 +359,42 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
       lastJobAppliedDate: jobStats[3]?.appliedAt || null,
     };
 
+    // Fetch rewards data
+    let rewardsData = {
+      tierInfo: null as any,
+      badges: [] as any[],
+      activities: [] as any[],
+      summary: null as any,
+    };
+
+    try {
+      // Get tier info
+      const tierInfo = await rewardService.getUserTierInfo(userIdString);
+      rewardsData.tierInfo = tierInfo;
+
+      // Get badges
+      const badges = await rewardService.getUserBadges(userIdString);
+      rewardsData.badges = badges;
+
+      // Get activities
+      const tenantId = req.tenantId || req.user?.tenantId?.toString() || undefined;
+      const activities = await rewardService.getUserActivities(
+        userIdString,
+        tenantId
+      );
+      rewardsData.activities = activities;
+
+      // Get summary
+      const summary = await rewardService.getUserSummary(
+        userIdString,
+        tenantId
+      );
+      rewardsData.summary = summary;
+    } catch (error) {
+      logger.warn(`Failed to fetch rewards data for user ${userIdString}:`, error);
+      // Continue without rewards data if there's an error
+    }
+
     // Note: Communication history is now fetched separately with pagination
     // Return empty array for initial load (component will fetch with pagination)
     return res.json({
@@ -373,6 +410,7 @@ export const getAlumni360Data = async (req: Request, res: Response) => {
         jobsApplied: jobsApplied,
         communicationHistory: [], // Empty - fetched separately with pagination
         engagementMetrics: engagementMetrics,
+        rewards: rewardsData,
       },
     });
   } catch (error) {

@@ -123,6 +123,12 @@ export interface Alumni360Data {
   jobsApplied?: any[]; // JobApplication type
   communicationHistory: CommunicationItem[];
   engagementMetrics: EngagementMetrics;
+  rewards?: {
+    tierInfo?: any;
+    badges?: any[];
+    activities?: any[];
+    summary?: any;
+  };
 }
 
 export interface CreateNoteRequest {

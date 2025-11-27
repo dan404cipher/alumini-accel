@@ -188,6 +188,12 @@ export interface DepartmentAnalyticsData {
   }>;
 }
 
+export interface RewardProfilePreview {
+  tierInfo?: TierInfo;
+  summary?: RewardSummary;
+  badges?: Badge[];
+}
+
 export interface AlumniActivityData {
   activities: RewardActivity[];
   pointsTimeline: Array<{

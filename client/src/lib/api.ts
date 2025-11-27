@@ -3483,6 +3483,13 @@ export const rewardsAPI = {
     });
   },
 
+  getUserRewardProfile: async (userId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/rewards/profile/${userId}`,
+    });
+  },
+
   getBadges: async (params?: { isActive?: boolean; category?: string }) => {
     const queryParams = new URLSearchParams();
     if (typeof params?.isActive === "boolean") {

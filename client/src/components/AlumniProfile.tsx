@@ -37,7 +37,10 @@ import ImageUpload from "@/components/ImageUpload";
 import ConnectionButton from "@/components/ConnectionButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { BadgeCollection } from "@/components/rewards/BadgeCollection";
-import { Badge as BadgeType } from "@/components/rewards/types";
+import {
+  Badge as BadgeType,
+  RewardProfilePreview,
+} from "@/components/rewards/types";
 
 // User interface (for both students and alumni)
 interface User {
@@ -137,6 +140,8 @@ const AlumniProfile = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
   const [badges, setBadges] = useState<BadgeType[]>([]);
+  const [rewardProfile, setRewardProfile] =
+    useState<RewardProfilePreview | null>(null);
 
   // Check if this is the current user's own profile
   const isOwnProfile = currentUser && user && currentUser._id === user.id;
@@ -299,47 +304,29 @@ const AlumniProfile = () => {
     [currentUser?._id]
   );
 
-  // Fetch user badges
-  const fetchUserBadges = useCallback(
-    async (userId: string) => {
-      try {
-        // Only fetch badges if viewing own profile or if current user is admin
-        const isOwn = currentUser && userId && currentUser._id === userId;
-        const canViewBadges =
-          isOwn ||
-          (currentUser?.role &&
-            ["super_admin", "college_admin", "staff"].includes(
-              currentUser.role
-            ));
-
-        if (!canViewBadges) {
-          return;
-        }
-
-        const response = await rewardsAPI.getUserBadges(userId);
-        if (response.success && response.data) {
-          const data = response.data as { badges?: BadgeType[] };
-          if (data.badges) {
-            setBadges(data.badges);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching badges:", error);
-        // Don't show error toast for badges - it's not critical
+  // Fetch reward profile (tier, points, badges)
+  const fetchRewardProfile = useCallback(async (userId: string) => {
+    try {
+      const response = await rewardsAPI.getUserRewardProfile(userId);
+      if (response.success && response.data) {
+        const data = response.data as RewardProfilePreview;
+        setRewardProfile(data);
+        setBadges(data.badges || []);
       }
-    },
-    [currentUser]
-  );
+    } catch (error) {
+      console.error("Error fetching reward profile:", error);
+    }
+  }, []);
 
   useEffect(() => {
     if (id && id !== "undefined") {
       fetchUserProfile(id);
-      fetchUserBadges(id);
+      fetchRewardProfile(id);
     } else {
       setError("Invalid user ID provided");
       setLoading(false);
     }
-  }, [id, fetchUserProfile, fetchUserBadges]);
+  }, [id, fetchUserProfile, fetchRewardProfile]);
 
   // Check connection status when user profile is loaded (only for non-admin users)
   useEffect(() => {
@@ -397,6 +384,18 @@ const AlumniProfile = () => {
     );
   }
 
+  const tierInfo = rewardProfile?.tierInfo;
+  const rewardSummary = rewardProfile?.summary;
+  const totalPoints = rewardSummary?.totalPoints ?? 0;
+  const earnedRewards = rewardSummary?.earnedRewards ?? 0;
+  const redeemedRewards = rewardSummary?.redeemedRewards ?? 0;
+  const badgeCount = badges.length;
+  const previewBadges = badges.slice(0, 3);
+  const tierLabel = tierInfo?.currentTier
+    ? tierInfo.currentTier.charAt(0).toUpperCase() +
+      tierInfo.currentTier.slice(1)
+    : "No tier";
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation activeTab="alumni" onTabChange={() => {}} />
@@ -437,7 +436,9 @@ const AlumniProfile = () => {
                     <ImageUpload
                       currentImage={
                         user.profileImage || user.profilePicture
-                          ? getImageUrl(user.profileImage || user.profilePicture)
+                          ? getImageUrl(
+                              user.profileImage || user.profilePicture
+                            )
                           : undefined
                       }
                       onImageChange={setImageFile}
@@ -451,7 +452,9 @@ const AlumniProfile = () => {
                     <img
                       src={
                         user.profileImage || user.profilePicture
-                          ? getImageUrl(user.profileImage || user.profilePicture)
+                          ? getImageUrl(
+                              user.profileImage || user.profilePicture
+                            )
                           : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                               user.name
                             )}&background=random&color=fff`
@@ -558,6 +561,133 @@ const AlumniProfile = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Rewards Overview</h2>
+                <p className="text-sm text-muted-foreground">
+                  Tier, total points, and badges earned by {user.name}
+                </p>
+              </div>
+              <Badge variant="outline" className="text-sm capitalize">
+                {tierInfo ? `${tierLabel} tier` : "No tier yet"}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Current Tier
+                </p>
+                <p className="text-2xl font-semibold mt-2 capitalize">
+                  {tierInfo ? tierLabel : "Not assigned"}
+                </p>
+                {tierInfo?.nextTier ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {tierInfo.pointsToNextTier} pts to {tierInfo.nextTier}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Earn points to unlock tiers
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Total Points
+                </p>
+                <p className="text-2xl font-semibold mt-2">
+                  {totalPoints.toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lifetime contributions
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Rewards Earned
+                </p>
+                <p className="text-2xl font-semibold mt-2">{earnedRewards}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {redeemedRewards} redeemed
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Badges
+                </p>
+                <p className="text-2xl font-semibold mt-2">{badgeCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {badgeCount > 0 ? "Earned recognitions" : "No badges yet"}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-gray-700">
+                  Featured Badges
+                </p>
+                {badgeCount > 3 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{badgeCount - 3} more
+                  </span>
+                )}
+              </div>
+              {previewBadges.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {previewBadges.map((badge) => (
+                    <div
+                      key={badge._id}
+                      className="flex items-center gap-3 border rounded-xl p-3 bg-muted/40"
+                    >
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-2xl overflow-hidden"
+                        style={{
+                          backgroundColor: `${badge.color || "#0ea5e9"}20`,
+                          border: `2px solid ${
+                            badge.color ? `${badge.color}30` : "#0ea5e930"
+                          }`,
+                          color: badge.color || "#0ea5e9",
+                        }}
+                      >
+                        {badge.icon &&
+                        (badge.icon.startsWith("/") ||
+                          badge.icon.startsWith("http")) ? (
+                          <img
+                            src={getImageUrl(badge.icon)}
+                            alt={badge.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          badge.icon || "🏅"
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {badge.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {badge.category}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No badges earned yet. Participate in activities and community
+                  programs to earn recognitions.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

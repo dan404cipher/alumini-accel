@@ -323,14 +323,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             alt="Current profile"
             className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
           />
-          <Button
-            variant="destructive"
-            size="sm"
-            className="absolute -top-2 -right-2 rounded-full w-6 h-6 p-0"
-            onClick={resetImage}
-          >
-            <X className="w-3 h-3" />
-          </Button>
+         
         </div>
       )}
 

@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Gift, RefreshCw, Sparkles, Award } from "lucide-react";
+import { Gift, RefreshCw, Sparkles, Award, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CelebrationModal } from "./CelebrationModal";
+import { Input } from "@/components/ui/input";
 
 interface RewardsDashboardProps {
   showHeader?: boolean;
@@ -37,13 +38,35 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
   const [filter, setFilter] = useState<
     "all" | "featured" | "points" | "voucher"
   >("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
+  const [pagination, setPagination] = useState({
+    page: 1,
+    totalPages: 1,
+    total: 0,
+    limit: pageSize,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
   const [celebrationModal, setCelebrationModal] = useState<{
     open: boolean;
     reward?: RewardTemplate;
     voucherCode?: string;
   }>({ open: false });
 
-  type RewardsListResponse = { rewards: RewardTemplate[] };
+  type RewardsListResponse = {
+    rewards: RewardTemplate[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  };
   type RewardsSummaryResponse = { summary: RewardSummary };
   type RewardActivitiesResponse = { activities: RewardActivity[] };
   type UserTierResponse = { tierInfo: TierInfo };
@@ -59,7 +82,11 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
         tierResponse,
         badgesResponse,
       ] = await Promise.all([
-        rewardsAPI.getRewards({}) as Promise<ApiResponse<RewardsListResponse>>,
+        rewardsAPI.getRewards({
+          page: currentPage,
+          limit: pageSize,
+          search: debouncedSearch || undefined,
+        }) as Promise<ApiResponse<RewardsListResponse>>,
         rewardsAPI.getSummary() as Promise<ApiResponse<RewardsSummaryResponse>>,
         rewardsAPI.getActivities() as Promise<
           ApiResponse<RewardActivitiesResponse>
@@ -70,6 +97,19 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
 
       if (rewardResponse.success && rewardResponse.data?.rewards) {
         setRewards(rewardResponse.data.rewards as RewardTemplate[]);
+        if (rewardResponse.data.pagination) {
+          setPagination(rewardResponse.data.pagination);
+        } else {
+          setPagination((prev) => ({
+            ...prev,
+            page: currentPage,
+            limit: pageSize,
+            total: rewardResponse.data.rewards.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          }));
+        }
       }
 
       if (summaryResponse.success && summaryResponse.data?.summary) {
@@ -100,11 +140,19 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, currentPage, pageSize, debouncedSearch]);
 
   useEffect(() => {
     fetchRewards();
   }, [fetchRewards]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setCurrentPage(1);
+      setDebouncedSearch(searchTerm.trim());
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const filteredRewards = useMemo(() => {
     if (filter === "featured") {
@@ -118,6 +166,18 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
     }
     return rewards;
   }, [filter, rewards]);
+
+  const handlePrevPage = () => {
+    if (pagination.hasPrevPage) {
+      setCurrentPage((prev) => Math.max(1, prev - 1));
+    }
+  };
+
+  const handleNextPage = () => {
+    if (pagination.hasNextPage) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
 
   const handleClaim = async (reward: RewardTemplate) => {
     try {
@@ -287,6 +347,22 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
             ))}
           </div>
 
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search rewards..."
+                className="pl-9"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Showing page {pagination.page} of {pagination.totalPages} (
+              {pagination.total} results)
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredRewards.map((reward) => (
               <RewardCard
@@ -304,6 +380,35 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
             <div className="text-center py-12 border border-dashed rounded-3xl">
               <Gift className="w-10 h-10 mx-auto text-gray-400" />
               <p className="text-gray-600 mt-3">No rewards available yet</p>
+            </div>
+          )}
+
+          {filteredRewards.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+              <p className="text-sm text-muted-foreground">
+                Showing {filteredRewards.length} rewards
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrevPage}
+                  disabled={!pagination.hasPrevPage}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm font-medium">
+                  Page {pagination.page} / {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={!pagination.hasNextPage}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </TabsContent>

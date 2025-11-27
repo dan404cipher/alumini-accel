@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import rewardService from "../services/rewardService";
-import { AuthenticatedRequest } from "../types";
+import { AuthenticatedRequest, UserRole } from "../types";
+import User from "../models/User";
 
 const rewardController = {
   async listRewards(req: AuthenticatedRequest, res: Response) {
@@ -28,6 +29,7 @@ const rewardController = {
       enforceSchedule: req.query.scope === "admin" ? false : true,
       page,
       limit,
+      search: typeof req.query.search === "string" ? req.query.search : undefined,
     });
 
     return res.json({
@@ -143,6 +145,63 @@ const rewardController = {
       message: "Reward redeemed successfully",
       data: { activity },
     });
+  },
+
+  async getPublicRewardProfile(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { userId } = req.params;
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required",
+        });
+      }
+
+      const targetUser = await User.findById(userId).select("tenantId");
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      const requesterRole = req.user?.role;
+      const isSuperAdmin = requesterRole === UserRole.SUPER_ADMIN;
+      const isSelf = req.user?._id?.toString() === userId;
+      const isSameTenant =
+        targetUser.tenantId &&
+        req.tenantId &&
+        targetUser.tenantId.toString() === req.tenantId.toString();
+
+      if (!isSuperAdmin && !isSelf && !isSameTenant) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to view this reward profile",
+        });
+      }
+
+      const [tierInfo, summary, badges] = await Promise.all([
+        rewardService.getUserTierInfo(userId),
+        rewardService.getUserSummary(userId, req.tenantId),
+        rewardService.getUserBadges(userId),
+      ]);
+
+      return res.json({
+        success: true,
+        data: {
+          tierInfo,
+          summary,
+          badges,
+        },
+      });
+    } catch (error) {
+      console.error("[getPublicRewardProfile] Error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch reward profile",
+      });
+    }
   },
 
   async getUserSummary(req: AuthenticatedRequest, res: Response) {

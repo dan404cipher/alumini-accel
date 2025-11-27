@@ -19,6 +19,7 @@ interface RewardFilters {
   enforceSchedule?: boolean;
   page?: number;
   limit?: number;
+  search?: string;
 }
 
 interface TaskProgressPayload {
@@ -63,6 +64,14 @@ export const rewardService = {
 
   async listRewards(filters: RewardFilters = {}) {
     const query: FilterQuery<IReward> = {};
+    if (filters.search) {
+      const searchRegex = new RegExp(filters.search.trim(), "i");
+      query.$or = [
+        ...(query.$or || []),
+        { name: searchRegex },
+        { description: searchRegex },
+      ];
+    }
 
     if (filters.tenantId) {
       query.$or = [
@@ -532,33 +541,12 @@ export const rewardService = {
    * Get user badges
    */
   async getUserBadges(userId: string) {
-    console.log("[getUserBadges Service] Starting - userId:", userId);
-
     if (!userId) {
-      console.log(
-        "[getUserBadges Service] No userId provided, returning empty array"
-      );
       return [];
     }
 
     // Query UserBadge collection which is the source of truth for awarded badges
     const { UserBadge } = await import("../models/Badge");
-
-    // First, check if there are ANY UserBadge records for this user
-    const totalUserBadges = await UserBadge.countDocuments({
-      user: new Types.ObjectId(userId),
-    });
-    console.log(
-      "[getUserBadges Service] Total UserBadge records for user:",
-      totalUserBadges
-    );
-
-    // Also check all UserBadge records to see what's in the database
-    const allUserBadges = await UserBadge.find({}).limit(10).lean();
-    console.log(
-      "[getUserBadges Service] Sample UserBadge records (first 10):",
-      JSON.stringify(allUserBadges, null, 2)
-    );
 
     const userBadges = await UserBadge.find({
       user: new Types.ObjectId(userId),
@@ -567,42 +555,10 @@ export const rewardService = {
       .sort({ awardedAt: -1 })
       .lean();
 
-    console.log("[getUserBadges Service] User ID:", userId);
-    console.log("[getUserBadges Service] UserBadges found:", userBadges.length);
-    console.log(
-      "[getUserBadges Service] Raw userBadges:",
-      JSON.stringify(userBadges, null, 2)
-    );
-
     // Extract badge details from populated userBadges
     const badges = userBadges
-      .map((ub: any) => {
-        console.log(
-          "[getUserBadges Service] Processing userBadge:",
-          ub._id,
-          "badge:",
-          ub.badge
-        );
-        return ub.badge;
-      })
-      .filter((badge: any) => {
-        const isValid = badge !== null && badge !== undefined;
-        if (!isValid) {
-          console.log(
-            "[getUserBadges Service] Filtered out null/undefined badge"
-          );
-        }
-        return isValid;
-      });
-
-    console.log(
-      "[getUserBadges Service] Extracted badges count:",
-      badges.length
-    );
-    console.log(
-      "[getUserBadges Service] Badges:",
-      JSON.stringify(badges, null, 2)
-    );
+      .map((ub: any) => ub.badge)
+      .filter((badge: any) => badge !== null && badge !== undefined);
 
     return badges;
   },

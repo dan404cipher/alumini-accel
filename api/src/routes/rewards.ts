@@ -20,6 +20,12 @@ router.get(
 );
 
 router.get(
+  "/profile/:userId",
+  authenticateToken,
+  asyncHandler(rewardController.getPublicRewardProfile)
+);
+
+router.get(
   "/activities",
   authenticateToken,
   asyncHandler(rewardController.getUserActivities)

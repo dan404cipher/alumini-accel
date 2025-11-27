@@ -4,7 +4,14 @@ import { AuthenticatedRequest } from "../types";
 
 const rewardController = {
   async listRewards(req: AuthenticatedRequest, res: Response) {
-    const rewards = await rewardService.listRewards({
+    const page = req.query.page
+      ? parseInt(req.query.page as string, 10)
+      : undefined;
+    const limit = req.query.limit
+      ? parseInt(req.query.limit as string, 10)
+      : undefined;
+
+    const result = await rewardService.listRewards({
       tenantId: req.tenantId,
       isActive:
         typeof req.query.active === "string"
@@ -19,11 +26,16 @@ const rewardController = {
         : undefined,
       featured: req.query.featured === "true",
       enforceSchedule: req.query.scope === "admin" ? false : true,
+      page,
+      limit,
     });
 
     return res.json({
       success: true,
-      data: { rewards },
+      data: {
+        rewards: result.rewards,
+        pagination: result.pagination,
+      },
     });
   },
 

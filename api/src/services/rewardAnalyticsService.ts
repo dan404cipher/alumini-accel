@@ -419,6 +419,86 @@ export const rewardAnalyticsService = {
       })),
     };
   },
+
+  /**
+   * Get reward statistics (earned and claimed counts per reward)
+   */
+  async getRewardStatistics(filters: AnalyticsFilters = {}) {
+    const match: FilterQuery<IRewardActivity> = {
+      status: { $in: ["earned", "redeemed"] },
+    };
+
+    if (filters.tenantId) {
+      match.$or = [
+        { tenantId: new Types.ObjectId(filters.tenantId) },
+        { tenantId: { $exists: false } },
+        { tenantId: null },
+      ];
+    }
+
+    if (filters.startDate || filters.endDate) {
+      match.createdAt = {};
+      if (filters.startDate) match.createdAt.$gte = filters.startDate;
+      if (filters.endDate) match.createdAt.$lte = filters.endDate;
+    }
+
+    // Aggregate by reward to get earned and claimed counts
+    const rewardStats = await RewardActivity.aggregate([
+      { $match: match },
+      {
+        $lookup: {
+          from: "rewards",
+          localField: "reward",
+          foreignField: "_id",
+          as: "rewardDetails",
+        },
+      },
+      { $unwind: "$rewardDetails" },
+      {
+        $group: {
+          _id: "$reward",
+          rewardName: { $first: "$rewardDetails.name" },
+          rewardId: { $first: "$reward" },
+          earned: {
+            $sum: {
+              $cond: [
+                { $in: ["$status", ["earned", "redeemed"]] },
+                1,
+                0,
+              ],
+            },
+          },
+          claimed: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "redeemed"] }, 1, 0],
+            },
+          },
+        },
+      },
+      { $sort: { earned: -1 } },
+    ]);
+
+    // Calculate totals
+    const totals = rewardStats.reduce(
+      (acc, stat) => {
+        acc.totalEarned += stat.earned;
+        acc.totalClaimed += stat.claimed;
+        return acc;
+      },
+      { totalEarned: 0, totalClaimed: 0 }
+    );
+
+    return {
+      topRewards: rewardStats.slice(0, 10).map((stat) => ({
+        _id: stat.rewardId?.toString() || stat._id?.toString(),
+        name: stat.rewardName,
+        earned: stat.earned,
+        claimed: stat.claimed,
+      })),
+      totals,
+      rewardsByCategory: [], // Can be added later if needed
+    };
+  },
 };
 
 export default rewardAnalyticsService;

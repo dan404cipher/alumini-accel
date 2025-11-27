@@ -41,5 +41,12 @@ router.get(
   asyncHandler(rewardAnalyticsController.getAlumniActivity)
 );
 
+router.get(
+  "/statistics",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(rewardAnalyticsController.getRewardStatistics)
+);
+
 export default router;
 

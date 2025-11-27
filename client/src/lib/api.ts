@@ -3642,6 +3642,23 @@ export const rewardsAPI = {
     });
   },
 
+  getRewardStatistics: async (params?: {
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/analytics/statistics?${queryString}`
+        : "/rewards/analytics/statistics",
+    });
+  },
+
   getDepartmentAnalytics: async (params?: {
     startDate?: string;
     endDate?: string;

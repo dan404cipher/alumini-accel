@@ -12,7 +12,6 @@ export type RewardActionType =
   | "donation"
   | "mentorship"
   | "job"
-  | "referral"
   | "engagement"
   | "custom";
 
@@ -111,7 +110,6 @@ const rewardTaskSchema = new Schema<IRewardTask>(
         "donation",
         "mentorship",
         "job",
-        "referral",
         "engagement",
         "custom",
       ],

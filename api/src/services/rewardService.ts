@@ -17,6 +17,8 @@ interface RewardFilters {
   rewardType?: string;
   featured?: boolean;
   enforceSchedule?: boolean;
+  page?: number;
+  limit?: number;
 }
 
 interface TaskProgressPayload {
@@ -86,25 +88,58 @@ export const rewardService = {
       query.isFeatured = true;
     }
 
-    const rewards = await Reward.find(query)
+    // Pagination parameters
+    const page = filters.page && filters.page > 0 ? filters.page : 1;
+    const limit = filters.limit && filters.limit > 0 ? filters.limit : 10;
+    const skip = (page - 1) * limit;
+
+    // Build base query
+    let baseQuery = Reward.find(query)
       .populate("badge")
       .populate("tasks.badge")
       .sort({ isFeatured: -1, createdAt: -1 });
 
+    // Apply schedule filtering if needed
+    let rewards;
+    let totalCount: number;
+
     if (filters.enforceSchedule === false) {
-      return rewards;
+      // For admin scope, get all rewards with pagination
+      totalCount = await Reward.countDocuments(query);
+      rewards = await baseQuery.skip(skip).limit(limit).exec();
+    } else {
+      // For user scope, filter by schedule first, then paginate
+      const allRewards = await baseQuery.exec();
+      const now = new Date();
+      const filteredRewards = allRewards.filter((reward) => {
+        if (reward.startsAt && new Date(reward.startsAt) > now) {
+          return false;
+        }
+        if (reward.endsAt && new Date(reward.endsAt) < now) {
+          return false;
+        }
+        return true;
+      });
+      // Get total count from filtered results
+      totalCount = filteredRewards.length;
+      // Apply pagination to filtered results
+      rewards = filteredRewards.slice(skip, skip + limit);
     }
 
-    const now = new Date();
-    return rewards.filter((reward) => {
-      if (reward.startsAt && new Date(reward.startsAt) > now) {
-        return false;
-      }
-      if (reward.endsAt && new Date(reward.endsAt) < now) {
-        return false;
-      }
-      return true;
-    });
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      rewards,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
   },
 
   async getRewardById(id: string, tenantId?: string) {

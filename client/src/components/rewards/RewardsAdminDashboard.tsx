@@ -38,6 +38,9 @@ import {
 } from "@/components/ui/dialog";
 import SimpleImageUpload from "@/components/SimpleImageUpload";
 import { Plus, Save, Trash2, Edit, Award } from "lucide-react";
+import { RewardsAnalytics } from "./RewardsAnalytics";
+import { RewardsReport } from "./RewardsReport";
+import Pagination from "@/components/ui/pagination";
 
 const defaultReward: Partial<RewardTemplate> = {
   name: "",
@@ -85,6 +88,54 @@ const initialBadgeForm: NewBadgeFormState = {
   icon: "",
 };
 
+// Get available metrics based on action type
+const getAvailableMetrics = (
+  actionType: string
+): Array<{ value: string; label: string }> => {
+  switch (actionType) {
+    case "event":
+      // Events are counted (number of events attended)
+      return [{ value: "count", label: "Count" }];
+
+    case "donation":
+      // Donations can be counted (number of donations) or by amount (total dollars)
+      return [
+        { value: "count", label: "Count" },
+        { value: "amount", label: "Amount" },
+      ];
+
+    case "mentorship":
+      // Mentorship can be counted (sessions) or by duration (hours)
+      return [
+        { value: "count", label: "Count" },
+        { value: "duration", label: "Duration" },
+      ];
+
+    case "job":
+      // Jobs are counted (number of jobs posted)
+      return [{ value: "count", label: "Count" }];
+
+    case "engagement":
+      // Engagement activities are counted (posts, comments, etc.)
+      return [{ value: "count", label: "Count" }];
+
+    case "custom":
+      // Custom can use any metric
+      return [
+        { value: "count", label: "Count" },
+        { value: "amount", label: "Amount" },
+        { value: "duration", label: "Duration" },
+      ];
+
+    default:
+      return [
+        { value: "count", label: "Count" },
+        { value: "amount", label: "Amount" },
+        { value: "duration", label: "Duration" },
+      ];
+  }
+};
+
 export const RewardsAdminDashboard: React.FC = () => {
   const { toast } = useToast();
   const [rewards, setRewards] = useState<RewardTemplate[]>([]);
@@ -99,7 +150,27 @@ export const RewardsAdminDashboard: React.FC = () => {
   const [badgeImageUploading, setBadgeImageUploading] = useState(false);
   const [creatingBadge, setCreatingBadge] = useState(false);
   const [deletingBadgeId, setDeletingBadgeId] = useState<string | null>(null);
-  type AdminRewardsResponse = { rewards: RewardTemplate[] };
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pagination, setPagination] = useState<{
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  } | null>(null);
+  type AdminRewardsResponse = {
+    rewards: RewardTemplate[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  };
   type AdminBadgesResponse = { badges: BadgeType[] };
   type CreateBadgeResponse = { badge: BadgeType };
   type TaskMetadata = { requiresVerification?: boolean };
@@ -108,9 +179,25 @@ export const RewardsAdminDashboard: React.FC = () => {
     try {
       const response = (await rewardsAPI.getRewards({
         scope: "admin",
+        page: currentPage,
+        limit: pageSize,
       })) as ApiResponse<AdminRewardsResponse>;
-      if (response.success && response.data?.rewards) {
-        setRewards(response.data.rewards);
+      if (response.success && response.data) {
+        setRewards(response.data.rewards || []);
+        if (response.data.pagination) {
+          setPagination(response.data.pagination);
+        } else {
+          // Fallback: create pagination from rewards array if API doesn't return it
+          const total = response.data.rewards?.length || 0;
+          setPagination({
+            page: currentPage,
+            limit: pageSize,
+            total,
+            totalPages: Math.ceil(total / pageSize),
+            hasNextPage: currentPage < Math.ceil(total / pageSize),
+            hasPrevPage: currentPage > 1,
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -120,7 +207,7 @@ export const RewardsAdminDashboard: React.FC = () => {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [toast, currentPage, pageSize]);
 
   const fetchBadges = useCallback(async () => {
     try {
@@ -139,8 +226,11 @@ export const RewardsAdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchRewards();
+  }, [fetchRewards]);
+
+  useEffect(() => {
     fetchBadges();
-  }, [fetchBadges, fetchRewards]);
+  }, [fetchBadges]);
 
   const badgeImageResetRef = useRef(false);
 
@@ -617,6 +707,7 @@ export const RewardsAdminDashboard: React.FC = () => {
         description: "The reward configuration has been updated.",
       });
       resetForm();
+      setCurrentPage(1); // Reset to first page after save
       fetchRewards();
     } catch (error) {
       toast({
@@ -653,6 +744,10 @@ export const RewardsAdminDashboard: React.FC = () => {
         title: "Reward deleted",
         description: "The reward has been removed.",
       });
+      // If current page becomes empty after deletion, go to previous page
+      if (rewards.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
       fetchRewards();
     } catch (error) {
       toast({
@@ -674,8 +769,11 @@ export const RewardsAdminDashboard: React.FC = () => {
       >
         <TabsList className="w-full justify-start rounded-2xl bg-gray-100/70 overflow-x-auto">
           <TabsTrigger value="catalog">Reward Catalogue</TabsTrigger>
-          <TabsTrigger value="builder">Create / Edit Reward</TabsTrigger>
+          {/* <TabsTrigger value="builder">Create / Edit Reward</TabsTrigger> */}
           <TabsTrigger value="badges">Badge Management</TabsTrigger>
+          <TabsTrigger value="reports-analytics">
+            Reports & Analytics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="catalog" className="space-y-4">
@@ -745,6 +843,48 @@ export const RewardsAdminDashboard: React.FC = () => {
               </Card>
             )}
           </div>
+
+          {/* Pagination */}
+          {pagination && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+              <div className="text-sm text-gray-600">
+                Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                {Math.min(currentPage * pageSize, pagination.total)} of{" "}
+                {pagination.total} rewards
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="page-size" className="text-sm">
+                    Per page:
+                  </Label>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => {
+                      setPageSize(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {pagination.totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="builder">
@@ -1034,17 +1174,49 @@ export const RewardsAdminDashboard: React.FC = () => {
                           <select
                             className="w-full border rounded-xl px-3 py-2"
                             value={task.actionType}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              const newActionType = event.target.value;
+                              const availableMetrics =
+                                getAvailableMetrics(newActionType);
+                              const currentMetric = task.metric || "count";
+                              // If current metric is not available for new action type, reset to first available
+                              const newMetric = availableMetrics.some(
+                                (m) => m.value === currentMetric
+                              )
+                                ? currentMetric
+                                : availableMetrics[0]?.value || "count";
+
+                              // For custom action type: disable auto-tracking and require verification
+                              const isCustom = newActionType === "custom";
+
                               handleTaskChange(index, {
-                                actionType: event.target.value,
-                              })
-                            }
+                                actionType: newActionType,
+                                metric: newMetric as
+                                  | "count"
+                                  | "amount"
+                                  | "duration",
+                                isAutomated: isCustom
+                                  ? false
+                                  : task.isAutomated,
+                                metadata: {
+                                  ...((task.metadata as
+                                    | TaskMetadata
+                                    | undefined) ?? {}),
+                                  requiresVerification: isCustom
+                                    ? true
+                                    : (
+                                        task.metadata as
+                                          | TaskMetadata
+                                          | undefined
+                                      )?.requiresVerification ?? false,
+                                },
+                              });
+                            }}
                           >
                             <option value="event">Event</option>
                             <option value="donation">Donation</option>
                             <option value="mentorship">Mentorship</option>
                             <option value="job">Job</option>
-                            <option value="referral">Referral</option>
                             <option value="engagement">Engagement</option>
                             <option value="custom">Custom</option>
                           </select>
@@ -1054,18 +1226,23 @@ export const RewardsAdminDashboard: React.FC = () => {
                           <select
                             className="w-full border rounded-xl px-3 py-2"
                             value={task.metric || "count"}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              const newMetric = event.target.value as
+                                | "count"
+                                | "amount"
+                                | "duration";
                               handleTaskChange(index, {
-                                metric: event.target.value as
-                                  | "count"
-                                  | "amount"
-                                  | "duration",
-                              })
-                            }
+                                metric: newMetric,
+                              });
+                            }}
                           >
-                            <option value="count">Count</option>
-                            <option value="amount">Amount</option>
-                            <option value="duration">Duration</option>
+                            {getAvailableMetrics(
+                              task.actionType || "custom"
+                            ).map((metric) => (
+                              <option key={metric.value} value={metric.value}>
+                                {metric.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <div className="flex-1">
@@ -1154,11 +1331,14 @@ export const RewardsAdminDashboard: React.FC = () => {
                               Automatic Detection
                             </Label>
                             <p className="text-xs text-gray-500">
-                              Progress updates automatically
+                              {task.actionType === "custom"
+                                ? "Not available for custom tasks"
+                                : "Progress updates automatically"}
                             </p>
                           </div>
                           <Switch
                             checked={task.isAutomated}
+                            disabled={task.actionType === "custom"}
                             onCheckedChange={(checked) =>
                               handleTaskChange(index, { isAutomated: checked })
                             }
@@ -1168,16 +1348,26 @@ export const RewardsAdminDashboard: React.FC = () => {
                           <div>
                             <Label className="text-sm">
                               Requires Verification
+                              {task.actionType === "custom" && (
+                                <span className="text-red-500 ml-1">*</span>
+                              )}
                             </Label>
                             <p className="text-xs text-gray-500">
-                              Staff must approve completion
+                              {task.actionType === "custom"
+                                ? "Mandatory for custom tasks"
+                                : "Staff must approve completion"}
                             </p>
                           </div>
                           <Switch
-                            checked={Boolean(
-                              (task.metadata as TaskMetadata | undefined)
-                                ?.requiresVerification
-                            )}
+                            checked={
+                              task.actionType === "custom"
+                                ? true
+                                : Boolean(
+                                    (task.metadata as TaskMetadata | undefined)
+                                      ?.requiresVerification
+                                  )
+                            }
+                            disabled={task.actionType === "custom"}
                             onCheckedChange={(checked) =>
                               handleTaskChange(index, {
                                 metadata: {
@@ -1209,6 +1399,17 @@ export const RewardsAdminDashboard: React.FC = () => {
               </div>
 
               <div className="flex gap-3 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    resetForm();
+                    setActiveTab("catalog");
+                  }}
+                  disabled={saving}
+                  type="button"
+                >
+                  Cancel
+                </Button>
                 <Button
                   variant="outline"
                   onClick={resetForm}
@@ -1347,6 +1548,27 @@ export const RewardsAdminDashboard: React.FC = () => {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="reports-analytics" className="space-y-6">
+          <Tabs defaultValue="report" className="space-y-6">
+            <TabsList className="w-full max-w-xl">
+              <TabsTrigger value="report" className="flex-1">
+                Report
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex-1">
+                Analytics
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="report" className="space-y-6">
+              <RewardsReport />
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-6">
+              <RewardsAnalytics />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 

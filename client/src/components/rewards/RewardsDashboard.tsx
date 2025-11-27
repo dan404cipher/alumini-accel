@@ -29,17 +29,16 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
   showHeader = true,
 }) => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(false);
   const [rewards, setRewards] = useState<RewardTemplate[]>([]);
   const [summary, setSummary] = useState<RewardSummary | null>(null);
   const [activities, setActivities] = useState<RewardActivity[]>([]);
   const [tierInfo, setTierInfo] = useState<TierInfo | null>(null);
   const [badges, setBadges] = useState<BadgeType[]>([]);
-  const [filter, setFilter] = useState<
-    "all" | "featured" | "points" | "voucher"
-  >("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "featured" | "points" | "badge">(
+    "all"
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
   const [pagination, setPagination] = useState({
@@ -74,7 +73,11 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
 
   const fetchRewards = useCallback(async () => {
     try {
-      setLoading(true);
+      if (initialLoading) {
+        setInitialLoading(true);
+      } else {
+        setListLoading(true);
+      }
       const [
         rewardResponse,
         summaryResponse,
@@ -85,7 +88,6 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
         rewardsAPI.getRewards({
           page: currentPage,
           limit: pageSize,
-          search: debouncedSearch || undefined,
         }) as Promise<ApiResponse<RewardsListResponse>>,
         rewardsAPI.getSummary() as Promise<ApiResponse<RewardsSummaryResponse>>,
         rewardsAPI.getActivities() as Promise<
@@ -138,21 +140,16 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (initialLoading) {
+        setInitialLoading(false);
+      }
+      setListLoading(false);
     }
-  }, [toast, currentPage, pageSize, debouncedSearch]);
+  }, [toast, currentPage, pageSize, initialLoading]);
 
   useEffect(() => {
     fetchRewards();
   }, [fetchRewards]);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setCurrentPage(1);
-      setDebouncedSearch(searchTerm.trim());
-    }, 400);
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
 
   const filteredRewards = useMemo(() => {
     if (filter === "featured") {
@@ -161,8 +158,8 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
     if (filter === "points") {
       return rewards.filter((reward) => reward.rewardType === "points");
     }
-    if (filter === "voucher") {
-      return rewards.filter((reward) => reward.rewardType === "voucher");
+    if (filter === "badge") {
+      return rewards.filter((reward) => reward.rewardType === "badge");
     }
     return rewards;
   }, [filter, rewards]);
@@ -271,7 +268,7 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
     </div>
   );
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-36 w-full" />
@@ -333,35 +330,38 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
 
         <TabsContent value="catalog" className="mt-6 space-y-6">
           <div className="flex flex-wrap gap-2">
-            {["all", "featured", "points", "voucher"].map((item) => (
-              <Badge
-                key={item}
-                variant={filter === item ? "default" : "outline"}
-                className="cursor-pointer capitalize"
-                onClick={() =>
-                  setFilter(item as "all" | "featured" | "points" | "voucher")
+            {["all", "featured", "points", "badge"]
+              .filter((item) => {
+                if (item === "points") {
+                  return rewards.some(
+                    (reward) => reward.rewardType === "points"
+                  );
                 }
-              >
-                {item}
-              </Badge>
-            ))}
+                if (item === "badge") {
+                  return rewards.some(
+                    (reward) => reward.rewardType === "badge"
+                  );
+                }
+                return true;
+              })
+              .map((item) => (
+                <Badge
+                  key={item}
+                  variant={filter === item ? "default" : "outline"}
+                  className="cursor-pointer capitalize"
+                  onClick={() =>
+                    setFilter(item as "all" | "featured" | "points" | "badge")
+                  }
+                >
+                  {item}
+                </Badge>
+              ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search rewards..."
-                className="pl-9"
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Showing page {pagination.page} of {pagination.totalPages} (
-              {pagination.total} results)
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Showing page {pagination.page} of {pagination.totalPages} (
+            {pagination.total} results)
+          </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredRewards.map((reward) => (

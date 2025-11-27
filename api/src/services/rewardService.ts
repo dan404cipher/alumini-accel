@@ -64,14 +64,6 @@ export const rewardService = {
 
   async listRewards(filters: RewardFilters = {}) {
     const query: FilterQuery<IReward> = {};
-    if (filters.search) {
-      const searchRegex = new RegExp(filters.search.trim(), "i");
-      query.$or = [
-        ...(query.$or || []),
-        { name: searchRegex },
-        { description: searchRegex },
-      ];
-    }
 
     if (filters.tenantId) {
       query.$or = [
@@ -95,6 +87,14 @@ export const rewardService = {
 
     if (filters.featured) {
       query.isFeatured = true;
+    }
+
+    if (filters.search) {
+      const searchRegex = new RegExp(filters.search.trim(), "i");
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [{ name: searchRegex }, { description: searchRegex }],
+      });
     }
 
     // Pagination parameters

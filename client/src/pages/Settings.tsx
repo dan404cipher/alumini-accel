@@ -220,30 +220,7 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Profile Visibility</Label>
-                    <Select
-                      value={settings.profileVisibility}
-                      onValueChange={(value) =>
-                        handleSettingChange("profileVisibility", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="public">
-                          Public - Anyone can see
-                        </SelectItem>
-                        <SelectItem value="alumni">
-                          Alumni Only - Only registered alumni
-                        </SelectItem>
-                        <SelectItem value="private">
-                          Private - Only me
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  
 
                   <Separator />
 
@@ -312,51 +289,6 @@ const Settings = () => {
               </CardContent>
             </Card>
 
-            {/* Security Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Lock className="w-5 h-5 mr-2" />
-                  Security
-                </CardTitle>
-                <CardDescription>
-                  Manage your account security settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Two-Factor Authentication</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Add an extra layer of security to your account
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings.twoFactorAuth}
-                      onCheckedChange={(checked) =>
-                        handleSettingChange("twoFactorAuth", checked)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Login Alerts</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified when someone logs into your account
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings.loginAlerts}
-                      onCheckedChange={(checked) =>
-                        handleSettingChange("loginAlerts", checked)
-                      }
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Prefer
 
@@ -365,7 +297,7 @@ const Settings = () => {
               <CardHeader>
                 <CardTitle className="flex items-center text-destructive">
                   <AlertCircle className="w-5 h-5 mr-2" />
-                  Thodra pakalm Zone
+                  Danger Zone
                 </CardTitle>
                 <CardDescription>
                   Irreversible and destructive actions

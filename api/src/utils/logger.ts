@@ -1,5 +1,12 @@
 import winston from "winston";
 import path from "path";
+import fs from "fs";
+
+// Ensure logs directory exists before transports attempt to write to it
+const logsDir = path.join(process.cwd(), "logs");
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 const logFormat = winston.format.combine(
   winston.format.timestamp({
@@ -23,7 +30,7 @@ const consoleFormat = winston.format.combine(
 );
 
 const enableExceptionHandlers =
-  process.env.DISABLE_WINSTON_EXCEPTION_HANDLERS !== "true";
+  process.env.ENABLE_WINSTON_EXCEPTION_HANDLERS === "true";
 
 const exceptionTransports = enableExceptionHandlers
   ? [
@@ -45,6 +52,7 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || "info",
   format: logFormat,
   defaultMeta: { service: "alumni-accel-api" },
+  exitOnError: false,
   transports: [
     // Console transport
     new winston.transports.Console({
@@ -69,12 +77,5 @@ const logger = winston.createLogger({
   exceptionHandlers: exceptionTransports,
   rejectionHandlers: rejectionTransports,
 });
-
-// Create logs directory if it doesn't exist
-import fs from "fs";
-const logsDir = path.join(process.cwd(), "logs");
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
 
 export { logger };

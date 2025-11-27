@@ -93,6 +93,7 @@ let socketService: SocketService;
 // Connect to database
 const startServer = async () => {
   try {
+    logger.info("Initializing AlumniAccel API bootstrap sequence");
     // Try to connect to database, but don't block server startup if it fails
     connectDB().catch((error) => {
       logger.error(

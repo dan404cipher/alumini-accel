@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import rewardService from "../services/rewardService";
 import { AuthenticatedRequest, UserRole } from "../types";
 import User from "../models/User";
+import notificationService from "../services/notificationService";
 
 const rewardController = {
   async listRewards(req: AuthenticatedRequest, res: Response) {
@@ -62,6 +63,25 @@ const rewardController = {
 
   async createReward(req: AuthenticatedRequest, res: Response) {
     const reward = await rewardService.createRewardTemplate(req.body, req);
+    const rewardDoc = reward as any;
+    const rewardId =
+      rewardDoc?._id?.toString?.() ?? (rewardDoc?._id ? String(rewardDoc._id) : "");
+    const rewardTitle: string = rewardDoc?.title ?? "";
+
+    try {
+      await notificationService.sendToRoles({
+        event: "reward.new",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: req.tenantId,
+        data: {
+          title: rewardTitle,
+          rewardId,
+        },
+      });
+    } catch (notifyError) {
+      console.error("Failed to send new reward notification:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Reward created successfully",

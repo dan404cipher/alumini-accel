@@ -413,8 +413,8 @@ export const PostJobDialog = ({
 
       if (response.success) {
         toast({
-          title: "Job Posted Successfully",
-          description: `${formData.title} at ${formData.company} has been posted to the job board.`,
+          title: "Job Submitted for Review",
+          description: `${formData.title} at ${formData.company} is awaiting admin approval before it appears on the job board.`,
         });
 
         // Reset form

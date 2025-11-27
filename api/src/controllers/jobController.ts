@@ -3,8 +3,9 @@ import mongoose from "mongoose";
 import JobPost from "../models/JobPost";
 import User from "../models/User";
 import { logger } from "../utils/logger";
-import { JobPostStatus } from "../types";
+import { JobPostStatus, UserRole } from "../types";
 import rewardIntegrationService from "../services/rewardIntegrationService";
+import notificationService from "../services/notificationService";
 
 // Helper function to transform job object, replacing ObjectId strings with category names
 const transformJob = (job: any) => {
@@ -221,7 +222,7 @@ export const createJob = async (req: Request, res: Response) => {
 
     return res.status(201).json({
       success: true,
-      message: "Job post created successfully",
+      message: "Job submitted for approval",
       data: { job },
     });
   } catch (error) {
@@ -268,6 +269,8 @@ export const updateJob = async (req: Request, res: Response) => {
         message: "Not authorized to update this job post",
       });
     }
+
+    const previousStatus = job.status;
 
     const {
       company,
@@ -330,6 +333,30 @@ export const updateJob = async (req: Request, res: Response) => {
     if (status !== undefined) job.status = status;
 
     await job.save();
+
+    const becameActive =
+      previousStatus !== JobPostStatus.ACTIVE &&
+      job.status === JobPostStatus.ACTIVE;
+
+    if (becameActive) {
+      try {
+        await notificationService.sendToRoles({
+          event: "job.new",
+          roles: [UserRole.ALUMNI, UserRole.STUDENT],
+          tenantId: job.tenantId?.toString(),
+          data: {
+            jobId: job._id.toString(),
+            title: job.title,
+            company: job.company,
+          },
+          filters: {
+            _id: { $ne: job.postedBy },
+          },
+        });
+      } catch (notifyError) {
+        logger.error("Failed to send job activation notification:", notifyError);
+      }
+    }
 
     return res.json({
       success: true,
@@ -909,6 +936,24 @@ export const approveJob = async (req: Request, res: Response) => {
 
     job.status = JobPostStatus.ACTIVE;
     await job.save();
+
+    try {
+      await notificationService.sendToRoles({
+        event: "job.new",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: job.tenantId?.toString(),
+        data: {
+          jobId: job._id.toString(),
+          title: job.title,
+          company: job.company,
+        },
+        filters: {
+          _id: { $ne: job.postedBy },
+        },
+      });
+    } catch (notifyError) {
+      logger.error("Failed to send job activation notification:", notifyError);
+    }
 
     // Track reward progress for job posting
     rewardIntegrationService

@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import Campaign from "../models/Campaign";
 import Donation from "../models/Donation";
 import { asyncHandler } from "../middleware/errorHandler";
 import { logger } from "../utils/logger";
-import { AuthenticatedRequest } from "../types";
+import { AuthenticatedRequest, UserRole } from "../types";
+import notificationService from "../services/notificationService";
 
 // Get all campaigns
 export const getAllCampaigns = asyncHandler(
@@ -191,6 +193,24 @@ export const createCampaign = asyncHandler(
       await campaign.populate("createdBy", "firstName lastName email");
       await campaign.populate("tenantId", "name");
 
+      if (campaign.status === "active") {
+        try {
+          const campaignId = (campaign._id as Types.ObjectId).toString();
+          await notificationService.sendToRoles({
+            event: "donation.campaign",
+            roles: [UserRole.ALUMNI, UserRole.STUDENT],
+            tenantId: campaign.tenantId,
+            data: {
+              campaignId,
+              title: campaign.title,
+              organizer: (campaign as any).tenantId?.name,
+            },
+          });
+        } catch (notifyError) {
+          logger.warn("Failed to send campaign notification:", notifyError);
+        }
+      }
+
       return res.status(201).json({
         success: true,
         message: "Campaign created successfully",
@@ -272,6 +292,32 @@ export const updateCampaign = asyncHandler(
       )
         .populate("createdBy", "firstName lastName email")
         .populate("tenantId", "name");
+
+      const becameActive =
+        campaign.status !== "active" && updatedCampaign?.status === "active";
+
+      if (becameActive && updatedCampaign) {
+        try {
+          const updatedCampaignId = (
+            updatedCampaign._id as Types.ObjectId
+          ).toString();
+          await notificationService.sendToRoles({
+            event: "donation.campaign",
+            roles: [UserRole.ALUMNI, UserRole.STUDENT],
+            tenantId: updatedCampaign.tenantId,
+            data: {
+              campaignId: updatedCampaignId,
+              title: updatedCampaign.title,
+              organizer: (updatedCampaign as any).tenantId?.name,
+            },
+          });
+        } catch (notifyError) {
+          logger.warn(
+            "Failed to send campaign activation notification:",
+            notifyError
+          );
+        }
+      }
 
       return res.status(200).json({
         success: true,

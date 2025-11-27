@@ -85,7 +85,7 @@ const exportCredentialsToExcel = async () => {
           "User ID": user._id.toString(),
           Email: user.email,
           "Full Name": `${user.firstName} ${user.lastName}`,
-          University: alumniProfile.university || "N/A",
+          University: (alumniProfile as any).university || "N/A",
           Program: alumniProfile.program || "N/A",
           Department: alumniProfile.department || "N/A",
           "Batch Year": alumniProfile.batchYear || "N/A",

@@ -1,6 +1,7 @@
 import User from "../models/User";
 import AlumniProfile from "../models/AlumniProfile";
 import { Notification } from "../models/Notification";
+import notificationService from "../services/notificationService";
 import { logger } from "./logger";
 import rewardIntegrationService from "../services/rewardIntegrationService";
 
@@ -119,15 +120,12 @@ export const checkAndCreateProfileCompletionNotification = async (
       return;
     }
 
-    // Create the notification
-    await Notification.createNotification({
-      userId,
-      title: "Complete Your Profile",
-      message: `Your profile is only ${user.profileCompletionPercentage}% complete. Complete your profile to connect with other alumni and unlock more features.`,
-      type: "warning",
-      category: "system",
-      priority: "medium",
-      actionUrl: "/profile",
+    await notificationService.send({
+      recipients: [userId.toString()],
+      event: "profile.reminder",
+      data: {
+        completion: `${user.profileCompletionPercentage}%`,
+      },
       metadata: {
         profileCompletionPercentage: user.profileCompletionPercentage,
         triggeredBy: "login",

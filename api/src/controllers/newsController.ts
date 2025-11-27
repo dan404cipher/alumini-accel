@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import News from "../models/News";
 import { logger } from "../utils/logger";
+import notificationService from "../services/notificationService";
+import { UserRole } from "../types";
 
 // Get all news
 export const getAllNews = async (req: Request, res: Response) => {
@@ -150,6 +152,21 @@ export const createNews = async (req: Request, res: Response) => {
 
     await news.save();
 
+    try {
+      await notificationService.sendToRoles({
+        event: "news.published",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: req.user?.tenantId,
+        data: {
+          newsId: news._id.toString(),
+          title: news.title,
+          summary: news.summary,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send news notification:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "News created successfully",
@@ -189,6 +206,21 @@ export const createNewsWithImage = async (req: Request, res: Response) => {
     });
 
     await news.save();
+
+    try {
+      await notificationService.sendToRoles({
+        event: "news.published",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: req.user?.tenantId,
+        data: {
+          newsId: news._id.toString(),
+          title: news.title,
+          summary: news.summary,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send news notification:", notifyError);
+    }
 
     return res.status(201).json({
       success: true,

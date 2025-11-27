@@ -31,6 +31,7 @@ import AlumniProfile from "./components/AlumniProfile";
 import Alumni360View from "./components/alumni-360/Alumni360View";
 import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
+import GalleryDetailPage from "./pages/GalleryDetail";
 import Connections from "./pages/Connections";
 import Messages from "./pages/Messages";
 import CommunityDetailNew from "./pages/CommunityDetailNew";
@@ -81,6 +82,7 @@ const App = () => {
                   <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/about" element={<AboutUs />} />
                   <Route path="/gallery" element={<Gallery />} />
+                  <Route path="/gallery/:id" element={<GalleryDetailPage />} />
                   <Route path="/connections" element={<Connections />} />
                   <Route
                     path="/connections/my-connections"
@@ -241,6 +243,22 @@ const App = () => {
                       </ProtectedRoute>
                     }
                   />
+                <Route
+                  path="/jobs/:id/applications"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/jobs/myapplications/:jobId"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
 
                   <Route
                     path="/jobs"

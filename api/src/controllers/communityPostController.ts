@@ -6,6 +6,7 @@ import CommunityMembership from "../models/CommunityMembership";
 import CommunityComment from "../models/CommunityComment";
 import { IUser } from "../types";
 import rewardIntegrationService from "../services/rewardIntegrationService";
+import notificationService from "../services/notificationService";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -114,6 +115,38 @@ export const createPost = async (req: AuthenticatedRequest, res: Response) => {
           // Log but don't fail post creation
           console.error("Error tracking reward for community post:", error);
         });
+
+      try {
+        const memberDocs = await CommunityMembership.find({
+          communityId,
+          status: "approved",
+        }).select("userId");
+
+        const recipients = memberDocs
+          .map((member: any) => member.userId?.toString())
+          .filter(
+            (id?: string | null) =>
+              id && id !== userId?.toString()
+          ) as string[];
+
+        if (recipients.length) {
+          await notificationService.send({
+            recipients,
+            event: "post.new",
+            data: {
+              communityId,
+              communityName: community.name,
+              authorName: `${req.user?.firstName ?? ""} ${
+                req.user?.lastName ?? ""
+              }`.trim(),
+              postId: postId,
+              preview: content?.slice(0, 140),
+            },
+          });
+        }
+      } catch (notifyError) {
+        console.error("Failed to send community post notification:", notifyError);
+      }
     }
 
     // Populate author info
@@ -452,6 +485,26 @@ export const likePost = async (req: AuthenticatedRequest, res: Response) => {
 
     (post as any).likePost(userId.toString());
     await post.save();
+
+    const postIdString = (post._id as Types.ObjectId).toString();
+
+    if (post.authorId.toString() !== userId.toString()) {
+      try {
+        await notificationService.send({
+          recipients: [post.authorId.toString()],
+          event: "post.like",
+          data: {
+            communityId: post.communityId.toString(),
+            postId: postIdString,
+            likerName: `${req.user?.firstName ?? "Someone"} ${
+              req.user?.lastName ?? ""
+            }`.trim(),
+          },
+        });
+      } catch (notifyError) {
+        console.error("Failed to send post like notification:", notifyError);
+      }
+    }
 
     return res.json({
       success: true,

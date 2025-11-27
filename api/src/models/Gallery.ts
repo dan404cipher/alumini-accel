@@ -26,12 +26,28 @@ const GallerySchema = new Schema<IGallery>(
       trim: true,
       maxlength: 1000,
     },
-    images: [
-      {
-        type: String,
-        required: true,
-      },
-    ],
+    images: {
+      type: [
+        {
+          type: String,
+          required: true,
+        },
+      ],
+      validate: [
+        {
+          validator: function (value: string[]) {
+            return Array.isArray(value) && value.length > 0;
+          },
+          message: "At least one image is required",
+        },
+        {
+          validator: function (value: string[]) {
+            return Array.isArray(value) && value.length <= 50;
+          },
+          message: "You can upload a maximum of 50 images per gallery",
+        },
+      ],
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",

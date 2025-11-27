@@ -9,6 +9,7 @@ import User from "../models/User";
 import { AuthenticatedRequest } from "../types";
 import { calculateTier, getTierInfo, TierInfo } from "../utils/tierCalculation";
 import { logger } from "../utils/logger";
+import notificationService from "./notificationService";
 
 interface RewardFilters {
   tenantId?: string;
@@ -294,6 +295,49 @@ export const rewardService = {
     }
 
     const shouldAwardBadges = justEarned && verificationSatisfied;
+
+    if (justEarned) {
+      try {
+        await notificationService.send({
+          recipients: [userId],
+          event: "task.completed",
+          data: {
+            taskTitle: subTask?.title ?? reward.name,
+            points: activity.pointsAwarded ?? reward.points,
+          },
+        });
+      } catch (notifyError) {
+        logger.warn(
+          "Failed to send task completion notification:",
+          notifyError
+        );
+      }
+    }
+
+    if (justEarned && verificationSatisfied) {
+      const rewardBadgeName =
+        typeof (reward as any)?.badge?.name === "string"
+          ? (reward as any).badge.name
+          : undefined;
+      const taskBadgeName =
+        typeof (subTask as any)?.badge?.name === "string"
+          ? (subTask as any).badge.name
+          : undefined;
+
+      try {
+        await notificationService.send({
+          recipients: [userId],
+          event: "reward.earned",
+          data: {
+            title: reward.name,
+            points: activity.pointsAwarded ?? reward.points,
+            badgeName: rewardBadgeName || taskBadgeName,
+          },
+        });
+      } catch (notifyError) {
+        logger.warn("Failed to send reward earned notification:", notifyError);
+      }
+    }
 
     if (shouldAwardBadges) {
       console.log(
@@ -678,6 +722,19 @@ export const rewardService = {
       }
     } else {
       console.log("[claimReward] Reward type is not badge and no badge linked");
+    }
+
+    try {
+      await notificationService.send({
+        recipients: [userId],
+        event: "reward.claimed",
+        data: {
+          title: reward?.name,
+          voucherCode: activity.voucherCode,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send reward claimed notification:", notifyError);
     }
 
     return activity;

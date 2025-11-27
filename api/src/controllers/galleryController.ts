@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import Gallery, { IGallery } from "../models/Gallery";
 import { asyncHandler } from "../middleware/errorHandler";
+import notificationService from "../services/notificationService";
+import { UserRole } from "../types";
 
 // Get all galleries (public access)
 export const getAllGalleries = asyncHandler(
@@ -180,6 +183,21 @@ export const createGallery = asyncHandler(
     // Populate the createdBy field for response
     await gallery.populate("createdBy", "firstName lastName email");
 
+    try {
+      const galleryId = (gallery._id as Types.ObjectId).toString();
+      await notificationService.sendToRoles({
+        event: "gallery.album",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: (req as any).user?.tenantId,
+        data: {
+          albumId: galleryId,
+          title: gallery.title,
+        },
+      });
+    } catch (notifyError) {
+      console.error("Failed to send gallery notification:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Gallery created successfully",
@@ -227,6 +245,27 @@ export const updateGallery = asyncHandler(
 
     // Populate the createdBy field for response
     await gallery.populate("createdBy", "firstName lastName email");
+
+    if (images && Array.isArray(images) && images.length > 0) {
+      try {
+        const galleryId = (gallery._id as Types.ObjectId).toString();
+        await notificationService.sendToRoles({
+          event: "gallery.media",
+          roles: [UserRole.ALUMNI, UserRole.STUDENT],
+          tenantId: (req as any).user?.tenantId,
+          data: {
+            albumId: galleryId,
+            albumTitle: gallery.title,
+            count: images.length,
+          },
+        });
+      } catch (notifyError) {
+        console.error(
+          "Failed to send gallery media notification:",
+          notifyError
+        );
+      }
+    }
 
     return res.json({
       success: true,

@@ -4,8 +4,9 @@ import Donation from "../models/Donation";
 import rewardIntegrationService from "../services/rewardIntegrationService";
 import PaymentService from "../services/paymentService";
 import { asyncHandler } from "../middleware/errorHandler";
-import { AuthenticatedRequest } from "../types";
+import { AuthenticatedRequest, UserRole } from "../types";
 import { logger } from "../utils/logger";
+import notificationService from "../services/notificationService";
 
 // Get all donations
 export const getAllDonations = async (req: Request, res: Response) => {
@@ -126,6 +127,66 @@ export const createDonation = async (req: Request, res: Response) => {
     await donation.populate("donor", "firstName lastName email");
     if (donation.campaignId) {
       await donation.populate("campaignId", "title");
+    }
+
+    try {
+      if (donation.donor) {
+        await notificationService.send({
+          recipients: [donation.donor.toString()],
+          event: "donation.success",
+          data: {
+            amount: donation.amount,
+            campaignTitle: (donation as any).campaignId?.title,
+          },
+        });
+      }
+
+      await notificationService.sendToRoles({
+        event: "donation.thankyou",
+        roles: [UserRole.COLLEGE_ADMIN, UserRole.STAFF, UserRole.HOD],
+        tenantId: donation.tenantId,
+        data: {
+          amount: donation.amount,
+          campaignTitle: (donation as any).campaignId?.title,
+          organizer: (donation as any).donor
+            ? `${(donation as any).donor.firstName ?? ""} ${
+                (donation as any).donor.lastName ?? ""
+              }`.trim()
+            : donation.donorName,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send donation notifications:", notifyError);
+    }
+
+    try {
+      if (donation.donor) {
+        await notificationService.send({
+          recipients: [donation.donor.toString()],
+          event: "donation.success",
+          data: {
+            amount: donation.amount,
+            campaignTitle: (donation as any).campaignId?.title,
+          },
+        });
+      }
+
+      await notificationService.sendToRoles({
+        event: "donation.thankyou",
+        roles: [UserRole.COLLEGE_ADMIN, UserRole.STAFF, UserRole.HOD],
+        tenantId: donation.tenantId,
+        data: {
+          amount: donation.amount,
+          campaignTitle: (donation as any).campaignId?.title,
+          organizer: (donation as any).donor
+            ? `${(donation as any).donor.firstName ?? ""} ${
+                (donation as any).donor.lastName ?? ""
+              }`.trim()
+            : donation.donorName,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send donation notifications:", notifyError);
     }
 
     // Generate receipt and send emails

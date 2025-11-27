@@ -1,13 +1,12 @@
 import { Request, Response } from "express";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import CommunityPost from "../models/CommunityPost";
 import User from "../models/User";
-import { Notification } from "../models/Notification";
-import { IUser } from "../types";
-import { socketService } from "../index";
+import { IUser, UserRole } from "../types";
 import { asyncHandler } from "../middleware/errorHandler";
+import notificationService from "../services/notificationService";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -97,6 +96,21 @@ export const createCommunity = async (
     });
 
     await membership.save();
+
+    try {
+      const communityId = (community._id as Types.ObjectId).toString();
+      await notificationService.sendToRoles({
+        event: "community.created",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: (req as any).user?.tenantId,
+        data: {
+          communityId,
+          name: community.name,
+        },
+      });
+    } catch (notifyError) {
+      console.error("Failed to send community created notification:", notifyError);
+    }
 
     return res.status(201).json({
       success: true,
@@ -558,29 +572,23 @@ export const joinCommunity = async (
         );
 
         // Send notification to each admin
-        for (const admin of adminsToNotify) {
-          if (admin._id.toString() !== userId.toString()) {
-            // Don't notify the requester
-            const notification = await Notification.createNotification({
-              userId: admin._id.toString(),
-              title: "New Community Join Request",
-              message: `${req.user?.firstName} ${req.user?.lastName} wants to join "${community.name}"`,
-              type: "info",
-              category: "community",
-              actionUrl: `/communities/${id}`,
-              metadata: {
-                communityId: id,
-                communityName: community.name,
-                requesterId: userId.toString(),
-                requesterName: `${req.user?.firstName} ${req.user?.lastName}`,
-              },
-            });
+        const recipients = adminsToNotify
+          .filter((admin) => admin._id.toString() !== userId.toString())
+          .map((admin) => admin._id.toString());
 
-            // Emit real-time notification
-            if (socketService) {
-              socketService.emitNewNotification(notification);
-            }
-          }
+        if (recipients.length) {
+          await notificationService.send({
+            recipients,
+            event: "community.join.request",
+            data: {
+              communityId: id,
+              communityName: community.name,
+              requesterId: userId.toString(),
+              requesterName: `${req.user?.firstName ?? "A member"} ${
+                req.user?.lastName ?? ""
+              }`.trim(),
+            },
+          });
         }
       } catch (notificationError) {
         console.error(

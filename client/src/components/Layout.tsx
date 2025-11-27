@@ -12,6 +12,8 @@ import CommunityNew from "./CommunityNew";
 import Donations from "./Donations";
 import Mentorship from "./mentorship";
 import JobDetail from "../pages/JobDetail";
+import JobApplicationsPage from "../pages/JobApplications";
+import MyJobApplicationPage from "../pages/MyJobApplication";
 import EventDetail from "../pages/EventDetail";
 import CommunityDetailNew from "../pages/CommunityDetailNew";
 import Messages from "../pages/Messages";
@@ -49,6 +51,19 @@ const Layout = () => {
   }, [activeTab, navigate]);
 
   const renderContent = () => {
+    // Handle job applications management pages
+    if (
+      location.pathname.startsWith("/jobs/") &&
+      location.pathname.includes("/applications")
+    ) {
+      return <JobApplicationsPage />;
+    }
+
+    // Handle applicant's application pages
+    if (location.pathname.startsWith("/jobs/myapplications/")) {
+      return <MyJobApplicationPage />;
+    }
+
     // Handle job detail pages
     if (
       location.pathname.startsWith("/jobs/") &&

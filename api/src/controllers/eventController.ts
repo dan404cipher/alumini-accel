@@ -5,8 +5,9 @@ import User from "../models/User";
 import { logger } from "../utils/logger";
 import { emailService } from "../services/emailService";
 import Tenant from "../models/Tenant";
-import { EventType } from "../types";
+import { EventType, UserRole } from "../types";
 import rewardIntegrationService from "../services/rewardIntegrationService";
+import notificationService from "../services/notificationService";
 
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {
@@ -308,6 +309,24 @@ export const createEventWithImage = async (req: Request, res: Response) => {
       throw saveError;
     }
 
+    try {
+      await notificationService.sendToRoles({
+        event: "event.published",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: req.user?.tenantId,
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toLocaleDateString(),
+          organizer: req.user?.firstName
+            ? `${req.user.firstName} ${req.user.lastName ?? ""}`.trim()
+            : undefined,
+        },
+      });
+    } catch (notifyError) {
+      logger.error("Failed to send event publish notification:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Event created successfully",
@@ -395,6 +414,24 @@ export const createEvent = async (req: Request, res: Response) => {
       organizer: event.organizer,
     });
 
+    try {
+      await notificationService.sendToRoles({
+        event: "event.published",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: req.user?.tenantId,
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toLocaleDateString(),
+          organizer: req.user?.firstName
+            ? `${req.user.firstName} ${req.user.lastName ?? ""}`.trim()
+            : undefined,
+        },
+      });
+    } catch (notifyError) {
+      logger.error("Failed to send event publish notification:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Event created successfully",
@@ -478,6 +515,20 @@ export const updateEvent = async (req: Request, res: Response) => {
     if (organizerNotes !== undefined) event.organizerNotes = organizerNotes;
 
     await event.save();
+
+    try {
+      await notificationService.send({
+        recipients: [req.user.id],
+        event: "event.registered",
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toISOString(),
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send confirmed registration notification:", notifyError);
+    }
 
     return res.json({
       success: true,
@@ -718,6 +769,24 @@ export const registerForEvent = async (req: Request, res: Response) => {
       event.attendees.push(attendee as any);
       await event.save();
 
+      try {
+        await notificationService.send({
+          recipients: [req.user.id],
+          event: "event.registered",
+          overrides: {
+            message: () =>
+              `Your registration for "${event.title}" was received and awaits approval.`,
+          },
+          data: {
+            eventId: event._id.toString(),
+            title: event.title,
+            startDateFormatted: event.startDate?.toISOString(),
+          },
+        });
+      } catch (notifyError) {
+        logger.warn("Failed to send event registration notification:", notifyError);
+      }
+
       // Send pending approval email for free events
       try {
         const organizerDoc = await (Event as any)
@@ -768,6 +837,24 @@ export const registerForEvent = async (req: Request, res: Response) => {
     };
     event.attendees.push(attendee as any);
     await event.save();
+
+    try {
+      await notificationService.send({
+        recipients: [req.user.id],
+        event: "event.registered",
+        overrides: {
+          message: () =>
+            `Payment pending for "${event.title}". Complete it to confirm your spot.`,
+        },
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toISOString(),
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send event registration notification:", notifyError);
+    }
 
     // Paid event - pending payment; do not send email yet
     return res.json({
@@ -1506,6 +1593,20 @@ export const approveEventRegistration = async (req: Request, res: Response) => {
       });
     } catch (e) {
       logger.warn("Failed to send approval email", e);
+    }
+
+    try {
+      await notificationService.send({
+        recipients: [attendee.userId.toString()],
+        event: "event.registered",
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toISOString(),
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send approval notification:", notifyError);
     }
 
     return res.json({

@@ -4,6 +4,7 @@ import JobPost from "../models/JobPost";
 import User from "../models/User";
 import mongoose from "mongoose";
 import { AuthenticatedRequest } from "../types";
+import notificationService from "../services/notificationService";
 
 // Apply for a job
 export const applyForJob = async (req: AuthenticatedRequest, res: Response) => {
@@ -139,6 +140,34 @@ export const applyForJob = async (req: AuthenticatedRequest, res: Response) => {
         });
         await jobPost.save();
       }
+    }
+
+    try {
+      await notificationService.send({
+        recipients: [userId.toString()],
+        event: "job.applied",
+        data: {
+          jobId: jobId,
+          title: job.title,
+          company: job.company,
+        },
+      });
+
+      if (job.postedBy && job.postedBy.toString() !== userId.toString()) {
+        await notificationService.send({
+          recipients: [job.postedBy.toString()],
+          event: "job.application.received",
+          data: {
+            jobId: jobId,
+            title: job.title,
+            applicantName: `${req.user?.firstName ?? "An"} ${
+              req.user?.lastName ?? "applicant"
+            }`.trim(),
+          },
+        });
+      }
+    } catch (notifyError) {
+      console.error("Error sending job application notifications:", notifyError);
     }
 
     return res.status(201).json({
@@ -392,6 +421,39 @@ export const updateApplicationStatus = async (
         select: "firstName lastName",
       },
     ]);
+
+    try {
+      const applicant =
+        (application.applicantId as any)?._id?.toString() ??
+        (application.applicantId as any)?.toString();
+
+      if (applicant) {
+        if (status === "Shortlisted" || status === "Hired") {
+          await notificationService.send({
+            recipients: [applicant],
+            event: "job.application.accepted",
+            data: {
+              jobId: (application.jobId as any)?._id ?? application.jobId,
+              title: (application.jobId as any)?.title ?? "Job opportunity",
+            },
+          });
+        } else if (status === "Rejected") {
+          await notificationService.send({
+            recipients: [applicant],
+            event: "job.application.rejected",
+            data: {
+              jobId: (application.jobId as any)?._id ?? application.jobId,
+              title: (application.jobId as any)?.title ?? "Job opportunity",
+            },
+          });
+        }
+      }
+    } catch (notifyError) {
+      console.error(
+        "Error sending job application status notification:",
+        notifyError
+      );
+    }
 
     return res.status(200).json({
       success: true,

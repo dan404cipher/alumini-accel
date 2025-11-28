@@ -3,7 +3,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { logger } from "../utils/logger";
 import { Notification } from "../models/Notification";
 import { INotification } from "../types";
-import { socketService } from "../index";
+import { getSocketService } from "../services/socketServiceInstance";
 
 // Get all notifications for a user
 export const getNotifications = asyncHandler(
@@ -103,12 +103,15 @@ export const markAsRead = asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Emit socket event for notification update
-    if (socketService) {
+    try {
+      const socketService = getSocketService();
       socketService.emitNotificationUpdate(
         userId.toString(),
         notification._id.toString(),
         "read"
       );
+    } catch (err) {
+      logger.warn("Socket service not available", err);
     }
 
     return res.json({
@@ -141,8 +144,11 @@ export const markAllAsRead = asyncHandler(
       const result = await Notification.markAllAsRead(userId.toString());
 
       // Emit socket event for notification count update
-      if (socketService) {
+      try {
+        const socketService = getSocketService();
         socketService.emitNotificationCountUpdate(userId.toString(), 0);
+      } catch (err) {
+        logger.warn("Socket service not available", err);
       }
 
       return res.json({
@@ -187,12 +193,15 @@ export const deleteNotification = asyncHandler(
       }
 
       // Emit socket event for notification deletion
-      if (socketService) {
+      try {
+        const socketService = getSocketService();
         socketService.emitNotificationUpdate(
           userId.toString(),
           notification._id.toString(),
           "deleted"
         );
+      } catch (err) {
+        logger.warn("Socket service not available", err);
       }
 
       return res.json({
@@ -247,8 +256,11 @@ export const createNotification = asyncHandler(
       });
 
       // Emit socket event for new notification
-      if (socketService) {
+      try {
+        const socketService = getSocketService();
         socketService.emitNewNotification(notification);
+      } catch (err) {
+        logger.warn("Socket service not available", err);
       }
 
       return res.status(201).json({

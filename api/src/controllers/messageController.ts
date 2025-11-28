@@ -6,7 +6,7 @@ import Connection from "../models/Connection";
 import User from "../models/User";
 import { ConnectionStatus } from "../types/connection";
 import { MessageRequest, MessageResponse, MessageType } from "../types/message";
-import { socketService } from "../index";
+import { getSocketService } from "../services/socketServiceInstance";
 
 // Send a message
 export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
@@ -102,8 +102,8 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
   logger.info(`Message sent from ${senderId} to ${recipientId}`);
 
   // Emit socket event for real-time message
-  logger.info(`🔍 Socket service available: ${!!socketService}`);
-  if (socketService) {
+  try {
+    const socketService = getSocketService();
     // Create consistent conversation ID (sorted to ensure both users use same ID)
     const userIds = [senderId, recipientId].sort();
     const conversationId = `${userIds[0]}_${userIds[1]}`;
@@ -139,8 +139,8 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
     } catch (error) {
       logger.error("Error emitting unread count update:", error);
     }
-  } else {
-    logger.error("❌ Socket service is not available!");
+  } catch (error) {
+    logger.error("❌ Socket service is not available:", error);
   }
 
   return res.status(201).json({
@@ -252,8 +252,9 @@ export const getMessages = asyncHandler(async (req: Request, res: Response) => {
   const markedCount = await Message.markMessagesAsRead(recipientId, senderId);
   
   // Emit unread count update if messages were marked as read
-  if (socketService && markedCount.modifiedCount > 0) {
+  if (markedCount.modifiedCount > 0) {
     try {
+      const socketService = getSocketService();
       const unreadCount = await Message.getUnreadCount(recipientId);
       socketService.emitUnreadCountUpdate(recipientId, unreadCount);
       logger.info(`📊 Emitted unread_count_update to user ${recipientId}: ${unreadCount}`);
@@ -383,14 +384,13 @@ export const markAsRead = asyncHandler(async (req: Request, res: Response) => {
   await message.save();
 
   // Emit unread count update for the user
-  if (socketService) {
-    try {
-      const unreadCount = await Message.getUnreadCount(userId);
-      socketService.emitUnreadCountUpdate(userId, unreadCount);
+  try {
+    const socketService = getSocketService();
+    const unreadCount = await Message.getUnreadCount(userId);
+    socketService.emitUnreadCountUpdate(userId, unreadCount);
       logger.info(`📊 Emitted unread_count_update to user ${userId}: ${unreadCount}`);
-    } catch (error) {
-      logger.error("Error emitting unread count update:", error);
-    }
+  } catch (error) {
+    logger.error("Error emitting unread count update:", error);
   }
 
   return res.status(200).json({

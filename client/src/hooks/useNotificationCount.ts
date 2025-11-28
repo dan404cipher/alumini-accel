@@ -83,13 +83,15 @@ export const useNotificationCount = (): UseNotificationCountReturn => {
     };
 
     // Wait for socket connection
-    const setupSocketListeners = () => {
+    const setupSocketListeners = (retries: number = 0, maxRetries: number = 10) => {
       if (socketService.isSocketConnected()) {
         socketService.on("notification_count_update", handleNotificationCountUpdate);
         socketService.on("new_notification", handleNewNotification);
         socketService.on("notification_update", handleNotificationUpdate);
+      } else if (retries < maxRetries) {
+        setTimeout(() => setupSocketListeners(retries + 1, maxRetries), 1000);
       } else {
-        setTimeout(setupSocketListeners, 1000);
+        console.error('useNotificationCount: Failed to connect socket after max retries');
       }
     };
 

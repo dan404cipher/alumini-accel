@@ -73,11 +73,13 @@ export const useUnreadCount = (): UseUnreadCountReturn => {
     };
 
     // Wait for socket connection
-    const setupSocketListener = () => {
+    const setupSocketListener = (retries: number = 0, maxRetries: number = 10) => {
       if (socketService.isSocketConnected()) {
         socketService.on("unread_count_update", handleUnreadCountUpdate);
+      } else if (retries < maxRetries) {
+        setTimeout(() => setupSocketListener(retries + 1, maxRetries), 1000);
       } else {
-        setTimeout(setupSocketListener, 1000);
+        console.error('useUnreadCount: Failed to connect socket after max retries');
       }
     };
 

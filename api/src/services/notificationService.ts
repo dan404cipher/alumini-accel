@@ -2,7 +2,7 @@ import { Types } from "mongoose";
 import { Notification } from "../models/Notification";
 import User from "../models/User";
 import { logger } from "../utils/logger";
-import { socketService } from "../index";
+import { getSocketService } from "./socketServiceInstance";
 import {
   IUser,
   UserRole,
@@ -447,11 +447,14 @@ class NotificationService {
 
           notifications.push(record);
 
-          if (socketService) {
+          try {
+            const socketService = getSocketService();
             socketService.emitNewNotification(record);
             const unread = await Notification.getUnreadCount(userId);
             socketService.emitNotificationCountUpdate(userId, unread);
             socketService.emitUnreadCountUpdate(userId, unread);
+          } catch (err) {
+            logger.warn("Socket service not available for notification:", err);
           }
         } catch (err) {
           logger.error("Error sending notification:", err);

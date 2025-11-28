@@ -95,7 +95,7 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({
     if (!user) return;
 
     // Wait for socket to be connected before setting up listeners
-    const setupSocketListeners = () => {
+    const setupSocketListeners = (retries: number = 0, maxRetries: number = 10) => {
       if (socketService.isSocketConnected()) {
         // Listen for new messages
         socketService.on("new_message", (message: Message) => {
@@ -150,8 +150,10 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({
             }
           }
         );
+      } else if (retries < maxRetries) {
+        setTimeout(() => setupSocketListeners(retries + 1, maxRetries), 1000);
       } else {
-        setTimeout(setupSocketListeners, 1000);
+        console.error('MessagesContext: Failed to connect socket after max retries');
       }
     };
 

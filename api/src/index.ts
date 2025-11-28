@@ -98,8 +98,9 @@ server.headersTimeout = 66000; // 66 seconds
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
+
 // Initialize Socket.IO service
-let socketService: SocketService;
+import { initializeSocketService } from './services/socketServiceInstance';
 
 // Connect to database
 const startServer = async () => {
@@ -112,7 +113,7 @@ const startServer = async () => {
 
     // Initialize Socket.IO FIRST (before database connection)
     logger.info("Initializing Socket.IO service...");
-    socketService = new SocketService(server);
+    initializeSocketService(server);
     logger.info("Socket.IO service initialized");
 
     // Start server FIRST (don't wait for database)
@@ -800,5 +801,5 @@ try {
 }
 
 // Export socket service for use in other modules
-export { socketService };
+
 export default app;

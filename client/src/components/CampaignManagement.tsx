@@ -2042,7 +2042,7 @@ const CampaignManagement: React.FC = () => {
           </Card>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

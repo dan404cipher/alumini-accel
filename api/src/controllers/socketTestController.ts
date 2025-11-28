@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../middleware/errorHandler";
 import { logger } from "../utils/logger";
-import { socketService } from "../index";
+import { getSocketService } from "../services/socketServiceInstance";
 
 // Test endpoint to manually trigger socket events
 export const testSocketMessage = asyncHandler(
@@ -19,7 +19,8 @@ export const testSocketMessage = asyncHandler(
       `🧪 Testing socket message emission to conversation: ${conversationId}`
     );
 
-    if (socketService) {
+    try {
+      const socketService = getSocketService();
       const testMessage = {
         id: `test_${Date.now()}`,
         conversationId: conversationId,
@@ -49,7 +50,7 @@ export const testSocketMessage = asyncHandler(
         message: "Test message emitted",
         data: testMessage,
       });
-    } else {
+    } catch (err) {
       return res.status(500).json({
         success: false,
         message: "Socket service not available",
@@ -61,7 +62,8 @@ export const testSocketMessage = asyncHandler(
 // Test endpoint to check socket room status
 export const checkSocketRooms = asyncHandler(
   async (req: Request, res: Response) => {
-    if (socketService) {
+    try {
+      const socketService = getSocketService();
       const rooms = Array.from(socketService["io"].sockets.adapter.rooms.keys())
         .filter((room) => room.startsWith("conversation:"))
         .map((room) => ({
@@ -78,7 +80,7 @@ export const checkSocketRooms = asyncHandler(
           rooms: rooms,
         },
       });
-    } else {
+    } catch (err) {
       return res.status(500).json({
         success: false,
         message: "Socket service not available",

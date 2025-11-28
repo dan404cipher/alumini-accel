@@ -279,6 +279,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       // Ignore logout API errors
     } finally {
+      // Disconnect socket before clearing state
+      socketService.disconnectSocket();
+      
       // Clear local storage and state
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");

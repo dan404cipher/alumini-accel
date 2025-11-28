@@ -1676,12 +1676,38 @@ const CollegeAdminDashboard = () => {
   // URL-based navigation with query parameters
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "dashboard";
-  const [adminStaffSubTab, setAdminStaffSubTab] = useState("management");
+  const subTab = searchParams.get("subtab");
+  
+  // Initialize sub-tabs from URL or default
+  const [adminStaffSubTab, setAdminStaffSubTab] = useState(
+    activeTab === "admin-staff" && subTab ? subTab : "management"
+  );
+  const [rewardsSubTab, setRewardsSubTab] = useState(
+    activeTab === "rewards-management" && subTab ? subTab : "rewards"
+  );
+
+  // Sync state with URL for sub-tabs
+  useEffect(() => {
+    if (activeTab === "admin-staff" && subTab) {
+      setAdminStaffSubTab(subTab);
+    }
+    if (activeTab === "rewards-management" && subTab) {
+      setRewardsSubTab(subTab);
+    }
+  }, [activeTab, subTab]);
 
   // Function to handle tab navigation with URL update
   const handleTabChange = (tabKey: string) => {
+    // When changing main tab, we reset subtab (by not including it)
     setSearchParams({ tab: tabKey });
     setSidebarOpen(false); // Close mobile menu when navigating
+  };
+
+  const handleSubTabChange = (subTabKey: string) => {
+    setSearchParams({ tab: activeTab, subtab: subTabKey });
+    // Also update local state for immediate feedback if needed, though useEffect handles it
+    if (activeTab === "admin-staff") setAdminStaffSubTab(subTabKey);
+    if (activeTab === "rewards-management") setRewardsSubTab(subTabKey);
   };
 
   return (
@@ -2428,7 +2454,7 @@ const CollegeAdminDashboard = () => {
             <TabsContent value="admin-staff" className="space-y-6">
               <Tabs
                 value={adminStaffSubTab}
-                onValueChange={setAdminStaffSubTab}
+                onValueChange={handleSubTabChange}
                 className="space-y-6"
               >
                 <TabsList className="w-full max-w-xl">
@@ -3155,7 +3181,11 @@ const CollegeAdminDashboard = () => {
 
             {/* Rewards Management */}
             <TabsContent value="rewards-management" className="space-y-6">
-              <Tabs defaultValue="rewards" className="w-full">
+              <Tabs
+                value={rewardsSubTab}
+                onValueChange={handleSubTabChange}
+                className="w-full"
+              >
                 <TabsList className="mb-6">
                   <TabsTrigger value="rewards" className="flex items-center gap-2">
                     <Award className="w-4 h-4" />

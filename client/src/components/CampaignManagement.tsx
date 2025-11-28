@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -158,7 +159,7 @@ const CampaignManagement: React.FC = () => {
   const [campaignLimit] = useState(6);
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("management");
+
 
   // Donor management state
   const [selectedCampaignForDonors, setSelectedCampaignForDonors] =
@@ -988,11 +989,23 @@ const CampaignManagement: React.FC = () => {
     setCampaignPage(1);
   }, [searchTerm, categoryFilter, statusFilter]);
 
+  // URL-based navigation for internal tabs
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Use 'subtab' if available (when nested in HOD/Staff panel), otherwise default to 'management'
+  // If this component is used standalone, we might want a different param, but 'subtab' fits the nested context
+  const activeTab = searchParams.get("subtab") || "management";
+
+  const handleTabChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("subtab", value);
+    setSearchParams(newParams);
+  };
+
   return (
-    <>
+    <div className="space-y-6">
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="space-y-6"
       >
         <TabsList className="w-full max-w-2xl">
@@ -1000,7 +1013,7 @@ const CampaignManagement: React.FC = () => {
             Campaign Management
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex-1">
-            Campaign Reports & Analytics
+            Analytics & Reports
           </TabsTrigger>
         </TabsList>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -1032,7 +1032,26 @@ const HODPanel = () => {
     ),
   };
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // URL-based navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "dashboard";
+  const subTab = searchParams.get("subtab");
+
+  const handleTabChange = (tabKey: string) => {
+    setSearchParams({ tab: tabKey });
+    // Close sidebar on mobile when navigating
+    if (window.innerWidth < 1024) {
+      setSidebarCollapsed(true);
+    }
+  };
+
+  // Helper to update URL when clicking sidebar items
+  const handleSidebarClick = (key: string) => {
+    setSearchParams({ tab: key });
+    if (window.innerWidth < 1024) {
+      setSidebarCollapsed(true);
+    }
+  };
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const staffUnderHOD = [
@@ -1268,7 +1287,7 @@ const HODPanel = () => {
                 const buttonContent = (
                   <button
                     key={item.key}
-                    onClick={() => setActiveTab(item.key)}
+                    onClick={() => handleTabChange(item.key)}
                     className={`w-full flex items-center ${
                       sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
                     } py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -1387,7 +1406,7 @@ const HODPanel = () => {
           {/* Main Content controlled by sidebar */}
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-6 mt-6"
           >
             {/* Dashboard Overview */}

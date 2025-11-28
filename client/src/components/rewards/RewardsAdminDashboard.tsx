@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   RewardTemplate,
   RewardTask,
@@ -141,7 +142,17 @@ export const RewardsAdminDashboard: React.FC = () => {
   const [editingReward, setEditingReward] =
     useState<Partial<RewardTemplate>>(defaultReward);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("catalog");
+  
+  // URL-based navigation for internal tabs
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("view") || "catalog";
+  
+  const handleTabChange = (value: string) => {
+    // Preserve existing params (tab, subtab) and update view
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("view", value);
+    setSearchParams(newParams);
+  };
   const [availableBadges, setAvailableBadges] = useState<BadgeType[]>([]);
   const [isBadgeDialogOpen, setIsBadgeDialogOpen] = useState(false);
   const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null);
@@ -732,7 +743,12 @@ export const RewardsAdminDashboard: React.FC = () => {
       badge: buildBadgeSummary(reward.badge),
       tasks: normalizedTasks,
     });
-    setActiveTab("builder");
+    setEditingReward({
+      ...reward,
+      badge: buildBadgeSummary(reward.badge),
+      tasks: normalizedTasks,
+    });
+    handleTabChange("builder");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -763,7 +779,7 @@ export const RewardsAdminDashboard: React.FC = () => {
       <Tabs
         defaultValue="catalog"
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="space-y-6"
       >
         <TabsList className="w-full justify-start rounded-2xl bg-gray-100/70 overflow-x-auto">
@@ -777,7 +793,7 @@ export const RewardsAdminDashboard: React.FC = () => {
 
         <TabsContent value="catalog" className="space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setActiveTab("builder")}>
+            <Button onClick={() => handleTabChange("builder")}>
               <Plus className="w-4 h-4 mr-2" />
               New Reward
             </Button>
@@ -1385,7 +1401,7 @@ export const RewardsAdminDashboard: React.FC = () => {
                   variant="outline"
                   onClick={() => {
                     resetForm();
-                    setActiveTab("catalog");
+                    handleTabChange("catalog");
                   }}
                   disabled={saving}
                   type="button"

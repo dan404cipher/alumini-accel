@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { categoryAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -100,10 +101,35 @@ const ENTITY_TYPES = [
 export const CategoryManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [primarySection, setPrimarySection] = useState<
-    "events" | "jobs" | "community" | "mentorship" | "donations" | "gallery" | "departments"
-  >("events");
-  const [activeTab, setActiveTab] = useState<string>("community");
+  // URL-based navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const primarySection = (searchParams.get("subtab") as
+    | "events"
+    | "jobs"
+    | "community"
+    | "mentorship"
+    | "donations"
+    | "gallery"
+    | "departments") || "events";
+  const activeTab = searchParams.get("view") || "community";
+
+  const setPrimarySection = (section: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("subtab", section);
+    // Reset view when changing section to a valid default for that section
+    const available = ENTITY_TYPES.filter((t) => t.section === section);
+    if (available.length > 0) {
+      newParams.set("view", available[0].value);
+    }
+    setSearchParams(newParams);
+  };
+
+  const setActiveTab = (tab: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("view", tab);
+    setSearchParams(newParams);
+  };
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -139,7 +165,10 @@ export const CategoryManagement = () => {
         (t) => t.section === primarySection
       );
       if (!available.find((t) => t.value === activeTab)) {
-        setActiveTab(available[0]?.value || "community");
+        // If invalid, set to first available
+        if (available.length > 0) {
+             setActiveTab(available[0].value);
+        }
         return;
       }
       fetchCategories();
@@ -160,8 +189,8 @@ export const CategoryManagement = () => {
           entityType: activeTab,
         });
         const allCategories = [
-          ...(response.data || []),
-          ...(inactiveResponse.data || []),
+          ...((response.data as Category[]) || []),
+          ...((inactiveResponse.data as Category[]) || []),
         ];
         // Sort by name only (Order column removed)
         allCategories.sort((a, b) => a.name.localeCompare(b.name));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -65,6 +65,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Award,
+  User,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -938,7 +940,22 @@ const StaffPanel = () => {
     ),
   };
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // URL-based navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "dashboard";
+  const subTab = searchParams.get("subtab");
+
+  const handleTabChange = (tabKey: string) => {
+    setSearchParams({ tab: tabKey });
+    setSidebarCollapsed(false); // Or handle mobile sidebar logic
+    if (window.innerWidth < 1024) {
+      setSidebarCollapsed(true);
+    }
+  };
+
+  const handleSubTabChange = (subTabKey: string) => {
+    setSearchParams({ tab: activeTab, subtab: subTabKey });
+  };
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const pendingAlumni = [
@@ -1184,7 +1201,7 @@ const StaffPanel = () => {
                 const buttonContent = (
                   <button
                     key={item.key}
-                    onClick={() => setActiveTab(item.key)}
+                    onClick={() => handleTabChange(item.key)}
                     className={`w-full flex items-center ${
                       sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
                     } py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -1303,7 +1320,7 @@ const StaffPanel = () => {
           {/* Main Content controlled by sidebar */}
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-6 mt-6"
           >
             {/* Dashboard Overview */}
@@ -2634,17 +2651,28 @@ const StaffPanel = () => {
 
             {/* Rewards Management */}
             <TabsContent value="rewards-management" className="space-y-6">
-              <Tabs defaultValue="rewards" className="w-full">
+              <Tabs
+                value={subTab || "rewards"}
+                onValueChange={handleSubTabChange}
+                className="w-full"
+              >
                 <TabsList className="mb-6">
-                  <TabsTrigger value="rewards" className="flex items-center gap-2">
+                  <TabsTrigger
+                    value="rewards"
+                    className="flex items-center gap-2"
+                  >
                     <Award className="w-4 h-4" />
                     Manage Rewards
                   </TabsTrigger>
-                  <TabsTrigger value="verifications" className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
+                  <TabsTrigger
+                    value="verifications"
+                    className="flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
                     Task Verifications
                   </TabsTrigger>
                 </TabsList>
+
                 <TabsContent value="rewards">
                   <RewardsAdminDashboard />
                 </TabsContent>

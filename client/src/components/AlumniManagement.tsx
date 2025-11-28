@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -114,7 +114,16 @@ const AlumniManagement = () => {
 
   const [colleges, setColleges] = useState<College[]>([]);
   const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("management");
+  
+  // URL-based navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("subtab") || "management";
+
+  const handleTabChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("subtab", value);
+    setSearchParams(newParams);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -446,7 +455,7 @@ const AlumniManagement = () => {
       )} of ${totalAlumni} alumni`;
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
       <TabsList className="w-full max-w-xl">
         <TabsTrigger value="management" className="flex-1">
           Alumni & Student Management

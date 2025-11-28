@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotificationContext } from "@/contexts/NotificationContext";
 import { useMessagesContext } from "@/contexts/MessagesContext";
+import socketService from "@/services/socketService";
 
 interface Message {
   id: string;
@@ -338,48 +339,6 @@ const Messages = () => {
     }
   }, [socketMessages, selectedConversation, mergeMessages]);
 
-  // Update conversations list when socket messages arrive
-  useEffect(() => {
-    if (socketMessages.length > 0 && currentUser) {
-      // Check if any socket message is for a conversation in our list
-      const hasRelevantMessage = socketMessages.some((socketMsg) => {
-        const senderObj =
-          typeof socketMsg.sender === "string"
-            ? { _id: socketMsg.sender }
-            : (socketMsg.sender as { _id?: string; id?: string } | undefined);
-        const recipientObj =
-          typeof socketMsg.recipient === "string"
-            ? { _id: socketMsg.recipient }
-            : (socketMsg.recipient as
-                | { _id?: string; id?: string }
-                | undefined);
-
-        const senderId =
-          senderObj?._id ||
-          senderObj?.id ||
-          (typeof socketMsg.sender === "string" ? socketMsg.sender : "");
-        const recipientId =
-          recipientObj?._id ||
-          recipientObj?.id ||
-          (typeof socketMsg.recipient === "string" ? socketMsg.recipient : "");
-        const currentUserId = currentUser._id;
-
-        // Check if this message involves the current user
-        return senderId === currentUserId || recipientId === currentUserId;
-      });
-
-      // If there's a relevant message, refresh conversations to update lastMessage and unreadCount
-      if (hasRelevantMessage) {
-        // Debounce to avoid too many API calls
-        const timeoutId = setTimeout(() => {
-          fetchConversations();
-        }, 500);
-
-        return () => clearTimeout(timeoutId);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socketMessages, currentUser]);
 
   useEffect(() => {
     // Debounce the API call to prevent rapid successive requests
@@ -489,6 +448,88 @@ const Messages = () => {
       setLoading(false);
     }
   }, [toast]);
+
+  // Handle real-time messages for both conversation list and active chat
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const handleNewMessage = (message: any) => {
+      // 1. Update Conversations List (WhatsApp-like behavior)
+      setConversations((prev) => {
+        const senderId = typeof message.sender === 'string' ? message.sender : message.sender._id;
+        const recipientId = typeof message.recipient === 'string' ? message.recipient : message.recipient._id;
+        
+        // Determine the other user in the conversation
+        const otherUserId = senderId === currentUser._id ? recipientId : senderId;
+        
+        const existingIndex = prev.findIndex(c => c.user.id === otherUserId);
+        
+        let newConversations = [...prev];
+        let conversationToUpdate;
+
+        if (existingIndex !== -1) {
+          conversationToUpdate = { ...prev[existingIndex] };
+          // Remove from current position
+          newConversations.splice(existingIndex, 1);
+        } else {
+          // If conversation doesn't exist in list, we need to fetch it
+          // We can't easily construct it without user details
+          fetchConversations();
+          return prev;
+        }
+
+        // Update last message details
+        conversationToUpdate.lastMessage = {
+          content: message.content,
+          createdAt: message.createdAt || new Date().toISOString(),
+          isRead: false
+        };
+
+        // Increment unread count if we are the recipient and it's NOT the currently selected conversation
+        // If it IS the selected conversation, we'll mark it read shortly
+        const isCurrentConversation = selectedConversation?.user.id === otherUserId;
+        if (recipientId === currentUser._id && !isCurrentConversation) {
+             conversationToUpdate.unreadCount = (conversationToUpdate.unreadCount || 0) + 1;
+        }
+
+        // Add to top of list
+        newConversations.unshift(conversationToUpdate);
+        return newConversations;
+      });
+
+      // 2. Update Active Chat Messages
+      // If the message belongs to the currently selected conversation, add it directly
+      if (selectedConversation) {
+        const senderId = typeof message.sender === 'string' ? message.sender : message.sender._id;
+        const recipientId = typeof message.recipient === 'string' ? message.recipient : message.recipient._id;
+        const otherUserId = selectedConversation.user.id;
+
+        const isRelevant = (senderId === currentUser._id && recipientId === otherUserId) || 
+                           (senderId === otherUserId && recipientId === currentUser._id);
+
+        if (isRelevant) {
+          const normalizedMsg = normalizeSocketMessage(message as SocketMessage);
+          setMessages(prev => {
+            // Check if message already exists to avoid duplicates
+            if (prev.some(m => m.id === normalizedMsg.id)) return prev;
+            return [...prev, normalizedMsg];
+          });
+          
+          // If we are the recipient, mark as read immediately
+          if (recipientId === currentUser._id) {
+            const conversationId = `${[currentUser._id, otherUserId].sort().join('_')}`;
+            markMessagesAsRead(conversationId, otherUserId);
+          }
+        }
+      }
+    };
+
+    socketService.on('new_message', handleNewMessage);
+
+    return () => {
+      socketService.off('new_message', handleNewMessage);
+    };
+  }, [currentUser, selectedConversation, fetchConversations, normalizeSocketMessage, markMessagesAsRead]);
 
   const fetchMessages = useCallback(
     async (recipientId: string) => {

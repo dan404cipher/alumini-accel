@@ -299,16 +299,32 @@ const Messages = () => {
   }, []);
 
   // Auto-scroll to bottom when messages change (but don't steal focus)
-  const scrollToBottom = useCallback(() => {
-    // Only scroll if input is not focused to avoid stealing focus
-    if (!isInputFocused()) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [isInputFocused]);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (messagesContainerRef.current) {
+      const { scrollHeight, clientHeight } = messagesContainerRef.current;
+      const maxScrollTop = scrollHeight - clientHeight;
+      
+      messagesContainerRef.current.scrollTo({
+        top: maxScrollTop,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    }
+  }, []);
+
+  // Scroll on new messages
+  useLayoutEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Scroll immediately when switching conversations (no smooth scroll)
+  useLayoutEffect(() => {
+    if (selectedConversation) {
+      scrollToBottom(false);
+    }
+  }, [selectedConversation, scrollToBottom]);
 
   // Restore focus after messages update if input was previously focused
   useLayoutEffect(() => {
@@ -585,8 +601,10 @@ const Messages = () => {
 
         // Refocus the input after sending
         setTimeout(() => {
-          messageInputRef.current?.focus();
-        }, 100);
+          if (messageInputRef.current) {
+            messageInputRef.current.focus();
+          }
+        }, 50);
       } else {
         toast({
           title: "Error",
@@ -993,7 +1011,7 @@ const Messages = () => {
                 {/* Messages */}
                 <div
                   className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-gray-50/50 to-white custom-scrollbar"
-                  ref={messagesEndRef}
+                  ref={messagesContainerRef}
                 >
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 py-12">

@@ -110,6 +110,11 @@ class SocketService {
               `Marking messages as read for conversation ${data.conversationId}`
             );
 
+            // Update database
+            // Use dynamic import to avoid circular dependency
+            const Message = require("../models/Message").default;
+            await Message.markMessagesAsRead(data.userId, authSocket.userId);
+
             // Notify sender that messages were read
             this.emitToUser(data.userId, "messages_read", {
               conversationId: data.conversationId,

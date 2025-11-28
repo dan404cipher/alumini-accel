@@ -47,7 +47,6 @@ const defaultReward: Partial<RewardTemplate> = {
   description: "",
   category: "engagement",
   rewardType: "points",
-  points: 50,
   tags: [],
   tasks: [],
   badge: undefined,
@@ -513,7 +512,7 @@ export const RewardsAdminDashboard: React.FC = () => {
 
   const handleRewardChange = (
     field: keyof RewardTemplate,
-    value: string | number | boolean | string[] | object | null
+    value: string | number | boolean | string[] | object | null | undefined
   ) => {
     setEditingReward((prev) => {
       if (field === "rewardType") {
@@ -954,10 +953,20 @@ export const RewardsAdminDashboard: React.FC = () => {
                   <Input
                     type="number"
                     min={0}
-                    value={editingReward.points || 0}
-                    onChange={(event) =>
-                      handleRewardChange("points", Number(event.target.value))
-                    }
+                    value={editingReward.points ?? ""}
+                    onKeyDown={(e) => {
+                      // Prevent typing: -, +, ., e, E (invalid for positive integers)
+                      if (['-', '+', '.', 'e', 'E'].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      handleRewardChange(
+                        "points",
+                        nextValue === "" ? undefined : Number(nextValue)
+                      );
+                    }}
                   />
                 </div>
                 <div className="flex items-center justify-between border rounded-2xl px-3 py-2">
@@ -1260,56 +1269,29 @@ export const RewardsAdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label>Points</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={task.points || 0}
-                            onChange={(event) =>
-                              handleTaskChange(index, {
-                                points: Number(event.target.value),
-                              })
+                      <div>
+                        <Label>Points</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={task.points ?? ""}
+                          onKeyDown={(e) => {
+                            // Prevent typing: -, +, ., e, E (invalid for positive integers)
+                            if (['-', '+', '.', 'e', 'E'].includes(e.key)) {
+                              e.preventDefault();
                             }
-                            placeholder="Points for this task"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Points awarded when task is completed
-                          </p>
-                        </div>
-                        <div>
-                          <Label>Badge (Optional)</Label>
-                          {availableBadges.length > 0 ? (
-                            <Select
-                              value={getBadgeId(task.badge)}
-                              onValueChange={(value) =>
-                                handleTaskBadgeSelect(index, value)
-                              }
-                            >
-                              <SelectTrigger className="w-full border rounded-xl px-3 py-2">
-                                <SelectValue placeholder="Select badge to award" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={NO_BADGE_VALUE}>
-                                  No badge
-                                </SelectItem>
-                                {availableBadges.map((badge) => (
-                                  <SelectItem key={badge._id} value={badge._id}>
-                                    {badge.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <p className="text-sm text-gray-500">
-                              No badges available yet.
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-500 mt-1">
-                            Award this badge when the task is completed.
-                          </p>
-                        </div>
+                          }}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            handleTaskChange(index, {
+                              points: nextValue === "" ? undefined : Number(nextValue)
+                            });
+                          }}
+                          placeholder="Points for this task"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Points awarded when task is completed
+                        </p>
                       </div>
 
                       <div className="space-y-2">

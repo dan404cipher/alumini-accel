@@ -103,12 +103,17 @@ import Footer from "../Footer";
 
 // Type definitions
 interface PendingRequest {
-  _id: string;
+  requestId: string;
+  _id?: string; // Optional for backward compatibility
   role: string;
   tenantId: string;
   firstName?: string;
   lastName?: string;
   email?: string;
+  department?: string;
+  password?: string;
+  status?: string;
+  requestedAt?: string;
   [key: string]: unknown;
 }
 

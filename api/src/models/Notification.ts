@@ -86,6 +86,8 @@ const notificationSchema = new Schema<INotification>(
         "system",
         "announcement",
         "reminder",
+        "reward",
+        "community",
       ],
       default: "system",
       index: true,
@@ -103,7 +105,7 @@ const notificationSchema = new Schema<INotification>(
     relatedEntity: {
       type: {
         type: String,
-        enum: ["user", "job", "event", "message", "connection", "donation"],
+        enum: ["user", "job", "event", "message", "connection", "donation", "reward"],
       },
       id: {
         type: Schema.Types.ObjectId,

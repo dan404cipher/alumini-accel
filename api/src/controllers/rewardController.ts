@@ -66,20 +66,45 @@ const rewardController = {
     const rewardDoc = reward as any;
     const rewardId =
       rewardDoc?._id?.toString?.() ?? (rewardDoc?._id ? String(rewardDoc._id) : "");
-    const rewardTitle: string = rewardDoc?.title ?? "";
+    const rewardName: string = rewardDoc?.name ?? "";
+    
+    // Use req.user?.tenantId like other controllers (eventController, newsController)
+    // This ensures consistency with how other notifications work
+    const tenantId = req.user?.tenantId;
 
     try {
-      await notificationService.sendToRoles({
-        event: "reward.new",
-        roles: [UserRole.ALUMNI, UserRole.STUDENT],
-        tenantId: req.tenantId,
-        data: {
-          title: rewardTitle,
-          rewardId,
-        },
-      });
+      if (!tenantId) {
+        console.warn("Cannot send reward notification: tenantId is missing from user");
+      } else if (!rewardName) {
+        console.warn("Cannot send reward notification: reward name is missing");
+      } else {
+        await notificationService.sendToRoles({
+          event: "reward.new",
+          roles: [UserRole.ALUMNI, UserRole.STUDENT],
+          tenantId: tenantId,
+          data: {
+            title: rewardName, // Use 'name' field from Reward model, but pass as 'title' for notification template
+            rewardId,
+          },
+          relatedEntity: {
+            type: "reward",
+            id: rewardId,
+          },
+        });
+        console.log(`✅ Reward notification sent: rewardId=${rewardId}, tenantId=${tenantId}, name=${rewardName}`);
+      }
     } catch (notifyError) {
       console.error("Failed to send new reward notification:", notifyError);
+      // Log more details for debugging
+      if (notifyError instanceof Error) {
+        console.error("Notification error details:", {
+          message: notifyError.message,
+          stack: notifyError.stack,
+          rewardId,
+          tenantId,
+          rewardName,
+        });
+      }
     }
 
     return res.status(201).json({

@@ -276,10 +276,10 @@ const notificationTemplates: Record<NotificationEvent, TemplateBuilder> = {
   "reward.new": {
     category: "reward",
     type: "info",
-    actionUrl: "/rewards",
+    actionUrl: (data) => data?.rewardId ? `/rewards?reward=${data.rewardId}` : "/rewards",
     title: (data) => `New reward: ${data?.title ?? "Reward available"}`,
-    message: () =>
-      "A new reward is live in the catalogue. Redeem points before it expires.",
+    message: (data) =>
+      `A new reward${data?.title ? ` "${data.title}"` : ""} is live in the catalogue. Redeem points before it expires.`,
   },
   "task.assigned": {
     category: "reward",
@@ -464,11 +464,26 @@ class NotificationService {
     };
 
     if (tenantId) {
-      query.tenantId = tenantId;
+      // Convert tenantId to ObjectId if it's a string, or use as-is if already ObjectId
+      query.tenantId = Types.ObjectId.isValid(tenantId)
+        ? typeof tenantId === "string"
+          ? new Types.ObjectId(tenantId)
+          : tenantId
+        : tenantId;
     }
 
     const users = await User.find(query).select("_id");
     const recipientIds = users.map((user) => user._id.toString());
+
+    logger.info(
+      `Notification sendToRoles: event=${params.event}, roles=${roles.join(",")}, tenantId=${tenantId}, foundUsers=${users.length}, recipients=${recipientIds.length}`
+    );
+
+    if (recipientIds.length === 0) {
+      logger.warn(
+        `No recipients found for notification ${params.event} with tenantId=${tenantId} and roles=${roles.join(",")}`
+      );
+    }
 
     return this.send({
       recipients: recipientIds,

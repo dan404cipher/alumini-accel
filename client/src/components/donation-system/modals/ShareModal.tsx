@@ -20,15 +20,16 @@ interface ShareModalProps {
     imageUrl?: string;
     _id?: string;
   };
+  shareUrl?: string; // Optional custom share URL
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, campaign }) => {
+const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, campaign, shareUrl: customShareUrl }) => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
   if (!open) return null;
 
-  const shareUrl = `${window.location.origin}/donations?viewCampaign=${
+  const shareUrl = customShareUrl || `${window.location.origin}/donations?viewCampaign=${
     campaign._id || encodeURIComponent(campaign.title)
   }`;
   const shareText = `Check out this campaign: ${campaign.title}`;

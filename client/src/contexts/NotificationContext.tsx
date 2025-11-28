@@ -41,56 +41,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     await refetchNotification();
   };
 
-  // Set up socket event listeners for real-time updates
-  useEffect(() => {
-    // Wait for socket to be connected before setting up listeners
-    const setupSocketListeners = () => {
-      if (socketService.isSocketConnected()) {
-        // Listen for unread count updates
-        socketService.on("unread_count_update", (data: { count: number }) => {
-          // Trigger a refetch to get the latest count
-          refreshUnreadCount();
-        });
-
-        // Listen for notification count updates
-        socketService.on(
-          "notification_count_update",
-          (data: { count: number }) => {
-            // Trigger a refetch to get the latest notifications
-            refreshNotificationCount();
-          }
-        );
-
-        // Listen for new notifications
-        socketService.on("new_notification", (notification: any) => {
-          // Trigger a refetch to get the latest notifications
-          refreshNotificationCount();
-        });
-
-        // Listen for notification updates (read/delete)
-        socketService.on(
-          "notification_update",
-          (data: { notificationId: string; action: string }) => {
-            // Trigger a refetch to get the latest notifications
-            refreshNotificationCount();
-          }
-        );
-      } else {
-        setTimeout(setupSocketListeners, 1000);
-      }
-    };
-
-    // Start setting up listeners
-    setupSocketListeners();
-
-    // Cleanup listeners on unmount
-    return () => {
-      socketService.off("unread_count_update");
-      socketService.off("notification_count_update");
-      socketService.off("new_notification");
-      socketService.off("notification_update");
-    };
-  }, []);
+  // Note: Socket event listeners are now handled directly in the hooks
+  // (useUnreadCount and useNotificationCount) to avoid unnecessary API calls.
+  // The hooks update the count directly from socket events without refetching.
 
   const value: NotificationContextType = {
     unreadCount: unreadCount || 0,

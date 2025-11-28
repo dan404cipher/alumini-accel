@@ -53,6 +53,7 @@ import RewardsPage from "./pages/Rewards";
 import AdminRewardsPage from "./pages/AdminRewards";
 import RewardsAnalyticsPage from "./pages/RewardsAnalytics";
 import RewardsLeaderboardPage from "./pages/RewardsLeaderboard";
+import CampaignDetail from "./pages/CampaignDetail";
 
 const queryClient = new QueryClient();
 
@@ -353,6 +354,15 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <Layout />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/donations/campaigns/:id"
+                    element={
+                      <ProtectedRoute>
+                        <CampaignDetail />
                       </ProtectedRoute>
                     }
                   />

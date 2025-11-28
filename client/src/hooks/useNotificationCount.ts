@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { notificationAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import socketService from "@/services/socketService";
 
 interface UseNotificationCountReturn {
   notificationCount: number;
@@ -14,10 +15,12 @@ export const useNotificationCount = (): UseNotificationCountReturn => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const userId = user?._id;
+  const fetchNotificationCountRef = useRef<() => Promise<void>>();
 
   const fetchNotificationCount = useCallback(async () => {
     // Only fetch if user is authenticated
-    if (!user) {
+    if (!userId) {
       setNotificationCount(0);
       setIsLoading(false);
       return;
@@ -48,23 +51,87 @@ export const useNotificationCount = (): UseNotificationCountReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
-  // Fetch notification count when user changes
+  // Store the latest fetch function in a ref
+  fetchNotificationCountRef.current = fetchNotificationCount;
+
+  // Fetch notification count when user ID changes
   useEffect(() => {
     fetchNotificationCount();
   }, [fetchNotificationCount]);
 
-  // Set up polling to refresh notification count every 60 seconds (only when user is authenticated)
+  // Listen to socket events for real-time updates (no API call needed)
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
+    const handleNotificationCountUpdate = (data: { count: number }) => {
+      // Update count directly from socket event (no API call)
+      setNotificationCount(data.count || 0);
+    };
+
+    const handleNewNotification = () => {
+      // Increment count when new notification arrives
+      setNotificationCount((prev) => prev + 1);
+    };
+
+    const handleNotificationUpdate = (data: { action: string }) => {
+      // Decrement count when notification is read/deleted
+      if (data.action === "read" || data.action === "delete") {
+        setNotificationCount((prev) => Math.max(0, prev - 1));
+      }
+    };
+
+    // Wait for socket connection
+    const setupSocketListeners = () => {
+      if (socketService.isSocketConnected()) {
+        socketService.on("notification_count_update", handleNotificationCountUpdate);
+        socketService.on("new_notification", handleNewNotification);
+        socketService.on("notification_update", handleNotificationUpdate);
+      } else {
+        setTimeout(setupSocketListeners, 1000);
+      }
+    };
+
+    setupSocketListeners();
+
+    return () => {
+      socketService.off("notification_count_update", handleNotificationCountUpdate);
+      socketService.off("new_notification", handleNewNotification);
+      socketService.off("notification_update", handleNotificationUpdate);
+    };
+  }, [userId]);
+
+  // Set up polling to refresh notification count every 3 minutes (only when tab is visible)
+  // Reduced frequency since we have real-time socket updates
+  useEffect(() => {
+    if (!userId) {
+      setNotificationCount(0);
+      return;
+    }
+
+    // Only poll when tab is visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && fetchNotificationCountRef.current) {
+        fetchNotificationCountRef.current();
+      }
+    };
+
+    // Poll every 3 minutes (180 seconds) when visible
     const interval = setInterval(() => {
-      fetchNotificationCount();
-    }, 60000); // Poll every 60 seconds
+      if (document.visibilityState === "visible" && fetchNotificationCountRef.current) {
+        fetchNotificationCountRef.current();
+      }
+    }, 180000); // Poll every 3 minutes
 
-    return () => clearInterval(interval);
-  }, [fetchNotificationCount, user]);
+    // Also fetch when tab becomes visible
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [userId]); // Only restart interval when userId changes
 
   return {
     notificationCount,

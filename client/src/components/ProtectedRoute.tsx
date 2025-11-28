@@ -19,6 +19,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Handle navigation in useEffect to avoid setState during render
   useEffect(() => {
+    // Wait for auth check to complete
     if (!loading) {
       // If user is not authenticated, redirect to login with return URL
       if (!user) {
@@ -33,7 +34,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return;
       }
     }
-  }, [user, loading, requiredRole, navigate]);
+  }, [user, loading, requiredRole, navigate, location.pathname, location.search]);
 
   // Show loading state while checking authentication
   if (loading) {

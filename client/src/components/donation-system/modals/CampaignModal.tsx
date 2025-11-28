@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { CampaignForm, CampaignModalProps, Fund, TargetAudience } from "../types";
-import { categoryAPI, fundAPI } from "@/lib/api";
+import { CampaignForm, CampaignModalProps, TargetAudience } from "../types";
+import { categoryAPI } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -59,8 +59,6 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
   const [categoryOptions, setCategoryOptions] = useState<string[]>(
     staticFallbackCategories
   );
-  const [funds, setFunds] = useState<Fund[]>([]);
-  const [selectedFundId, setSelectedFundId] = useState<string>("__none__");
   const [targetAudience, setTargetAudience] = useState<TargetAudience>({});
   const [showTargeting, setShowTargeting] = useState(false);
 
@@ -86,27 +84,6 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
     };
   }, []);
 
-  // Load funds
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const response = await fundAPI.getAllFunds({ status: "active" });
-        if (mounted && response.success && response.data) {
-          const fundsData = Array.isArray(response.data)
-            ? response.data
-            : response.data.data || [];
-          setFunds(fundsData);
-        }
-      } catch (_e) {
-        // Keep empty funds array
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   // Initialize form data for editing
   useEffect(() => {
     if (open && editData) {
@@ -118,12 +95,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
         },
         errors: defaultErrors,
       });
-      // Set fund and targeting if editing
-      if (editData.fundId) {
-        setSelectedFundId(editData.fundId);
-      } else {
-        setSelectedFundId("__none__");
-      }
+      // Set targeting if editing
       if (editData.targetAudience) {
         setTargetAudience(editData.targetAudience);
         setShowTargeting(true);
@@ -133,7 +105,6 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
         formData: defaultFormData,
         errors: defaultErrors,
       });
-      setSelectedFundId("__none__");
       setTargetAudience({});
       setShowTargeting(false);
     }
@@ -278,8 +249,10 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
       detail: {
         formData: {
           ...state.formData,
-          fundId: selectedFundId && selectedFundId !== "__none__" ? selectedFundId : undefined,
-          targetAudience: showTargeting && Object.keys(targetAudience).length > 0 ? targetAudience : undefined,
+          targetAudience:
+            showTargeting && Object.keys(targetAudience).length > 0
+              ? targetAudience
+              : undefined,
         },
         editIndex,
         campaignId: editData?.campaignId,
@@ -370,9 +343,11 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
                   }))
                 }
               >
-                <SelectTrigger className={`mt-1 ${
-                  state.errors.category ? "border-red-500" : ""
-                }`}>
+                <SelectTrigger
+                  className={`mt-1 ${
+                    state.errors.category ? "border-red-500" : ""
+                  }`}
+                >
                   <SelectValue placeholder="Select an option" />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,76 +392,29 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
             </div>
           </div>
 
-          {/* End Date & Fund */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Campaign End Date *
-              </label>
-              <input
-                type="date"
-                name="endDate"
-                value={state.formData.endDate}
-                onChange={handleChange}
-                className={`mt-1 w-full border ${
-                  state.errors.endDate ? "border-red-500" : "border-gray-300"
-                } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
-              />
-              {state.errors.endDate && (
-                <p className="text-red-500 text-xs mt-1">
-                  {state.errors.endDate}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Fund (Optional)
-              </label>
-              <Select
-                value={selectedFundId || "__none__"}
-                onValueChange={setSelectedFundId}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a fund" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {funds.map((fund) => (
-                    <SelectItem key={fund._id} value={fund._id}>
-                      {fund.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500 mt-1">
-                Link this campaign to a fund
-              </p>
-            </div>
-          </div>
-
-          {/* Target Audience */}
+          {/* End Date */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Target Audience (Optional)
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowTargeting(!showTargeting)}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                {showTargeting ? "Hide" : "Configure"}
-              </button>
-            </div>
-            {showTargeting && (
-              <div className="mt-2 p-4 border border-gray-300 rounded-lg bg-gray-50">
-                <CampaignTargeting
-                  value={targetAudience}
-                  onChange={setTargetAudience}
-                />
-              </div>
+            <label className="block text-sm font-medium text-gray-700">
+              Campaign End Date *
+            </label>
+            <input
+              type="date"
+              name="endDate"
+              value={state.formData.endDate}
+              onChange={handleChange}
+              className={`mt-1 w-full border ${
+                state.errors.endDate ? "border-red-500" : "border-gray-300"
+              } rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm`}
+            />
+            {state.errors.endDate && (
+              <p className="text-red-500 text-xs mt-1">
+                {state.errors.endDate}
+              </p>
             )}
           </div>
+
+        
+          
 
           {/* Image Upload */}
           <div>

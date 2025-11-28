@@ -27,11 +27,17 @@ export const rewardVerificationService = {
     };
 
     if (filters.tenantId) {
-      query.$or = [
-        { tenantId: new Types.ObjectId(filters.tenantId) },
-        { tenantId: { $exists: false } },
-        { tenantId: null },
-      ];
+      // Add tenantId filter - activities must match tenantId OR have no tenantId (global)
+      const tenantIdFilter = {
+        $or: [
+          { tenantId: new Types.ObjectId(filters.tenantId) },
+          { tenantId: { $exists: false } },
+          { tenantId: null },
+        ],
+      };
+      // Combine with existing query using $and
+      query.$and = query.$and || [];
+      query.$and.push(tenantIdFilter);
     }
 
     if (filters.userId) {
@@ -168,6 +174,11 @@ export const rewardVerificationService = {
     const now = new Date();
 
     if (action === "approve") {
+      // Validate staffId is a valid ObjectId string
+      if (!staffId || !Types.ObjectId.isValid(staffId)) {
+        throw new Error("Invalid staff ID provided");
+      }
+
       // Approve the task
       activity.verification = {
         ...activity.verification,
@@ -289,6 +300,11 @@ export const rewardVerificationService = {
         at: now,
       });
     } else {
+      // Validate staffId is a valid ObjectId string
+      if (!staffId || !Types.ObjectId.isValid(staffId)) {
+        throw new Error("Invalid staff ID provided");
+      }
+
       // Reject the task
       activity.verification = {
         ...activity.verification,
@@ -320,11 +336,17 @@ export const rewardVerificationService = {
     };
 
     if (tenantId) {
-      match.$or = [
-        { tenantId: new Types.ObjectId(tenantId) },
-        { tenantId: { $exists: false } },
-        { tenantId: null },
-      ];
+      // Add tenantId filter - activities must match tenantId OR have no tenantId (global)
+      const tenantIdFilter = {
+        $or: [
+          { tenantId: new Types.ObjectId(tenantId) },
+          { tenantId: { $exists: false } },
+          { tenantId: null },
+        ],
+      };
+      // Combine with existing query using $and
+      match.$and = match.$and || [];
+      match.$and.push(tenantIdFilter);
     }
 
     const stats = await RewardActivity.aggregate([

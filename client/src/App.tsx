@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { MessagesProvider } from "@/contexts/MessagesContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedRoute, StudentBlockedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -300,7 +300,9 @@ const App = () => {
                     path="/rewards"
                     element={
                       <ProtectedRoute>
-                        <RewardsPage />
+                        <StudentBlockedRoute>
+                          <RewardsPage />
+                        </StudentBlockedRoute>
                       </ProtectedRoute>
                     }
                   />
@@ -309,7 +311,9 @@ const App = () => {
                     path="/rewards/leaderboard"
                     element={
                       <ProtectedRoute>
-                        <RewardsLeaderboardPage />
+                        <StudentBlockedRoute>
+                          <RewardsLeaderboardPage />
+                        </StudentBlockedRoute>
                       </ProtectedRoute>
                     }
                   />

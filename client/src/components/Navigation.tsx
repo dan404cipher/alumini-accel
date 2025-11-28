@@ -72,6 +72,9 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
 
   // Check if user is not Alumni (Alumni cannot see mentoring programs management)
   const canViewMentoringPrograms = user && user.role !== "alumni";
+  
+  // Students should not see rewards
+  const canViewRewards = user && user.role !== "student";
 
   // All navigation items in a single array
   const allNavItems = [
@@ -96,7 +99,8 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
     },
     { id: "community", name: "Community", icon: Users2, count: null },
     { id: "donations", name: "Donations", icon: Heart, count: null },
-    { id: "rewards", name: "Rewards", icon: Gift, count: null },
+    // Rewards - hidden from students
+    ...(canViewRewards ? [{ id: "rewards", name: "Rewards", icon: Gift, count: null }] : []),
     // Mentorship - visible to all roles including Alumni
     {
       id: "mentoring-programs",

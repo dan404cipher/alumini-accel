@@ -2,6 +2,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+// Log immediately to verify file is executing
+console.log("🔵 index.ts: File started loading...");
+
 import express from "express";
 import { createServer } from "http";
 import cors from "cors";
@@ -94,21 +97,18 @@ let socketService: SocketService;
 const startServer = async () => {
   try {
     logger.info("Initializing AlumniAccel API bootstrap sequence");
-    // Try to connect to database, but don't block server startup if it fails
-    connectDB().catch((error) => {
-      logger.error(
-        "MongoDB connection failed, but continuing server startup:",
-        error
-      );
-      logger.warn(
-        "Server will start without database connection. Some features may not work."
-      );
-    });
+    logger.info(
+      `MongoDB URI configured: ${process.env.MONGODB_URI ? "YES" : "NO"}`
+    );
+    logger.info(`Server will start on port: ${PORT}`);
 
-    // Initialize Socket.IO
+    // Initialize Socket.IO FIRST (before database connection)
+    logger.info("Initializing Socket.IO service...");
     socketService = new SocketService(server);
+    logger.info("Socket.IO service initialized");
 
-    // Start server
+    // Start server FIRST (don't wait for database)
+    logger.info(`Starting HTTP server on port ${PORT}...`);
     server
       .listen(PORT, () => {
         logger.info(
@@ -135,6 +135,18 @@ const startServer = async () => {
           process.exit(1);
         }
       });
+
+    // Try to connect to database AFTER server starts (non-blocking)
+    logger.info("Attempting to connect to MongoDB (non-blocking)...");
+    connectDB().catch((error) => {
+      logger.error(
+        "MongoDB connection failed, but continuing server startup:",
+        error
+      );
+      logger.warn(
+        "Server will start without database connection. Some features may not work."
+      );
+    });
 
     logger.info(`🔌 Socket.IO server initialized for real-time communication`);
 
@@ -751,13 +763,33 @@ const setupMenteeSelectionEmailCronJob = () => {
 };
 
 // Start the server
-startServer().then(() => {
-  // Setup cron jobs after server starts (with delay to ensure DB is connected)
-  setTimeout(() => {
-    setupMatchingCronJob();
-    setupMenteeSelectionEmailCronJob();
-  }, 5000); // 5 second delay to ensure everything is initialized
-});
+console.log(
+  "🟡 index.ts: Reached bottom of file, about to call startServer()..."
+);
+try {
+  logger.info("📋 About to call startServer()...");
+  startServer()
+    .then(() => {
+      logger.info("✅ Server startup completed successfully");
+      // Setup cron jobs after server starts (with delay to ensure DB is connected)
+      setTimeout(() => {
+        setupMatchingCronJob();
+        setupMenteeSelectionEmailCronJob();
+      }, 5000); // 5 second delay to ensure everything is initialized
+    })
+    .catch((error) => {
+      logger.error("❌ Fatal error during server startup:", {
+        error: error?.message || error,
+        stack: error?.stack,
+      });
+      console.error("❌ Fatal error:", error);
+      process.exit(1);
+    });
+} catch (error) {
+  console.error("❌ Error calling startServer():", error);
+  logger.error("❌ Error calling startServer():", error);
+  process.exit(1);
+}
 
 // Export socket service for use in other modules
 export { socketService };

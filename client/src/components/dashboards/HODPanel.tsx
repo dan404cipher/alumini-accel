@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,6 +63,7 @@ import {
   IndianRupee,
   ChevronLeft,
   ChevronRight,
+  Award,
 } from "lucide-react";
 import {
   Tooltip,
@@ -90,6 +91,8 @@ import EligibleStudentsPanel from "../EligibleStudentsPanel";
 import EventManagement from "../EventManagement";
 import JobManagement from "../admin/JobManagement";
 import { AnalyticsDashboard } from "../admin/AnalyticsDashboard";
+import { RewardsAdminDashboard } from "../rewards/RewardsAdminDashboard";
+import { StaffVerificationDashboard } from "../rewards/StaffVerificationDashboard";
 
 // Type definitions
 interface PendingRequest {
@@ -2743,6 +2746,28 @@ const HODPanel = () => {
             {/* Job Management */}
             <TabsContent value="job-management" className="space-y-6">
               <JobManagement />
+            </TabsContent>
+
+            {/* Rewards Management */}
+            <TabsContent value="rewards-management" className="space-y-6">
+              <Tabs defaultValue="rewards" className="w-full">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="rewards" className="flex items-center gap-2">
+                    <Award className="w-4 h-4" />
+                    Manage Rewards
+                  </TabsTrigger>
+                  <TabsTrigger value="verifications" className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Task Verifications
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="rewards">
+                  <RewardsAdminDashboard />
+                </TabsContent>
+                <TabsContent value="verifications">
+                  <StaffVerificationDashboard />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
             {/* Contributions */}

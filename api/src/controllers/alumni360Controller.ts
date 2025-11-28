@@ -15,18 +15,20 @@ import { UserRole, AuthenticatedRequest } from "../types";
 import mongoose from "mongoose";
 import { rewardService } from "../services/rewardService";
 
-// Helper function to find alumni profile by _id or userId
-const findAlumniProfile = async (id: string) => {
+// Helper function to find profile by _id or userId (works for both alumni and students)
+const findProfile = async (id: string) => {
   // Try to find by AlumniProfile _id first
-  let alumniProfile = await AlumniProfile.findById(id)
-    .populate("userId", "firstName lastName email profilePicture bio location linkedinProfile githubProfile website phone tenantId");
+  let profile = await AlumniProfile.findById(id).populate(
+    "userId",
+    "firstName lastName email profilePicture bio location linkedinProfile githubProfile website phone tenantId"
+  );
 
   // If not found by _id, try finding by userId
-  if (!alumniProfile) {
-    const userIdObjectId = mongoose.Types.ObjectId.isValid(id) 
-      ? new mongoose.Types.ObjectId(id) 
+  if (!profile) {
+    const userIdObjectId = mongoose.Types.ObjectId.isValid(id)
+      ? new mongoose.Types.ObjectId(id)
       : id;
-    
+
     // First check if user exists
     const user = await User.findById(userIdObjectId);
     if (!user) {
@@ -34,61 +36,75 @@ const findAlumniProfile = async (id: string) => {
       return null;
     }
 
-    // Check if user is actually an alumni
-    if (user.role !== UserRole.ALUMNI) {
-      logger.warn(`User ${id} is not an alumni (role: ${user.role})`);
+    // Check if user is alumni or student
+    if (user.role !== UserRole.ALUMNI && user.role !== UserRole.STUDENT) {
+      logger.warn(
+        `User ${id} is not an alumni or student (role: ${user.role})`
+      );
       return null;
     }
 
-    // Try to find profile by userId
-    alumniProfile = await AlumniProfile.findOne({ userId: userIdObjectId })
-      .populate("userId", "firstName lastName email profilePicture bio location linkedinProfile githubProfile website phone tenantId");
-    
-    if (!alumniProfile) {
-      logger.warn(`Alumni profile not found for user ID: ${id} (user exists but no profile)`);
+    // Try to find existing profile by userId
+    profile = await AlumniProfile.findOne({
+      userId: userIdObjectId,
+    }).populate(
+      "userId",
+      "firstName lastName email profilePicture bio location linkedinProfile githubProfile website phone tenantId"
+    );
+
+    if (!profile) {
+      logger.warn(
+        `Profile not found for user ID: ${id} (user exists but no profile)`
+      );
     }
   }
 
-  return alumniProfile;
+  return profile;
 };
 
 // Helper function to check access permissions
-const checkAccess = (req: Request, alumniProfile: any): boolean => {
+const checkAccess = (req: Request, profile: any): boolean => {
   const userRole = req.user?.role;
   const userTenantId = req.user?.tenantId?.toString();
-  const alumniTenantId = alumniProfile?.userId?.tenantId?.toString() || 
-                         alumniProfile?.userId?.tenantId?.toString();
+  const profileTenantId =
+    profile?.userId?.tenantId?.toString() ||
+    profile?.userId?.tenantId?.toString();
 
   // Super admin can access all
   if (userRole === UserRole.SUPER_ADMIN) {
     return true;
   }
 
-  // Staff, HOD, and College Admin can only access alumni from their college
-  if (userRole === UserRole.STAFF || 
-      userRole === UserRole.HOD || 
-      userRole === UserRole.COLLEGE_ADMIN) {
-    return userTenantId === alumniTenantId;
+  // Staff, HOD, and College Admin can only access users from their college
+  if (
+    userRole === UserRole.STAFF ||
+    userRole === UserRole.HOD ||
+    userRole === UserRole.COLLEGE_ADMIN
+  ) {
+    return userTenantId === profileTenantId;
   }
 
   return false;
 };
 
-// Get complete 360 view data for an alumnus
-export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response) => {
+// Get complete 360 view data (works for both alumni and students)
+export const getAlumni360Data = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
     const { id } = req.params;
 
-    // Find alumni profile by _id or userId
-    let alumniProfile = await findAlumniProfile(id);
+    // Find profile by _id or userId (works for both alumni and students)
+    let profile = await findProfile(id);
 
-    if (!alumniProfile) {
+    if (!profile) {
       // Check if user exists and try to auto-create profile
-      const userIdObjectId = mongoose.Types.ObjectId.isValid(id) 
-        ? new mongoose.Types.ObjectId(id) 
+      const userIdObjectId = mongoose.Types.ObjectId.isValid(id)
+        ? new mongoose.Types.ObjectId(id)
         : id;
       const user = await User.findById(userIdObjectId);
-      
+
       if (!user) {
         logger.warn(`User not found with ID: ${id}`);
         return res.status(404).json({
@@ -97,20 +113,30 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
         });
       }
 
-      if (user.role !== UserRole.ALUMNI) {
-        logger.warn(`User ${id} is not an alumni (role: ${user.role})`);
+      // Check if user is alumni or student
+      if (user.role !== UserRole.ALUMNI && user.role !== UserRole.STUDENT) {
+        logger.warn(
+          `User ${id} is not an alumni or student (role: ${user.role})`
+        );
         return res.status(400).json({
           success: false,
-          message: `This user is not an alumnus. Current role: ${user.role}`,
+          message: `This user is not an alumnus or student. Current role: ${user.role}`,
         });
       }
 
-      // Auto-create a minimal alumni profile if user exists and is alumni
-      logger.info(`Auto-creating alumni profile for user ID: ${id}`);
+      // Auto-create a minimal profile if user exists (for both alumni and students)
+      logger.info(
+        `Auto-creating profile for user ID: ${id} (role: ${user.role})`
+      );
       try {
         const currentYear = new Date().getFullYear();
-        const defaultGraduationYear = (user as any).graduationYear || currentYear - 1;
-        const defaultBatchYear = defaultGraduationYear - 4;
+        const defaultGraduationYear =
+          (user as any).graduationYear ||
+          (user.role === UserRole.STUDENT ? currentYear + 1 : currentYear - 1);
+        const defaultBatchYear =
+          user.role === UserRole.STUDENT
+            ? currentYear - (Number(user.currentYear) || 1)
+            : defaultGraduationYear - 4;
 
         const newProfile = new AlumniProfile({
           userId: user._id,
@@ -137,54 +163,59 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
         });
 
         await newProfile.save();
-        logger.info(`Successfully created alumni profile for user ID: ${id}`);
+        logger.info(`Successfully created profile for user ID: ${id}`);
 
         // Re-populate userId after save
-        alumniProfile = await AlumniProfile.findById(newProfile._id)
-          .populate("userId", "firstName lastName email profilePicture bio location linkedinProfile githubProfile website phone tenantId");
+        profile = await AlumniProfile.findById(newProfile._id).populate(
+          "userId",
+          "firstName lastName email profilePicture bio location linkedinProfile githubProfile website phone tenantId"
+        );
       } catch (error) {
-        logger.error(`Failed to auto-create alumni profile for user ID: ${id}`, error);
+        logger.error(`Failed to auto-create profile for user ID: ${id}`, error);
         return res.status(500).json({
           success: false,
-          message: "Failed to create alumni profile automatically",
+          message: "Failed to create profile automatically",
           error: error instanceof Error ? error.message : "Unknown error",
         });
       }
     }
 
-    // Ensure alumniProfile is not null at this point
-    if (!alumniProfile) {
+    // Ensure profile is not null at this point
+    if (!profile) {
       return res.status(404).json({
         success: false,
-        message: "Alumni profile not found",
+        message: "Profile not found",
       });
     }
 
     // Check access permissions
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
-        message: "You do not have permission to view this alumni profile",
+        message: "You do not have permission to view this profile",
       });
     }
 
-    // Use the alumniProfile._id for all queries (not the original id parameter)
-    const alumniProfileId = alumniProfile._id.toString();
-    const userId = (alumniProfile.userId as any)?._id || alumniProfile.userId;
+    // Use the profile._id for all queries (not the original id parameter)
+    const profileId = profile._id.toString();
+    const userId = (profile.userId as any)?._id || profile.userId;
     const userIdString = userId.toString();
     const userIdObjectId = new mongoose.Types.ObjectId(userIdString);
 
     // Build notes query: filter private notes - only show private notes to their creator (or admins see all)
     const currentUserId = req.user?.id;
-    const currentUserIdObjectId = currentUserId ? new mongoose.Types.ObjectId(currentUserId) : null;
+    const currentUserIdObjectId = currentUserId
+      ? new mongoose.Types.ObjectId(currentUserId)
+      : null;
     const userRole = req.user?.role;
-    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
-    
+    const isAdmin =
+      userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+
     // Notes query: show all non-private notes, and private notes only if user is creator (admins see all)
     const notesQuery: any = {
-      alumniId: alumniProfileId,
+      alumniId: profileId, // Reuse alumniId field for both alumni and students
     };
-    
+
     if (!isAdmin && currentUserIdObjectId) {
       // Regular users: only see non-private notes OR their own private notes
       notesQuery.$or = [
@@ -205,22 +236,25 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
       jobsPosted,
       jobsApplied,
     ] = await Promise.all([
-      // Notes - use alumniProfileId, filter private notes
+      // Notes - use profileId, filter private notes
       AlumniNote.find(notesQuery)
         .populate("staffId", "firstName lastName email profilePicture")
         .sort({ createdAt: -1 })
         .limit(50),
 
-      // Issues - use alumniProfileId
-      AlumniIssue.find({ alumniId: alumniProfileId })
+      // Issues - use profileId
+      AlumniIssue.find({ alumniId: profileId })
         .populate("raisedBy", "firstName lastName email")
         .populate("assignedTo", "firstName lastName email")
         .populate("resolvedBy", "firstName lastName email")
-        .populate("responses.staffId", "firstName lastName email profilePicture")
+        .populate(
+          "responses.staffId",
+          "firstName lastName email profilePicture"
+        )
         .sort({ createdAt: -1 }),
 
-      // Flags - use alumniProfileId
-      AlumniFlag.find({ alumniId: alumniProfileId })
+      // Flags - use profileId
+      AlumniFlag.find({ alumniId: profileId })
         .populate("createdBy", "firstName lastName email")
         .sort({ createdAt: -1 }),
 
@@ -237,17 +271,16 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
           { "registrations.userId": userIdObjectId },
         ],
       })
-        .select("title startDate endDate location isOnline attendees registrations feedback")
+        .select(
+          "title startDate endDate location isOnline attendees registrations feedback"
+        )
         .lean()
         .sort({ startDate: -1 })
         .limit(50),
 
       // Messages - use userIdObjectId
       Message.find({
-        $or: [
-          { sender: userIdObjectId },
-          { recipient: userIdObjectId },
-        ],
+        $or: [{ sender: userIdObjectId }, { recipient: userIdObjectId }],
       })
         .populate("sender", "firstName lastName email profilePicture")
         .populate("recipient", "firstName lastName email profilePicture")
@@ -256,10 +289,7 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
 
       // Mentorship Communications - use userIdObjectId
       MentorshipCommunication.find({
-        $or: [
-          { fromUserId: userIdObjectId },
-          { toUserId: userIdObjectId },
-        ],
+        $or: [{ fromUserId: userIdObjectId }, { toUserId: userIdObjectId }],
       })
         .populate("fromUserId", "firstName lastName email")
         .populate("toUserId", "firstName lastName email")
@@ -339,8 +369,11 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
     if (eventStats[0]?.eventsAttended > 0) engagementScore += 25;
     if (eventStats[0]?.eventsAttended > 5) engagementScore += 10;
     if (messages.length > 0) engagementScore += 10;
-    if (lastInteraction && 
-        (new Date().getTime() - new Date(lastInteraction).getTime()) < 90 * 24 * 60 * 60 * 1000) {
+    if (
+      lastInteraction &&
+      new Date().getTime() - new Date(lastInteraction).getTime() <
+        90 * 24 * 60 * 60 * 1000
+    ) {
       engagementScore += 5; // Active in last 90 days
     }
 
@@ -377,7 +410,8 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
       rewardsData.badges = badges;
 
       // Get activities
-      const tenantId = req.tenantId || req.user?.tenantId?.toString() || undefined;
+      const tenantId =
+        req.tenantId || req.user?.tenantId?.toString() || undefined;
       const activities = await rewardService.getUserActivities(
         userIdString,
         tenantId
@@ -391,7 +425,10 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
       );
       rewardsData.summary = summary;
     } catch (error) {
-      logger.warn(`Failed to fetch rewards data for user ${userIdString}:`, error);
+      logger.warn(
+        `Failed to fetch rewards data for user ${userIdString}:`,
+        error
+      );
       // Continue without rewards data if there's an error
     }
 
@@ -400,7 +437,7 @@ export const getAlumni360Data = async (req: AuthenticatedRequest, res: Response)
     return res.json({
       success: true,
       data: {
-        alumni: alumniProfile,
+        alumni: profile, // Works for both alumni and students
         notes: notes,
         issues: issues,
         flags: flags,
@@ -436,32 +473,34 @@ export const addNote = async (req: Request, res: Response) => {
       });
     }
 
-    // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    // Find profile and check access
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
-        message: "Alumni profile not found",
+        message: "Profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
-        message: "You do not have permission to add notes for this alumni",
+        message: "You do not have permission to add notes for this user",
       });
     }
 
     const note = await AlumniNote.create({
-      alumniId: alumniProfile._id,
+      alumniId: profile._id,
       staffId: req.user?.id,
       content,
       category: category || "general",
       isPrivate: isPrivate || false,
     });
 
-    const populatedNote = await AlumniNote.findById(note._id)
-      .populate("staffId", "firstName lastName email profilePicture");
+    const populatedNote = await AlumniNote.findById(note._id).populate(
+      "staffId",
+      "firstName lastName email profilePicture"
+    );
 
     return res.status(201).json({
       success: true,
@@ -492,25 +531,25 @@ export const updateNote = async (req: Request, res: Response) => {
     }
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
-        message: "You do not have permission to update notes for this alumni",
+        message: "You do not have permission to update notes for this user",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
     const note = await AlumniNote.findOne({
       _id: noteId,
-      alumniId: alumniProfileId,
+      alumniId: profileId,
     });
 
     if (!note) {
@@ -523,7 +562,8 @@ export const updateNote = async (req: Request, res: Response) => {
     // Check if user is the creator or has admin privileges
     const userRole = req.user?.role;
     const isCreator = note.staffId.toString() === req.user?.id;
-    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+    const isAdmin =
+      userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
 
     if (!isCreator && !isAdmin) {
       return res.status(403).json({
@@ -539,8 +579,10 @@ export const updateNote = async (req: Request, res: Response) => {
 
     await note.save();
 
-    const populatedNote = await AlumniNote.findById(note._id)
-      .populate("staffId", "firstName lastName email profilePicture");
+    const populatedNote = await AlumniNote.findById(note._id).populate(
+      "staffId",
+      "firstName lastName email profilePicture"
+    );
 
     return res.json({
       success: true,
@@ -563,25 +605,25 @@ export const deleteNote = async (req: Request, res: Response) => {
     const { id, noteId } = req.params;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
-        message: "You do not have permission to delete notes for this alumni",
+        message: "You do not have permission to delete notes for this user",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
     const note = await AlumniNote.findOne({
       _id: noteId,
-      alumniId: alumniProfileId,
+      alumniId: profileId,
     });
 
     if (!note) {
@@ -594,7 +636,8 @@ export const deleteNote = async (req: Request, res: Response) => {
     // Check if user is the creator or has admin privileges
     const userRole = req.user?.role;
     const isCreator = note.staffId.toString() === req.user?.id;
-    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+    const isAdmin =
+      userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
 
     if (!isCreator && !isAdmin) {
       return res.status(403).json({
@@ -628,32 +671,35 @@ export const getNotes = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to view notes for this alumni",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
     const currentUserId = req.user?.id;
-    const currentUserIdObjectId = currentUserId ? new mongoose.Types.ObjectId(currentUserId) : null;
+    const currentUserIdObjectId = currentUserId
+      ? new mongoose.Types.ObjectId(currentUserId)
+      : null;
     const userRole = req.user?.role;
-    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
-    
+    const isAdmin =
+      userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+
     // Build notes query: filter private notes - only show private notes to their creator (or admins see all)
     const notesQuery: any = {
-      alumniId: alumniProfileId,
+      alumniId: profileId,
     };
-    
+
     if (!isAdmin && currentUserIdObjectId) {
       // Regular users: only see non-private notes OR their own private notes
       notesQuery.$or = [
@@ -707,24 +753,24 @@ export const createIssue = async (req: Request, res: Response) => {
     }
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to create issues for this alumni",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
     const issue = await AlumniIssue.create({
-      alumniId: alumniProfileId,
+      alumniId: profileId,
       raisedBy: req.user?.id,
       title,
       description,
@@ -760,18 +806,18 @@ export const updateIssue = async (req: Request, res: Response) => {
     const { status, priority, assignedTo, response, tags } = req.body;
 
     // Find alumni profile first to get the correct ID
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
     const issue = await AlumniIssue.findOne({
       _id: issueId,
-      alumniId: alumniProfileId,
+      alumniId: profileId,
     });
 
     if (!issue) {
@@ -781,8 +827,8 @@ export const updateIssue = async (req: Request, res: Response) => {
       });
     }
 
-    // Check access (alumniProfile already found above)
-    if (!checkAccess(req, alumniProfile)) {
+    // Check access (profile already found above)
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to update this issue",
@@ -816,7 +862,9 @@ export const updateIssue = async (req: Request, res: Response) => {
         // Check if user is the creator or admin
         const userRole = req.user?.role;
         const isCreator = existingResponse.staffId?.toString() === req.user?.id;
-        const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+        const isAdmin =
+          userRole === UserRole.SUPER_ADMIN ||
+          userRole === UserRole.COLLEGE_ADMIN;
 
         if (!isCreator && !isAdmin) {
           return res.status(403).json({
@@ -844,7 +892,9 @@ export const updateIssue = async (req: Request, res: Response) => {
         // Check if user is the creator or admin
         const userRole = req.user?.role;
         const isCreator = existingResponse.staffId?.toString() === req.user?.id;
-        const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+        const isAdmin =
+          userRole === UserRole.SUPER_ADMIN ||
+          userRole === UserRole.COLLEGE_ADMIN;
 
         if (!isCreator && !isAdmin) {
           return res.status(403).json({
@@ -897,25 +947,25 @@ export const deleteIssue = async (req: Request, res: Response) => {
     const { id, issueId } = req.params;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to delete issues for this alumni",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
     const issue = await AlumniIssue.findOne({
       _id: issueId,
-      alumniId: alumniProfileId,
+      alumniId: profileId,
     });
 
     if (!issue) {
@@ -928,7 +978,8 @@ export const deleteIssue = async (req: Request, res: Response) => {
     // Check if user is the creator or has admin privileges
     const userRole = req.user?.role;
     const isCreator = issue.raisedBy?.toString() === req.user?.id;
-    const isAdmin = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
+    const isAdmin =
+      userRole === UserRole.SUPER_ADMIN || userRole === UserRole.COLLEGE_ADMIN;
 
     if (!isCreator && !isAdmin) {
       return res.status(403).json({
@@ -960,23 +1011,23 @@ export const getIssues = async (req: Request, res: Response) => {
     const { status } = req.query;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to view issues for this alumni",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
-    const filter: any = { alumniId: alumniProfileId };
+    const profileId = profile._id.toString();
+    const filter: any = { alumniId: profileId };
     if (status) filter.status = status;
 
     const issues = await AlumniIssue.find(filter)
@@ -1014,25 +1065,25 @@ export const addFlag = async (req: Request, res: Response) => {
     }
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to add flags for this alumni",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
     // Use findOneAndUpdate with upsert to update or create
     const flag = await AlumniFlag.findOneAndUpdate(
-      { alumniId: alumniProfileId, flagType },
+      { alumniId: profileId, flagType },
       {
         flagValue,
         description,
@@ -1062,23 +1113,23 @@ export const removeFlag = async (req: Request, res: Response) => {
     const { id, flagType } = req.params;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to remove flags for this alumni",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
-    await AlumniFlag.findOneAndDelete({ alumniId: alumniProfileId, flagType });
+    const profileId = profile._id.toString();
+    await AlumniFlag.findOneAndDelete({ alumniId: profileId, flagType });
 
     return res.json({
       success: true,
@@ -1100,23 +1151,23 @@ export const getFlags = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to view flags for this alumni",
       });
     }
 
-    const alumniProfileId = alumniProfile._id.toString();
-    const flags = await AlumniFlag.find({ alumniId: alumniProfileId })
+    const profileId = profile._id.toString();
+    const flags = await AlumniFlag.find({ alumniId: profileId })
       .populate("createdBy", "firstName lastName email")
       .sort({ createdAt: -1 });
 
@@ -1141,25 +1192,25 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
     const { type, page, limit, search } = req.query;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to view communication history",
       });
     }
 
-    const userId = (alumniProfile.userId as any)?._id || alumniProfile.userId;
+    const userId = (profile.userId as any)?._id || profile.userId;
     const userIdString = userId.toString();
     const userIdObjectId = new mongoose.Types.ObjectId(userIdString);
-    
+
     // Pagination parameters
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 20;
@@ -1167,17 +1218,11 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
 
     // Build query filters
     const messageFilter: any = {
-      $or: [
-        { sender: userIdObjectId },
-        { recipient: userIdObjectId },
-      ],
+      $or: [{ sender: userIdObjectId }, { recipient: userIdObjectId }],
     };
 
     const mentorshipFilter: any = {
-      $or: [
-        { fromUserId: userIdObjectId },
-        { toUserId: userIdObjectId },
-      ],
+      $or: [{ fromUserId: userIdObjectId }, { toUserId: userIdObjectId }],
     };
 
     // Get total counts for pagination (before search filtering)
@@ -1194,7 +1239,7 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
     // Fetch up to (skip + limit) * 2 to account for filtering by type
     // Max limit to prevent loading too many records
     const maxFetchLimit = 1000;
-    const fetchLimit = type 
+    const fetchLimit = type
       ? Math.min((skip + limitNum) * 3, maxFetchLimit) // Fetch 3x if filtering by type
       : Math.min(skip + limitNum, maxFetchLimit); // Fetch just what we need if no filter
 
@@ -1238,15 +1283,17 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
       .filter((comm) => {
         // Filter by type if specified
         if (type && comm.type !== type) return false;
-        
+
         // Filter by search term if specified
         if (search && typeof search === "string") {
           const searchLower = search.toLowerCase();
-          const fromName = `${comm.from?.firstName || ""} ${comm.from?.lastName || ""}`.toLowerCase();
-          const toName = `${comm.to?.firstName || ""} ${comm.to?.lastName || ""}`.toLowerCase();
+          const fromName =
+            `${comm.from?.firstName || ""} ${comm.from?.lastName || ""}`.toLowerCase();
+          const toName =
+            `${comm.to?.firstName || ""} ${comm.to?.lastName || ""}`.toLowerCase();
           const content = (comm.content || "").toLowerCase();
           const subject = ((comm as any).subject || "").toLowerCase(); // Subject only exists for mentorship
-          
+
           return (
             fromName.includes(searchLower) ||
             toName.includes(searchLower) ||
@@ -1254,7 +1301,7 @@ export const getCommunicationHistory = async (req: Request, res: Response) => {
             subject.includes(searchLower)
           );
         }
-        
+
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1293,24 +1340,24 @@ export const getAlumniAnalytics = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to view analytics",
       });
     }
 
-    const userId = (alumniProfile.userId as any)?._id || alumniProfile.userId;
+    const userId = (profile.userId as any)?._id || profile.userId;
     const userIdObjectId = new mongoose.Types.ObjectId(userId.toString());
-    const alumniProfileId = alumniProfile._id.toString();
+    const profileId = profile._id.toString();
 
     // Get counts for all activity types
     const [
@@ -1334,19 +1381,16 @@ export const getAlumniAnalytics = async (req: Request, res: Response) => {
         ],
       }),
       Message.countDocuments({
-        $or: [
-          { sender: userIdObjectId },
-          { recipient: userIdObjectId },
-        ],
+        $or: [{ sender: userIdObjectId }, { recipient: userIdObjectId }],
       }),
       JobPost.countDocuments({ postedBy: userIdObjectId }),
       JobApplication.countDocuments({ applicantId: userIdObjectId }),
-      AlumniNote.countDocuments({ alumniId: alumniProfileId }),
+      AlumniNote.countDocuments({ alumniId: profileId }),
       AlumniIssue.countDocuments({
-        alumniId: alumniProfileId,
+        alumniId: profileId,
         status: { $in: ["open", "in_progress"] },
       }),
-      AlumniIssue.countDocuments({ alumniId: alumniProfileId }),
+      AlumniIssue.countDocuments({ alumniId: profileId }),
     ]);
 
     // Calculate total activities
@@ -1394,10 +1438,7 @@ export const getAlumniAnalytics = async (req: Request, res: Response) => {
     ]);
 
     const messageStats = await Message.countDocuments({
-      $or: [
-        { sender: userIdObjectId },
-        { recipient: userIdObjectId },
-      ],
+      $or: [{ sender: userIdObjectId }, { recipient: userIdObjectId }],
     });
 
     // Calculate engagement score
@@ -1426,10 +1467,7 @@ export const getAlumniAnalytics = async (req: Request, res: Response) => {
         startDate: { $gte: thirtyDaysAgo },
       }),
       Message.countDocuments({
-        $or: [
-          { sender: userIdObjectId },
-          { recipient: userIdObjectId },
-        ],
+        $or: [{ sender: userIdObjectId }, { recipient: userIdObjectId }],
         createdAt: { $gte: thirtyDaysAgo },
       }),
     ]).then((counts) => counts.reduce((sum, count) => sum + count, 0));
@@ -1470,7 +1508,10 @@ export const getAlumniAnalytics = async (req: Request, res: Response) => {
       .filter((item) => item.count > 0)
       .map((item) => ({
         ...item,
-        value: totalActivities > 0 ? Math.round((item.count / totalActivities) * 100) : 0,
+        value:
+          totalActivities > 0
+            ? Math.round((item.count / totalActivities) * 100)
+            : 0,
       }));
 
     // Calculate engagement status distribution
@@ -1524,22 +1565,22 @@ export const getEngagementMetrics = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Find alumni profile and check access
-    const alumniProfile = await findAlumniProfile(id);
-    if (!alumniProfile) {
+    const profile = await findProfile(id);
+    if (!profile) {
       return res.status(404).json({
         success: false,
         message: "Alumni profile not found",
       });
     }
 
-    if (!checkAccess(req, alumniProfile)) {
+    if (!checkAccess(req, profile)) {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to view engagement metrics",
       });
     }
 
-    const userId = (alumniProfile.userId as any)?._id || alumniProfile.userId;
+    const userId = (profile.userId as any)?._id || profile.userId;
     const userIdString = userId.toString();
 
     // Calculate metrics (same logic as in getAlumni360Data)
@@ -1565,7 +1606,11 @@ export const getEngagementMetrics = async (req: Request, res: Response) => {
           $match: {
             $or: [
               { "attendees.userId": new mongoose.Types.ObjectId(userIdString) },
-              { "registrations.userId": new mongoose.Types.ObjectId(userIdString) },
+              {
+                "registrations.userId": new mongoose.Types.ObjectId(
+                  userIdString
+                ),
+              },
             ],
           },
         },
@@ -1578,18 +1623,12 @@ export const getEngagementMetrics = async (req: Request, res: Response) => {
         },
       ]),
       Message.countDocuments({
-        $or: [
-          { sender: userId },
-          { recipient: userId },
-        ],
+        $or: [{ sender: userId }, { recipient: userId }],
       }),
     ]);
 
     const lastMessage = await Message.findOne({
-      $or: [
-        { sender: userId },
-        { recipient: userId },
-      ],
+      $or: [{ sender: userId }, { recipient: userId }],
     }).sort({ createdAt: -1 });
 
     const lastInteraction = lastMessage
@@ -1603,8 +1642,11 @@ export const getEngagementMetrics = async (req: Request, res: Response) => {
     if (eventStats[0]?.eventsAttended > 0) engagementScore += 25;
     if (eventStats[0]?.eventsAttended > 5) engagementScore += 10;
     if (messageCount > 0) engagementScore += 10;
-    if (lastInteraction && 
-        (new Date().getTime() - new Date(lastInteraction).getTime()) < 90 * 24 * 60 * 60 * 1000) {
+    if (
+      lastInteraction &&
+      new Date().getTime() - new Date(lastInteraction).getTime() <
+        90 * 24 * 60 * 60 * 1000
+    ) {
       engagementScore += 5;
     }
 
@@ -1632,4 +1674,3 @@ export const getEngagementMetrics = async (req: Request, res: Response) => {
     });
   }
 };
-

@@ -43,10 +43,37 @@ const rewardVerificationController = {
         });
       }
 
+      // Use req.userId which is already set as a string by auth middleware
+      // Fallback to extracting from req.user if userId is not available
+      let staffId: string = req.userId || "";
+      
+      if (!staffId && req.user) {
+        // Fallback: extract from req.user object
+        if (req.user._id) {
+          const userId = req.user._id as any;
+          staffId = typeof userId === "string" 
+            ? userId 
+            : (userId?.toString ? userId.toString() : String(userId));
+        } else if ((req.user as any).id) {
+          const userId = (req.user as any).id;
+          staffId = typeof userId === "string" 
+            ? userId 
+            : (userId?.toString ? userId.toString() : String(userId));
+        }
+      }
+
+      // Validate staffId is a valid ObjectId string format
+      if (!staffId || !/^[0-9a-fA-F]{24}$/.test(staffId)) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid user ID in request",
+        });
+      }
+
       const activity = await rewardVerificationService.verifyTask(
         activityId,
         action,
-        req.user?._id?.toString() || "",
+        staffId,
         reason,
         req.tenantId
       );

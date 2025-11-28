@@ -1,5 +1,7 @@
 import { Types } from "mongoose";
 import Reward from "../models/Reward";
+import User from "../models/User";
+import { UserRole } from "../types";
 import rewardService from "./rewardService";
 import { logger } from "../utils/logger";
 
@@ -17,6 +19,12 @@ export const rewardIntegrationService = {
     tenantId?: string
   ) {
     try {
+      // Check if user is a student - students should not earn rewards
+      const user = await User.findById(userId).select("role");
+      if (!user || user.role === UserRole.STUDENT) {
+        return; // Skip tracking for students
+      }
+
       // Find active rewards with engagement tasks that track community posts
       const rewards = await Reward.find({
         isActive: true,
@@ -69,6 +77,12 @@ export const rewardIntegrationService = {
     tenantId?: string
   ) {
     try {
+      // Check if user is a student - students should not earn rewards
+      const user = await User.findById(userId).select("role");
+      if (!user || user.role === UserRole.STUDENT) {
+        return; // Skip tracking for students
+      }
+
       const rewards = await Reward.find({
         isActive: true,
         "tasks.actionType": "event",
@@ -111,6 +125,12 @@ export const rewardIntegrationService = {
     tenantId?: string
   ) {
     try {
+      // Check if user is a student - students should not earn rewards
+      const user = await User.findById(userId).select("role");
+      if (!user || user.role === UserRole.STUDENT) {
+        return; // Skip tracking for students
+      }
+
       // Only track if profile is 100% complete
       if (completionPercentage < 100) return;
 
@@ -160,6 +180,12 @@ export const rewardIntegrationService = {
     tenantId?: string
   ) {
     try {
+      // Check if user is a student - students should not earn rewards
+      const user = await User.findById(userId).select("role");
+      if (!user || user.role === UserRole.STUDENT) {
+        return; // Skip tracking for students
+      }
+
       const rewards = await Reward.find({
         isActive: true,
         "tasks.actionType": "job",
@@ -203,6 +229,12 @@ export const rewardIntegrationService = {
     tenantId?: string
   ) {
     try {
+      // Check if user is a student - students should not earn rewards
+      const user = await User.findById(userId).select("role");
+      if (!user || user.role === UserRole.STUDENT) {
+        return; // Skip tracking for students
+      }
+
       const rewards = await Reward.find({
         isActive: true,
         "tasks.actionType": "donation",
@@ -252,6 +284,12 @@ export const rewardIntegrationService = {
     tenantId?: string
   ) {
     try {
+      // Check if user is a student - students should not earn rewards
+      const user = await User.findById(userId).select("role");
+      if (!user || user.role === UserRole.STUDENT) {
+        return; // Skip tracking for students
+      }
+
       const rewards = await Reward.find({
         isActive: true,
         "tasks.actionType": "mentorship",
@@ -295,6 +333,12 @@ export const rewardIntegrationService = {
     tenantId?: string
   ) {
     try {
+      // Check if user is a student - students should not earn rewards
+      const user = await User.findById(userId).select("role");
+      if (!user || user.role === UserRole.STUDENT) {
+        return; // Skip tracking for students
+      }
+
       const rewards = await Reward.find({
         isActive: true,
         "tasks.actionType": { $in: ["engagement", "custom"] },

@@ -80,7 +80,7 @@ const rewardController = {
       } else {
         await notificationService.sendToRoles({
           event: "reward.new",
-          roles: [UserRole.ALUMNI, UserRole.STUDENT],
+          roles: [UserRole.ALUMNI], // Students should not receive reward notifications
           tenantId: tenantId,
           data: {
             title: rewardName, // Use 'name' field from Reward model, but pass as 'title' for notification template

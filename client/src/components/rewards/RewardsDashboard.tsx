@@ -285,13 +285,13 @@ export const RewardsDashboard: React.FC<RewardsDashboardProps> = ({
           <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.2em] text-white/70 mb-2">
-                Alumni Rewards
+                Rewards
               </p>
               <h1 className="text-3xl font-semibold tracking-tight">
                 Celebrate your contributions, unlock exclusive perks
               </h1>
               <p className="text-white/80 mt-2 max-w-3xl">
-                Complete alumni initiatives, earn custom badges, and redeem gift
+                Complete initiatives, earn custom badges, and redeem gift
                 vouchers from curated partners — all from a single, intuitive
                 hub.
               </p>

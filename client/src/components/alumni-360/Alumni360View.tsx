@@ -33,10 +33,12 @@ const Alumni360View = () => {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Check if user has access (staff, hod, college_admin, or super_admin)
+  // Check if user has access (staff, hod, college_admin, student, or super_admin)
   const hasAccess =
     user?.role &&
-    ["staff", "hod", "college_admin", "super_admin"].includes(user.role);
+    ["staff", "hod", "college_admin", "super_admin", "student"].includes(
+      user.role
+    );
 
   const fetchData = useCallback(async () => {
     if (!id) return;

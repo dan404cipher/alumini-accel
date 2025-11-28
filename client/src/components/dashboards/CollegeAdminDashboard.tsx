@@ -97,6 +97,7 @@ import JobManagement from "../admin/JobManagement";
 import { AnalyticsDashboard } from "../admin/AnalyticsDashboard";
 import { DepartmentAnalytics } from "../admin/analytics/DepartmentAnalytics";
 import { RewardsAdminDashboard } from "../rewards/RewardsAdminDashboard";
+import { StaffVerificationDashboard } from "../rewards/StaffVerificationDashboard";
 import Footer from "../Footer";
 // Note: College Admin only manages their own college, not all colleges
 
@@ -3139,7 +3140,24 @@ const CollegeAdminDashboard = () => {
 
             {/* Rewards Management */}
             <TabsContent value="rewards-management" className="space-y-6">
-              <RewardsAdminDashboard />
+              <Tabs defaultValue="rewards" className="w-full">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="rewards" className="flex items-center gap-2">
+                    <Award className="w-4 h-4" />
+                    Manage Rewards
+                  </TabsTrigger>
+                  <TabsTrigger value="verifications" className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Task Verifications
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="rewards">
+                  <RewardsAdminDashboard />
+                </TabsContent>
+                <TabsContent value="verifications">
+                  <StaffVerificationDashboard />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

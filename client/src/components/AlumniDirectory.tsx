@@ -919,8 +919,6 @@ const AlumniDirectory = () => {
                                           directoryUser.location}
                                       </div>
                                     )}
-
-                                  
                                   </>
                                 )}
                               </div>
@@ -1186,21 +1184,27 @@ const AlumniDirectory = () => {
                                       View Profile
                                     </Button>
                                   )}
-                                  {canView360 && directoryUser.role === "alumni" && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/alumni-360/${directoryUser.id}`);
-                                      }}
-                                      className="flex-1"
-                                    >
-                                      <Eye className="w-4 h-4 mr-1" />
-                                      <span className="hidden sm:inline">360 View</span>
-                                      <span className="sm:hidden">360</span>
-                                    </Button>
-                                  )}
+                                  {canView360 &&
+                                    (directoryUser.role === "alumni" ||
+                                      directoryUser.role === "student") && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(
+                                            `/alumni-360/${directoryUser.id}`
+                                          );
+                                        }}
+                                        className="flex-1"
+                                      >
+                                        <Eye className="w-4 h-4 mr-1" />
+                                        <span className="hidden sm:inline">
+                                          360 View
+                                        </span>
+                                        <span className="sm:hidden">360</span>
+                                      </Button>
+                                    )}
                                   {canSendMessage ? (
                                     <Button
                                       variant="outline"

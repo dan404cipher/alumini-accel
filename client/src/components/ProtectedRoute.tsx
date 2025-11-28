@@ -105,4 +105,36 @@ export const StudentRoute: React.FC<{ children: React.ReactNode }> = ({
   return <ProtectedRoute requiredRole="student">{children}</ProtectedRoute>;
 };
 
+// Block students from accessing certain routes (like rewards)
+export const StudentBlockedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user?.role === "student") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (user?.role === "student") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 export default ProtectedRoute;

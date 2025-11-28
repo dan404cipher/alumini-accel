@@ -110,6 +110,11 @@ const Layout = () => {
       case "donations":
         return <Donations />;
       case "rewards":
+        // Students should not access rewards - redirect to dashboard
+        if (user?.role === "student") {
+          navigate("/dashboard");
+          return null;
+        }
         // Rewards page is handled by its own route component
         navigate("/rewards");
         return null;

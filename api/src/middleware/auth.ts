@@ -163,6 +163,29 @@ export const requireAdmin = authorize(
 // Require STAFF role only (for approve/disapprove actions)
 export const requireStaff = authorize(UserRole.STAFF);
 
+// Block students from accessing rewards (allow alumni and admin roles)
+export const blockStudents = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required",
+    });
+  }
+
+  if (req.user.role === UserRole.STUDENT) {
+    return res.status(403).json({
+      success: false,
+      message: "Students do not have access to rewards",
+    });
+  }
+
+  return next();
+};
+
 // Optional authentication middleware (doesn't fail if no token)
 export const optionalAuth = async (
   req: AuthenticatedRequest,
@@ -343,6 +366,7 @@ export const requireCoordinator = requireCollegeAdmin;
 export default {
   authenticateToken,
   authorize,
+  blockStudents,
   requireSuperAdmin,
   requireCollegeAdmin,
   requireHOD,

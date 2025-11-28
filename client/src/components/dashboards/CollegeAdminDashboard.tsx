@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -1672,8 +1673,17 @@ const CollegeAdminDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.tenantId]);
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // URL-based navigation with query parameters
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "dashboard";
   const [adminStaffSubTab, setAdminStaffSubTab] = useState("management");
+
+  // Function to handle tab navigation with URL update
+  const handleTabChange = (tabKey: string) => {
+    setSearchParams({ tab: tabKey });
+    setSidebarOpen(false); // Close mobile menu when navigating
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="flex flex-1 overflow-hidden">
@@ -1873,7 +1883,7 @@ const CollegeAdminDashboard = () => {
                 const buttonContent = (
                   <button
                     key={item.key}
-                    onClick={() => setActiveTab(item.key)}
+                    onClick={() => handleTabChange(item.key)}
                     className={`w-full flex items-center ${
                       sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
                     } py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -1977,7 +1987,7 @@ const CollegeAdminDashboard = () => {
           {/* Main Content controlled by sidebar */}
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-6"
           >
             {/* Dashboard Overview */}

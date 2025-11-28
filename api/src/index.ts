@@ -73,13 +73,21 @@ import categoryRoutes from "./routes/category";
 import fundRoutes from "./routes/funds";
 import rewardsRoutes from "./routes/rewards";
 import rewardVerificationsRoutes from "./routes/rewardVerifications";
+console.log("✅ rewardVerificationsRoutes imported");
 import rewardAnalyticsRoutes from "./routes/rewardAnalytics";
+console.log("✅ rewardAnalyticsRoutes imported");
 import leaderboardRoutes from "./routes/leaderboard";
+console.log("✅ leaderboardRoutes imported");
 import badgeRoutes from "./routes/badges";
+console.log("✅ badgeRoutes imported");
 import cron from "node-cron";
 import Event from "./models/Event";
 import Tenant from "./models/Tenant";
+console.log("✅ Models imported");
 import { emailService } from "./services/emailService";
+console.log("✅ emailService imported");
+
+console.log("🟢 index.ts: All imports completed, creating Express app...");
 
 const app = express();
 const server = createServer(app);

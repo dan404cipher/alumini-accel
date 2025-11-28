@@ -1,7 +1,10 @@
 import { FilterQuery, Types } from "mongoose";
 import { RewardActivity, IRewardActivity } from "../models/Reward";
 import User from "../models/User";
+import Reward from "../models/Reward";
 import rewardService from "./rewardService";
+import notificationService from "./notificationService";
+import { logger } from "../utils/logger";
 
 interface VerificationFilters {
   tenantId?: string;
@@ -13,6 +16,37 @@ interface VerificationFilters {
   page?: number;
   limit?: number;
 }
+
+const getActivityUserId = (
+  userRef:
+    | Types.ObjectId
+    | string
+    | (Record<string, any> & { _id?: Types.ObjectId | string })
+) => {
+  if (!userRef) {
+    throw new Error("Activity is missing user reference");
+  }
+
+  if (typeof userRef === "string") {
+    return userRef;
+  }
+
+  if (userRef instanceof Types.ObjectId) {
+    return userRef.toHexString();
+  }
+
+  if (typeof userRef === "object" && "_id" in userRef) {
+    const nestedId = (userRef as any)._id;
+    if (typeof nestedId === "string") {
+      return nestedId;
+    }
+    if (nestedId instanceof Types.ObjectId) {
+      return nestedId.toHexString();
+    }
+  }
+
+  throw new Error("Unable to determine user ID from activity user reference");
+};
 
 export const rewardVerificationService = {
   /**
@@ -102,7 +136,9 @@ export const rewardVerificationService = {
 
       // Get full documents with populate
       const activityIds = activitiesResult.map((item) => item._id);
-      const activities = await RewardActivity.find({ _id: { $in: activityIds } })
+      const activities = await RewardActivity.find({
+        _id: { $in: activityIds },
+      })
         .populate("user", "firstName lastName email profilePicture")
         .populate("reward", "name category icon color tasks")
         .populate("verification.verifiedBy", "firstName lastName email")
@@ -171,6 +207,7 @@ export const rewardVerificationService = {
       throw new Error("Task has already been verified");
     }
 
+    const activityUserId = getActivityUserId(activity.user);
     const now = new Date();
 
     if (action === "approve") {
@@ -188,17 +225,22 @@ export const rewardVerificationService = {
       };
 
       // If task was earned but not yet awarded points due to verification, award them now
-      if (activity.status === "earned" && activity.pointsAwarded && activity.pointsAwarded > 0) {
+      if (
+        activity.status === "earned" &&
+        activity.pointsAwarded &&
+        activity.pointsAwarded > 0
+      ) {
         // Check if points were already added (to avoid double-counting)
-        const user = await User.findById(activity.user);
+        const user = await User.findById(activityUserId);
         if (user && user.rewards) {
           // Only add points if they haven't been added yet
           // We can check this by looking at the history or metadata
-          const pointsAlreadyAdded = activity.metadata?.pointsAddedToUser === true;
-          
+          const pointsAlreadyAdded =
+            activity.metadata?.pointsAddedToUser === true;
+
           if (!pointsAlreadyAdded) {
             await rewardService.updateUserPoints(
-              activity.user.toString(),
+              activityUserId,
               activity.pointsAwarded
             );
             activity.metadata = {
@@ -222,7 +264,7 @@ export const rewardVerificationService = {
         // Award badge from reward if present
         if (reward?.badge) {
           let rewardBadgeId: string | null = null;
-          
+
           if (reward.badge instanceof Types.ObjectId) {
             rewardBadgeId = reward.badge.toString();
           } else if (typeof reward.badge === "object" && reward.badge._id) {
@@ -238,14 +280,17 @@ export const rewardVerificationService = {
             import("./badgeEvaluationService")
               .then(({ badgeEvaluationService }) =>
                 badgeEvaluationService.awardBadgeDirectly(
-                  activity.user.toString(),
+                  activityUserId,
                   rewardBadgeId,
                   tenantId,
                   `Awarded for completing reward: ${reward.name || "Reward"}`
                 )
               )
               .catch((error) => {
-                console.error("[verifyTask] Error awarding reward badge:", error);
+                console.error(
+                  "[verifyTask] Error awarding reward badge:",
+                  error
+                );
               });
           }
         }
@@ -253,12 +298,14 @@ export const rewardVerificationService = {
         // Award badge from task if present
         if (activity.taskId && reward?.tasks) {
           const task = Array.isArray(reward.tasks)
-            ? reward.tasks.find((t: any) => t._id?.toString() === activity.taskId?.toString())
+            ? reward.tasks.find(
+                (t: any) => t._id?.toString() === activity.taskId?.toString()
+              )
             : null;
 
           if (task?.badge) {
             let taskBadgeId: string | null = null;
-            
+
             if (task.badge instanceof Types.ObjectId) {
               taskBadgeId = task.badge.toString();
             } else if (typeof task.badge === "object" && task.badge._id) {
@@ -274,14 +321,17 @@ export const rewardVerificationService = {
               import("./badgeEvaluationService")
                 .then(({ badgeEvaluationService }) =>
                   badgeEvaluationService.awardBadgeDirectly(
-                    activity.user.toString(),
+                    activityUserId,
                     taskBadgeId,
                     tenantId,
                     `Awarded for completing task: ${task.title || "Task"}`
                   )
                 )
                 .catch((error) => {
-                  console.error("[verifyTask] Error awarding task badge:", error);
+                  console.error(
+                    "[verifyTask] Error awarding task badge:",
+                    error
+                  );
                 });
             }
           }
@@ -299,6 +349,50 @@ export const rewardVerificationService = {
         note: reason || "Task approved by staff",
         at: now,
       });
+
+      // Send reward earned notification (was skipped while awaiting verification)
+      const rewardDoc = activity.reward as any;
+      const rewardName = rewardDoc?.name || "Reward";
+      const rewardPoints =
+        activity.pointsAwarded ??
+        rewardDoc?.points ??
+        activity.metadata?.pointsAwarded ??
+        0;
+      const rewardBadgeName =
+        typeof rewardDoc?.badge?.name === "string"
+          ? rewardDoc.badge.name
+          : undefined;
+      const task =
+        rewardDoc?.tasks?.find(
+          (t: any) => t._id?.toString() === activity.taskId?.toString()
+        ) || null;
+      const taskBadgeName =
+        typeof task?.badge?.name === "string" ? task.badge.name : undefined;
+      const rewardNotificationSent =
+        activity.metadata && activity.metadata.rewardEarnedNotified;
+
+      if (!rewardNotificationSent) {
+        try {
+          await notificationService.send({
+            recipients: [activityUserId],
+            event: "reward.earned",
+            data: {
+              title: rewardName,
+              points: rewardPoints,
+              badgeName: rewardBadgeName || taskBadgeName,
+            },
+          });
+          activity.metadata = {
+            ...(activity.metadata || {}),
+            rewardEarnedNotified: true,
+          };
+        } catch (notifyError) {
+          logger.warn(
+            "Failed to send reward earned notification after verification:",
+            notifyError
+          );
+        }
+      }
     } else {
       // Validate staffId is a valid ObjectId string
       if (!staffId || !Types.ObjectId.isValid(staffId)) {
@@ -321,9 +415,108 @@ export const rewardVerificationService = {
         note: reason || "Task rejected by staff",
         at: now,
       });
+
+      // Send notification to user about rejection
+      try {
+        const reward = await Reward.findById(activity.reward).select(
+          "name tasks"
+        );
+        const task = reward?.tasks?.find(
+          (t: any) => t._id?.toString() === activity.taskId?.toString()
+        );
+        const taskTitle = task?.title || reward?.name || "Task";
+
+        await notificationService.send({
+          recipients: [activityUserId],
+          event: "task.rejected",
+          data: {
+            taskTitle,
+            rejectionReason: reason || "Task rejected by staff",
+            rewardId: activity.reward.toString(),
+            activityId: (activity._id as Types.ObjectId).toString(),
+          },
+          metadata: {
+            rejectedBy: staffId,
+            rejectedAt: now.toISOString(),
+          },
+        });
+      } catch (notifyError) {
+        logger.error(
+          "Failed to send task rejection notification:",
+          notifyError
+        );
+        // Don't throw - rejection should still succeed even if notification fails
+      }
     }
 
     await activity.save();
+    return activity;
+  },
+
+  /**
+   * Resubmit a rejected task (user can resubmit after making modifications)
+   */
+  async resubmitTask(activityId: string, userId: string, tenantId?: string) {
+    const activity = await RewardActivity.findOne({
+      _id: activityId,
+      user: new Types.ObjectId(userId),
+      "verification.required": true,
+      "verification.status": "rejected",
+      ...(tenantId ? { tenantId: new Types.ObjectId(tenantId) } : {}),
+    })
+      .populate("reward")
+      .populate("user");
+
+    if (!activity) {
+      throw new Error(
+        "Rejected task not found or you don't have permission to resubmit it"
+      );
+    }
+
+    // Reset verification status to pending
+    activity.verification = {
+      required: true,
+      status: "pending",
+      // Clear rejection-related fields
+      verifiedBy: undefined,
+      verifiedAt: undefined,
+      rejectionReason: undefined,
+    };
+
+    // Add resubmission to history
+    activity.history.push({
+      action: "resubmitted",
+      note: "Task resubmitted by user after rejection",
+      at: new Date(),
+    });
+
+    await activity.save();
+
+    // Send notification about resubmission
+    try {
+      const reward = activity.reward as any;
+      const task = reward?.tasks?.find(
+        (t: any) => t._id?.toString() === activity.taskId?.toString()
+      );
+      const taskTitle = task?.title || reward?.name || "Task";
+
+      await notificationService.send({
+        recipients: [userId],
+        event: "task.resubmitted",
+        data: {
+          taskTitle,
+          rewardId: activity.reward.toString(),
+          activityId: (activity._id as Types.ObjectId).toString(),
+        },
+      });
+    } catch (notifyError) {
+      logger.error(
+        "Failed to send task resubmission notification:",
+        notifyError
+      );
+      // Don't throw - resubmission should still succeed even if notification fails
+    }
+
     return activity;
   },
 
@@ -411,4 +604,3 @@ export const rewardVerificationService = {
 };
 
 export default rewardVerificationService;
-

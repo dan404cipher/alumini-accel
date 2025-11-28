@@ -40,6 +40,8 @@ export type NotificationEvent =
   | "reward.new"
   | "task.assigned"
   | "task.completed"
+  | "task.rejected"
+  | "task.resubmitted"
   | "reward.earned"
   | "reward.claimed"
   | "profile.reminder"
@@ -296,6 +298,22 @@ const notificationTemplates: Record<NotificationEvent, TemplateBuilder> = {
     title: () => "Task marked complete",
     message: (data) =>
       `Your submission for ${data?.taskTitle ?? "a task"} is complete. Pending verification.`,
+  },
+  "task.rejected": {
+    category: "reward",
+    type: "error",
+    actionUrl: "/rewards",
+    title: () => "Task verification rejected",
+    message: (data) =>
+      `Your task "${data?.taskTitle ?? "task"}" was rejected. ${data?.rejectionReason ? `Reason: ${data.rejectionReason}` : "Please review and resubmit."}`,
+  },
+  "task.resubmitted": {
+    category: "reward",
+    type: "info",
+    actionUrl: "/rewards",
+    title: () => "Task resubmitted",
+    message: (data) =>
+      `Your task "${data?.taskTitle ?? "task"}" has been resubmitted and is pending verification again.`,
   },
   "reward.earned": {
     category: "reward",

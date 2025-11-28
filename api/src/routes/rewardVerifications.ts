@@ -27,5 +27,11 @@ router.get(
   asyncHandler(rewardVerificationController.getVerificationStats)
 );
 
-export default router;
+// Resubmit rejected task (user can resubmit their own rejected tasks)
+router.post(
+  "/:activityId/resubmit",
+  authenticateToken,
+  asyncHandler(rewardVerificationController.resubmitTask)
+);
 
+export default router;

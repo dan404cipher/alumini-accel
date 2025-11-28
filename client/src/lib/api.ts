@@ -3680,6 +3680,13 @@ export const rewardsAPI = {
     });
   },
 
+  resubmitTask: async (activityId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/verifications/${activityId}/resubmit`,
+    });
+  },
+
   getPointsDistribution: async (params?: {
     startDate?: string;
     endDate?: string;

@@ -29,6 +29,8 @@ import { format } from "date-fns";
 import { RewardTemplate, RewardActivity } from "./types";
 import { rewardsAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { RotateCcw } from "lucide-react";
+import React from "react";
 
 interface RewardCardProps {
   reward: RewardTemplate;
@@ -389,6 +391,27 @@ export const RewardCard: React.FC<RewardCardProps> = ({
                                 ⏳ Awaiting staff approval
                               </p>
                             )}
+                            {taskActivity.verification?.status === "rejected" && (
+                              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                                <p className="text-xs font-semibold text-red-700 mb-1">
+                                  ❌ Task Rejected
+                                </p>
+                                {taskActivity.verification.rejectionReason && (
+                                  <p className="text-xs text-red-600 mb-2">
+                                    {taskActivity.verification.rejectionReason}
+                                  </p>
+                                )}
+                                <ResubmitTaskButton
+                                  activityId={taskActivity._id}
+                                  taskTitle={task.title}
+                                />
+                              </div>
+                            )}
+                            {taskActivity.verification?.status === "approved" && (
+                              <p className="text-xs text-green-600 mt-1">
+                                ✅ Approved by staff
+                              </p>
+                            )}
                           </div>
                         )}
                         
@@ -489,6 +512,54 @@ export const RewardCard: React.FC<RewardCardProps> = ({
         </div>
       </div>
     </div>
+  );
+};
+
+// Resubmit Task Button Component
+const ResubmitTaskButton: React.FC<{ activityId: string; taskTitle: string }> = ({
+  activityId,
+  taskTitle,
+}) => {
+  const { toast } = useToast();
+  const [resubmitting, setResubmitting] = React.useState(false);
+
+  const handleResubmit = async () => {
+    try {
+      setResubmitting(true);
+      const response = await rewardsAPI.resubmitTask(activityId);
+      
+      if (response.success) {
+        toast({
+          title: "Task Resubmitted",
+          description: `"${taskTitle}" has been resubmitted and is pending verification again.`,
+        });
+        // Refresh the page or update state
+        window.location.reload();
+      } else {
+        throw new Error(response.message || "Failed to resubmit task");
+      }
+    } catch (error) {
+      toast({
+        title: "Resubmission Failed",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleResubmit}
+      disabled={resubmitting}
+      size="sm"
+      variant="outline"
+      className="w-full text-xs h-7 border-red-300 text-red-700 hover:bg-red-100"
+    >
+      <RotateCcw className="w-3 h-3 mr-1" />
+      {resubmitting ? "Resubmitting..." : "Resubmit Task"}
+    </Button>
   );
 };
 

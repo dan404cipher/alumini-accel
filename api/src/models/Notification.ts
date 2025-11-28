@@ -194,12 +194,16 @@ notificationSchema.statics.getUserNotifications = async function (
 }> {
   const { page = 1, limit = 20, category, type, isRead } = options;
 
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
   const query: any = {
     userId,
     $or: [
       { expiresAt: { $exists: false } },
       { expiresAt: { $gt: new Date() } },
     ],
+    createdAt: { $gte: ninetyDaysAgo },
   };
 
   if (category) query.category = category;

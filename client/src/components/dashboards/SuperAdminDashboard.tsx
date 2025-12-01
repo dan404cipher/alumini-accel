@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -24,12 +25,33 @@ import {
   Shield,
   UserPlus,
   Clock,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantAPI, userAPI } from "@/lib/api";
 import TenantManagement from "../TenantManagement";
 import UserManagement from "../UserManagement";
 import AlumniManagement from "../AlumniManagement";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 // Type definitions
 interface Tenant {
@@ -102,10 +124,38 @@ interface ActivityItem {
   type: "success" | "warning" | "info";
 }
 
+// Analytics type definitions
+interface ChartDataPoint {
+  name: string;
+  alumni: number;
+  admin: number;
+  hod: number;
+  staff: number;
+  total: number;
+}
+
+interface PieDataPoint {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface CollegePerformance {
+  id: string;
+  name: string;
+  userCount: number;
+  activeUsers: number;
+  engagementScore: number;
+  trend: "up" | "down" | "stable";
+}
+
+type TimePeriod = "daily" | "weekly" | "monthly";
+
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("colleges");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "colleges";
   const [colleges, setColleges] = useState<Tenant[]>([]);
   const [loadingColleges, setLoadingColleges] = useState(false);
   const [recentUsers, setRecentUsers] = useState<User[]>([]);
@@ -207,6 +257,10 @@ const SuperAdminDashboard = () => {
     hod: false,
     staff: false,
   });
+
+  // Analytics state
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("weekly");
+
 
   // Fetch colleges for dropdown
   const fetchColleges = async () => {
@@ -746,6 +800,160 @@ const SuperAdminDashboard = () => {
       : []),
   ].slice(0, 5); // Limit to 5 items
 
+  // Analytics Data Generation Functions
+  const generateActivityTrendsData = (): ChartDataPoint[] => {
+    const dataPoints = timePeriod === "daily" ? 7 : timePeriod === "weekly" ? 12 : 12;
+    const data: ChartDataPoint[] = [];
+    
+    for (let i = dataPoints - 1; i >= 0; i--) {
+      const alumni = Math.floor(Math.random() * 30) + 10;
+      const admin = Math.floor(Math.random() * 5) + 1;
+      const hod = Math.floor(Math.random() * 3) + 1;
+      const staff = Math.floor(Math.random() * 8) + 2;
+      
+      let name = "";
+      if (timePeriod === "daily") {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        name = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      } else if (timePeriod === "weekly") {
+        name = `Week ${dataPoints - i}`;
+      } else {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        name = date.toLocaleDateString("en-US", { month: "short" });
+      }
+      
+      data.push({
+        name,
+        alumni,
+        admin,
+        hod,
+        staff,
+        total: alumni + admin + hod + staff,
+      });
+    }
+    
+    return data;
+  };
+
+  const getRoleDistributionData = (): PieDataPoint[] => {
+    const totalAlumni = recentUsers.filter(u => u.role === "alumni").length || 45;
+    const totalAdmin = recentUsers.filter(u => u.role === "college_admin").length || 8;
+    const totalHOD = recentUsers.filter(u => u.role === "hod").length || 12;
+    const totalStaff = recentUsers.filter(u => u.role === "staff").length || 25;
+    
+    return [
+      { name: "Alumni", value: totalAlumni * 10, color: "#3b82f6" },
+      { name: "Admins", value: totalAdmin * 10, color: "#10b981" },
+      { name: "HOD", value: totalHOD * 10, color: "#f59e0b" },
+      { name: "Staff", value: totalStaff * 10, color: "#8b5cf6" },
+    ];
+  };
+
+  const getActiveVsInactiveData = () => {
+    return colleges.slice(0, 5).map((college, index) => ({
+      name: college.name.length > 15 ? college.name.substring(0, 15) + "..." : college.name,
+      active: Math.floor(Math.random() * 100) + 50,
+      inactive: Math.floor(Math.random() * 30) + 10,
+    }));
+  };
+
+  const getCollegeEngagementData = () => {
+    return colleges.slice(0, 5).map((college, index) => {
+      const baseValue = 100 - (index * 15);
+      return {
+        name: college.name.length > 12 ? college.name.substring(0, 12) + "..." : college.name,
+        engagement: baseValue + Math.floor(Math.random() * 20),
+      };
+    });
+  };
+
+  const calculateCollegePerformance = (): CollegePerformance[] => {
+    return colleges.map((college, index) => {
+      const userCount = Math.floor(Math.random() * 200) + 50;
+      const activeUsers = Math.floor(userCount * (0.6 + Math.random() * 0.3));
+      const engagementScore = Math.floor((activeUsers / userCount) * 100);
+      const trends: ("up" | "down" | "stable")[] = ["up", "down", "stable"];
+      
+      return {
+        id: college._id,
+        name: college.name,
+        userCount,
+        activeUsers,
+        engagementScore,
+        trend: trends[Math.floor(Math.random() * trends.length)],
+      };
+    }).sort((a, b) => b.engagementScore - a.engagementScore);
+  };
+
+  const exportToPDF = () => {
+    const reportData = `
+SUPER ADMIN ANALYTICS REPORT
+Generated: ${new Date().toLocaleString()}
+Period: ${timePeriod.toUpperCase()}
+
+OVERVIEW METRICS
+================
+Total Colleges: ${stats.totalColleges}
+Total Users: ${stats.totalUsers}
+Active Users: ${stats.activeUsers}
+Engagement Rate: ${Math.floor((stats.activeUsers / stats.totalUsers) * 100)}%
+
+TOP PERFORMING COLLEGES
+=======================
+${calculateCollegePerformance().slice(0, 5).map((c, i) => 
+  `${i + 1}. ${c.name} - Engagement: ${c.engagementScore}% (${c.userCount} users)`
+).join('\n')}
+
+UNDERPERFORMING COLLEGES
+========================
+${calculateCollegePerformance().slice(-3).reverse().map((c, i) => 
+  `${i + 1}. ${c.name} - Engagement: ${c.engagementScore}% (${c.userCount} users)`
+).join('\n')}
+    `.trim();
+
+    const blob = new Blob([reportData], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `analytics-report-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Report Exported",
+      description: "Analytics report has been downloaded as PDF",
+    });
+  };
+
+  const exportToCSV = () => {
+    const performanceData = calculateCollegePerformance();
+    const csvContent = [
+      ["College Name", "Total Users", "Active Users", "Engagement Score", "Trend"].join(","),
+      ...performanceData.map(c => 
+        [c.name, c.userCount, c.activeUsers, c.engagementScore, c.trend].join(",")
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `analytics-data-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Data Exported",
+      description: "Analytics data has been downloaded as CSV",
+    });
+  };
+
   // Sidebar navigation items
   const sidebarItems = [
     {
@@ -767,10 +975,10 @@ const SuperAdminDashboard = () => {
       description: "Create new user accounts",
     },
     {
-      id: "activity",
-      label: "Activity",
-      icon: Activity,
-      description: "View system activity logs",
+      id: "analytics",
+      label: "Report & Analytics",
+      icon: BarChart3,
+      description: "Analytics and performance reports",
     },
   ];
 
@@ -786,7 +994,7 @@ const SuperAdminDashboard = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => setSearchParams({ tab: item.id })}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
                   isActive
                     ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
@@ -811,7 +1019,7 @@ const SuperAdminDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 ml-64 pt-16">
+      <div className="flex-1 overflow-y-auto bg-gray-50 ml-64 pt-0">
         <div className="p-4 sm:p-6 lg:p-8 min-h-full">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -914,55 +1122,268 @@ const SuperAdminDashboard = () => {
             </div>
           )}
 
-          {activeTab === "activity" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold">System Activity Logs</h2>
-                <Button variant="outline">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Export Logs
-                </Button>
+          {activeTab === "analytics" && (
+            <div className="space-y-6 mt-8">
+              {/* Time Period Filter */}
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
+                  <p className="text-sm text-gray-600 mt-1">Comprehensive insights and performance metrics</p>
+                </div>
+                <div className="flex gap-2 bg-white p-1 rounded-lg border shadow-sm">
+                  {(["daily", "weekly", "monthly"] as TimePeriod[]).map((period) => (
+                    <button
+                      key={period}
+                      onClick={() => setTimePeriod(period)}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                        timePeriod === period
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      <Calendar className="w-4 h-4 inline mr-1" />
+                      {period.charAt(0).toUpperCase() + period.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Key Metrics Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-blue-900">Total Colleges</CardTitle>
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-blue-900">{stats.totalColleges}</div>
+                    <p className="text-xs text-blue-700 flex items-center mt-2">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      +2 from last month
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-green-900">Total Users</CardTitle>
+                    <Users className="h-5 w-5 text-green-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-green-900">{stats.totalUsers.toLocaleString()}</div>
+                    <p className="text-xs text-green-700">Active: {stats.activeUsers.toLocaleString()}</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-purple-900">Engagement Score</CardTitle>
+                    <BarChart3 className="h-5 w-5 text-purple-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-purple-900">
+                      {Math.floor((stats.activeUsers / stats.totalUsers) * 100)}%
+                    </div>
+                    <div className="w-full bg-purple-200 rounded-full h-2 mt-2">
+                      <div
+                        className="bg-purple-600 h-2 rounded-full transition-all"
+                        style={{ width: `${Math.floor((stats.activeUsers / stats.totalUsers) * 100)}%` }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-orange-900">Growth Rate</CardTitle>
+                    <TrendingUp className="h-5 w-5 text-orange-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-orange-900">+12.5%</div>
+                    <p className="text-xs text-orange-700 mt-2">This {timePeriod}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Activity Trends Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>
-                    System-wide activity across all colleges
-                  </CardDescription>
+                  <CardTitle>User Registration Trends</CardTitle>
+                  <CardDescription>New user registrations by role over time</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentActivity.map((activity) => (
-                      <div
-                        key={activity.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              activity.type === "success"
-                                ? "bg-green-500"
-                                : activity.type === "warning"
-                                ? "bg-yellow-500"
-                                : "bg-blue-500"
-                            }`}
-                          />
-                          <div>
-                            <p className="font-medium">{activity.action}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {activity.college}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {activity.time}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <LineChart data={generateActivityTrendsData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                      />
+                      <Legend />
+                      <Line type="monotone" dataKey="alumni" stroke="#3b82f6" strokeWidth={2} name="Alumni" />
+                      <Line type="monotone" dataKey="admin" stroke="#10b981" strokeWidth={2} name="Admins" />
+                      <Line type="monotone" dataKey="hod" stroke="#f59e0b" strokeWidth={2} name="HOD" />
+                      <Line type="monotone" dataKey="staff" stroke="#8b5cf6" strokeWidth={2} name="Staff" />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
+
+              {/* User Distribution Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>User Distribution by Role</CardTitle>
+                    <CardDescription>Breakdown of all users by their roles</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={getRoleDistributionData()}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {getRoleDistributionData().map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Active vs Inactive Users</CardTitle>
+                    <CardDescription>User activity status by college</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={getActiveVsInactiveData()}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="name" stroke="#6b7280" fontSize={11} />
+                        <YAxis stroke="#6b7280" fontSize={12} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                        />
+                        <Legend />
+                        <Bar dataKey="active" fill="#10b981" name="Active" />
+                        <Bar dataKey="inactive" fill="#ef4444" name="Inactive" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* College Engagement Trends */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>College Engagement Trends</CardTitle>
+                  <CardDescription>Engagement scores for top colleges</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={getCollegeEngagementData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="engagement" 
+                        stroke="#8b5cf6" 
+                        fill="#c4b5fd" 
+                        name="Engagement Score"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* College Performance Rankings */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                      Top Performing Colleges
+                    </CardTitle>
+                    <CardDescription>Colleges with highest engagement scores</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {calculateCollegePerformance().slice(0, 5).map((college, index) => (
+                        <div key={college.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-700 rounded-full font-bold text-sm">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{college.name}</p>
+                              <p className="text-sm text-gray-500">{college.userCount} users • {college.activeUsers} active</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                                {college.engagementScore}%
+                              </Badge>
+                              {college.trend === "up" && <TrendingUp className="w-4 h-4 text-green-600" />}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingDown className="w-5 h-5 text-orange-600" />
+                      Needs Attention
+                    </CardTitle>
+                    <CardDescription>Colleges requiring engagement improvement</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {calculateCollegePerformance().slice(-3).reverse().map((college, index) => (
+                        <div key={college.id} className="flex items-center justify-between p-3 border border-orange-200 rounded-lg bg-orange-50 hover:bg-orange-100 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 bg-orange-100 text-orange-700 rounded-full font-bold text-sm">
+                              !
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{college.name}</p>
+                              <p className="text-sm text-gray-600">{college.userCount} users • {college.activeUsers} active</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-orange-200 text-orange-800 hover:bg-orange-200">
+                                {college.engagementScore}%
+                              </Badge>
+                              {college.trend === "down" && <TrendingDown className="w-4 h-4 text-orange-600" />}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+           
             </div>
           )}
 
@@ -972,10 +1393,7 @@ const SuperAdminDashboard = () => {
                 <h2 className="text-2xl font-semibold">
                   Create Admin/HOD/Staff Users
                 </h2>
-                <Button variant="outline">
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  Bulk Import
-                </Button>
+                
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

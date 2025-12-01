@@ -317,6 +317,18 @@ const CollegeAdminDashboard = () => {
   const [isCreateHODOpen, setIsCreateHODOpen] = useState(false);
   const [isCreateStaffOpen, setIsCreateStaffOpen] = useState(false);
   const [isCreateAdminOpen, setIsCreateAdminOpen] = useState(false);
+  const [isManageStaffOpen, setIsManageStaffOpen] = useState(false);
+  const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMember | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    department: "",
+    role: "",
+    status: "",
+  });
 
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1273,6 +1285,183 @@ const CollegeAdminDashboard = () => {
       });
     } finally {
       setCreateLoading((prev) => ({ ...prev, admin: false }));
+    }
+  };
+
+  // Staff Management handlers
+  const handleOpenManageStaff = () => {
+    setIsManageStaffOpen(true);
+    // Fetch all staff members without pagination
+    fetchAllStaff();
+  };
+
+  const fetchAllStaff = async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, staff: true }));
+      const response = await userAPI.getAllUsers({
+        role: "college_admin,hod,staff",
+        tenantId: user.tenantId,
+        limit: 1000, // Get all staff members
+      });
+
+      const responseTyped = response as APIResponse<UserResponse>;
+      const dataTyped = responseTyped.data as UserResponse;
+      if (response.success && dataTyped?.users) {
+        setHodStaff(dataTyped.users);
+      }
+    } catch (error) {
+      console.error("Error fetching all staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load staff data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading((prev) => ({ ...prev, staff: false }));
+    }
+  };
+
+  const handleEditStaff = (member: StaffMember) => {
+    setSelectedStaffMember(member);
+    setEditFormData({
+      firstName: member.firstName || "",
+      lastName: member.lastName || "",
+      email: member.email || "",
+      department: member.department || "",
+      role: member.role || "",
+      status: member.status || "active",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedStaffMember) return;
+
+    try {
+      const response = await userAPI.updateUser(selectedStaffMember._id, {
+        firstName: editFormData.firstName.trim(),
+        lastName: editFormData.lastName.trim(),
+      });
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Staff member updated successfully",
+        });
+        setIsEditDialogOpen(false);
+        fetchAllStaff();
+        fetchStats();
+      } else {
+        throw new Error(response.message || "Failed to update staff member");
+      }
+    } catch (error) {
+      console.error("Error updating staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update staff member",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangeRole = async (memberId: string, newRole: string) => {
+    try {
+      // Delete and recreate user with new role
+      const member = hodStaff.find((m) => m._id === memberId);
+      if (!member) return;
+
+      // Create new user with new role
+      const userData = {
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email,
+        password: "DefaultPassword@123", // Set a default password
+        role: newRole,
+        tenantId: user?.tenantId,
+        department: member.department,
+        status: member.status,
+      };
+
+      // First delete the old user
+      await userAPI.deleteUser(memberId);
+
+      // Then create with new role
+      const response = await userAPI.createUser(userData);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: `Role changed to ${newRole.toUpperCase()} successfully. Password reset to default.`,
+        });
+        fetchAllStaff();
+        fetchStats();
+      }
+    } catch (error) {
+      console.error("Error changing role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to change role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangeStatus = async (memberId: string, newStatus: string) => {
+    try {
+      const response = await userAPI.updateUserStatus(memberId, newStatus);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: `Status changed to ${newStatus} successfully`,
+        });
+        fetchAllStaff();
+        fetchStats();
+      } else {
+        throw new Error(response.message || "Failed to change status");
+      }
+    } catch (error) {
+      console.error("Error changing status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to change status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteStaff = (member: StaffMember) => {
+    setSelectedStaffMember(member);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteStaff = async () => {
+    if (!selectedStaffMember) return;
+
+    try {
+      const response = await userAPI.deleteUser(selectedStaffMember._id);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Staff member deleted successfully",
+        });
+        setIsDeleteDialogOpen(false);
+        setSelectedStaffMember(null);
+        fetchAllStaff();
+        fetchStats();
+      } else {
+        throw new Error(response.message || "Failed to delete staff member");
+      }
+    } catch (error) {
+      console.error("Error deleting staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete staff member",
+        variant: "destructive",
+      });
     }
   };
 
@@ -2588,21 +2777,7 @@ const CollegeAdminDashboard = () => {
                             </p>
                           )}
                         </div>
-                        <div>
-                          <Label htmlFor="admin-department">Department</Label>
-                          <Input
-                            id="admin-department"
-                            placeholder="Administration"
-                            value={newAdmin.department}
-                            onChange={(e) =>
-                              setNewAdmin((prev) => ({
-                                ...prev,
-                                department: e.target.value,
-                              }))
-                            }
-                            required
-                          />
-                        </div>
+                      
                         <div>
                           <Label htmlFor="admin-password">
                             Default Password
@@ -3046,6 +3221,228 @@ const CollegeAdminDashboard = () => {
                 </div>
               </div>
 
+              {/* Staff Management Table Modal */}
+              <Dialog open={isManageStaffOpen} onOpenChange={setIsManageStaffOpen}>
+                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>HOD & Staff Management</DialogTitle>
+                    <DialogDescription>
+                      View and manage all HODs and Staff members in your college
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="mt-4">
+                    {loading.staff ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Loading staff data...</p>
+                      </div>
+                    ) : hodStaff.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No HOD or Staff members found</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Role</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Department</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {hodStaff.map((member) => (
+                              <tr key={member._id} className="hover:bg-muted/50">
+                                <td className="px-4 py-3 text-sm">
+                                  {member.firstName} {member.lastName}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <Badge variant={member.role === "hod" ? "default" : member.role === "college_admin" ? "destructive" : "secondary"}>
+                                    {member.role?.toUpperCase()}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  {member.department || "N/A"}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  {member.email}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <Badge variant={member.status === "active" ? "default" : "secondary"}>
+                                    {member.status || "active"}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <div className="flex gap-2">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleEditStaff(member)}
+                                          >
+                                            Edit
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Edit staff member details</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+
+                                    <Select
+                                      value={member.role}
+                                      onValueChange={(value) => handleChangeRole(member._id, value)}
+                                    >
+                                      <SelectTrigger className="h-9 w-[130px] text-xs">
+                                        <SelectValue placeholder="Change Role" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="college_admin">College Admin</SelectItem>
+                                        <SelectItem value="hod">HOD</SelectItem>
+                                        <SelectItem value="staff">Staff</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+
+                                    <Select
+                                      value={member.status || "active"}
+                                      onValueChange={(value) => handleChangeStatus(member._id, value)}
+                                    >
+                                      <SelectTrigger className="h-9 w-[110px] text-xs">
+                                        <SelectValue placeholder="Status" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="active">Active</SelectItem>
+                                        <SelectItem value="inactive">Inactive</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() => handleDeleteStaff(member)}
+                                          >
+                                            Delete
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Delete staff member</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter>
+                    <Button onClick={() => setIsManageStaffOpen(false)}>Close</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Edit Staff Dialog */}
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Staff Member</DialogTitle>
+                    <DialogDescription>
+                      Update staff member information
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="edit-firstName">First Name</Label>
+                      <Input
+                        id="edit-firstName"
+                        value={editFormData.firstName}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            firstName: e.target.value,
+                          }))
+                        }
+                        placeholder="First Name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-lastName">Last Name</Label>
+                      <Input
+                        id="edit-lastName"
+                        value={editFormData.lastName}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            lastName: e.target.value,
+                          }))
+                        }
+                        placeholder="Last Name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-email">Email (Read-only)</Label>
+                      <Input
+                        id="edit-email"
+                        value={editFormData.email}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveEdit}>Save Changes</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Delete Confirmation Dialog */}
+              <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Confirm Deletion</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete this staff member? This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  {selectedStaffMember && (
+                    <div className="py-4">
+                      <p className="text-sm">
+                        <strong>Name:</strong> {selectedStaffMember.firstName} {selectedStaffMember.lastName}
+                      </p>
+                      <p className="text-sm">
+                        <strong>Email:</strong> {selectedStaffMember.email}
+                      </p>
+                      <p className="text-sm">
+                        <strong>Role:</strong> {selectedStaffMember.role?.toUpperCase()}
+                      </p>
+                    </div>
+                  )}
+
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" onClick={confirmDeleteStaff}>
+                      Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <div className="space-y-4">
                 {loading.staff ? (
                   <div className="text-center py-8">
@@ -3096,7 +3493,11 @@ const CollegeAdminDashboard = () => {
                             Department: {member.department || "N/A"}
                           </div>
                           <div className="flex space-x-2">
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={handleOpenManageStaff}
+                            >
                               <Settings className="w-4 h-4 mr-2" />
                               Manage
                             </Button>

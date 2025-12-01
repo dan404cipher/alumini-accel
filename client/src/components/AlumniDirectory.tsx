@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 import { AddAlumniDialog } from "./dialogs/AddAlumniDialog";
 import ConnectionButton from "./ConnectionButton";
-import { alumniAPI, categoryAPI } from "@/lib/api";
+import { alumniAPI, categoryAPI, connectionAPI } from "@/lib/api";
 import Footer from "./Footer";
 
 // Category interface for API response
@@ -156,6 +156,11 @@ const AlumniDirectory = () => {
   const [customMessage, setCustomMessage] = useState("");
   const { toast } = useToast();
 
+  // State to track connection status for each user
+  const [connectionStatuses, setConnectionStatuses] = useState<
+    Record<string, string | null>
+  >({});
+
   // Handle profile click
   const handleProfileClick = (alumniId: string) => {
     navigate(`/alumni/${alumniId}`);
@@ -165,6 +170,42 @@ const AlumniDirectory = () => {
   const canSendMessage =
     user?.role &&
     ["super_admin", "college_admin", "hod", "staff"].includes(user.role);
+
+  // Check if user can view 360 (staff/admin roles)
+  const canView360 =
+    user?.role &&
+    ["super_admin", "college_admin", "hod", "staff"].includes(user.role);
+
+  // Function to check connection status for a user
+  const checkUserConnectionStatus = useCallback(async (userId: string) => {
+    try {
+      const response = await connectionAPI.checkConnectionStatus(userId);
+      if (response.success && response.data) {
+        const data = response.data as {
+          exists: boolean;
+          connection: { status: string } | null;
+        };
+        const status = data.connection?.status || null;
+        setConnectionStatuses((prev) => ({
+          ...prev,
+          [userId]: status,
+        }));
+      }
+    } catch (error) {
+      console.error("Error checking connection status:", error);
+    }
+  }, []);
+
+  // Check connection status for all users when they load (only for non-admin users)
+  useEffect(() => {
+    if (users.length > 0 && user?._id && !canSendMessage) {
+      users.forEach((directoryUser) => {
+        if (directoryUser.id !== user._id) {
+          checkUserConnectionStatus(directoryUser.id);
+        }
+      });
+    }
+  }, [users, user?._id, canSendMessage, checkUserConnectionStatus]);
 
   // Handle opening message dialog
   const handleSendMessage = (recipientId: string, recipientName: string) => {
@@ -705,463 +746,529 @@ const AlumniDirectory = () => {
                       </p>
                     </div>
                   ) : (
-                    users.map((directoryUser) => (
-                      <Card
-                        key={directoryUser.id}
-                        className={`group hover:shadow-lg transition-all duration-200 cursor-pointer ${
-                          viewMode === "list" ? "flex" : ""
-                        }`}
-                        onClick={() => handleProfileClick(directoryUser.id)}
-                      >
-                        <CardContent
-                          className={`${
-                            viewMode === "list"
-                              ? "p-3 sm:p-4 flex items-center w-full"
-                              : "p-4 sm:p-6"
-                          }`}
+                    users.map((directoryUser) => {
+                      const isOwnProfile =
+                        directoryUser.id === user?._id ||
+                        directoryUser.id === user?._id?.toString();
+                      return (
+                        <Card
+                          key={directoryUser.id}
+                          className={`group transition-all duration-200 ${
+                            isOwnProfile
+                              ? "opacity-75 cursor-not-allowed"
+                              : "hover:shadow-lg cursor-pointer"
+                          } ${viewMode === "list" ? "flex" : ""}`}
+                          onClick={
+                            isOwnProfile
+                              ? undefined
+                              : () => handleProfileClick(directoryUser.id)
+                          }
                         >
-                          {/* Profile Header */}
-                          <div
-                            className={`flex items-start space-x-2 sm:space-x-4 ${
-                              viewMode === "list" ? "mb-0 flex-1" : "mb-4"
+                          <CardContent
+                            className={`${
+                              viewMode === "list"
+                                ? "p-3 sm:p-4 flex items-center w-full"
+                                : "p-4 sm:p-6"
                             }`}
                           >
-                            <div className="relative">
-                              <img
-                                src={
-                                  directoryUser.profileImage
-                                    ? directoryUser.profileImage.startsWith(
-                                        "http"
-                                      )
-                                      ? directoryUser.profileImage
-                                      : directoryUser.profileImage
-                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                        directoryUser.name
-                                      )}&background=random&color=fff`
-                                }
-                                alt={directoryUser.name}
-                                className={`${
-                                  viewMode === "list"
-                                    ? "w-12 h-12"
-                                    : "w-16 h-16"
-                                } rounded-full object-cover`}
-                                onError={(e) => {
-                                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    directoryUser.name
-                                  )}&background=random&color=fff`;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3
-                                className={`font-semibold text-gray-900 ${
-                                  viewMode === "list"
-                                    ? "text-base mb-1"
-                                    : "text-lg mb-1"
-                                }`}
-                              >
-                                {directoryUser.name}
-                              </h3>
+                            {/* Profile Header */}
+                            <div
+                              className={`flex items-start space-x-2 sm:space-x-4 ${
+                                viewMode === "list" ? "mb-0 flex-1" : "mb-4"
+                              }`}
+                            >
+                              <div className="relative">
+                                <img
+                                  src={
+                                    directoryUser.profileImage
+                                      ? directoryUser.profileImage.startsWith(
+                                          "http"
+                                        )
+                                        ? directoryUser.profileImage
+                                        : directoryUser.profileImage
+                                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                          directoryUser.name
+                                        )}&background=random&color=fff`
+                                  }
+                                  alt={directoryUser.name}
+                                  className={`${
+                                    viewMode === "list"
+                                      ? "w-12 h-12"
+                                      : "w-16 h-16"
+                                  } rounded-full object-cover`}
+                                  onError={(e) => {
+                                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                      directoryUser.name
+                                    )}&background=random&color=fff`;
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3
+                                  className={`font-semibold text-gray-900 ${
+                                    viewMode === "list"
+                                      ? "text-base mb-1"
+                                      : "text-lg mb-1"
+                                  }`}
+                                >
+                                  {directoryUser.name}
+                                </h3>
 
-                              {viewMode === "list" ? (
-                                /* List View - Compact Layout */
-                                <div className="text-sm text-gray-600 space-y-1">
-                                  {directoryUser.currentRole && (
-                                    <div className="flex items-center">
-                                      <Briefcase className="w-3 h-3 mr-1 text-blue-600" />
-                                      <span className="font-medium">
-                                        {directoryUser.currentRole}
-                                      </span>
-                                      {directoryUser.company && (
-                                        <span className="ml-2 text-gray-500">
-                                          at {directoryUser.company}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                  <div className="flex items-center text-gray-500 space-x-4">
-                                    {directoryUser.department && (
-                                      <span className="flex items-center">
-                                        <GraduationCap className="w-3 h-3 mr-1 text-purple-600" />
-                                        {directoryUser.department}
-                                      </span>
-                                    )}
-                                    {directoryUser.graduationYear && (
-                                      <span className="flex items-center">
-                                        <Calendar className="w-3 h-3 mr-1 text-orange-600" />
-                                        Class of {directoryUser.graduationYear}
-                                      </span>
-                                    )}
-                                    {(directoryUser.currentLocation ||
-                                      directoryUser.location) && (
-                                      <span className="flex items-center">
-                                        <MapPin className="w-3 h-3 mr-1 text-red-600" />
-                                        {directoryUser.currentLocation ||
-                                          directoryUser.location}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                /* Grid View - Full Layout */
-                                <>
-                                  {/* Current Role and Company */}
-                                  <div className="text-sm text-gray-600 mb-2">
+                                {viewMode === "list" ? (
+                                  /* List View - Compact Layout */
+                                  <div className="text-sm text-gray-600 space-y-1">
                                     {directoryUser.currentRole && (
-                                      <div className="flex items-center mb-1">
-                                        <Briefcase className="w-4 h-4 mr-1 text-blue-600" />
+                                      <div className="flex items-center">
+                                        <Briefcase className="w-3 h-3 mr-1 text-blue-600" />
                                         <span className="font-medium">
                                           {directoryUser.currentRole}
                                         </span>
-                                      </div>
-                                    )}
-                                    {directoryUser.company && (
-                                      <div className="flex items-center mb-1">
-                                        <Building className="w-4 h-4 mr-1 text-green-600" />
-                                        <span>{directoryUser.company}</span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Education Information */}
-                                  <div className="text-sm text-gray-500 mb-2">
-                                    {directoryUser.department && (
-                                      <div className="flex items-center mb-1">
-                                        <GraduationCap className="w-4 h-4 mr-1 text-purple-600" />
-                                        <span>{directoryUser.department}</span>
-                                        {directoryUser.specialization && (
-                                          <span className="ml-1">
-                                            • {directoryUser.specialization}
+                                        {directoryUser.company && (
+                                          <span className="ml-2 text-gray-500">
+                                            at {directoryUser.company}
                                           </span>
                                         )}
                                       </div>
                                     )}
-                                    {directoryUser.graduationYear && (
-                                      <div className="flex items-center mb-1">
-                                        <Calendar className="w-4 h-4 mr-1 text-orange-600" />
-                                        <span>
+                                    <div className="flex items-center text-gray-500 space-x-4">
+                                      {directoryUser.department && (
+                                        <span className="flex items-center">
+                                          <GraduationCap className="w-3 h-3 mr-1 text-purple-600" />
+                                          {directoryUser.department}
+                                        </span>
+                                      )}
+                                      {directoryUser.graduationYear && (
+                                        <span className="flex items-center">
+                                          <Calendar className="w-3 h-3 mr-1 text-orange-600" />
                                           Class of{" "}
                                           {directoryUser.graduationYear}
                                         </span>
-                                      </div>
-                                    )}
-                                    {directoryUser.registerNumber && (
-                                      <div className="flex items-center mb-1">
-                                        <Award className="w-4 h-4 mr-1 text-indigo-600" />
-                                        <span>
-                                          Reg. No:{" "}
-                                          {directoryUser.registerNumber}
+                                      )}
+                                      {(directoryUser.currentLocation ||
+                                        directoryUser.location) && (
+                                        <span className="flex items-center">
+                                          <MapPin className="w-3 h-3 mr-1 text-red-600" />
+                                          {directoryUser.currentLocation ||
+                                            directoryUser.location}
                                         </span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Location */}
-                                  {(directoryUser.location ||
-                                    directoryUser.currentLocation) && (
-                                    <div className="flex items-center text-sm text-gray-500 mb-1">
-                                      <MapPin className="w-4 h-4 mr-1 text-red-600" />
-                                      {directoryUser.currentLocation ||
-                                        directoryUser.location}
+                                      )}
                                     </div>
-                                  )}
+                                  </div>
+                                ) : (
+                                  /* Grid View - Full Layout */
+                                  <>
+                                    {/* Current Role and Company */}
+                                    <div className="text-sm text-gray-600 mb-2">
+                                      {directoryUser.currentRole && (
+                                        <div className="flex items-center mb-1">
+                                          <Briefcase className="w-4 h-4 mr-1 text-blue-600" />
+                                          <span className="font-medium">
+                                            {directoryUser.currentRole}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {directoryUser.company && (
+                                        <div className="flex items-center mb-1">
+                                          <Building className="w-4 h-4 mr-1 text-green-600" />
+                                          <span>{directoryUser.company}</span>
+                                        </div>
+                                      )}
+                                    </div>
 
-                                  {/* Experience */}
-                                  {directoryUser.experience &&
-                                    directoryUser.experience > 0 && (
+                                    {/* Education Information */}
+                                    <div className="text-sm text-gray-500 mb-2">
+                                      {directoryUser.department && (
+                                        <div className="flex items-center mb-1">
+                                          <GraduationCap className="w-4 h-4 mr-1 text-purple-600" />
+                                          <span>
+                                            {directoryUser.department}
+                                          </span>
+                                          {directoryUser.specialization && (
+                                            <span className="ml-1">
+                                              • {directoryUser.specialization}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                      {directoryUser.graduationYear && (
+                                        <div className="flex items-center mb-1">
+                                          <Calendar className="w-4 h-4 mr-1 text-orange-600" />
+                                          <span>
+                                            Class of{" "}
+                                            {directoryUser.graduationYear}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {directoryUser.registerNumber && (
+                                        <div className="flex items-center mb-1">
+                                          <Award className="w-4 h-4 mr-1 text-indigo-600" />
+                                          <span>
+                                            Reg. No:{" "}
+                                            {directoryUser.registerNumber}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Location */}
+                                    {(directoryUser.location ||
+                                      directoryUser.currentLocation) && (
                                       <div className="flex items-center text-sm text-gray-500 mb-1">
-                                        <Calendar className="w-4 h-4 mr-1 text-teal-600" />
-                                        {directoryUser.experience} years
-                                        experience
+                                        <MapPin className="w-4 h-4 mr-1 text-red-600" />
+                                        {directoryUser.currentLocation ||
+                                          directoryUser.location}
                                       </div>
                                     )}
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {viewMode === "list" ? (
-                            /* List View - Right Side Actions */
-                            <div className="flex items-center space-x-3 ml-4">
-                              {/* Status Badges */}
-                              <div className="flex space-x-2">
-                                {directoryUser.role === "student" && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs bg-blue-100 text-blue-800"
-                                  >
-                                    Student
-                                  </Badge>
-                                )}
-                                {directoryUser.role === "alumni" && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs bg-orange-100 text-orange-800"
-                                  >
-                                    Alumni
-                                  </Badge>
-                                )}
-                                {directoryUser.availableForMentorship && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    Mentoring
-                                  </Badge>
-                                )}
-                                {directoryUser.isHiring && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs bg-green-100 text-green-800"
-                                  >
-                                    Hiring
-                                  </Badge>
-                                )}
-                              </div>
-
-                              {/* Skills Preview */}
-                              {(directoryUser.skills || []).length > 0 && (
-                                <div className="flex space-x-1">
-                                  {(directoryUser.skills || [])
-                                    .slice(0, 2)
-                                    .map((skill, index) => (
-                                      <Badge
-                                        key={index}
-                                        variant="outline"
-                                        className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                                      >
-                                        {skill}
-                                      </Badge>
-                                    ))}
-                                  {(directoryUser.skills || []).length > 2 && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs text-gray-500"
-                                    >
-                                      +{(directoryUser.skills || []).length - 2}
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Action Buttons */}
-                              <div
-                                className="flex gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleProfileClick(directoryUser.id)
-                                  }
-                                >
-                                  View
-                                </Button>
-                                {!canSendMessage && (
-                                  <ConnectionButton
-                                    userId={directoryUser.id}
-                                    userName={directoryUser.name}
-                                    variant="default"
-                                    size="sm"
-                                  />
-                                )}
-                                {canSendMessage && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSendMessage(
-                                        directoryUser.id,
-                                        directoryUser.name
-                                      );
-                                    }}
-                                  >
-                                    <MessageCircle className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                {directoryUser.linkedinProfile && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      window.open(
-                                        directoryUser.linkedinProfile,
-                                        "_blank"
-                                      );
-                                    }}
-                                  >
-                                    <Linkedin className="w-4 h-4" />
-                                  </Button>
+                                  </>
                                 )}
                               </div>
                             </div>
-                          ) : (
-                            /* Grid View - Full Layout */
-                            <>
-                              {/* Skills/Interests */}
-                              <div className="mb-4">
-                                <div className="flex flex-wrap gap-1 mb-2">
-                                  {(directoryUser.skills || [])
-                                    .slice(0, 4)
-                                    .map((skill, index) => (
-                                      <Badge
-                                        key={index}
-                                        variant="outline"
-                                        className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                                      >
-                                        {skill}
-                                      </Badge>
-                                    ))}
-                                  {(directoryUser.skills || []).length > 4 && (
+
+                            {viewMode === "list" ? (
+                              /* List View - Right Side Actions */
+                              <div className="flex items-center space-x-3 ml-4">
+                                {/* Status Badges */}
+                                <div className="flex space-x-2">
+                                  {directoryUser.role === "student" && (
                                     <Badge
-                                      variant="outline"
-                                      className="text-xs text-gray-500"
+                                      variant="default"
+                                      className="text-xs bg-blue-100 text-blue-800"
                                     >
-                                      +{(directoryUser.skills || []).length - 4}{" "}
-                                      more
+                                      Student
+                                    </Badge>
+                                  )}
+                                  {directoryUser.role === "alumni" && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs bg-orange-100 text-orange-800"
+                                    >
+                                      Alumni
+                                    </Badge>
+                                  )}
+                                  {directoryUser.availableForMentorship && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      Mentoring
+                                    </Badge>
+                                  )}
+                                  {directoryUser.isHiring && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs bg-green-100 text-green-800"
+                                    >
+                                      Hiring
                                     </Badge>
                                   )}
                                 </div>
-                                {(directoryUser.careerInterests || []).length >
-                                  0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {(directoryUser.careerInterests || [])
-                                      .slice(0, 3)
-                                      .map((interest, index) => (
+
+                                {/* Skills Preview */}
+                                {(directoryUser.skills || []).length > 0 && (
+                                  <div className="flex space-x-1">
+                                    {(directoryUser.skills || [])
+                                      .slice(0, 2)
+                                      .map((skill, index) => (
                                         <Badge
                                           key={index}
                                           variant="outline"
-                                          className="text-xs bg-green-50 text-green-700 border-green-200"
+                                          className="text-xs bg-blue-50 text-blue-700 border-blue-200"
                                         >
-                                          {interest}
+                                          {skill}
                                         </Badge>
                                       ))}
-                                    {(directoryUser.careerInterests || [])
-                                      .length > 3 && (
+                                    {(directoryUser.skills || []).length >
+                                      2 && (
                                       <Badge
                                         variant="outline"
                                         className="text-xs text-gray-500"
                                       >
                                         +
-                                        {(directoryUser.careerInterests || [])
-                                          .length - 3}{" "}
-                                        more
+                                        {(directoryUser.skills || []).length -
+                                          2}
                                       </Badge>
                                     )}
                                   </div>
                                 )}
-                              </div>
 
-                              {/* Status Badges */}
-                              <div className="mb-4">
-                                {directoryUser.role === "student" && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs mr-2 bg-blue-100 text-blue-800"
-                                  >
-                                    Student
-                                  </Badge>
-                                )}
-                                {directoryUser.role === "alumni" && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs mr-2 bg-orange-100 text-orange-800"
-                                  >
-                                    Alumni
-                                  </Badge>
-                                )}
-                                {directoryUser.availableForMentorship && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs mr-2"
-                                  >
-                                    Mentoring
-                                  </Badge>
-                                )}
-                                {directoryUser.isHiring && (
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs mr-2 bg-green-100 text-green-800"
-                                  >
-                                    Hiring
-                                  </Badge>
-                                )}
-                                {directoryUser.role === "alumni" &&
-                                  !directoryUser.availableForMentorship && (
-                                    <Badge
+                                {/* Action Buttons */}
+                                <div
+                                  className="flex gap-2"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {!isOwnProfile && (
+                                    <Button
                                       variant="outline"
-                                      className="text-xs mr-2"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleProfileClick(directoryUser.id)
+                                      }
                                     >
-                                      Limited Mentoring
+                                      View
+                                    </Button>
+                                  )}
+                                  {canSendMessage ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSendMessage(
+                                          directoryUser.id,
+                                          directoryUser.name
+                                        );
+                                      }}
+                                    >
+                                      <MessageCircle className="w-4 h-4" />
+                                    </Button>
+                                  ) : connectionStatuses[directoryUser.id] ===
+                                    "accepted" ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSendMessage(
+                                          directoryUser.id,
+                                          directoryUser.name
+                                        );
+                                      }}
+                                    >
+                                      <MessageCircle className="w-4 h-4" />
+                                      Message
+                                    </Button>
+                                  ) : (
+                                    <ConnectionButton
+                                      userId={directoryUser.id}
+                                      userName={directoryUser.name}
+                                      variant="default"
+                                      size="sm"
+                                    />
+                                  )}
+                                  {directoryUser.linkedinProfile && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(
+                                          directoryUser.linkedinProfile,
+                                          "_blank"
+                                        );
+                                      }}
+                                    >
+                                      <Linkedin className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              /* Grid View - Full Layout */
+                              <>
+                                {/* Skills/Interests */}
+                                <div className="mb-4">
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {(directoryUser.skills || [])
+                                      .slice(0, 4)
+                                      .map((skill, index) => (
+                                        <Badge
+                                          key={index}
+                                          variant="outline"
+                                          className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                                        >
+                                          {skill}
+                                        </Badge>
+                                      ))}
+                                    {(directoryUser.skills || []).length >
+                                      4 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs text-gray-500"
+                                      >
+                                        +
+                                        {(directoryUser.skills || []).length -
+                                          4}{" "}
+                                        more
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {(directoryUser.careerInterests || [])
+                                    .length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {(directoryUser.careerInterests || [])
+                                        .slice(0, 3)
+                                        .map((interest, index) => (
+                                          <Badge
+                                            key={index}
+                                            variant="outline"
+                                            className="text-xs bg-green-50 text-green-700 border-green-200"
+                                          >
+                                            {interest}
+                                          </Badge>
+                                        ))}
+                                      {(directoryUser.careerInterests || [])
+                                        .length > 3 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs text-gray-500"
+                                        >
+                                          +
+                                          {(directoryUser.careerInterests || [])
+                                            .length - 3}{" "}
+                                          more
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Status Badges */}
+                                <div className="mb-4">
+                                  {directoryUser.role === "student" && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs mr-2 bg-blue-100 text-blue-800"
+                                    >
+                                      Student
                                     </Badge>
                                   )}
-                              </div>
+                                  {directoryUser.role === "alumni" && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs mr-2 bg-orange-100 text-orange-800"
+                                    >
+                                      Alumni
+                                    </Badge>
+                                  )}
+                                  {directoryUser.availableForMentorship && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs mr-2"
+                                    >
+                                      Mentoring
+                                    </Badge>
+                                  )}
+                                  {directoryUser.isHiring && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs mr-2 bg-green-100 text-green-800"
+                                    >
+                                      Hiring
+                                    </Badge>
+                                  )}
+                                  {directoryUser.role === "alumni" &&
+                                    !directoryUser.availableForMentorship && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs mr-2"
+                                      >
+                                        Limited Mentoring
+                                      </Badge>
+                                    )}
+                                </div>
 
-                              {/* Action Buttons */}
-                              <div
-                                className="flex gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleProfileClick(directoryUser.id)
-                                  }
-                                  className="flex-1"
+                                {/* Action Buttons */}
+                                <div
+                                  className="flex gap-2"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  View Profile
-                                </Button>
-                                {!canSendMessage && (
-                                  <ConnectionButton
-                                    userId={directoryUser.id}
-                                    userName={directoryUser.name}
-                                    variant="default"
-                                    size="sm"
-                                    className="flex-1"
-                                  />
-                                )}
-                                {canSendMessage && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSendMessage(
-                                        directoryUser.id,
-                                        directoryUser.name
-                                      );
-                                    }}
-                                    className="flex-1"
-                                  >
-                                    <MessageCircle className="w-4 h-4 mr-1" />
-                                    Message
-                                  </Button>
-                                )}
-                                {directoryUser.linkedinProfile && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      window.open(
-                                        directoryUser.linkedinProfile,
-                                        "_blank"
-                                      );
-                                    }}
-                                  >
-                                    <Linkedin className="w-4 h-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))
+                                  {!isOwnProfile && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleProfileClick(directoryUser.id)
+                                      }
+                                      className="flex-1"
+                                    >
+                                      View Profile
+                                    </Button>
+                                  )}
+                                  {canView360 &&
+                                    (directoryUser.role === "alumni" ||
+                                      directoryUser.role === "student") && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(
+                                            `/alumni-360/${directoryUser.id}`
+                                          );
+                                        }}
+                                        className="flex-1"
+                                      >
+                                        <Eye className="w-4 h-4 mr-1" />
+                                        <span className="hidden sm:inline">
+                                          360 View
+                                        </span>
+                                        <span className="sm:hidden">360</span>
+                                      </Button>
+                                    )}
+                                  {canSendMessage ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSendMessage(
+                                          directoryUser.id,
+                                          directoryUser.name
+                                        );
+                                      }}
+                                      className="flex-1"
+                                    >
+                                      <MessageCircle className="w-4 h-4 mr-1" />
+                                      Message
+                                    </Button>
+                                  ) : connectionStatuses[directoryUser.id] ===
+                                    "accepted" ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSendMessage(
+                                          directoryUser.id,
+                                          directoryUser.name
+                                        );
+                                      }}
+                                      className="flex-1"
+                                    >
+                                      <MessageCircle className="w-4 h-4 mr-1" />
+                                      Message
+                                    </Button>
+                                  ) : (
+                                    <ConnectionButton
+                                      userId={directoryUser.id}
+                                      userName={directoryUser.name}
+                                      variant="default"
+                                      size="sm"
+                                      className="flex-1"
+                                    />
+                                  )}
+                                  {directoryUser.linkedinProfile && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(
+                                          directoryUser.linkedinProfile,
+                                          "_blank"
+                                        );
+                                      }}
+                                    >
+                                      <Linkedin className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })
                   )}
                 </div>
 

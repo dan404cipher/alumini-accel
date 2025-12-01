@@ -89,6 +89,37 @@ router.put(
   asyncHandler(userController.updateProfile)
 );
 
+router.get(
+  "/privacy",
+  authenticateToken,
+  asyncHandler(userController.getPrivacySettings)
+);
+
+router.put(
+  "/privacy",
+  authenticateToken,
+  asyncHandler(userController.updatePrivacySettings)
+);
+
+// @route   PUT /api/v1/students/profile
+// @desc    Update student profile (educational details)
+// @access  Private/Student
+router.put(
+  "/students/profile",
+  authenticateToken,
+  asyncHandler(userController.updateStudentProfile)
+);
+
+// @route   GET /api/v1/users/stats
+// @desc    Get user statistics (admin only)
+// @access  Private/Admin
+router.get(
+  "/stats",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(userController.getUserStats)
+);
+
 // @route   GET /api/v1/users/eligible-students
 // @desc    Get eligible students for alumni promotion (admin only)
 // @access  Private/Admin

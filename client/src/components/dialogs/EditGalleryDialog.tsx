@@ -127,6 +127,15 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
   }, [galleryId, open, gallery]);
 
   const handleImageUpload = async (files: FileList) => {
+    if (formData.images.length >= 50) {
+      toast({
+        title: "Limit reached",
+        description: "You can upload a maximum of 50 images per gallery.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Validate file types - must be specific image MIME types
       const allowedTypes = [
@@ -150,7 +159,20 @@ const EditGalleryDialog: React.FC<EditGalleryDialogProps> = ({
       }
 
       // Upload all images at once using the correct API signature
-      const response = await galleryAPI.uploadImages(fileArray);
+      const remainingSlots = 50 - formData.images.length;
+      const filesToUpload = fileArray.slice(0, remainingSlots);
+      if (filesToUpload.length < fileArray.length) {
+        toast({
+          title: "Limit reached",
+          description: `Only ${remainingSlots} more image(s) can be added.`,
+        });
+      }
+
+      if (filesToUpload.length === 0) {
+        return;
+      }
+
+      const response = await galleryAPI.uploadImages(filesToUpload);
       if (response.success && response.data?.images) {
         const uploadedUrls = response.data.images;
         setFormData((prev) => ({

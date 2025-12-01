@@ -15,6 +15,33 @@ const router = express.Router();
 // @access  Private
 router.get("/", authenticateToken, asyncHandler(jobController.getAllJobs));
 
+// @route   GET /api/v1/jobs/search
+// @desc    Search jobs
+// @access  Private
+router.get(
+  "/search",
+  authenticateToken,
+  asyncHandler(jobController.searchJobs)
+);
+
+// @route   GET /api/v1/jobs/saved
+// @desc    Get saved jobs for current user
+// @access  Private
+router.get(
+  "/saved",
+  authenticateToken,
+  asyncHandler(jobController.getSavedJobs)
+);
+
+// @route   GET /api/v1/jobs/pending
+// @desc    Get pending jobs for admin approval
+// @access  Private/Admin
+router.get(
+  "/pending",
+  authenticateToken,
+  asyncHandler(jobController.getPendingJobs)
+);
+
 // @route   GET /api/v1/jobs/:id
 // @desc    Get job post by ID
 // @access  Private
@@ -49,11 +76,10 @@ router.put(
 
 // @route   DELETE /api/v1/jobs/:id
 // @desc    Delete job post
-// @access  Private/Alumni
+// @access  Private (Alumni can delete their own jobs, Admins can delete any job in their tenant)
 router.delete(
   "/:id",
   authenticateToken,
-  requireAlumni,
   ...validateRequest(validateId),
   asyncHandler(jobController.deleteJob)
 );
@@ -66,15 +92,6 @@ router.post(
   authenticateToken,
   ...validateRequest(validateId),
   asyncHandler(jobController.applyForJob)
-);
-
-// @route   GET /api/v1/jobs/search
-// @desc    Search jobs
-// @access  Private
-router.get(
-  "/search",
-  authenticateToken,
-  asyncHandler(jobController.searchJobs)
 );
 
 // @route   GET /api/v1/jobs/company/:company
@@ -124,13 +141,24 @@ router.delete(
   asyncHandler(jobController.unsaveJob)
 );
 
-// @route   GET /api/v1/jobs/saved
-// @desc    Get saved jobs for current user
-// @access  Private
-router.get(
-  "/saved",
+// @route   POST /api/v1/jobs/:id/approve
+// @desc    Approve a pending job post
+// @access  Private/Admin
+router.post(
+  "/:id/approve",
   authenticateToken,
-  asyncHandler(jobController.getSavedJobs)
+  ...validateRequest(validateId),
+  asyncHandler(jobController.approveJob)
+);
+
+// @route   POST /api/v1/jobs/:id/reject
+// @desc    Reject a pending job post
+// @access  Private/Admin
+router.post(
+  "/:id/reject",
+  authenticateToken,
+  ...validateRequest(validateId),
+  asyncHandler(jobController.rejectJob)
 );
 
 export default router;

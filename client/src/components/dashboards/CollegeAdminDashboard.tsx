@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -8,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,6 +29,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Users,
   GraduationCap,
@@ -62,6 +69,9 @@ import {
   FolderKanban,
   Menu,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -75,22 +85,36 @@ import {
   campaignAPI,
   galleryAPI,
   newsAPI,
+  adminAnalyticsAPI,
+  getImageUrl,
+  API_BASE_URL,
 } from "@/lib/api";
 import AlumniManagement from "../AlumniManagement";
 import CampaignManagement from "../CampaignManagement";
 import { CategoryManagement } from "../CategoryManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
+import EventManagement from "../EventManagement";
+import JobManagement from "../admin/JobManagement";
+import { AnalyticsDashboard } from "../admin/AnalyticsDashboard";
+import { DepartmentAnalytics } from "../admin/analytics/DepartmentAnalytics";
+import { RewardsAdminDashboard } from "../rewards/RewardsAdminDashboard";
+import { StaffVerificationDashboard } from "../rewards/StaffVerificationDashboard";
 import Footer from "../Footer";
 // Note: College Admin only manages their own college, not all colleges
 
 // Type definitions
 interface PendingRequest {
-  _id: string;
+  requestId: string;
+  _id?: string; // Optional for backward compatibility
   role: string;
   tenantId: string;
   firstName?: string;
   lastName?: string;
   email?: string;
+  department?: string;
+  password?: string;
+  status?: string;
+  requestedAt?: string;
   [key: string]: unknown;
 }
 
@@ -293,9 +317,23 @@ const CollegeAdminDashboard = () => {
   const [isCreateHODOpen, setIsCreateHODOpen] = useState(false);
   const [isCreateStaffOpen, setIsCreateStaffOpen] = useState(false);
   const [isCreateAdminOpen, setIsCreateAdminOpen] = useState(false);
+  const [isManageStaffOpen, setIsManageStaffOpen] = useState(false);
+  const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMember | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    department: "",
+    role: "",
+    status: "",
+  });
 
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Desktop sidebar collapse state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // College Settings state
   const [collegeLogo, setCollegeLogo] = useState<File | null>(null);
@@ -467,9 +505,28 @@ const CollegeAdminDashboard = () => {
           tenantId: user.tenantId,
         }),
         userAPI.getPendingUserRequests(),
-        communityAPI
-          .getTopCommunities(100)
-          .catch(() => ({ success: false, data: [] })),
+        adminAnalyticsAPI
+          .getAdminAnalytics()
+          .then(
+            (response: {
+              success: boolean;
+              data?: { summary?: { totalCommunities?: number } };
+            }) => {
+              if (
+                response.success &&
+                response.data?.summary?.totalCommunities !== undefined
+              ) {
+                return {
+                  success: true,
+                  data: {
+                    totalCommunities: response.data.summary.totalCommunities,
+                  },
+                };
+              }
+              return { success: false, data: { totalCommunities: 0 } };
+            }
+          )
+          .catch(() => ({ success: false, data: { totalCommunities: 0 } })),
         campaignAPI
           .getAllCampaigns({
             limit: 100,
@@ -518,14 +575,14 @@ const CollegeAdminDashboard = () => {
         (s) => s.role === "college_admin"
       ).length;
 
-      // Process communities
-      const communitiesResponseTyped =
-        communitiesResponse as APIResponse<CommunityResponse>;
-      const communitiesData =
-        (communitiesResponseTyped.data as CommunityResponse)?.data || [];
-      const totalCommunities = Array.isArray(communitiesData)
-        ? communitiesData.length
-        : 0;
+      // Process communities - get count from admin analytics
+      const totalCommunities =
+        (
+          communitiesResponse as {
+            success: boolean;
+            data?: { totalCommunities?: number };
+          }
+        )?.data?.totalCommunities || 0;
 
       // Process campaigns
       const campaignsResponseTyped =
@@ -854,8 +911,7 @@ const CollegeAdminDashboard = () => {
 
     try {
       setLoading((prev) => ({ ...prev, donations: true }));
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -886,8 +942,7 @@ const CollegeAdminDashboard = () => {
 
     try {
       setLoading((prev) => ({ ...prev, mentorships: true }));
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -1233,6 +1288,183 @@ const CollegeAdminDashboard = () => {
     }
   };
 
+  // Staff Management handlers
+  const handleOpenManageStaff = () => {
+    setIsManageStaffOpen(true);
+    // Fetch all staff members without pagination
+    fetchAllStaff();
+  };
+
+  const fetchAllStaff = async () => {
+    if (!user?.tenantId) return;
+
+    try {
+      setLoading((prev) => ({ ...prev, staff: true }));
+      const response = await userAPI.getAllUsers({
+        role: "college_admin,hod,staff",
+        tenantId: user.tenantId,
+        limit: 1000, // Get all staff members
+      });
+
+      const responseTyped = response as APIResponse<UserResponse>;
+      const dataTyped = responseTyped.data as UserResponse;
+      if (response.success && dataTyped?.users) {
+        setHodStaff(dataTyped.users);
+      }
+    } catch (error) {
+      console.error("Error fetching all staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load staff data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading((prev) => ({ ...prev, staff: false }));
+    }
+  };
+
+  const handleEditStaff = (member: StaffMember) => {
+    setSelectedStaffMember(member);
+    setEditFormData({
+      firstName: member.firstName || "",
+      lastName: member.lastName || "",
+      email: member.email || "",
+      department: member.department || "",
+      role: member.role || "",
+      status: member.status || "active",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedStaffMember) return;
+
+    try {
+      const response = await userAPI.updateUser(selectedStaffMember._id, {
+        firstName: editFormData.firstName.trim(),
+        lastName: editFormData.lastName.trim(),
+      });
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Staff member updated successfully",
+        });
+        setIsEditDialogOpen(false);
+        fetchAllStaff();
+        fetchStats();
+      } else {
+        throw new Error(response.message || "Failed to update staff member");
+      }
+    } catch (error) {
+      console.error("Error updating staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update staff member",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangeRole = async (memberId: string, newRole: string) => {
+    try {
+      // Delete and recreate user with new role
+      const member = hodStaff.find((m) => m._id === memberId);
+      if (!member) return;
+
+      // Create new user with new role
+      const userData = {
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email,
+        password: "DefaultPassword@123", // Set a default password
+        role: newRole,
+        tenantId: user?.tenantId,
+        department: member.department,
+        status: member.status,
+      };
+
+      // First delete the old user
+      await userAPI.deleteUser(memberId);
+
+      // Then create with new role
+      const response = await userAPI.createUser(userData);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: `Role changed to ${newRole.toUpperCase()} successfully. Password reset to default.`,
+        });
+        fetchAllStaff();
+        fetchStats();
+      }
+    } catch (error) {
+      console.error("Error changing role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to change role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangeStatus = async (memberId: string, newStatus: string) => {
+    try {
+      const response = await userAPI.updateUserStatus(memberId, newStatus);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: `Status changed to ${newStatus} successfully`,
+        });
+        fetchAllStaff();
+        fetchStats();
+      } else {
+        throw new Error(response.message || "Failed to change status");
+      }
+    } catch (error) {
+      console.error("Error changing status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to change status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteStaff = (member: StaffMember) => {
+    setSelectedStaffMember(member);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteStaff = async () => {
+    if (!selectedStaffMember) return;
+
+    try {
+      const response = await userAPI.deleteUser(selectedStaffMember._id);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Staff member deleted successfully",
+        });
+        setIsDeleteDialogOpen(false);
+        setSelectedStaffMember(null);
+        fetchAllStaff();
+        fetchStats();
+      } else {
+        throw new Error(response.message || "Failed to delete staff member");
+      }
+    } catch (error) {
+      console.error("Error deleting staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete staff member",
+        variant: "destructive",
+      });
+    }
+  };
+
   // College Settings handlers
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1304,7 +1536,7 @@ const CollegeAdminDashboard = () => {
 
   const handleSaveCollegeSettings = async () => {
     // Check for tenantId in multiple possible locations
-    // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+    // NOTE: Do NOT use user._id as tenantId - they are different entities
     interface UserWithTenant {
       tenantId?: string;
       tenant?: { _id?: string };
@@ -1313,14 +1545,17 @@ const CollegeAdminDashboard = () => {
     }
     const userWithTenant = user as UserWithTenant;
     const tenantId =
-      userWithTenant?.tenantId ||
-      userWithTenant?.tenant?._id ||
-      (userWithTenant?.role === "college_admin" ? userWithTenant._id : null);
+      userWithTenant?.tenantId || userWithTenant?.tenant?._id || null;
 
-    if (!tenantId) {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
       toast({
         title: "Error",
-        description: `No college ID found. User: ${user?.firstName} ${user?.lastName}, Role: ${user?.role}. Please contact support to ensure your account is properly linked to a college.`,
+        description: `Invalid college ID. User: ${user?.firstName} ${user?.lastName}, Role: ${user?.role}. Please contact support to ensure your account is properly linked to a college.`,
         variant: "destructive",
       });
       return;
@@ -1329,6 +1564,29 @@ const CollegeAdminDashboard = () => {
     setSettingsLoading(true);
 
     try {
+      // First, verify the tenant exists (will auto-create if missing for college_admin)
+      const tenantCheck = await tenantAPI.getTenantById(tenantId);
+      if (!tenantCheck.success) {
+        toast({
+          title: "Error",
+          description:
+            tenantCheck.message ||
+            "College not found. Please contact support to ensure your account is properly linked to a college.",
+          variant: "destructive",
+        });
+        setSettingsLoading(false);
+        return;
+      }
+
+      // If tenant was auto-created, show a success message
+      if (tenantCheck.message?.includes("auto-created")) {
+        toast({
+          title: "College Setup",
+          description:
+            "Your college has been automatically set up. You can now upload logo and banner.",
+        });
+      }
+
       // Upload logo to database
       if (collegeLogo) {
         setLogoLoading(true);
@@ -1346,21 +1604,38 @@ const CollegeAdminDashboard = () => {
             // Also dispatch event for banner update
             window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
-            throw new Error(logoResponse.message || "Failed to upload logo");
+            const errorMessage =
+              logoResponse.message || "Failed to upload logo";
+            // If it's an invalid tenant ID error, don't fallback to localStorage
+            if (
+              errorMessage.includes("Invalid tenant ID") ||
+              errorMessage.includes("Tenant not found")
+            ) {
+              throw new Error(errorMessage);
+            }
+            // For other errors, fallback to localStorage
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const logoData = e.target?.result as string;
+              localStorage.setItem(`college_logo_${tenantId}`, logoData);
+
+              // Dispatch custom event to notify navbar of logo update (with small delay)
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("collegeLogoUpdated"));
+              }, 100);
+            };
+            reader.readAsDataURL(collegeLogo);
           }
         } catch (error) {
-          // Fallback to localStorage
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const logoData = e.target?.result as string;
-            localStorage.setItem(`college_logo_${tenantId}`, logoData);
-
-            // Dispatch custom event to notify navbar of logo update (with small delay)
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("collegeLogoUpdated"));
-            }, 100);
-          };
-          reader.readAsDataURL(collegeLogo);
+          // If it's a tenant ID error, re-throw to be handled by outer catch
+          if (
+            error instanceof Error &&
+            (error.message.includes("Invalid tenant ID") ||
+              error.message.includes("Tenant not found"))
+          ) {
+            throw error; // Re-throw to prevent success toast and show error
+          }
+          // For other errors, silently fallback to localStorage (already handled above)
         }
         setLogoLoading(false);
       }
@@ -1379,23 +1654,38 @@ const CollegeAdminDashboard = () => {
             // Dispatch custom event to notify of banner update
             window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
           } else {
-            throw new Error(
-              bannerResponse.message || "Failed to upload banner"
-            );
+            const errorMessage =
+              bannerResponse.message || "Failed to upload banner";
+            // If it's an invalid tenant ID error, don't fallback to localStorage
+            if (
+              errorMessage.includes("Invalid tenant ID") ||
+              errorMessage.includes("Tenant not found")
+            ) {
+              throw new Error(errorMessage);
+            }
+            // For other errors, fallback to localStorage
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const bannerData = e.target?.result as string;
+              localStorage.setItem(`college_banner_${tenantId}`, bannerData);
+
+              // Dispatch custom event to notify of banner update (with small delay)
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
+              }, 100);
+            };
+            reader.readAsDataURL(collegeBanner);
           }
         } catch (error) {
-          // Fallback to localStorage
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const bannerData = e.target?.result as string;
-            localStorage.setItem(`college_banner_${tenantId}`, bannerData);
-
-            // Dispatch custom event to notify of banner update (with small delay)
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("collegeBannerUpdated"));
-            }, 100);
-          };
-          reader.readAsDataURL(collegeBanner);
+          // If it's a tenant ID error, re-throw to be handled by outer catch
+          if (
+            error instanceof Error &&
+            (error.message.includes("Invalid tenant ID") ||
+              error.message.includes("Tenant not found"))
+          ) {
+            throw error; // Re-throw to prevent success toast and show error
+          }
+          // For other errors, silently fallback to localStorage (already handled above)
         }
         setBannerLoading(false);
       }
@@ -1448,7 +1738,7 @@ const CollegeAdminDashboard = () => {
       try {
         const logoResponse = await tenantAPI.getLogo(tenantId);
         if (typeof logoResponse === "string") {
-          setLogoPreview(logoResponse);
+          setLogoPreview(getImageUrl(logoResponse));
         }
       } catch (error) {
         // Logo not found or error loading logo
@@ -1458,7 +1748,7 @@ const CollegeAdminDashboard = () => {
       try {
         const bannerResponse = await tenantAPI.getBanner(tenantId);
         if (typeof bannerResponse === "string") {
-          setBannerPreview(bannerResponse);
+          setBannerPreview(getImageUrl(bannerResponse));
         }
       } catch (error) {
         // Check localStorage as fallback
@@ -1509,7 +1799,7 @@ const CollegeAdminDashboard = () => {
     fetchMentorships();
 
     // Load existing college settings from database
-    // For college_admin, if tenantId is undefined, use the user's _id as tenantId
+    // NOTE: Do NOT use user._id as tenantId - they are different entities
     interface UserWithTenant {
       tenantId?: string;
       tenant?: { _id?: string };
@@ -1518,10 +1808,14 @@ const CollegeAdminDashboard = () => {
     }
     const userWithTenant = user as UserWithTenant;
     const tenantId =
-      userWithTenant?.tenantId ||
-      userWithTenant?.tenant?._id ||
-      (userWithTenant?.role === "college_admin" ? userWithTenant._id : null);
-    if (tenantId) {
+      userWithTenant?.tenantId || userWithTenant?.tenant?._id || null;
+
+    // Only load if tenantId is valid (24 hex characters)
+    if (
+      tenantId &&
+      typeof tenantId === "string" &&
+      /^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
       loadCollegeSettings(tenantId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1550,11 +1844,13 @@ const CollegeAdminDashboard = () => {
         role?: string;
       }
       const userWithTenant = user as UserWithTenant;
-      const tenantId =
-        userWithTenant?.tenantId ||
-        userWithTenant?.tenant?._id ||
-        (userWithTenant?.role === "college_admin" ? userWithTenant._id : null);
-      if (tenantId) {
+      const tenantId = userWithTenant?.tenantId || userWithTenant?.tenant?._id;
+      // Only load if tenantId is valid (24 hex characters)
+      if (
+        tenantId &&
+        typeof tenantId === "string" &&
+        /^[0-9a-fA-F]{24}$/.test(tenantId)
+      ) {
         loadCollegeSettings(tenantId);
       }
     };
@@ -1566,7 +1862,43 @@ const CollegeAdminDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.tenantId]);
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // URL-based navigation with query parameters
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "dashboard";
+  const subTab = searchParams.get("subtab");
+  
+  // Initialize sub-tabs from URL or default
+  const [adminStaffSubTab, setAdminStaffSubTab] = useState(
+    activeTab === "admin-staff" && subTab ? subTab : "management"
+  );
+  const [rewardsSubTab, setRewardsSubTab] = useState(
+    activeTab === "rewards-management" && subTab ? subTab : "rewards"
+  );
+
+  // Sync state with URL for sub-tabs
+  useEffect(() => {
+    if (activeTab === "admin-staff" && subTab) {
+      setAdminStaffSubTab(subTab);
+    }
+    if (activeTab === "rewards-management" && subTab) {
+      setRewardsSubTab(subTab);
+    }
+  }, [activeTab, subTab]);
+
+  // Function to handle tab navigation with URL update
+  const handleTabChange = (tabKey: string) => {
+    // When changing main tab, we reset subtab (by not including it)
+    setSearchParams({ tab: tabKey });
+    setSidebarOpen(false); // Close mobile menu when navigating
+  };
+
+  const handleSubTabChange = (subTabKey: string) => {
+    setSearchParams({ tab: activeTab, subtab: subTabKey });
+    // Also update local state for immediate feedback if needed, though useEffect handles it
+    if (activeTab === "admin-staff") setAdminStaffSubTab(subTabKey);
+    if (activeTab === "rewards-management") setRewardsSubTab(subTabKey);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="flex flex-1 overflow-hidden">
@@ -1586,39 +1918,75 @@ const CollegeAdminDashboard = () => {
               ? "fixed inset-y-0 left-0 z-50"
               : "hidden lg:block lg:fixed lg:top-16 lg:left-0 lg:z-40"
           }
-          top-16 w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm ${
+          top-16 ${
+            sidebarCollapsed ? "w-20" : "w-72"
+          } flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm transition-all duration-300 ${
             sidebarOpen ? "h-[calc(100vh-4rem)]" : "h-[calc(100vh-4rem-80px)]"
           }
         `}
         >
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
-            <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+            <div
+              className={`p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700 ${
+                sidebarCollapsed ? "px-3" : ""
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
-                    <Building2 className="h-6 w-6 text-blue-600" />
+                {!sidebarCollapsed && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Building2 className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg">
+                        College Admin
+                      </h3>
+                      <p className="text-blue-100 text-xs">Management Portal</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-white font-bold text-lg">
-                      College Admin
-                    </h3>
-                    <p className="text-blue-100 text-xs">Management Portal</p>
+                )}
+                {sidebarCollapsed && (
+                  <div className="w-full flex justify-center">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Building2 className="h-6 w-6 text-blue-600" />
+                    </div>
                   </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden lg:flex text-white hover:bg-white/20 p-1.5"
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    title={
+                      sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                    }
+                  >
+                    {sidebarCollapsed ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronLeft className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden text-white hover:bg-white/20"
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden text-white hover:bg-white/20"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
               </div>
             </div>
 
             {/* Navigation Menu */}
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <nav
+              className={`flex-1 space-y-1 overflow-y-auto ${
+                sidebarCollapsed ? "p-2" : "p-4"
+              }`}
+            >
               {[
                 {
                   key: "dashboard",
@@ -1634,7 +2002,7 @@ const CollegeAdminDashboard = () => {
                 },
                 {
                   key: "admin-staff",
-                  label: "Admin & Staff",
+                  label: "HOD & Staffs Management",
                   icon: Users2,
                   color: "green",
                 },
@@ -1661,6 +2029,24 @@ const CollegeAdminDashboard = () => {
                   label: "Campaign",
                   icon: Target,
                   color: "rose",
+                },
+                {
+                  key: "event-management",
+                  label: "Event Management",
+                  icon: Calendar,
+                  color: "amber",
+                },
+                {
+                  key: "job-management",
+                  label: "Job Management",
+                  icon: Briefcase,
+                  color: "blue",
+                },
+                {
+                  key: "rewards-management",
+                  label: "Rewards Management",
+                  icon: Award,
+                  color: "amber",
                 },
               ].map((item) => {
                 const Icon = item.icon;
@@ -1709,32 +2095,57 @@ const CollegeAdminDashboard = () => {
 
                 const activeColors = colorMap[item.color] || colorMap.blue;
 
-                return (
+                const buttonContent = (
                   <button
                     key={item.key}
-                    onClick={() => setActiveTab(item.key)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    onClick={() => handleTabChange(item.key)}
+                    className={`w-full flex items-center ${
+                      sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
+                    } py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
                         ? `${activeColors.bg} ${activeColors.border} ${activeColors.text} border-l-4 shadow-sm`
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent"
                     }`}
                   >
                     <Icon
-                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`}
+                      className={`h-5 w-5 flex-shrink-0 ${
+                        isActive ? "" : "text-gray-500"
+                      }`}
                     />
-                    <span className="flex-1">{item.label}</span>
-                    {isActive && (
-                      <div
-                        className={`w-2 h-2 rounded-full ${activeColors.dot}`}
-                      />
+                    {!sidebarCollapsed && (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {isActive && (
+                          <div
+                            className={`w-2 h-2 rounded-full ${activeColors.dot}`}
+                          />
+                        )}
+                      </>
                     )}
                   </button>
+                );
+
+                return sidebarCollapsed ? (
+                  <TooltipProvider key={item.key}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>{item.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  buttonContent
                 );
               })}
             </nav>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 lg:ml-72 pb-20">
+        <div
+          className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-0 transition-all duration-300 pb-20 ${
+            sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+          }`}
+        >
           {/* Mobile Menu Button */}
           <div className="lg:hidden mb-4">
             <Button
@@ -1770,7 +2181,7 @@ const CollegeAdminDashboard = () => {
           {activeTab === "dashboard" && bannerPreview && (
             <div className="relative overflow-hidden rounded-lg shadow-lg">
               <img
-                src={bannerPreview}
+                src={bannerPreview ? getImageUrl(bannerPreview) : ""}
                 alt="College Banner"
                 className="w-full h-80 object-cover"
               />
@@ -1791,7 +2202,7 @@ const CollegeAdminDashboard = () => {
           {/* Main Content controlled by sidebar */}
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-6"
           >
             {/* Dashboard Overview */}
@@ -2073,717 +2484,8 @@ const CollegeAdminDashboard = () => {
                 </Card>
               </div>
 
-              {/* Detailed Statistics Section */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Alumni by Department */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5" />
-                      Alumni by Department
-                    </CardTitle>
-                    <CardDescription>
-                      Distribution across departments
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.keys(alumniByDepartment).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No data available
-                        </p>
-                      ) : (
-                        Object.entries(alumniByDepartment)
-                          .sort(([, a], [, b]) => b - a)
-                          .slice(0, 5)
-                          .map(([dept, count]) => (
-                            <div key={dept} className="space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className="font-medium truncate">
-                                  {dept}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {count}
-                                </span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div
-                                  className="bg-blue-500 h-1.5 rounded-full"
-                                  style={{
-                                    width: `${
-                                      (count / stats.totalAlumni) * 100 || 0
-                                    }%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Events by Status */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Events by Status
-                    </CardTitle>
-                    <CardDescription>Event status breakdown</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.keys(eventsByStatus).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No events yet
-                        </p>
-                      ) : (
-                        Object.entries(eventsByStatus).map(
-                          ([status, count]) => (
-                            <div
-                              key={status}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-3 h-3 rounded-full ${
-                                    status === "upcoming"
-                                      ? "bg-green-500"
-                                      : status === "completed"
-                                      ? "bg-blue-500"
-                                      : "bg-gray-400"
-                                  }`}
-                                />
-                                <span className="text-sm font-medium capitalize">
-                                  {status}
-                                </span>
-                              </div>
-                              <Badge variant="secondary">{count}</Badge>
-                            </div>
-                          )
-                        )
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Campaign Performance */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5" />
-                      Campaign Performance
-                    </CardTitle>
-                    <CardDescription>
-                      Overall fundraising progress
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Raised</span>
-                          <span className="font-bold text-lg">
-                            ₹{stats.totalCampaignRaised.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Target</span>
-                          <span className="font-medium">
-                            ₹{stats.totalCampaignTarget.toLocaleString()}
-                          </span>
-                        </div>
-                        {stats.totalCampaignTarget > 0 && (
-                          <>
-                            <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                              <div
-                                className="bg-rose-500 h-3 rounded-full transition-all"
-                                style={{
-                                  width: `${Math.min(
-                                    (stats.totalCampaignRaised /
-                                      stats.totalCampaignTarget) *
-                                      100,
-                                    100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                            <p className="text-xs text-center text-muted-foreground">
-                              {Math.round(
-                                (stats.totalCampaignRaised /
-                                  stats.totalCampaignTarget) *
-                                  100
-                              )}
-                              % Complete
-                            </p>
-                          </>
-                        )}
-                      </div>
-                      <div className="pt-2 border-t">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">
-                            Active Campaigns:
-                          </span>
-                          <span className="font-medium text-green-600">
-                            {stats.activeCampaigns}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Recent Activity - All Models */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Recent Events */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-purple-500" />
-                        <CardTitle>Recent Events</CardTitle>
-                      </div>
-                      <Badge variant="outline">{recentEvents.length}</Badge>
-                    </div>
-                    <CardDescription>
-                      Latest events and their performance
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.events ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading events...
-                          </p>
-                        </div>
-                      ) : recentEvents.length === 0 ? (
-                        <div className="text-center py-4">
-                          <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No events found
-                          </p>
-                        </div>
-                      ) : (
-                        recentEvents.slice(0, 5).map((event) => {
-                          const attendeesCount = Array.isArray(event.attendees)
-                            ? event.attendees.length
-                            : typeof event.attendees === "number"
-                            ? event.attendees
-                            : 0;
-                          const eventDate = new Date(
-                            event.date || event.startDate
-                          );
-                          const isUpcoming = eventDate > new Date();
-                          const eventStatus =
-                            event.status || (isUpcoming ? "upcoming" : "past");
-
-                          return (
-                            <div
-                              key={event._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {event.image ? (
-                                  <img
-                                    src={event.image}
-                                    alt={event.title}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                                    <Calendar className="h-6 w-6 text-purple-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {event.title}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <p className="text-xs text-muted-foreground">
-                                    {eventDate.toLocaleDateString("en-US", {
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </p>
-                                  {event.location && (
-                                    <>
-                                      <span className="text-muted-foreground">
-                                        •
-                                      </span>
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        {event.location}
-                                      </p>
-                                    </>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between mt-2">
-                                  <span className="text-xs text-muted-foreground">
-                                    {attendeesCount} attendees
-                                  </span>
-                                  <Badge
-                                    variant={
-                                      eventStatus === "completed"
-                                        ? "default"
-                                        : "secondary"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {eventStatus}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Gallery */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Image className="h-5 w-5 text-cyan-500" />
-                        <CardTitle>Gallery</CardTitle>
-                      </div>
-                      <Badge variant="outline">{galleries.length}</Badge>
-                    </div>
-                    <CardDescription>Recent photo galleries</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.galleries ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading galleries...
-                          </p>
-                        </div>
-                      ) : galleries.length === 0 ? (
-                        <div className="text-center py-4">
-                          <Image className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No galleries found
-                          </p>
-                        </div>
-                      ) : (
-                        galleries.slice(0, 5).map((gallery) => {
-                          const galleryDate = new Date(
-                            gallery.createdAt || new Date()
-                          );
-                          const imageCount = Array.isArray(gallery.images)
-                            ? gallery.images.length
-                            : 0;
-                          const firstImage =
-                            Array.isArray(gallery.images) &&
-                            gallery.images.length > 0
-                              ? gallery.images[0]
-                              : null;
-
-                          return (
-                            <div
-                              key={gallery._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {firstImage ? (
-                                  <img
-                                    src={firstImage}
-                                    alt={gallery.title}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-cyan-100 flex items-center justify-center">
-                                    <Image className="h-6 w-6 text-cyan-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {gallery.title}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {galleryDate.toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {imageCount} images
-                                  </Badge>
-                                  {gallery.category && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-xs"
-                                    >
-                                      {gallery.category}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* News Room */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Newspaper className="h-5 w-5 text-blue-500" />
-                        <CardTitle>News Room</CardTitle>
-                      </div>
-                      <Badge variant="outline">{news.length}</Badge>
-                    </div>
-                    <CardDescription>Latest news and updates</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.news ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading news...
-                          </p>
-                        </div>
-                      ) : news.length === 0 ? (
-                        <div className="text-center py-4">
-                          <Newspaper className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No news found</p>
-                        </div>
-                      ) : (
-                        news.slice(0, 5).map((newsItem) => {
-                          const newsDate = new Date(
-                            newsItem.publishedAt ||
-                              newsItem.createdAt ||
-                              new Date()
-                          );
-
-                          return (
-                            <div
-                              key={newsItem._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {newsItem.image ? (
-                                  <img
-                                    src={newsItem.image}
-                                    alt={newsItem.title}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                                    <Newspaper className="h-6 w-6 text-blue-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {newsItem.title}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {newsItem.summary ||
-                                    newsItem.content?.substring(0, 60) ||
-                                    ""}
-                                </p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <p className="text-xs text-muted-foreground">
-                                    {newsDate.toLocaleDateString("en-US", {
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
-                                  </p>
-                                  {newsItem.author && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {typeof newsItem.author === "string"
-                                        ? newsItem.author
-                                        : `${newsItem.author.firstName || ""} ${
-                                            newsItem.author.lastName || ""
-                                          }`.trim() ||
-                                          newsItem.author.email ||
-                                          "Unknown"}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Community */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="h-5 w-5 text-green-500" />
-                        <CardTitle>Communities</CardTitle>
-                      </div>
-                      <Badge variant="outline">{communities.length}</Badge>
-                    </div>
-                    <CardDescription>Top active communities</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.communities ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading communities...
-                          </p>
-                        </div>
-                      ) : communities.length === 0 ? (
-                        <div className="text-center py-4">
-                          <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No communities found
-                          </p>
-                        </div>
-                      ) : (
-                        communities.slice(0, 5).map((community) => {
-                          const memberCount =
-                            community.members?.length ||
-                            community.memberCount ||
-                            0;
-                          const postCount =
-                            community.posts?.length || community.postCount || 0;
-
-                          return (
-                            <div
-                              key={community._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                {community.image ? (
-                                  <img
-                                    src={community.image}
-                                    alt={community.name}
-                                    className="w-12 h-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                                    <MessageSquare className="h-6 w-6 text-green-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {community.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {community.description || ""}
-                                </p>
-                                <div className="flex items-center gap-3 mt-2">
-                                  <div className="flex items-center gap-1">
-                                    <Users className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">
-                                      {memberCount} members
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <FileText className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">
-                                      {postCount} posts
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Donations */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <HeartHandshake className="h-5 w-5 text-rose-500" />
-                        <CardTitle>Donations</CardTitle>
-                      </div>
-                      <Badge variant="outline">{donations.length}</Badge>
-                    </div>
-                    <CardDescription>Recent donations</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.donations ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading donations...
-                          </p>
-                        </div>
-                      ) : donations.length === 0 ? (
-                        <div className="text-center py-4">
-                          <HeartHandshake className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No donations found
-                          </p>
-                        </div>
-                      ) : (
-                        donations.slice(0, 5).map((donation) => {
-                          const donationDate = new Date(
-                            donation.createdAt ||
-                              donation.donatedAt ||
-                              new Date()
-                          );
-                          const amount = donation.amount || 0;
-                          const donorName =
-                            donation.donor?.firstName &&
-                            donation.donor?.lastName
-                              ? `${donation.donor.firstName} ${donation.donor.lastName}`
-                              : donation.donorName || "Anonymous";
-
-                          return (
-                            <div
-                              key={donation._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                <div className="w-12 h-12 rounded-lg bg-rose-100 flex items-center justify-center">
-                                  <HeartHandshake className="h-6 w-6 text-rose-500" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">
-                                  {donorName}
-                                </p>
-                                <p className="text-lg font-bold text-rose-600 mt-1">
-                                  ₹{amount.toLocaleString()}
-                                </p>
-                                {donation.campaign?.title && (
-                                  <p className="text-xs text-muted-foreground truncate mt-1">
-                                    {donation.campaign.title}
-                                  </p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  {donationDate.toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Mentorship */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-indigo-500" />
-                        <CardTitle>Mentorship</CardTitle>
-                      </div>
-                      <Badge variant="outline">{mentorships.length}</Badge>
-                    </div>
-                    <CardDescription>
-                      Recent mentorship connections
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {loading.mentorships ? (
-                        <div className="text-center py-4">
-                          <p className="text-muted-foreground">
-                            Loading mentorships...
-                          </p>
-                        </div>
-                      ) : mentorships.length === 0 ? (
-                        <div className="text-center py-4">
-                          <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">
-                            No mentorships found
-                          </p>
-                        </div>
-                      ) : (
-                        mentorships.slice(0, 5).map((mentorship) => {
-                          const mentorshipDate = new Date(
-                            mentorship.createdAt || new Date()
-                          );
-                          const mentorName =
-                            mentorship.mentor?.firstName &&
-                            mentorship.mentor?.lastName
-                              ? `${mentorship.mentor.firstName} ${mentorship.mentor.lastName}`
-                              : mentorship.mentorName || "Unknown";
-                          const menteeName =
-                            mentorship.mentee?.firstName &&
-                            mentorship.mentee?.lastName
-                              ? `${mentorship.mentee.firstName} ${mentorship.mentee.lastName}`
-                              : mentorship.menteeName || "Unknown";
-
-                          return (
-                            <div
-                              key={mentorship._id}
-                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex-shrink-0">
-                                <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                  <BookOpen className="h-6 w-6 text-indigo-500" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm">
-                                  Mentor: {mentorName}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Mentee: {menteeName}
-                                </p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <Badge
-                                    variant={
-                                      mentorship.status === "active"
-                                        ? "default"
-                                        : mentorship.status === "completed"
-                                        ? "secondary"
-                                        : "outline"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {mentorship.status || "pending"}
-                                  </Badge>
-                                  <p className="text-xs text-muted-foreground">
-                                    {mentorshipDate.toLocaleDateString(
-                                      "en-US",
-                                      {
-                                        month: "short",
-                                        day: "numeric",
-                                      }
-                                    )}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Analytics Dashboard */}
+              <AnalyticsDashboard hideSummaryCards={true} />
             </TabsContent>
 
             {/* College Settings - Only for the admin's own college */}
@@ -2870,7 +2572,9 @@ const CollegeAdminDashboard = () => {
                       <div className="space-y-4">
                         <div className="relative">
                           <img
-                            src={bannerPreview}
+                            src={
+                              bannerPreview ? getImageUrl(bannerPreview) : ""
+                            }
                             alt="Banner Preview"
                             className="w-full h-48 object-cover border rounded-lg"
                           />
@@ -2935,17 +2639,25 @@ const CollegeAdminDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* Admin & Staff Management - Only for this college */}
+            {/* HOD & Staffs Management - Only for this college */}
             <TabsContent value="admin-staff" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-semibold">
-                    Admin & Staff Management
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Manage admins, HODs and staff for your college
-                  </p>
-                </div>
+              <Tabs
+                value={adminStaffSubTab}
+                onValueChange={handleSubTabChange}
+                className="space-y-6"
+              >
+                <TabsList className="w-full max-w-xl">
+                  <TabsTrigger value="management" className="flex-1">
+                    HOD & Staffs Management
+                  </TabsTrigger>
+                  <TabsTrigger value="analytics" className="flex-1">
+                    Reports & Analytics
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="management" className="space-y-6">
+                  <div className="flex items-center justify-between">
+               
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-sm">
                     Total: {totalStaff}
@@ -3065,21 +2777,7 @@ const CollegeAdminDashboard = () => {
                             </p>
                           )}
                         </div>
-                        <div>
-                          <Label htmlFor="admin-department">Department</Label>
-                          <Input
-                            id="admin-department"
-                            placeholder="Administration"
-                            value={newAdmin.department}
-                            onChange={(e) =>
-                              setNewAdmin((prev) => ({
-                                ...prev,
-                                department: e.target.value,
-                              }))
-                            }
-                            required
-                          />
-                        </div>
+                      
                         <div>
                           <Label htmlFor="admin-password">
                             Default Password
@@ -3523,6 +3221,228 @@ const CollegeAdminDashboard = () => {
                 </div>
               </div>
 
+              {/* Staff Management Table Modal */}
+              <Dialog open={isManageStaffOpen} onOpenChange={setIsManageStaffOpen}>
+                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>HOD & Staff Management</DialogTitle>
+                    <DialogDescription>
+                      View and manage all HODs and Staff members in your college
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="mt-4">
+                    {loading.staff ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Loading staff data...</p>
+                      </div>
+                    ) : hodStaff.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No HOD or Staff members found</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Role</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Department</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                              <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {hodStaff.map((member) => (
+                              <tr key={member._id} className="hover:bg-muted/50">
+                                <td className="px-4 py-3 text-sm">
+                                  {member.firstName} {member.lastName}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <Badge variant={member.role === "hod" ? "default" : member.role === "college_admin" ? "destructive" : "secondary"}>
+                                    {member.role?.toUpperCase()}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  {member.department || "N/A"}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  {member.email}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <Badge variant={member.status === "active" ? "default" : "secondary"}>
+                                    {member.status || "active"}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <div className="flex gap-2">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleEditStaff(member)}
+                                          >
+                                            Edit
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Edit staff member details</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+
+                                    <Select
+                                      value={member.role}
+                                      onValueChange={(value) => handleChangeRole(member._id, value)}
+                                    >
+                                      <SelectTrigger className="h-9 w-[130px] text-xs">
+                                        <SelectValue placeholder="Change Role" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="college_admin">College Admin</SelectItem>
+                                        <SelectItem value="hod">HOD</SelectItem>
+                                        <SelectItem value="staff">Staff</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+
+                                    <Select
+                                      value={member.status || "active"}
+                                      onValueChange={(value) => handleChangeStatus(member._id, value)}
+                                    >
+                                      <SelectTrigger className="h-9 w-[110px] text-xs">
+                                        <SelectValue placeholder="Status" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="active">Active</SelectItem>
+                                        <SelectItem value="inactive">Inactive</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() => handleDeleteStaff(member)}
+                                          >
+                                            Delete
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Delete staff member</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter>
+                    <Button onClick={() => setIsManageStaffOpen(false)}>Close</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Edit Staff Dialog */}
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Staff Member</DialogTitle>
+                    <DialogDescription>
+                      Update staff member information
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="edit-firstName">First Name</Label>
+                      <Input
+                        id="edit-firstName"
+                        value={editFormData.firstName}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            firstName: e.target.value,
+                          }))
+                        }
+                        placeholder="First Name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-lastName">Last Name</Label>
+                      <Input
+                        id="edit-lastName"
+                        value={editFormData.lastName}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            lastName: e.target.value,
+                          }))
+                        }
+                        placeholder="Last Name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-email">Email (Read-only)</Label>
+                      <Input
+                        id="edit-email"
+                        value={editFormData.email}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveEdit}>Save Changes</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Delete Confirmation Dialog */}
+              <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Confirm Deletion</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete this staff member? This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  {selectedStaffMember && (
+                    <div className="py-4">
+                      <p className="text-sm">
+                        <strong>Name:</strong> {selectedStaffMember.firstName} {selectedStaffMember.lastName}
+                      </p>
+                      <p className="text-sm">
+                        <strong>Email:</strong> {selectedStaffMember.email}
+                      </p>
+                      <p className="text-sm">
+                        <strong>Role:</strong> {selectedStaffMember.role?.toUpperCase()}
+                      </p>
+                    </div>
+                  )}
+
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" onClick={confirmDeleteStaff}>
+                      Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <div className="space-y-4">
                 {loading.staff ? (
                   <div className="text-center py-8">
@@ -3573,7 +3493,11 @@ const CollegeAdminDashboard = () => {
                             Department: {member.department || "N/A"}
                           </div>
                           <div className="flex space-x-2">
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={handleOpenManageStaff}
+                            >
                               <Settings className="w-4 h-4 mr-2" />
                               Manage
                             </Button>
@@ -3585,32 +3509,48 @@ const CollegeAdminDashboard = () => {
                 )}
               </div>
 
-              {/* Pagination Controls */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="text-sm text-muted-foreground">
-                  Page {staffPage} of{" "}
-                  {Math.max(1, Math.ceil(totalStaff / staffLimit))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={staffPage <= 1 || loading.staff}
-                    onClick={() => setStaffPage((p) => Math.max(1, p - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    disabled={
-                      staffPage >= Math.ceil(totalStaff / staffLimit) ||
-                      loading.staff
-                    }
-                    onClick={() => setStaffPage((p) => p + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="text-sm text-muted-foreground">
+                      Page {staffPage} of{" "}
+                      {Math.max(1, Math.ceil(totalStaff / staffLimit))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        disabled={staffPage <= 1 || loading.staff}
+                        onClick={() => setStaffPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        disabled={
+                          staffPage >= Math.ceil(totalStaff / staffLimit) ||
+                          loading.staff
+                        }
+                        onClick={() => setStaffPage((p) => p + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="analytics" className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-semibold mb-2">
+                      Department Reports & Analytics
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Comprehensive analytics and reports for HODs and Staff across all departments
+                    </p>
+                    <DepartmentAnalytics />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
             </TabsContent>
+
 
             {/* Alumni Management */}
             <TabsContent value="alumni" className="space-y-6">
@@ -3630,6 +3570,40 @@ const CollegeAdminDashboard = () => {
             {/* Campaigns Management */}
             <TabsContent value="fundraisers" className="space-y-6">
               <CampaignManagement />
+            </TabsContent>
+            <TabsContent value="event-management" className="space-y-6">
+              <EventManagement />
+            </TabsContent>
+
+            {/* Job Management */}
+            <TabsContent value="job-management" className="space-y-6">
+              <JobManagement />
+            </TabsContent>
+
+            {/* Rewards Management */}
+            <TabsContent value="rewards-management" className="space-y-6">
+              <Tabs
+                value={rewardsSubTab}
+                onValueChange={handleSubTabChange}
+                className="w-full"
+              >
+                <TabsList className="mb-6">
+                  <TabsTrigger value="rewards" className="flex items-center gap-2">
+                    <Award className="w-4 h-4" />
+                    Manage Rewards
+                  </TabsTrigger>
+                  <TabsTrigger value="verifications" className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Task Verifications
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="rewards">
+                  <RewardsAdminDashboard />
+                </TabsContent>
+                <TabsContent value="verifications">
+                  <StaffVerificationDashboard />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

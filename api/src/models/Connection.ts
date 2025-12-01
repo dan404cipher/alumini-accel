@@ -179,7 +179,7 @@ connectionSchema.statics.findConnectionBetween = function (
   userId1: string,
   userId2: string
 ) {
-  console.log("findConnectionBetween called with:", { userId1, userId2 });
+  // 
   const query = {
     $or: [
       { requester: userId1, recipient: userId2 },

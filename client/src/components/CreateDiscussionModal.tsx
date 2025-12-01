@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -145,7 +146,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
       const token = getAuthToken();
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/upload/image`,
         {
           method: "POST",
@@ -163,7 +164,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
         console.log("Upload response data:", data.data);
         // Construct the full URL for the image
         const baseUrl =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+          API_BASE_URL;
         const apiBaseUrl = baseUrl.replace("/api/v1", ""); // Remove /api/v1 to get the base URL
         const imageUrl = data.data.relativeUrl
           ? `${apiBaseUrl}${data.data.relativeUrl}`
@@ -269,7 +270,7 @@ const CreateDiscussionModal: React.FC<CreateDiscussionModalProps> = ({
       const token = getAuthToken();
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/community/${communityId}`,
         {
           method: "POST",

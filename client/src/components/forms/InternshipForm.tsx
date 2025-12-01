@@ -11,20 +11,45 @@ import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { Plus, X } from "lucide-react";
 
-const internshipSchema = z.object({
-  company: z.string().min(1, "Company name is required"),
-  position: z.string().min(1, "Position is required"),
-  description: z.string().optional(),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().optional(),
-  isOngoing: z.boolean(),
-  location: z.string().optional(),
-  isRemote: z.boolean(),
-  stipendAmount: z.number().optional(),
-  stipendCurrency: z.string().optional(),
-  skills: z.array(z.string()).optional(),
-  certificateFile: z.any().optional(),
-});
+import { API_BASE_URL } from "@/lib/api";
+const internshipSchema = z
+  .object({
+    company: z.string().min(1, "Company name is required").max(100, "Company name must be less than 100 characters"),
+    position: z.string().min(1, "Position is required").max(100, "Position must be less than 100 characters"),
+    description: z.string().max(2000, "Description must be less than 2000 characters").optional(),
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().optional(),
+    isOngoing: z.boolean(),
+    location: z.string().max(200, "Location must be less than 200 characters").optional(),
+    isRemote: z.boolean(),
+    skills: z.array(z.string()).max(20, "Maximum 20 skills allowed").optional(),
+    certificateFile: z.any().optional(),
+  })
+  .refine(
+    (data) => {
+      // If ongoing, endDate is not required
+      if (data.isOngoing) return true;
+      // If not ongoing, endDate is required
+      return !!data.endDate;
+    },
+    {
+      message: "End date is required when internship is not ongoing",
+      path: ["endDate"],
+    }
+  )
+  .refine(
+    (data) => {
+      // If both dates exist, endDate should be after startDate
+      if (data.startDate && data.endDate && !data.isOngoing) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: "End date must be after or equal to start date",
+      path: ["endDate"],
+    }
+  );
 
 type InternshipFormData = z.infer<typeof internshipSchema>;
 
@@ -64,8 +89,6 @@ export const InternshipForm = ({
       isOngoing: internship?.isOngoing || false,
       location: internship?.location || "",
       isRemote: internship?.isRemote || false,
-      stipendAmount: internship?.stipend?.amount || undefined,
-      stipendCurrency: internship?.stipend?.currency || "USD",
       skills: internship?.skills || [],
       certificateFile: undefined,
     },
@@ -100,7 +123,7 @@ export const InternshipForm = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const baseEndpoint =
         userRole === "student"
           ? `${apiUrl}/students/profile/internships`
@@ -118,13 +141,10 @@ export const InternshipForm = ({
       if (data.description) formData.append("description", data.description);
       formData.append("startDate", data.startDate);
       if (data.endDate) formData.append("endDate", data.endDate);
-      formData.append("isOngoing", data.isOngoing.toString());
+      // Ensure isOngoing is sent as "true" or "false" string
+      formData.append("isOngoing", String(data.isOngoing === true || data.isOngoing === "true"));
       if (data.location) formData.append("location", data.location);
       formData.append("isRemote", data.isRemote.toString());
-      if (data.stipendAmount) {
-        formData.append("stipendAmount", data.stipendAmount.toString());
-        formData.append("stipendCurrency", data.stipendCurrency || "USD");
-      }
       formData.append("skills", JSON.stringify(skills));
       if (certificateFile) {
         formData.append("certificateFile", certificateFile);
@@ -234,7 +254,13 @@ export const InternshipForm = ({
       </div>
 
       <div className="flex items-center space-x-2">
-        <Checkbox id="isOngoing" {...register("isOngoing")} />
+        <Checkbox
+          id="isOngoing"
+          checked={isOngoing}
+          onCheckedChange={(checked) =>
+            setValue("isOngoing", checked as boolean)
+          }
+        />
         <Label htmlFor="isOngoing">Currently ongoing</Label>
       </div>
 
@@ -252,29 +278,14 @@ export const InternshipForm = ({
         </div>
 
         <div className="flex items-center space-x-2">
-          <Checkbox id="isRemote" {...register("isRemote")} />
+          <Checkbox
+            id="isRemote"
+            checked={watch("isRemote")}
+            onCheckedChange={(checked) =>
+              setValue("isRemote", checked as boolean)
+            }
+          />
           <Label htmlFor="isRemote">Remote work</Label>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="stipendAmount">Stipend Amount</Label>
-          <Input
-            id="stipendAmount"
-            type="number"
-            {...register("stipendAmount", { valueAsNumber: true })}
-            placeholder="Enter amount"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="stipendCurrency">Currency</Label>
-          <Input
-            id="stipendCurrency"
-            {...register("stipendCurrency")}
-            placeholder="USD"
-          />
         </div>
       </div>
 
@@ -329,15 +340,30 @@ export const InternshipForm = ({
                 "application/msword",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
               ];
-              if (allowedTypes.includes(file.type)) {
-                setCertificateFile(file);
-              } else {
+              
+              if (!allowedTypes.includes(file.type)) {
                 toast({
                   title: "Invalid file type",
-                  description: "Please upload a PDF or DOC file",
+                  description: "Please upload a PDF, DOC, or DOCX file",
                   variant: "destructive",
                 });
+                e.target.value = ""; // Clear the input
+                return;
               }
+
+              // Validate file size (10MB limit)
+              const maxSize = 10 * 1024 * 1024; // 10MB
+              if (file.size > maxSize) {
+                toast({
+                  title: "File too large",
+                  description: "File size must be less than 10MB. Please compress or choose a smaller file.",
+                  variant: "destructive",
+                });
+                e.target.value = ""; // Clear the input
+                return;
+              }
+
+              setCertificateFile(file);
             }
           }}
         />

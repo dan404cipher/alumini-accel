@@ -53,7 +53,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { newsAPI } from "@/lib/api";
+import { newsAPI, API_BASE_URL } from "@/lib/api";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import CreateNewsDialog from "@/components/dialogs/CreateNewsDialog";
 import EditNewsDialog from "@/components/dialogs/EditNewsDialog";
 import DeleteNewsDialog from "@/components/dialogs/DeleteNewsDialog";
@@ -76,6 +77,15 @@ interface News {
   updatedAt: string;
 }
 
+interface College {
+  _id: string;
+  name: string;
+  location: string;
+  establishedYear: number;
+  website?: string;
+  description?: string;
+}
+
 const NewsRoom = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -94,6 +104,37 @@ const NewsRoom = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(12);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeFilter, setCollegeFilter] = useState("all");
+
+  // Fetch colleges on component mount (only for Super Admin)
+  useEffect(() => {
+    const fetchColleges = async () => {
+      // Only fetch colleges if user is Super Admin
+      if (user?.role !== "super_admin") {
+        return;
+      }
+
+      try {
+        const token = getAuthTokenOrNull();
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/tenants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setColleges(data.data?.tenants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+      }
+    };
+
+    fetchColleges();
+  }, [user]);
 
   // Fetch news data
   const {
@@ -106,14 +147,19 @@ const NewsRoom = () => {
       user?.tenantId,
       currentPage,
       searchQuery,
+      searchQuery,
       selectedDateRange,
+      collegeFilter,
     ],
     queryFn: async () => {
       try {
         const params: Record<string, unknown> = {
           page: currentPage,
           limit: itemsPerPage,
-          tenantId: user?.tenantId,
+          tenantId:
+            user?.role === "super_admin" && collegeFilter !== "all"
+              ? collegeFilter
+              : user?.tenantId,
         };
 
         // Add search filter if provided
@@ -148,7 +194,7 @@ const NewsRoom = () => {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedDateRange]);
+  }, [searchQuery, selectedDateRange, collegeFilter]);
 
   // Extract pagination info from API response
   const paginationInfo = (
@@ -507,6 +553,29 @@ const NewsRoom = () => {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* College Filter (Super Admin Only) */}
+                  {user?.role === "super_admin" && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">College</label>
+                      <Select
+                        value={collegeFilter}
+                        onValueChange={setCollegeFilter}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by College" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Colleges</SelectItem>
+                          {colleges.map((college) => (
+                            <SelectItem key={college._id} value={college._id}>
+                              {college.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* Clear Filters */}
                   {(searchQuery ||

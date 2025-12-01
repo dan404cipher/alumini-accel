@@ -415,6 +415,7 @@ export const updateSession = async (req: Request, res: Response) => {
     }
 
     // Update session fields
+    const previousStatus = session.status;
     if (date !== undefined) session.date = new Date(date);
     if (duration !== undefined) session.duration = duration;
     if (topic !== undefined) session.topic = topic;
@@ -423,6 +424,22 @@ export const updateSession = async (req: Request, res: Response) => {
     if (status !== undefined) session.status = status;
 
     await mentorship.save();
+
+    // Track reward progress when session is marked as completed
+    if (status === "completed" && previousStatus !== "completed") {
+      import("../services/rewardIntegrationService")
+        .then(({ rewardIntegrationService }) =>
+          rewardIntegrationService.trackMentorshipSession(
+            mentorship.mentorId.toString(),
+            sessionId || "",
+            mentorship._id.toString(),
+            (req.user as any)?.tenantId?.toString() || ""
+          )
+        )
+        .catch((error: Error) => {
+          logger.warn("Error tracking reward for mentorship session:", error);
+        });
+    }
 
     return res.json({
       success: true,

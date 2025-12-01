@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, MapPin, Clock } from "lucide-react";
-import { eventAPI, categoryAPI } from "@/lib/api";
+import { eventAPI, categoryAPI, API_BASE_URL } from "@/lib/api";
 
 interface Event {
   _id: string;
@@ -28,13 +28,13 @@ interface Event {
   description: string;
   type: string;
   startDate: string;
-  endDate: string;
+  endDate?: string;
   location: string;
-  isOnline: boolean;
-  maxAttendees: number;
-  currentAttendees: number;
-  price: number;
-  tags: string[];
+  isOnline?: boolean;
+  maxAttendees?: number;
+  currentAttendees?: number;
+  price?: number;
+  tags?: string[];
   image?: string;
   registrationDeadline?: string;
   onlineUrl?: string;
@@ -51,8 +51,8 @@ interface Event {
     speaker: string;
     description: string;
   }>;
-  organizer: {
-    _id: string;
+  organizer?: {
+    _id?: string;
     firstName: string;
     lastName: string;
   };
@@ -1206,12 +1206,7 @@ export const EditEventDialog = ({
                     src={
                       event.image.startsWith("http")
                         ? event.image
-                        : `${
-                            import.meta.env.VITE_API_BASE_URL?.replace(
-                              "/api/v1",
-                              ""
-                            ) || "http://localhost:3000"
-                          }${event.image}`
+                        : `${API_BASE_URL.replace("/api/v1", "")}${event.image}`
                     }
                     alt="Current event image"
                     className="w-full h-full object-cover"

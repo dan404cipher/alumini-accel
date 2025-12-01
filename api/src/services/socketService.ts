@@ -110,6 +110,11 @@ class SocketService {
               `Marking messages as read for conversation ${data.conversationId}`
             );
 
+            // Update database
+            // Use dynamic import to avoid circular dependency
+            const Message = require("../models/Message").default;
+            await Message.markMessagesAsRead(data.userId, authSocket.userId);
+
             // Notify sender that messages were read
             this.emitToUser(data.userId, "messages_read", {
               conversationId: data.conversationId,
@@ -195,7 +200,21 @@ class SocketService {
   // Emit new message
   public emitNewMessage(message: any) {
     const conversationId = message.conversationId;
+    
+    // Emit to conversation room (for active chat)
     this.emitToConversation(conversationId, "new_message", message);
+
+    // Also emit to specific users (for chat list updates/notifications)
+    // Handle both object and string formats for sender/recipient
+    const senderId = typeof message.sender === 'object' ? message.sender._id || message.sender.id : message.sender;
+    const recipientId = typeof message.recipient === 'object' ? message.recipient._id || message.recipient.id : message.recipient;
+
+    if (senderId) {
+      this.emitToUser(senderId.toString(), "new_message", message);
+    }
+    if (recipientId) {
+      this.emitToUser(recipientId.toString(), "new_message", message);
+    }
   }
 
   // Emit new notification

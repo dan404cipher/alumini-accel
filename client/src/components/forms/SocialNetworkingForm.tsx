@@ -5,6 +5,7 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -110,15 +111,18 @@ interface SocialNetworkingFormProps {
     githubProfile?: string;
     twitterHandle?: string;
     website?: string;
+    role?: string;
   };
   profileData: any;
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
 export const SocialNetworkingForm = ({
   user,
   profileData,
   onUpdate,
+  userId,
 }: SocialNetworkingFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -173,7 +177,7 @@ export const SocialNetworkingForm = ({
 
       // Update user profile for basic social links
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const userResponse = await fetch(`${apiUrl}/users/profile`, {
         method: "PUT",
         headers: {
@@ -185,15 +189,17 @@ export const SocialNetworkingForm = ({
           githubProfile: data.githubProfile || undefined,
           twitterHandle: data.twitterHandle || undefined,
           website: data.website || undefined,
+          ...(userId ? { userId } : {}),
         }),
       });
 
       // Update profile-specific data
-      const profileData = {
+      const profilePayload = {
         portfolioUrl: data.portfolioUrl || undefined,
         otherSocialHandles: otherHandles.filter(
           (handle) => handle.platform && handle.handle
         ),
+        ...(userId ? { userId } : {}),
       };
 
       const isStudent = user.role === "student";
@@ -207,7 +213,7 @@ export const SocialNetworkingForm = ({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify(profilePayload),
       });
 
       // Check if user profile update was successful

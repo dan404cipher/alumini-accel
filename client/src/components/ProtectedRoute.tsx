@@ -19,6 +19,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Handle navigation in useEffect to avoid setState during render
   useEffect(() => {
+    // Wait for auth check to complete
     if (!loading) {
       // If user is not authenticated, redirect to login with return URL
       if (!user) {
@@ -33,7 +34,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return;
       }
     }
-  }, [user, loading, requiredRole, navigate]);
+  }, [user, loading, requiredRole, navigate, location.pathname, location.search]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -102,6 +103,38 @@ export const StudentRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   return <ProtectedRoute requiredRole="student">{children}</ProtectedRoute>;
+};
+
+// Block students from accessing certain routes (like rewards)
+export const StudentBlockedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user?.role === "student") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (user?.role === "student") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;

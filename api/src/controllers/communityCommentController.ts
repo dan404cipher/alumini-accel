@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import CommunityComment from "../models/CommunityComment";
 import CommunityPost from "../models/CommunityPost";
 import Community from "../models/Community";
 import CommunityMembership from "../models/CommunityMembership";
 import { IUser } from "../types";
+import notificationService from "../services/notificationService";
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -101,6 +103,50 @@ export const createComment = async (
 
     // Populate author info
     await comment.populate("authorId", "firstName lastName profilePicture");
+
+    try {
+      const postAuthorId =
+        (post.authorId as any)?.toString?.() ?? post.authorId?.toString();
+      const commenterName = `${req.user?.firstName ?? "Someone"} ${
+        req.user?.lastName ?? ""
+      }`.trim();
+
+      const postIdString = (post._id as Types.ObjectId).toString();
+
+      if (postAuthorId && postAuthorId !== userId?.toString()) {
+        await notificationService.send({
+          recipients: [postAuthorId],
+          event: "post.comment",
+          data: {
+            communityId: post.communityId.toString(),
+            postId: postIdString,
+            commenterName,
+          },
+        });
+      }
+
+      if (parentCommentId) {
+        const parentComment = await CommunityComment.findById(parentCommentId);
+        const parentAuthorId = parentComment?.authorId?.toString();
+        if (
+          parentAuthorId &&
+          parentAuthorId !== userId?.toString() &&
+          parentAuthorId !== postAuthorId
+        ) {
+          await notificationService.send({
+            recipients: [parentAuthorId],
+            event: "comment.reply",
+            data: {
+              communityId: post.communityId.toString(),
+              postId: postIdString,
+              replierName: commenterName,
+            },
+          });
+        }
+      }
+    } catch (notifyError) {
+      console.error("Failed to send comment notification:", notifyError);
+    }
 
     return res.status(201).json({
       success: true,

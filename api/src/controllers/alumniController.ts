@@ -1,9 +1,100 @@
 import { Request, Response } from "express";
 import AlumniProfile from "../models/AlumniProfile";
 import User from "../models/User";
+import Tenant from "../models/Tenant";
 import { logger } from "../utils/logger";
 import { UserRole } from "../types";
 import { updateProfileCompletion } from "../utils/profileCompletion";
+
+const PRIVACY_DEFAULTS = {
+  profileVisibility: "alumni",
+  showEmail: true,
+  showPhone: false,
+  showLocation: true,
+  showCompany: true,
+} as const;
+
+const ADMIN_PRIVACY_ROLES = new Set([
+  UserRole.SUPER_ADMIN,
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD,
+  UserRole.STAFF,
+]);
+
+const getUserPrivacySettings = (user: any) => {
+  if (!user) return { ...PRIVACY_DEFAULTS };
+  const raw =
+    user.privacy && typeof user.privacy === "object"
+      ? user.privacy.toObject
+        ? user.privacy.toObject()
+        : user.privacy
+      : {};
+  return {
+    ...PRIVACY_DEFAULTS,
+    ...(raw || {}),
+  };
+};
+
+const canBypassPrivacy = (req: Request, user: any) => {
+  if (!req.user || !user) return false;
+  if (
+    req.user._id &&
+    user._id &&
+    req.user._id.toString() === user._id.toString()
+  ) {
+    return true;
+  }
+  return ADMIN_PRIVACY_ROLES.has(req.user.role as UserRole);
+};
+
+const applyPrivacyFilters = (
+  req: Request,
+  user: any,
+  data: Record<string, any>
+) => {
+  const privacy = getUserPrivacySettings(user);
+  const canViewSensitive = canBypassPrivacy(req, user);
+
+  const hideField = (field: string) => {
+    if (field in data) {
+      data[field] = undefined;
+    }
+    if (data.user && typeof data.user === "object" && field in data.user) {
+      data.user[field] = undefined;
+    }
+    if (
+      data.userId &&
+      typeof data.userId === "object" &&
+      field in data.userId
+    ) {
+      data.userId[field] = undefined;
+    }
+  };
+
+  if (!canViewSensitive) {
+    if (!privacy.showEmail) {
+      hideField("email");
+    }
+    if (!privacy.showPhone) {
+      hideField("phone");
+    }
+    if (!privacy.showLocation) {
+      hideField("location");
+      if ("currentLocation" in data) {
+        data.currentLocation = undefined;
+      }
+    }
+    if (!privacy.showCompany) {
+      hideField("company");
+      if ("currentCompany" in data) {
+        data.currentCompany = undefined;
+      }
+    }
+  }
+
+  data.privacy = privacy;
+  return data;
+};
 
 // Get all alumni directory
 export const getAllUsersDirectory = async (req: Request, res: Response) => {
@@ -11,7 +102,7 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
-    
+
     // Build filter for alumni and students
     const userFilter: any = {
       role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] },
@@ -52,7 +143,10 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
 
     // Apply department filter
     if (req.query.department && req.query.department !== "all") {
-      userFilter.department = { $regex: req.query.department as string, $options: "i" };
+      userFilter.department = {
+        $regex: req.query.department as string,
+        $options: "i",
+      };
     }
 
     // Apply graduation year filter
@@ -62,7 +156,10 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
 
     // Apply location filter (combine with search if exists)
     if (req.query.location && req.query.location !== "all") {
-      const locationRegex = { $regex: req.query.location as string, $options: "i" };
+      const locationRegex = {
+        $regex: req.query.location as string,
+        $options: "i",
+      };
       if (userFilter.$or) {
         // If $or already exists (from search), add location to it
         userFilter.$or.push({ location: locationRegex });
@@ -87,19 +184,6 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
     }).populate(
       "userId",
       "firstName lastName email profilePicture role bio location linkedinProfile githubProfile website"
-    );
-
-    // Debug: Log alumni profiles found
-    console.log("Found alumni profiles:", alumniProfiles.length);
-    console.log(
-      "Alumni profiles data:",
-      alumniProfiles.map((p) => ({
-        userId: p.userId,
-        graduationYear: p.graduationYear,
-        currentCompany: p.currentCompany,
-        currentPosition: p.currentPosition,
-        experience: p.experience,
-      }))
     );
 
     // Create maps for quick lookup
@@ -138,19 +222,8 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
       // Add profile-specific data for alumni (students may not have AlumniProfile)
       if (user.role === UserRole.ALUMNI) {
         const profile = alumniMap.get(user._id.toString());
-        console.log(`User ${user.firstName} ${user.lastName} (${user._id}):`, {
-          hasProfile: !!profile,
-          profileData: profile
-            ? {
-                graduationYear: profile.graduationYear,
-                currentCompany: profile.currentCompany,
-                currentPosition: profile.currentPosition,
-                experience: profile.experience,
-              }
-            : null,
-        });
         if (profile) {
-          return {
+          const formatted = {
             ...baseUser,
             graduationYear: profile.graduationYear,
             batchYear: profile.batchYear,
@@ -167,10 +240,11 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
             mentorshipDomains: profile.mentorshipDomains || [],
             achievements: profile.achievements || [],
           };
+          return applyPrivacyFilters(req, user, formatted);
         }
       } else if (user.role === UserRole.STUDENT) {
         // For students, use User model data directly
-        return {
+        return applyPrivacyFilters(req, user, {
           ...baseUser,
           graduationYear: user.graduationYear,
           department: user.department,
@@ -186,10 +260,10 @@ export const getAllUsersDirectory = async (req: Request, res: Response) => {
           availableForMentorship: false,
           mentorshipDomains: [],
           achievements: [],
-        };
+        });
       }
 
-      return baseUser;
+      return applyPrivacyFilters(req, user, baseUser);
     });
 
     res.json({
@@ -378,12 +452,14 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     // Combine user data with profile data
     const alumni = alumniUsers.map((user) => {
       const profile = profileMap.get(user._id.toString());
-      return {
+      const userPlain = user.toObject ? user.toObject() : user;
+      const formatted = {
         _id: profile?._id || user._id,
-        userId: user,
-        user: user, // For backward compatibility
-        ...profile?.toObject(),
+        userId: userPlain,
+        user: userPlain, // For backward compatibility
+        ...(profile ? profile.toObject() : {}),
       };
+      return applyPrivacyFilters(req, user, formatted);
     });
 
     res.json({
@@ -422,9 +498,15 @@ export const getAlumniById = async (req: Request, res: Response) => {
       });
     }
 
+    const alumniData = alumni.toObject() as Record<string, any>;
+    const responseData =
+      alumniData.user && typeof alumniData.user === "object"
+        ? applyPrivacyFilters(req, alumniData.user, alumniData)
+        : alumniData;
+
     return res.json({
       success: true,
-      data: { alumni },
+      data: { alumni: responseData },
     });
   } catch (error) {
     logger.error("Get alumni by ID error:", error);
@@ -439,7 +521,6 @@ export const getAlumniById = async (req: Request, res: Response) => {
 export const createProfile = async (req: Request, res: Response) => {
   try {
     const {
-      university,
       program,
       batchYear,
       graduationYear,
@@ -464,6 +545,8 @@ export const createProfile = async (req: Request, res: Response) => {
       availableSlots,
       testimonials,
       photos,
+      currentCGPA,
+      currentGPA,
     } = req.body;
 
     // Check if user already has an alumni profile
@@ -479,7 +562,6 @@ export const createProfile = async (req: Request, res: Response) => {
 
     const alumniProfile = new AlumniProfile({
       userId: req.user.id,
-      university,
       program,
       batchYear,
       graduationYear,
@@ -508,13 +590,30 @@ export const createProfile = async (req: Request, res: Response) => {
 
     await alumniProfile.save();
 
-    // Update user role to alumni if not already
-    await User.findByIdAndUpdate(req.user.id, { role: UserRole.ALUMNI });
+    // Update user role to alumni if not already, and save CGPA/GPA if provided
+    const updateData: any = { role: UserRole.ALUMNI };
+    if (currentCGPA !== undefined) updateData.currentCGPA = currentCGPA;
+    if (currentGPA !== undefined) updateData.currentGPA = currentGPA;
+    await User.findByIdAndUpdate(req.user.id, updateData);
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
+    // Get updated user to include CGPA/GPA in response
+    const user = await User.findById(req.user.id);
 
     return res.status(201).json({
       success: true,
       message: "Alumni profile created successfully",
-      data: { alumniProfile },
+      data: {
+        alumniProfile,
+        user: user
+          ? {
+              currentCGPA: user.currentCGPA,
+              currentGPA: user.currentGPA,
+            }
+          : undefined,
+      },
     });
   } catch (error) {
     logger.error("Create alumni profile error:", error);
@@ -550,7 +649,6 @@ export const registerAsMentor = async (req: Request, res: Response) => {
       // Create a basic alumni profile if one doesn't exist
       alumniProfile = new AlumniProfile({
         userId: req.user.id,
-        university: "Not specified",
         program: "Not specified",
         batchYear: new Date().getFullYear() - 4, // Default to 4 years ago
         graduationYear: new Date().getFullYear() - 4,
@@ -650,7 +748,6 @@ export const registerAsMentor = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const {
-      university,
       program,
       batchYear,
       graduationYear,
@@ -675,9 +772,16 @@ export const updateProfile = async (req: Request, res: Response) => {
       availableSlots,
       testimonials,
       photos,
+      currentCGPA,
+      currentGPA,
+      userId, // Optional: for admins to update other users' profiles
     } = req.body;
 
-    const alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
+    // Determine which profile to update
+    const targetUserId = userId || req.user.id;
+    const alumniProfile = await AlumniProfile.findOne({
+      userId: targetUserId,
+    }).populate("userId");
 
     if (!alumniProfile) {
       return res.status(404).json({
@@ -686,8 +790,22 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Update fields if provided
-    if (university !== undefined) alumniProfile.university = university;
+    // Authorization check: Allow if user is editing their own profile OR if they're a College Admin editing a profile from their tenant
+    const isOwnProfile = req.user.id.toString() === targetUserId.toString();
+    const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
+    const profileUser = alumniProfile.userId as any;
+    const isSameTenant =
+      req.user.tenantId &&
+      profileUser.tenantId &&
+      req.user.tenantId.toString() === profileUser.tenantId.toString();
+
+    if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to update this profile",
+      });
+    }
+
     if (program !== undefined) alumniProfile.program = program;
     if (batchYear !== undefined) alumniProfile.batchYear = batchYear;
     if (graduationYear !== undefined)
@@ -725,13 +843,37 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     await alumniProfile.save();
 
+    // Update CGPA/GPA in User model if provided (these are student fields stored in User model)
+    let user = null;
+    if (currentCGPA !== undefined || currentGPA !== undefined) {
+      user = await User.findById(req.user.id);
+      if (user) {
+        if (currentCGPA !== undefined) user.currentCGPA = currentCGPA;
+        if (currentGPA !== undefined) user.currentGPA = currentGPA;
+        await user.save();
+      }
+    }
+
     // Update profile completion
     await updateProfileCompletion(req.user.id);
+
+    // Get updated user data to include CGPA/GPA in response
+    if (!user) {
+      user = await User.findById(req.user.id);
+    }
 
     return res.json({
       success: true,
       message: "Alumni profile updated successfully",
-      data: { alumniProfile },
+      data: {
+        alumniProfile,
+        user: user
+          ? {
+              currentCGPA: user.currentCGPA,
+              currentGPA: user.currentGPA,
+            }
+          : undefined,
+      },
     });
   } catch (error) {
     logger.error("Update alumni profile error:", error);
@@ -1008,14 +1150,43 @@ export const getAlumniStats = async (req: Request, res: Response) => {
 // Update alumni skills and interests only
 export const updateSkillsInterests = async (req: Request, res: Response) => {
   try {
-    const { skills, careerInterests } = req.body;
+    const { skills, careerInterests, userId } = req.body;
 
-    let alumniProfile = await AlumniProfile.findOne({ userId: req.user.id });
+    // Determine which user to update
+    const targetUserId = userId || req.user.id;
+
+    // If userId is provided, verify authorization
+    if (userId) {
+      const targetUser = await User.findById(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Authorization check: Only College Admins from same tenant can update other users
+      const isOwnProfile = req.user.id.toString() === targetUserId.toString();
+      const isCollegeAdmin = req.user.role === UserRole.COLLEGE_ADMIN;
+      const isSameTenant =
+        req.user.tenantId &&
+        targetUser.tenantId &&
+        req.user.tenantId.toString() === targetUser.tenantId.toString();
+
+      if (!isOwnProfile && !(isCollegeAdmin && isSameTenant)) {
+        return res.status(403).json({
+          success: false,
+          message: "You don't have permission to update this profile",
+        });
+      }
+    }
+
+    let alumniProfile = await AlumniProfile.findOne({ userId: targetUserId });
 
     // If no alumni profile exists, create a basic one
     if (!alumniProfile) {
       // Get user details to create basic profile
-      const user = await User.findById(req.user.id);
+      const user = await User.findById(targetUserId);
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -1025,8 +1196,7 @@ export const updateSkillsInterests = async (req: Request, res: Response) => {
 
       // Create basic alumni profile
       alumniProfile = new AlumniProfile({
-        userId: req.user.id,
-        university: "Default University", // Will be updated when user fills profile
+        userId: targetUserId,
         program: "Default Program",
         batchYear: new Date().getFullYear() - 4, // Default batch year
         graduationYear: new Date().getFullYear(),
@@ -1078,9 +1248,9 @@ export const getUserById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Get user (alumni or student)
-    const user = await User.findOne({ 
-      _id: id, 
-      role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] } 
+    const user = await User.findOne({
+      _id: id,
+      role: { $in: [UserRole.ALUMNI, UserRole.STUDENT] },
     });
     if (!user) {
       return res.status(404).json({
@@ -1090,32 +1260,43 @@ export const getUserById = async (req: Request, res: Response) => {
     }
 
     // Get alumni profile (only if user is alumni)
-    const profile = user.role === UserRole.ALUMNI 
-      ? await AlumniProfile.findOne({ userId: user._id })
-      : null;
+    const profile =
+      user.role === UserRole.ALUMNI
+        ? await AlumniProfile.findOne({ userId: user._id })
+        : null;
 
-    // Format the response
+    // Format the response with ALL user fields
     const baseUser = {
       id: user._id,
       name: `${user.firstName} ${user.lastName}`,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       profileImage: user.profilePicture,
       role: user.role,
       phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
       bio: user.bio,
       location: user.location,
       linkedinProfile: user.linkedinProfile,
       githubProfile: user.githubProfile,
+      twitterHandle: user.twitterHandle,
       website: user.website,
       createdAt: user.createdAt,
+      // Student-specific fields from User model
+      currentYear: user.currentYear,
+      currentCGPA: user.currentCGPA,
+      currentGPA: user.currentGPA,
+      graduationYear: user.graduationYear,
+      department: user.department,
+      // Default alumni fields
       skills: [],
       careerInterests: [],
       isHiring: false,
       availableForMentorship: false,
       mentorshipDomains: [],
       achievements: [],
-      graduationYear: user.graduationYear,
-      department: user.department,
     };
 
     // Add profile-specific data for alumni
@@ -1123,22 +1304,30 @@ export const getUserById = async (req: Request, res: Response) => {
       const alumniProfile = profile as any;
       const formattedUser = {
         ...baseUser,
+        // Override with profile data
         graduationYear: alumniProfile.graduationYear || user.graduationYear,
         batchYear: alumniProfile.batchYear,
         department: alumniProfile.department || user.department,
+        program: alumniProfile.program,
+        rollNumber: alumniProfile.rollNumber,
+        studentId: alumniProfile.studentId,
         specialization: alumniProfile.specialization,
         currentRole: alumniProfile.currentPosition,
         company: alumniProfile.currentCompany,
         currentLocation: alumniProfile.currentLocation || user.location,
         experience: alumniProfile.experience,
+        salary: alumniProfile.salary,
+        currency: alumniProfile.currency,
         skills: alumniProfile.skills || [],
         careerInterests: alumniProfile.careerInterests || [],
-        isHiring: alumniProfile.isHiring,
-        availableForMentorship: alumniProfile.availableForMentorship,
+        isHiring: alumniProfile.isHiring || false,
+        availableForMentorship: alumniProfile.availableForMentorship || false,
         mentorshipDomains: alumniProfile.mentorshipDomains || [],
+        availableSlots: alumniProfile.availableSlots || [],
         achievements: alumniProfile.achievements || [],
         certifications: alumniProfile.certifications || [],
         careerTimeline: alumniProfile.careerTimeline || [],
+        testimonials: alumniProfile.testimonials || [],
         education: alumniProfile.education || [],
         projects: alumniProfile.projects || [],
         internshipExperience: alumniProfile.internshipExperience || [],
@@ -1146,14 +1335,29 @@ export const getUserById = async (req: Request, res: Response) => {
       };
       return res.json({
         success: true,
-        data: { user: formattedUser },
+        data: { user: applyPrivacyFilters(req, user, formattedUser) },
       });
     }
 
-    // For students or alumni without profile, return base user with User model data
+    // For students, add student-specific data
+    if (user.role === UserRole.STUDENT) {
+      const formattedUser = {
+        ...baseUser,
+        program: (user as any).program,
+        rollNumber: (user as any).rollNumber,
+        studentId: (user as any).studentId,
+        batchYear: (user as any).batchYear,
+      };
+      return res.json({
+        success: true,
+        data: { user: applyPrivacyFilters(req, user, formattedUser) },
+      });
+    }
+
+    // For alumni without profile, return base user
     return res.json({
       success: true,
-      data: { user: baseUser },
+      data: { user: applyPrivacyFilters(req, user, baseUser) },
     });
   } catch (error) {
     logger.error("Get user by ID error:", error);
@@ -1211,6 +1415,9 @@ export const addProject = async (req: Request, res: Response) => {
     profile.projects.push(project);
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Project added successfully",
@@ -1264,6 +1471,9 @@ export const updateProject = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Project updated successfully",
@@ -1304,6 +1514,9 @@ export const deleteProject = async (req: Request, res: Response) => {
     profile.projects.splice(projectIndex, 1);
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Project deleted successfully",
@@ -1326,13 +1539,21 @@ export const addInternship = async (req: Request, res: Response) => {
       description,
       startDate,
       endDate,
-      isOngoing,
+      isOngoing: isOngoingRaw,
       location,
-      isRemote,
+      isRemote: isRemoteRaw,
       stipendAmount,
       stipendCurrency,
       skills,
     } = req.body;
+
+    // Convert FormData string booleans to actual booleans
+    // FormData sends booleans as strings "true" or "false"
+    const isOngoing =
+      isOngoingRaw === true || isOngoingRaw === "true" || isOngoingRaw === "1";
+
+    const isRemote =
+      isRemoteRaw === true || isRemoteRaw === "true" || isRemoteRaw === "1";
 
     // Handle file upload
     let certificateFile = "";
@@ -1374,6 +1595,9 @@ export const addInternship = async (req: Request, res: Response) => {
     profile.internshipExperience.push(internship);
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Internship experience added successfully",
@@ -1393,6 +1617,22 @@ export const updateInternship = async (req: Request, res: Response) => {
   try {
     const { internshipId } = req.params;
     const updateData = req.body;
+
+    // Convert FormData string booleans to actual booleans
+    // FormData sends booleans as strings "true" or "false"
+    if (updateData.isOngoing !== undefined) {
+      updateData.isOngoing =
+        updateData.isOngoing === true ||
+        updateData.isOngoing === "true" ||
+        updateData.isOngoing === "1";
+    }
+
+    if (updateData.isRemote !== undefined) {
+      updateData.isRemote =
+        updateData.isRemote === true ||
+        updateData.isRemote === "true" ||
+        updateData.isRemote === "1";
+    }
 
     // Handle file upload
     if (req.file) {
@@ -1447,6 +1687,9 @@ export const updateInternship = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Internship experience updated successfully",
@@ -1487,6 +1730,9 @@ export const deleteInternship = async (req: Request, res: Response) => {
 
     profile.internshipExperience.splice(internshipIndex, 1);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1562,6 +1808,9 @@ export const addResearch = async (req: Request, res: Response) => {
 
     profile.researchWork.push(research);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1647,6 +1896,9 @@ export const updateResearch = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Research work updated successfully",
@@ -1687,6 +1939,9 @@ export const deleteResearch = async (req: Request, res: Response) => {
 
     profile.researchWork.splice(researchIndex, 1);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1730,6 +1985,9 @@ export const addCertification = async (req: Request, res: Response) => {
 
     profile.certifications.push(certification);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,
@@ -1786,6 +2044,9 @@ export const updateCertification = async (req: Request, res: Response) => {
 
     await profile.save();
 
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
+
     return res.json({
       success: true,
       message: "Certification updated successfully",
@@ -1826,6 +2087,9 @@ export const deleteCertification = async (req: Request, res: Response) => {
 
     profile.certifications.splice(certificationIndex, 1);
     await profile.save();
+
+    // Update profile completion
+    await updateProfileCompletion(req.user.id);
 
     return res.json({
       success: true,

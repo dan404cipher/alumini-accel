@@ -3,6 +3,7 @@ import Connection from "../models/Connection";
 import { ConnectionStatus, ConnectionType } from "../types/connection";
 import { logger } from "../utils/logger";
 import { AppError } from "../middleware/errorHandler";
+import notificationService from "../services/notificationService";
 
 // Send connection request
 export const sendConnectionRequest = async (req: Request, res: Response) => {
@@ -83,6 +84,21 @@ export const sendConnectionRequest = async (req: Request, res: Response) => {
       },
     ]);
 
+    try {
+      const requesterName = `${(connection as any).requesterUser?.firstName ?? "Someone"} ${
+        (connection as any).requesterUser?.lastName ?? ""
+      }`.trim();
+      await notificationService.send({
+        recipients: [recipientId.toString()],
+        event: "connection.request",
+        data: {
+          senderName: requesterName,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send connection request notification:", notifyError);
+    }
+
     logger.info(
       `Connection request sent from ${requesterId} to ${recipientId}`
     );
@@ -150,6 +166,20 @@ export const acceptConnection = async (req: Request, res: Response) => {
         select: "firstName lastName email profilePicture role",
       },
     ]);
+
+    try {
+      await notificationService.send({
+        recipients: [connection.requester.toString()],
+        event: "connection.accepted",
+        data: {
+          recipientName: `${(connection as any).recipientUser?.firstName ?? ""} ${
+            (connection as any).recipientUser?.lastName ?? ""
+          }`.trim() || "A connection",
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send connection accepted notification:", notifyError);
+    }
 
     logger.info(`Connection request ${connectionId} accepted by ${userId}`);
 

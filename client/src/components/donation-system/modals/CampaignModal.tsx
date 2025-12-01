@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { CampaignForm, CampaignModalProps } from "../types";
+import { CampaignForm, CampaignModalProps, TargetAudience } from "../types";
 import { categoryAPI } from "@/lib/api";
 import {
   Select,
@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import CampaignTargeting from "../components/CampaignTargeting";
 
 interface CampaignModalState {
   formData: CampaignForm;
@@ -58,6 +59,8 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
   const [categoryOptions, setCategoryOptions] = useState<string[]>(
     staticFallbackCategories
   );
+  const [targetAudience, setTargetAudience] = useState<TargetAudience>({});
+  const [showTargeting, setShowTargeting] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -92,11 +95,18 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
         },
         errors: defaultErrors,
       });
+      // Set targeting if editing
+      if (editData.targetAudience) {
+        setTargetAudience(editData.targetAudience);
+        setShowTargeting(true);
+      }
     } else if (open) {
       setState({
         formData: defaultFormData,
         errors: defaultErrors,
       });
+      setTargetAudience({});
+      setShowTargeting(false);
     }
   }, [open, editData]);
 
@@ -237,7 +247,13 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
     // Emit save event - parent component will handle the actual save
     const customEvent = new CustomEvent("campaignSave", {
       detail: {
-        formData: state.formData,
+        formData: {
+          ...state.formData,
+          targetAudience:
+            showTargeting && Object.keys(targetAudience).length > 0
+              ? targetAudience
+              : undefined,
+        },
         editIndex,
         campaignId: editData?.campaignId,
       },
@@ -327,9 +343,11 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
                   }))
                 }
               >
-                <SelectTrigger className={`mt-1 ${
-                  state.errors.category ? "border-red-500" : ""
-                }`}>
+                <SelectTrigger
+                  className={`mt-1 ${
+                    state.errors.category ? "border-red-500" : ""
+                  }`}
+                >
                   <SelectValue placeholder="Select an option" />
                 </SelectTrigger>
                 <SelectContent>
@@ -394,6 +412,9 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
               </p>
             )}
           </div>
+
+        
+          
 
           {/* Image Upload */}
           <div>

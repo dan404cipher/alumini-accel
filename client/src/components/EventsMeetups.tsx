@@ -412,7 +412,7 @@ const EventsMeetups = () => {
   // Helper function to get user's registration status for an event
   const getUserRegistrationStatus = (
     eventId: string
-  ): "registered" | "pending_payment" | null => {
+  ): "registered" | "pending_payment" | "pending_approval" | null => {
     if (!user) return null;
     const originalEvent = apiEvents.find((e: Event) => e._id === eventId);
     if (!originalEvent || !originalEvent.attendees) return null;
@@ -425,6 +425,7 @@ const EventsMeetups = () => {
     });
     if (!myAttendee) return null;
     if (myAttendee.status === "registered") return "registered";
+    if (myAttendee.status === "pending_approval" || myAttendee.approvalStatus === "pending") return "pending_approval";
     if (myAttendee.status === "pending_payment") return "pending_payment";
     return null;
   };
@@ -981,6 +982,18 @@ const EventsMeetups = () => {
                               onClick={() => navigate(`/events/${event.id}`)}
                             >
                               Registered
+                            </Button>
+                          );
+                        }
+                        if (registrationStatus === "pending_approval") {
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled
+                              className="flex-1 text-xs lg:text-sm bg-amber-50 border-amber-200 text-amber-700"
+                            >
+                              Pending Approval
                             </Button>
                           );
                         }

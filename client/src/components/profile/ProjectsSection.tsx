@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -83,7 +84,7 @@ export const ProjectsSection = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const endpoint =
         userRole === "student"
           ? `${apiUrl}/students/profile/projects/${projectId}`

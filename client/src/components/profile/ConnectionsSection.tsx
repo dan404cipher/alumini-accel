@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE_URL, connectionAPI, getImageUrl } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -64,6 +67,8 @@ export const ConnectionsSection = ({
   onUpdate,
 }: ConnectionsSectionProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isSendRequestOpen, setIsSendRequestOpen] = useState(false);
   const [searchEmail, setSearchEmail] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
@@ -71,6 +76,16 @@ export const ConnectionsSection = ({
     []
   );
   const [sentRequests, setSentRequests] = useState<ConnectionRequest[]>([]);
+  const [actualConnections, setActualConnections] = useState<
+    Array<{
+      _id: string;
+      requester: Connection;
+      recipient: Connection;
+      status: string;
+    }>
+  >([]);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+  const [showAllConnections, setShowAllConnections] = useState(false);
 
   useEffect(() => {
     // Separate pending requests into received and sent
@@ -81,6 +96,51 @@ export const ConnectionsSection = ({
     setPendingRequests(received);
     setSentRequests(sent);
   }, [connectionRequests]);
+
+  // Fetch actual connection details - fetch independently regardless of props
+  useEffect(() => {
+    const fetchConnections = async () => {
+      try {
+        setLoadingConnections(true);
+        const response = await connectionAPI.getUserConnections({
+          status: "accepted",
+          limit: 100, // Fetch more but display only 7-8
+        });
+
+        if (response.success && response.data) {
+          const responseData = response.data as {
+            connections?: Array<{
+              _id: string;
+              requester: Connection;
+              recipient: Connection;
+              status: string;
+            }>;
+          };
+          const connectionsData = responseData.connections || [];
+          setActualConnections(connectionsData);
+        }
+      } catch (error) {
+        console.error("Error fetching connections:", error);
+        setActualConnections([]);
+      } finally {
+        setLoadingConnections(false);
+      }
+    };
+
+    fetchConnections();
+  }, []); // Fetch on mount only
+
+  const getConnectionUser = (connection: {
+    requester: Connection;
+    recipient: Connection;
+  }) => {
+    if (!user?._id) return connection.recipient;
+    const currentId = String(user._id);
+    const requesterId = String(connection.requester._id);
+    return requesterId === currentId
+      ? connection.recipient
+      : connection.requester;
+  };
 
   const handleSendConnectionRequest = async () => {
     if (!searchEmail.trim()) {
@@ -100,8 +160,7 @@ export const ConnectionsSection = ({
         throw new Error("No authentication token found");
       }
 
-      const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const apiUrl = API_BASE_URL;
       const response = await fetch(`${apiUrl}/students/connections/request`, {
         method: "POST",
         headers: {
@@ -156,8 +215,7 @@ export const ConnectionsSection = ({
         throw new Error("No authentication token found");
       }
 
-      const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const apiUrl = API_BASE_URL;
       const response = await fetch(
         `${apiUrl}/students/connections/request/${requestId}`,
         {
@@ -379,9 +437,14 @@ export const ConnectionsSection = ({
           {/* Connections */}
           <div>
             <h4 className="font-semibold mb-3">
-              Connections ({connections.length})
+              Connections ({actualConnections.length})
             </h4>
-            {connections.length === 0 ? (
+            {loadingConnections ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading connections...</p>
+              </div>
+            ) : actualConnections.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 mb-4">No connections yet</p>
@@ -393,21 +456,60 @@ export const ConnectionsSection = ({
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {connections.map((connectionId, index) => (
-                  <div
-                    key={connectionId || index}
-                    className="flex items-center space-x-3 p-3 border rounded-lg"
-                  >
-                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Connection {index + 1}</p>
-                      <p className="text-sm text-gray-500">Connected</p>
-                    </div>
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(showAllConnections
+                    ? actualConnections
+                    : actualConnections.slice(0, 8)
+                  ).map((connection) => {
+                    const connectionUser = getConnectionUser(connection);
+                    const fullName =
+                      `${connectionUser.firstName || ""} ${
+                        connectionUser.lastName || ""
+                      }`.trim() || connectionUser.email;
+                    return (
+                      <div
+                        key={connection._id}
+                        className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() =>
+                          navigate(`/alumni/${connectionUser._id}`)
+                        }
+                      >
+                        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                          {connectionUser.profilePicture ? (
+                            <img
+                              src={getImageUrl(connectionUser.profilePicture)}
+                              alt={fullName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                              <Users className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{fullName}</p>
+                          <p className="text-sm text-gray-500 truncate">
+                            {connectionUser.role || "Alumni"}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {actualConnections.length > 8 && (
+                  <div className="mt-4 text-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAllConnections(!showAllConnections)}
+                    >
+                      {showAllConnections
+                        ? "Show Less"
+                        : `View All (${actualConnections.length})`}
+                    </Button>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

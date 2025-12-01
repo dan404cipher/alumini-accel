@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
@@ -66,6 +67,7 @@ import { ConnectionsSection } from "@/components/profile/ConnectionsSection";
 import { EventsSection } from "@/components/profile/EventsSection";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import { API_BASE_URL } from "@/lib/api";
 
 // Define specific types for profile data
 interface Project {
@@ -185,11 +187,11 @@ interface UserProfile {
     email: string;
     phone?: string;
     profilePicture?: string;
+    profileImage?: string;
     dateOfBirth?: string;
     gender?: string;
     bio?: string;
     location?: string;
-    university?: string;
     linkedinProfile?: string;
     githubProfile?: string;
     twitterHandle?: string;
@@ -223,7 +225,6 @@ interface UserProfile {
     testimonials?: Testimonial[];
     skills?: string[];
     careerInterests?: string[];
-    university?: string;
     department?: string;
     program?: string;
     rollNumber?: string;
@@ -235,7 +236,6 @@ interface UserProfile {
     currentGPA?: number;
   };
   studentProfile?: {
-    university?: string;
     department?: string;
     program?: string;
     rollNumber?: string;
@@ -274,6 +274,7 @@ interface UserProfile {
 
 const Profile = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -281,6 +282,11 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Get editUser from query parameters for College Admin editing
+  const searchParams = new URLSearchParams(location.search);
+  const editUserId = searchParams.get('editUser');
+  const isEditingOtherUser = !!editUserId && user?.role === 'college_admin';
 
   // Image cropping states
   const [showCrop, setShowCrop] = useState(false);
@@ -473,14 +479,21 @@ const Profile = () => {
         throw new Error("No authentication token found");
       }
 
-      const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
-      // Add cache-busting parameter to prevent browser caching
-      const response = await fetch(`${apiUrl}/auth/me?t=${Date.now()}`, {
+      const apiUrl = API_BASE_URL;
+      
+      let endpoint = `${apiUrl}/auth/me?t=${Date.now()}`;
+      
+      // If editing another user (College Admin), fetch their profile
+      if (isEditingOtherUser && editUserId) {
+        endpoint = `${apiUrl}/alumni/user/${editUserId}?t=${Date.now()}`;
+      }
+      
+      const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+      
       // Check if response is ok before parsing JSON
       if (!response.ok) {
         const errorText = await response.text();
@@ -490,7 +503,90 @@ const Profile = () => {
 
       const data = await response.json();
       if (data.success) {
-        setProfile(data.data);
+        // If editing another user, transform the response to match the expected structure
+        if (isEditingOtherUser && data.data.user) {
+          const userData = data.data.user;
+          
+          // Transform flat user data into nested structure expected by Profile.tsx
+          const transformedData = {
+            user: {
+              _id: userData.id,
+              firstName: userData.name?.split(' ')[0] || '',
+              lastName: userData.name?.split(' ').slice(1).join(' ') || '',
+              email: userData.email,
+              phone: userData.phone,
+              profilePicture: userData.profileImage,
+              profileImage: userData.profileImage,
+              dateOfBirth: userData.dateOfBirth,
+              gender: userData.gender,
+              bio: userData.bio,
+              location: userData.location || userData.currentLocation,
+              linkedinProfile: userData.linkedinProfile,
+              githubProfile: userData.githubProfile,
+              twitterHandle: userData.twitterHandle,
+              website: userData.website,
+              isEmailVerified: true,
+              isPhoneVerified: false,
+              role: userData.role,
+              profileCompletionPercentage: 70,
+              currentCGPA: userData.currentCGPA,
+              currentGPA: userData.currentGPA,
+              currentYear: userData.currentYear,
+            },
+            // Create alumniProfile or studentProfile based on role
+            ...(userData.role === 'alumni' ? {
+              alumniProfile: {
+                currentCompany: userData.company,
+                currentPosition: userData.currentRole,
+                experience: userData.experience,
+                currentLocation: userData.currentLocation,
+                specialization: userData.specialization,
+                isHiring: userData.isHiring,
+                achievements: userData.achievements,
+                availableForMentorship: userData.availableForMentorship,
+                mentorshipDomains: userData.mentorshipDomains,
+                projects: userData.projects,
+                internshipExperience: userData.internshipExperience,
+                researchWork: userData.researchWork,
+                certifications: userData.certifications,
+                careerTimeline: userData.careerTimeline,
+                skills: userData.skills,
+                careerInterests: userData.careerInterests,
+                department: userData.department,
+                batchYear: userData.batchYear,
+                graduationYear: userData.graduationYear,
+                program: userData.program,
+                rollNumber: userData.rollNumber,
+                studentId: userData.studentId,
+                currentCGPA: userData.currentCGPA,
+                currentGPA: userData.currentGPA,
+              }
+            } : {
+              studentProfile: {
+                department: userData.department,
+                program: userData.program,
+                rollNumber: userData.rollNumber,
+                studentId: userData.studentId,
+                batchYear: userData.batchYear,
+                graduationYear: userData.graduationYear,
+                currentYear: userData.currentYear,
+                currentCGPA: userData.currentCGPA,
+                currentGPA: userData.currentGPA,
+                projects: userData.projects,
+                internshipExperience: userData.internshipExperience,
+                researchWork: userData.researchWork,
+                certifications: userData.certifications,
+                skills: userData.skills,
+                careerInterests: userData.careerInterests,
+              }
+            })
+          };
+          
+          setProfile(transformedData);
+        } else {
+          // For /auth/me endpoint, use data as-is
+          setProfile(data.data);
+        }
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -502,11 +598,14 @@ const Profile = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, isEditingOtherUser, editUserId]);
 
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // Fetch tenant name
+  useEffect(() => {}, [user?.tenantId]);
 
   const handleProfileUpdate = () => {
     fetchProfile();
@@ -530,9 +629,10 @@ const Profile = () => {
 
       const formData = new FormData();
       formData.append("profileImage", file);
-      const apiUrl = `${
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-      }/users/profile-image`;
+      let apiUrl = `${API_BASE_URL}/users/profile-image`;
+      if (isEditingOtherUser && editUserId) {
+        apiUrl += `?userId=${editUserId}`;
+      }
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -561,6 +661,7 @@ const Profile = () => {
                 user: {
                   ...prev.user,
                   profilePicture: newImageUrl,
+                  profileImage: newImageUrl,
                 },
               }
             : null;
@@ -643,6 +744,18 @@ const Profile = () => {
   const profileData = isStudent
     ? profile.studentProfile
     : profile.alumniProfile;
+  
+  // Merge user-level fields (like CGPA/GPA) into profileData for easier access
+  const enrichedProfileData = profileData
+    ? {
+        ...profileData,
+        currentCGPA: profileData.currentCGPA ?? profile.user.currentCGPA,
+        currentGPA: profileData.currentGPA ?? profile.user.currentGPA,
+        currentYear: profileData.currentYear ?? profile.user.currentYear,
+      }
+    : null;
+  const profileImageUrl =
+    profile.user.profileImage || profile.user.profilePicture;
 
   return (
     <div className="min-h-screen flex flex-col pt-16">
@@ -652,8 +765,15 @@ const Profile = () => {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {isEditingOtherUser ? `Editing Profile` : 'My Profile'}
+              </h1>
               <div className="flex items-center gap-2">
+                {isEditingOtherUser && (
+                  <Badge variant="default" className="text-sm">
+                    College Admin Mode
+                  </Badge>
+                )}
                 <Badge variant="secondary" className="text-sm">
                   {profile.user.role.charAt(0).toUpperCase() +
                     profile.user.role.slice(1)}
@@ -670,24 +790,26 @@ const Profile = () => {
           </div>
 
           {/* Profile Completion Progress */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">
-                Profile Completion
-              </span>
-              <span className="text-sm text-gray-500">
-                {profile.user.profileCompletionPercentage}%
-              </span>
+          {profile?.user && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Profile Completion
+                </span>
+                <span className="text-sm text-gray-500">
+                  {profile.user.profileCompletionPercentage ?? 0}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${profile.user.profileCompletionPercentage ?? 0}%`,
+                  }}
+                ></div>
+              </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${profile.user.profileCompletionPercentage}%`,
-                }}
-              ></div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -697,12 +819,12 @@ const Profile = () => {
               <CardHeader className="text-center">
                 <div className="relative inline-block">
                   <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    {profile.user.profilePicture ? (
+                    {profileImageUrl ? (
                       <img
                         src={
-                          profile.user.profilePicture.startsWith("http")
-                            ? profile.user.profilePicture
-                            : profile.user.profilePicture
+                          profileImageUrl.startsWith("http")
+                            ? profileImageUrl
+                            : profileImageUrl
                         }
                         alt="Profile"
                         className="w-24 h-24 rounded-full object-cover"
@@ -870,12 +992,6 @@ const Profile = () => {
                     <div className="flex items-center text-sm text-gray-600">
                       <MapPin className="w-4 h-4 mr-2" />
                       {profile.user.location}
-                    </div>
-                  )}
-                  {profile.user.university && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <GraduationCap className="w-4 h-4 mr-2" />
-                      {profile.user.university}
                     </div>
                   )}
                 </div>
@@ -1130,6 +1246,7 @@ const Profile = () => {
                   <BasicProfileForm
                     user={profile.user}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">
@@ -1276,9 +1393,10 @@ const Profile = () => {
               >
                 {isEditing ? (
                   <EducationalDetailsForm
-                    profileData={profileData}
+                    profileData={enrichedProfileData || profileData}
                     userRole={profile.user.role}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">
@@ -1295,15 +1413,6 @@ const Profile = () => {
                                 Basic Information
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="text-sm font-medium text-gray-500">
-                                    University
-                                  </label>
-                                  <p className="text-sm font-medium">
-                                    {(profileData.university as string) ||
-                                      "Not specified"}
-                                  </p>
-                                </div>
                                 <div>
                                   <label className="text-sm font-medium text-gray-500">
                                     Department
@@ -1368,13 +1477,13 @@ const Profile = () => {
                                       "Not specified"}
                                   </p>
                                 </div>
-                                {isStudent && profileData.currentYear && (
+                                {isStudent && enrichedProfileData?.currentYear && (
                                   <div>
                                     <label className="text-sm font-medium text-gray-500">
                                       Current Year
                                     </label>
                                     <p className="text-sm font-medium">
-                                      {profileData.currentYear as string}
+                                      {enrichedProfileData.currentYear as string}
                                     </p>
                                   </div>
                                 )}
@@ -1382,30 +1491,30 @@ const Profile = () => {
                             </div>
 
                             {/* Academic Performance */}
-                            {(profileData.currentCGPA ||
-                              profileData.currentGPA) && (
+                            {((enrichedProfileData?.currentCGPA !== undefined && enrichedProfileData.currentCGPA !== null) ||
+                              (enrichedProfileData?.currentGPA !== undefined && enrichedProfileData.currentGPA !== null)) && (
                               <div>
                                 <h4 className="text-lg font-semibold text-gray-900 mb-4">
                                   Academic Performance
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {profileData.currentCGPA && (
+                                  {enrichedProfileData?.currentCGPA !== undefined && enrichedProfileData.currentCGPA !== null && (
                                     <div>
                                       <label className="text-sm font-medium text-gray-500">
                                         Current CGPA
                                       </label>
                                       <p className="text-sm font-medium">
-                                        {profileData.currentCGPA as number}/10
+                                        {enrichedProfileData.currentCGPA as number}/10
                                       </p>
                                     </div>
                                   )}
-                                  {profileData.currentGPA && (
+                                  {enrichedProfileData?.currentGPA !== undefined && enrichedProfileData.currentGPA !== null && (
                                     <div>
                                       <label className="text-sm font-medium text-gray-500">
                                         Current GPA
                                       </label>
                                       <p className="text-sm font-medium">
-                                        {profileData.currentGPA as number}/4
+                                        {enrichedProfileData.currentGPA as number}/4
                                       </p>
                                     </div>
                                   )}
@@ -1435,6 +1544,7 @@ const Profile = () => {
                     userRole={profile.user.role}
                     isEditing={isEditing}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">
@@ -1590,8 +1700,9 @@ const Profile = () => {
                 >
                   {isEditing ? (
                     <ProfessionalDetailsForm
-                      profileData={profileData}
+                      profileData={enrichedProfileData}
                       onUpdate={handleProfileUpdate}
+                      userId={editUserId || undefined}
                     />
                   ) : (
                     <div className="space-y-6">
@@ -1839,6 +1950,7 @@ const Profile = () => {
                     user={profile.user}
                     profileData={profileData}
                     onUpdate={handleProfileUpdate}
+                    userId={editUserId || undefined}
                   />
                 ) : (
                   <div className="space-y-6">

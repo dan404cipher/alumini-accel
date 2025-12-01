@@ -12,6 +12,7 @@ import {
 } from "../middleware/validation";
 import {
   authenticateToken,
+  optionalAuth,
   requireAlumni,
   requireAdmin,
 } from "../middleware/auth";
@@ -26,12 +27,16 @@ const router = express.Router();
 // @route   GET /api/v1/alumni/users
 // @desc    Get all alumni directory
 // @access  Public
-router.get("/users", asyncHandler(alumniController.getAllUsersDirectory));
+router.get("/users", optionalAuth, asyncHandler(alumniController.getAllUsersDirectory));
 
 // @route   GET /api/v1/alumni/user/:id
 // @desc    Get alumni by ID
 // @access  Public
-router.get("/user/:id", asyncHandler(alumniController.getUserById));
+router.get(
+  "/user/:id",
+  optionalAuth,
+  asyncHandler(alumniController.getUserById)
+);
 
 // @route   GET /api/v1/alumni/public
 // @desc    Get public alumni directory data

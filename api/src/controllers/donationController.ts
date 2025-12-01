@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import Donation from "../models/Donation";
+import rewardIntegrationService from "../services/rewardIntegrationService";
 import PaymentService from "../services/paymentService";
+import { asyncHandler } from "../middleware/errorHandler";
+import { AuthenticatedRequest, UserRole } from "../types";
+import { logger } from "../utils/logger";
+import notificationService from "../services/notificationService";
 
 // Get all donations
 export const getAllDonations = async (req: Request, res: Response) => {
@@ -65,9 +71,9 @@ export const createDonation = async (req: Request, res: Response) => {
   try {
     const donationData = {
       ...req.body,
-      // If donor information is provided in the request body, use it
-      // Otherwise, use the authenticated user as donor
-      donor: req.body.donorName ? null : req.user?.id,
+      // Always link donation to authenticated user
+      // donorName is for display purposes (e.g., anonymous donations)
+      donor: req.user?.id,
       tenantId: req.user?.tenantId,
       paymentStatus: "successful", // Since payment is already verified
       paidAt: new Date(), // Set payment completion time
@@ -77,17 +83,172 @@ export const createDonation = async (req: Request, res: Response) => {
     await donation.save();
 
     // Update campaign statistics if this is a campaign donation
+    let campaign = null;
+    let fund = null;
     if (donation.campaignId) {
-      const Campaign = require("@/models/Campaign").default;
-      const campaign = await Campaign.findById(donation.campaignId);
+      const Campaign = require("../models/Campaign").default;
+      campaign = await Campaign.findById(donation.campaignId);
       if (campaign) {
         await campaign.updateStatistics();
+        if (campaign.fundId) {
+          const Fund = require("../models/Fund").default;
+          fund = await Fund.findById(campaign.fundId);
+        }
       }
+    }
+
+    // Update AlumniProfile donation history
+    if (donation.donor) {
+      const AlumniProfile = require("../models/AlumniProfile").default;
+      const alumniProfile = await AlumniProfile.findOne({
+        userId: donation.donor,
+      });
+      if (alumniProfile) {
+        await alumniProfile.updateDonationHistory(donation.amount);
+      }
+
+      // Track reward progress for donation
+      const rewardIntegrationService = require("../services/rewardIntegrationService").default;
+      const donationId = donation._id instanceof Types.ObjectId 
+        ? donation._id.toString() 
+        : String(donation._id);
+      rewardIntegrationService
+        .trackDonation(
+          donation.donor.toString(),
+          donationId,
+          donation.amount,
+          (req as AuthenticatedRequest).user?.tenantId?.toString()
+        )
+        .catch((error: Error) => {
+          logger.warn("Error tracking reward for donation:", error);
+        });
     }
 
     await donation.populate("donor", "firstName lastName email");
     if (donation.campaignId) {
       await donation.populate("campaignId", "title");
+    }
+
+    try {
+      if (donation.donor) {
+        await notificationService.send({
+          recipients: [donation.donor.toString()],
+          event: "donation.success",
+          data: {
+            amount: donation.amount,
+            campaignTitle: (donation as any).campaignId?.title,
+          },
+        });
+      }
+
+      await notificationService.sendToRoles({
+        event: "donation.thankyou",
+        roles: [UserRole.COLLEGE_ADMIN, UserRole.STAFF, UserRole.HOD],
+        tenantId: donation.tenantId,
+        data: {
+          amount: donation.amount,
+          campaignTitle: (donation as any).campaignId?.title,
+          organizer: (donation as any).donor
+            ? `${(donation as any).donor.firstName ?? ""} ${
+                (donation as any).donor.lastName ?? ""
+              }`.trim()
+            : donation.donorName,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send donation notifications:", notifyError);
+    }
+
+    try {
+      if (donation.donor) {
+        await notificationService.send({
+          recipients: [donation.donor.toString()],
+          event: "donation.success",
+          data: {
+            amount: donation.amount,
+            campaignTitle: (donation as any).campaignId?.title,
+          },
+        });
+      }
+
+      await notificationService.sendToRoles({
+        event: "donation.thankyou",
+        roles: [UserRole.COLLEGE_ADMIN, UserRole.STAFF, UserRole.HOD],
+        tenantId: donation.tenantId,
+        data: {
+          amount: donation.amount,
+          campaignTitle: (donation as any).campaignId?.title,
+          organizer: (donation as any).donor
+            ? `${(donation as any).donor.firstName ?? ""} ${
+                (donation as any).donor.lastName ?? ""
+              }`.trim()
+            : donation.donorName,
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send donation notifications:", notifyError);
+    }
+
+    // Generate receipt and send emails
+    try {
+      const { generateReceiptPDF, sendReceiptEmail } = require("../services/receiptService");
+      const { emailService } = require("../services/emailService");
+      const User = require("../models/User").default;
+
+      // Use email from donation form, fallback to user profile email
+      const donorEmail = donation.donorEmail || (donation.donor ? (await User.findById(donation.donor))?.email : null);
+      
+      if (donorEmail) {
+        // Get donor name - use form data if available, otherwise from user profile
+        const donorUser = donation.donor ? await User.findById(donation.donor) : null;
+        const donorName = donation.anonymous
+          ? "Anonymous Donor"
+          : donation.donorName || 
+            (donorUser ? `${donorUser.firstName || ""} ${donorUser.lastName || ""}`.trim() : "") ||
+            donorEmail;
+
+        // Generate receipt PDF
+        const receiptData = {
+          donation,
+          campaign: campaign ? { title: campaign.title, description: campaign.description } : undefined,
+          fund: fund ? { name: fund.name, description: fund.description } : undefined,
+          donor: {
+            name: donorName,
+            email: donorEmail,
+            address: donation.donorAddress,
+          },
+        };
+
+        const pdfBuffer = await generateReceiptPDF(receiptData);
+
+        // Send receipt email
+        await sendReceiptEmail(receiptData, pdfBuffer);
+        donation.receiptSent = true;
+        donation.receiptEmail = donorEmail;
+        await donation.save();
+
+        // Send thank-you email
+        const Tenant = require("../models/Tenant").default;
+        const tenant = donation.tenantId
+          ? await Tenant.findById(donation.tenantId)
+          : null;
+
+        await emailService.sendDonationThankYouEmail({
+          to: donorEmail,
+          donorName: donorName,
+          amount: donation.amount,
+          currency: donation.currency,
+          campaignName: campaign?.title,
+          fundName: fund?.name,
+          collegeName: tenant?.name,
+          impactMessage: campaign?.description
+            ? `Your donation supports: ${campaign.description.substring(0, 150)}...`
+            : undefined,
+        });
+      }
+    } catch (emailError) {
+      logger.error("Error sending receipt/thank-you emails:", emailError);
+      // Don't fail the request if email fails
     }
 
     return res.status(201).json({
@@ -340,17 +501,96 @@ export const verifyDonationPayment = async (req: Request, res: Response) => {
     await donation.save();
 
     // Update campaign statistics
+    let campaign = null;
+    let fund = null;
     if (donation.campaignId) {
       const Campaign = require("../models/Campaign").default;
-      const campaign = await Campaign.findById(donation.campaignId);
+      campaign = await Campaign.findById(donation.campaignId);
       if (campaign) {
         await campaign.updateStatistics();
+        if (campaign.fundId) {
+          const Fund = require("../models/Fund").default;
+          fund = await Fund.findById(campaign.fundId);
+        }
+      }
+    }
+
+    // Update AlumniProfile donation history
+    if (donation.donor) {
+      const AlumniProfile = require("../models/AlumniProfile").default;
+      const alumniProfile = await AlumniProfile.findOne({
+        userId: donation.donor,
+      });
+      if (alumniProfile) {
+        await alumniProfile.updateDonationHistory(donation.amount);
       }
     }
 
     await donation.populate("donor", "firstName lastName email");
     if (donation.campaignId) {
       await donation.populate("campaignId", "title");
+    }
+
+    // Generate receipt and send emails
+    try {
+      const { generateReceiptPDF, sendReceiptEmail } = require("../services/receiptService");
+      const { emailService } = require("../services/emailService");
+      const User = require("../models/User").default;
+
+      // Use email from donation form, fallback to user profile email
+      const donorEmail = donation.donorEmail || (donation.donor ? (await User.findById(donation.donor))?.email : null);
+      
+      if (donorEmail) {
+        // Get donor name - use form data if available, otherwise from user profile
+        const donorUser = donation.donor ? await User.findById(donation.donor) : null;
+        const donorName = donation.anonymous
+          ? "Anonymous Donor"
+          : donation.donorName || 
+            (donorUser ? `${donorUser.firstName || ""} ${donorUser.lastName || ""}`.trim() : "") ||
+            donorEmail;
+
+        // Generate receipt PDF
+        const receiptData = {
+          donation,
+          campaign: campaign ? { title: campaign.title, description: campaign.description } : undefined,
+          fund: fund ? { name: fund.name, description: fund.description } : undefined,
+          donor: {
+            name: donorName,
+            email: donorEmail,
+            address: donation.donorAddress,
+          },
+        };
+
+        const pdfBuffer = await generateReceiptPDF(receiptData);
+
+        // Send receipt email
+        await sendReceiptEmail(receiptData, pdfBuffer);
+        donation.receiptSent = true;
+        donation.receiptEmail = donorEmail;
+        await donation.save();
+
+        // Send thank-you email
+        const Tenant = require("../models/Tenant").default;
+        const tenant = donation.tenantId
+          ? await Tenant.findById(donation.tenantId)
+          : null;
+
+        await emailService.sendDonationThankYouEmail({
+          to: donorEmail,
+          donorName: donorName,
+          amount: donation.amount,
+          currency: donation.currency,
+          campaignName: campaign?.title,
+          fundName: fund?.name,
+          collegeName: tenant?.name,
+          impactMessage: campaign?.description
+            ? `Your donation supports: ${campaign.description.substring(0, 150)}...`
+            : undefined,
+        });
+      }
+    } catch (emailError) {
+      logger.error("Error sending receipt/thank-you emails:", emailError);
+      // Don't fail the request if email fails
     }
 
     return res.status(200).json({
@@ -367,6 +607,88 @@ export const verifyDonationPayment = async (req: Request, res: Response) => {
   }
 };
 
+// Download receipt PDF
+export const downloadReceipt = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const donation = await Donation.findById(id)
+        .populate("campaignId", "title description fundId")
+        .populate("donor", "firstName lastName email")
+        .lean();
+
+      if (!donation) {
+        return res.status(404).json({
+          success: false,
+          message: "Donation not found",
+        });
+      }
+
+      // Check if user has access to this donation
+      if (
+        req.user?.role !== "super_admin" &&
+        req.user?.role !== "college_admin" &&
+        req.user?.role !== "hod" &&
+        req.user?.role !== "staff" &&
+        donation.donor?.toString() !== req.user?.id?.toString()
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to access this receipt",
+        });
+      }
+
+      const { generateReceiptPDF } = require("../services/receiptService");
+      
+      // Get fund if campaign has one
+      let fund = null;
+      if (donation.campaignId && (donation.campaignId as any).fundId) {
+        try {
+          const Fund = require("../models/Fund").default;
+          fund = await Fund.findById((donation.campaignId as any).fundId).lean();
+        } catch (fundError) {
+          logger.warn("Could not load fund:", fundError);
+          // Continue without fund
+        }
+      }
+
+      const donorUser = donation.donor as any;
+      const donorName = donation.donorName || 
+        (donorUser ? `${donorUser?.firstName || ""} ${donorUser?.lastName || ""}`.trim() : "") || 
+        "Anonymous";
+      const donorEmail = donorUser?.email || donation.donorEmail || "";
+      
+      const pdfBuffer = await generateReceiptPDF({
+        donation,
+        campaign: donation.campaignId ? {
+          title: (donation.campaignId as any).title,
+          description: (donation.campaignId as any).description,
+        } : undefined,
+        fund,
+        donor: {
+          name: donorName,
+          email: donorEmail,
+          address: donation.donorAddress || "",
+        },
+      });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=receipt-${donation._id.toString().slice(-8).toUpperCase()}.pdf`
+      );
+      return res.send(pdfBuffer);
+    } catch (error) {
+      logger.error("Error downloading receipt:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error generating receipt",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 export default {
   getAllDonations,
   getDonationById,
@@ -378,4 +700,5 @@ export default {
   getMyDonations,
   getDonationStats,
   verifyDonationPayment,
+  downloadReceipt,
 };

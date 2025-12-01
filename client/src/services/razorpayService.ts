@@ -1,11 +1,9 @@
 import { getAuthTokenOrNull } from "@/utils/auth";
 
+import { API_BASE_URL } from "@/lib/api";
+
 // Razorpay Service
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined;
-
-// API base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 
 export interface RazorpayOrderData {
   amount: number; // Amount in paise

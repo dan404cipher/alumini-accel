@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+import { API_BASE_URL } from "@/lib/api";
 const TestWelcomeEmail = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -27,7 +28,7 @@ const TestWelcomeEmail = () => {
     setLoading(true);
     try {
       const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const baseUrl = apiBaseUrl.replace("/api/v1", "");
       const response = await fetch(`${baseUrl}/test-send-welcome-email`, {
         method: "POST",
@@ -71,8 +72,7 @@ const TestWelcomeEmail = () => {
     });
     window.open(
       `${
-        import.meta.env.VITE_API_BASE_URL?.replace("/api/v1", "") ||
-        "http://localhost:3000"
+        API_BASE_URL.replace("/api/v1", "")
       }/preview-welcome-email?${params.toString()}`,
       "_blank"
     );

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -123,7 +124,7 @@ export const CareerTimelineForm = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
 
       const response = await fetch(
         `${apiUrl}/alumni/profile/career-timeline/${item._id}`,
@@ -168,7 +169,7 @@ export const CareerTimelineForm = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
 
       const url = selectedItem?._id
         ? `${apiUrl}/alumni/profile/career-timeline/${selectedItem._id}`

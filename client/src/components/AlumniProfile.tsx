@@ -20,15 +20,27 @@ import {
   BookOpen,
   Github,
   MessageCircle,
+  Pencil,
 } from "lucide-react";
-import { alumniAPI } from "@/lib/api";
+import {
+  alumniAPI,
+  API_BASE_URL,
+  connectionAPI,
+  getImageUrl,
+  rewardsAPI,
+} from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import SimpleImageUpload from "@/components/SimpleImageUpload";
+import ImageUpload from "@/components/ImageUpload";
 import ConnectionButton from "@/components/ConnectionButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { BadgeCollection } from "@/components/rewards/BadgeCollection";
+import {
+  Badge as BadgeType,
+  RewardProfilePreview,
+} from "@/components/rewards/types";
 
 // User interface (for both students and alumni)
 interface User {
@@ -36,6 +48,7 @@ interface User {
   name: string;
   email: string;
   profileImage?: string;
+  profilePicture?: string;
   role: string;
   graduationYear?: number;
   batchYear?: number;
@@ -125,9 +138,28 @@ const AlumniProfile = () => {
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
+  const [badges, setBadges] = useState<BadgeType[]>([]);
+  const [rewardProfile, setRewardProfile] =
+    useState<RewardProfilePreview | null>(null);
 
   // Check if this is the current user's own profile
   const isOwnProfile = currentUser && user && currentUser._id === user.id;
+
+  // Check if user is College Admin and can edit this profile
+  const canEditProfile =
+    isOwnProfile || (currentUser?.role === "college_admin" && !isOwnProfile);
+
+  // Check if user has admin privileges to send messages without connection
+  const canSendMessage =
+    currentUser?.role &&
+    ["super_admin", "college_admin", "hod", "staff"].includes(currentUser.role);
+
+  // Check if users are connected (status === "accepted")
+  const isConnected = connectionStatus === "accepted";
+
+  // Can show message button if: admin OR connected
+  const canShowMessageButton = canSendMessage || isConnected;
 
   const fetchUserProfile = useCallback(
     async (userId: string) => {
@@ -184,19 +216,20 @@ const AlumniProfile = () => {
       const formData = new FormData();
       formData.append("profileImage", file);
 
+      // Build URL with userId query parameter for College Admin
+      let uploadUrl = `${API_BASE_URL}/users/profile-image`;
+      if (!isOwnProfile && id) {
+        uploadUrl += `?userId=${id}`;
+      }
+
       // Upload the image
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
-        }/users/profile-image`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
       if (!response.ok) {
         throw new Error("Failed to upload image");
@@ -204,11 +237,18 @@ const AlumniProfile = () => {
 
       const result = await response.json();
       if (result.success) {
-        const newImageUrl = result.data.profileImage;
+        // Add cache-busting parameter to force reload
+        const newImageUrl = result.data.profileImage + `?t=${Date.now()}`;
 
         // Update the user state with new image URL
         setUser((prev) => {
-          return prev ? { ...prev, profileImage: newImageUrl } : null;
+          return prev
+            ? {
+                ...prev,
+                profileImage: newImageUrl,
+                profilePicture: newImageUrl,
+              }
+            : null;
         });
 
         toast({
@@ -237,14 +277,65 @@ const AlumniProfile = () => {
     }
   };
 
+  // Check connection status
+  const checkConnectionStatus = useCallback(
+    async (userId: string) => {
+      if (!currentUser?._id || currentUser._id === userId) {
+        setConnectionStatus(null);
+        return;
+      }
+
+      try {
+        const response = await connectionAPI.checkConnectionStatus(userId);
+        if (response.success && response.data) {
+          const data = response.data as {
+            exists: boolean;
+            connection: { status: string } | null;
+          };
+          setConnectionStatus(data.connection?.status || null);
+        } else {
+          setConnectionStatus(null);
+        }
+      } catch (error) {
+        console.error("Error checking connection status:", error);
+        setConnectionStatus(null);
+      }
+    },
+    [currentUser?._id]
+  );
+
+  // Fetch reward profile (tier, points, badges)
+  const fetchRewardProfile = useCallback(async (userId: string) => {
+    try {
+      const response = await rewardsAPI.getUserRewardProfile(userId);
+      if (response.success && response.data) {
+        const data = response.data as RewardProfilePreview;
+        setRewardProfile(data);
+        setBadges(data.badges || []);
+      }
+    } catch (error) {
+      console.error("Error fetching reward profile:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (id && id !== "undefined") {
       fetchUserProfile(id);
+      fetchRewardProfile(id);
     } else {
       setError("Invalid user ID provided");
       setLoading(false);
     }
-  }, [id, fetchUserProfile]);
+  }, [id, fetchUserProfile, fetchRewardProfile]);
+
+  // Check connection status when user profile is loaded (only for non-admin users)
+  useEffect(() => {
+    if (user?.id && !isOwnProfile && !canSendMessage) {
+      checkConnectionStatus(user.id);
+    } else {
+      setConnectionStatus(null);
+    }
+  }, [user?.id, isOwnProfile, canSendMessage, checkConnectionStatus]);
 
   if (loading) {
     return (
@@ -293,12 +384,24 @@ const AlumniProfile = () => {
     );
   }
 
+  const tierInfo = rewardProfile?.tierInfo;
+  const rewardSummary = rewardProfile?.summary;
+  const totalPoints = rewardSummary?.totalPoints ?? 0;
+  const earnedRewards = rewardSummary?.earnedRewards ?? 0;
+  const redeemedRewards = rewardSummary?.redeemedRewards ?? 0;
+  const badgeCount = badges.length;
+  const previewBadges = badges.slice(0, 3);
+  const tierLabel = tierInfo?.currentTier
+    ? tierInfo.currentTier.charAt(0).toUpperCase() +
+      tierInfo.currentTier.slice(1)
+    : "No tier";
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation activeTab="alumni" onTabChange={() => {}} />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4  pt-24">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-2 flex items-center gap-2">
           <Button
             onClick={() => navigate("/alumni")}
             variant="ghost"
@@ -307,35 +410,69 @@ const AlumniProfile = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Alumni Directory
           </Button>
+
+          {/* Edit Profile Button for College Admins */}
+          {canEditProfile &&
+            currentUser?.role === "college_admin" &&
+            !isOwnProfile && (
+              <Button
+                onClick={() => navigate(`/profile?editUser=${user.id}`)}
+                variant="default"
+                className="mb-4"
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit Profile
+              </Button>
+            )}
         </div>
 
         {/* Profile Header */}
         <Card className="mb-6">
           <CardContent className="p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
-              <div className="relative">
-                <img
-                  src={
-                    user.profileImage
-                      ? user.profileImage.startsWith("http")
-                        ? user.profileImage
-                        : user.profileImage
-                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          user.name
-                        )}&background=random&color=fff`
-                  }
-                  alt={user.name}
-                  className="w-24 h-24 rounded-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      user.name
-                    )}&background=random&color=fff`;
-                  }}
-                />
-                {user.isHiring && (
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <Star className="w-4 h-4 text-white" />
+              <div className="relative w-full md:w-auto">
+                {canEditProfile ? (
+                  <div className="max-w-xs">
+                    <ImageUpload
+                      currentImage={
+                        user.profileImage || user.profilePicture
+                          ? getImageUrl(
+                              user.profileImage || user.profilePicture
+                            )
+                          : undefined
+                      }
+                      onImageChange={setImageFile}
+                      onImageUpload={handleImageUpload}
+                      isLoading={uploadingImage}
+                      maxSize={5}
+                    />
                   </div>
+                ) : (
+                  <>
+                    <img
+                      src={
+                        user.profileImage || user.profilePicture
+                          ? getImageUrl(
+                              user.profileImage || user.profilePicture
+                            )
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              user.name
+                            )}&background=random&color=fff`
+                      }
+                      alt={user.name}
+                      className="w-24 h-24 rounded-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          user.name
+                        )}&background=random&color=fff`;
+                      }}
+                    />
+                    {user.isHiring && (
+                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <Star className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -346,19 +483,6 @@ const AlumniProfile = () => {
                 <p className="text-lg text-gray-600 mb-4">
                   {user.currentRole || user.role}
                 </p>
-
-                {/* Profile Image Upload - Only show for own profile */}
-                {isOwnProfile && (
-                  <div className="mb-4">
-                    <SimpleImageUpload
-                      currentImage={user.profileImage}
-                      onImageChange={setImageFile}
-                      onImageUpload={handleImageUpload}
-                      isLoading={uploadingImage}
-                      maxSize={5}
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="flex-1">
@@ -396,18 +520,6 @@ const AlumniProfile = () => {
                   </div>
                 </div>
 
-                {/* Connection Button - Only show for other users' profiles */}
-                {!isOwnProfile && (
-                  <div className="mb-4">
-                    <ConnectionButton
-                      userId={user.id}
-                      userName={user.name}
-                      variant="default"
-                      size="default"
-                    />
-                  </div>
-                )}
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
                   <div className="flex items-center">
                     <GraduationCap className="w-4 h-4 mr-2" />
@@ -424,12 +536,7 @@ const AlumniProfile = () => {
                       <span>{user.currentLocation || user.location}</span>
                     </div>
                   )}
-                  {user.experience && user.experience > 0 && (
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      <span>{user.experience} years experience</span>
-                    </div>
-                  )}
+
                   {user.currentCGPA && (
                     <div className="flex items-center">
                       <Award className="w-4 h-4 mr-2" />
@@ -454,6 +561,133 @@ const AlumniProfile = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Rewards Overview</h2>
+                <p className="text-sm text-muted-foreground">
+                  Tier, total points, and badges earned by {user.name}
+                </p>
+              </div>
+              <Badge variant="outline" className="text-sm capitalize">
+                {tierInfo ? `${tierLabel} tier` : "No tier yet"}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Current Tier
+                </p>
+                <p className="text-2xl font-semibold mt-2 capitalize">
+                  {tierInfo ? tierLabel : "Not assigned"}
+                </p>
+                {tierInfo?.nextTier ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {tierInfo.pointsToNextTier} pts to {tierInfo.nextTier}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Earn points to unlock tiers
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Total Points
+                </p>
+                <p className="text-2xl font-semibold mt-2">
+                  {totalPoints.toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lifetime contributions
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Rewards Earned
+                </p>
+                <p className="text-2xl font-semibold mt-2">{earnedRewards}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {redeemedRewards} redeemed
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-4 bg-white shadow-sm">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Badges
+                </p>
+                <p className="text-2xl font-semibold mt-2">{badgeCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {badgeCount > 0 ? "Earned recognitions" : "No badges yet"}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-gray-700">
+                  Featured Badges
+                </p>
+                {badgeCount > 3 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{badgeCount - 3} more
+                  </span>
+                )}
+              </div>
+              {previewBadges.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {previewBadges.map((badge) => (
+                    <div
+                      key={badge._id}
+                      className="flex items-center gap-3 border rounded-xl p-3 bg-muted/40"
+                    >
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-2xl overflow-hidden"
+                        style={{
+                          backgroundColor: `${badge.color || "#0ea5e9"}20`,
+                          border: `2px solid ${
+                            badge.color ? `${badge.color}30` : "#0ea5e930"
+                          }`,
+                          color: badge.color || "#0ea5e9",
+                        }}
+                      >
+                        {badge.icon &&
+                        (badge.icon.startsWith("/") ||
+                          badge.icon.startsWith("http")) ? (
+                          <img
+                            src={getImageUrl(badge.icon)}
+                            alt={badge.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          badge.icon || "🏅"
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {badge.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {badge.category}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No badges earned yet. Participate in activities and community
+                  programs to earn recognitions.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -505,6 +739,18 @@ const AlumniProfile = () => {
                       </Badge>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Badges */}
+            {badges.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Badges & Awards
+                  </h2>
+                  <BadgeCollection badges={badges} showTitle={false} />
                 </CardContent>
               </Card>
             )}
@@ -784,12 +1030,9 @@ const AlumniProfile = () => {
                         {cert.credentialFile && (
                           <div className="mt-2">
                             <a
-                              href={`${
-                                import.meta.env.VITE_API_BASE_URL?.replace(
-                                  "/api/v1",
-                                  ""
-                                ) || "http://localhost:3000"
-                              }${cert.credentialFile}`}
+                              href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                cert.credentialFile
+                              }`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline text-sm flex items-center"
@@ -1064,12 +1307,9 @@ const AlumniProfile = () => {
                           {internship.certificateFile && (
                             <div className="mt-2">
                               <a
-                                href={`${
-                                  import.meta.env.VITE_API_BASE_URL?.replace(
-                                    "/api/v1",
-                                    ""
-                                  ) || "http://localhost:3000"
-                                }${internship.certificateFile}`}
+                                href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                  internship.certificateFile
+                                }`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:underline text-sm flex items-center"
@@ -1175,12 +1415,9 @@ const AlumniProfile = () => {
                           )}
                           {research.publicationFile && (
                             <a
-                              href={`${
-                                import.meta.env.VITE_API_BASE_URL?.replace(
-                                  "/api/v1",
-                                  ""
-                                ) || "http://localhost:3000"
-                              }${research.publicationFile}`}
+                              href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                research.publicationFile
+                              }`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline text-sm flex items-center"
@@ -1202,12 +1439,9 @@ const AlumniProfile = () => {
                           )}
                           {research.conferenceFile && (
                             <a
-                              href={`${
-                                import.meta.env.VITE_API_BASE_URL?.replace(
-                                  "/api/v1",
-                                  ""
-                                ) || "http://localhost:3000"
-                              }${research.conferenceFile}`}
+                              href={`${API_BASE_URL.replace("/api/v1", "")}${
+                                research.conferenceFile
+                              }`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline text-sm flex items-center"
@@ -1228,61 +1462,78 @@ const AlumniProfile = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Contact Actions */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Connect</h3>
-                <div className="space-y-3">
-                  {!isOwnProfile && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => navigate(`/messages?user=${user.id}`)}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Send Message
-                    </Button>
-                  )}
+            {(!isOwnProfile ||
+              user.linkedinProfile ||
+              user.githubProfile ||
+              user.website) && (
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Connect</h3>
+                  <div className="space-y-3">
+                    {!isOwnProfile && (
+                      <ConnectionButton
+                        userId={user.id}
+                        userName={user.name}
+                        variant="default"
+                        size="default"
+                        className="w-full"
+                      />
+                    )}
 
-                  {user.linkedinProfile && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() =>
-                        window.open(user.linkedinProfile, "_blank")
-                      }
-                    >
-                      <Linkedin className="w-4 h-4 mr-2" />
-                      LinkedIn
-                      <ExternalLink className="w-3 h-3 ml-auto" />
-                    </Button>
-                  )}
+                    {!isOwnProfile && canShowMessageButton && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => navigate(`/messages?user=${user.id}`)}
+                      >
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Send Message
+                      </Button>
+                    )}
 
-                  {user.githubProfile && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => window.open(user.githubProfile, "_blank")}
-                    >
-                      <Phone className="w-4 h-4 mr-2" />
-                      GitHub
-                      <ExternalLink className="w-3 h-3 ml-auto" />
-                    </Button>
-                  )}
+                    {user.linkedinProfile && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() =>
+                          window.open(user.linkedinProfile, "_blank")
+                        }
+                      >
+                        <Linkedin className="w-4 h-4 mr-2" />
+                        LinkedIn
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </Button>
+                    )}
 
-                  {user.website && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => window.open(user.website, "_blank")}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Website
-                      <ExternalLink className="w-3 h-3 ml-auto" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {user.githubProfile && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() =>
+                          window.open(user.githubProfile, "_blank")
+                        }
+                      >
+                        <Phone className="w-4 h-4 mr-2" />
+                        GitHub
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </Button>
+                    )}
+
+                    {user.website && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => window.open(user.website, "_blank")}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Website
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Quick Stats */}
             <Card>

@@ -48,15 +48,13 @@ import {
   Youtube,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  tenantAPI,
+import { tenantAPI,
   alumniAPI,
   communityAPI,
   eventAPI,
   jobAPI,
   newsAPI,
-  getImageUrl,
-} from "@/lib/api";
+  getImageUrl, API_BASE_URL } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import MentorshipActionMenu from "@/components/mentorship/MentorshipActionMenu";
 import EditMentorshipDialog from "@/components/dialogs/EditMentorshipDialog";
@@ -356,8 +354,7 @@ const AlumniPortal = () => {
         "Content-Type": "application/json",
       };
 
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
       // Fetch recent events
       const eventsResponse = await fetch(`${baseUrl}/events?limit=8`, {
@@ -916,9 +913,9 @@ const AlumniPortal = () => {
         {collegeBanner && (
           <div className="relative overflow-hidden rounded-lg shadow-sm border">
             <img
-              src={collegeBanner}
+              src={getImageUrl(collegeBanner)}
               alt="College Banner"
-              className="w-full h-64 object-cover"
+              className="w-full h-96 object-cover"
             />
             <div className="absolute inset-0 bg-black/40"></div>
             <div className="absolute bottom-0 left-0 right-0 p-6">

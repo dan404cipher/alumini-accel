@@ -29,6 +29,13 @@ export interface User {
   preferences?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  privacy?: {
+    profileVisibility: "public" | "alumni" | "private";
+    showEmail: boolean;
+    showPhone: boolean;
+    showLocation: boolean;
+    showCompany: boolean;
+  };
 }
 
 // Auth context interface
@@ -92,6 +99,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (token) {
         try {
+          // If we have user data in storage, use it immediately while verifying
+          if (userData) {
+            try {
+              const parsedUser = JSON.parse(userData) as User;
+              setUser(parsedUser);
+              // Trigger socket connection immediately with cached user
+              socketService.connectSocket();
+            } catch (parseError) {
+              // Invalid user data, will be cleared below
+            }
+          }
+
+          // Verify token with API call
           const response = await authAPI.getCurrentUser();
 
           if (
@@ -103,6 +123,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           ) {
             const userData = (response.data as { user: User }).user;
             setUser(userData);
+            // Update stored user data
+            if (storageType === "localStorage") {
+              localStorage.setItem("user", JSON.stringify(userData));
+            } else {
+              sessionStorage.setItem("user", JSON.stringify(userData));
+            }
             // Trigger socket connection after successful authentication
             socketService.connectSocket();
           } else {
@@ -113,15 +139,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             sessionStorage.removeItem("token");
             sessionStorage.removeItem("refreshToken");
             sessionStorage.removeItem("user");
+            setUser(null);
           }
         } catch (err) {
-          // Error fetching user, clear tokens from both storages
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
-          sessionStorage.removeItem("token");
-          sessionStorage.removeItem("refreshToken");
-          sessionStorage.removeItem("user");
+          // If we have a token but API call fails, check if it's a network error
+          // Don't clear tokens on network errors, only on auth errors
+          const error = err as Error & { response?: { status: number } };
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            // Auth error - clear tokens
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("user");
+            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("refreshToken");
+            sessionStorage.removeItem("user");
+            setUser(null);
+          }
+          // For network errors, keep the cached user if available
+          // This allows offline access with cached credentials
         }
       }
       setLoading(false);
@@ -244,6 +279,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       // Ignore logout API errors
     } finally {
+      // Disconnect socket before clearing state
+      socketService.disconnectSocket();
+      
       // Clear local storage and state
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");

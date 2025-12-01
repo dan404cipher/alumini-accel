@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,7 +62,18 @@ import {
   Activity,
   Briefcase,
   IndianRupee,
+  ChevronLeft,
+  ChevronRight,
+  Award,
+  User,
+  CheckCircle2,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -74,9 +85,16 @@ import {
   galleryAPI,
   newsAPI,
   communityAPI,
+  getImageUrl,
+  API_BASE_URL,
 } from "@/lib/api";
 import CampaignManagement from "../CampaignManagement";
 import EligibleStudentsPanel from "../EligibleStudentsPanel";
+import EventManagement from "../EventManagement";
+import JobManagement from "../admin/JobManagement";
+import { AnalyticsDashboard } from "../admin/AnalyticsDashboard";
+import { RewardsAdminDashboard } from "../rewards/RewardsAdminDashboard";
+import { StaffVerificationDashboard } from "../rewards/StaffVerificationDashboard";
 
 // Type definitions
 interface PendingRequest {
@@ -633,7 +651,7 @@ const StaffPanel = () => {
         try {
           const bannerResponse = await tenantAPI.getBanner(user.tenantId);
           if (typeof bannerResponse === "string") {
-            setCollegeBanner(bannerResponse);
+            setCollegeBanner(getImageUrl(bannerResponse));
           }
         } catch (error) {
           console.log("No banner found or error loading banner:", error);
@@ -811,8 +829,7 @@ const StaffPanel = () => {
     if (!user?.tenantId) return;
     try {
       setLoading((prev) => ({ ...prev, donations: true }));
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -842,8 +859,7 @@ const StaffPanel = () => {
     if (!user?.tenantId) return;
     try {
       setLoading((prev) => ({ ...prev, mentorships: true }));
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const baseUrl = API_BASE_URL;
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -924,7 +940,23 @@ const StaffPanel = () => {
     ),
   };
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // URL-based navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "dashboard";
+  const subTab = searchParams.get("subtab");
+
+  const handleTabChange = (tabKey: string) => {
+    setSearchParams({ tab: tabKey });
+    setSidebarCollapsed(false); // Or handle mobile sidebar logic
+    if (window.innerWidth < 1024) {
+      setSidebarCollapsed(true);
+    }
+  };
+
+  const handleSubTabChange = (subTabKey: string) => {
+    setSearchParams({ tab: activeTab, subtab: subTabKey });
+  };
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const pendingAlumni = [
     {
@@ -1011,23 +1043,65 @@ const StaffPanel = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="flex h-screen overflow-hidden">
         {/* Enhanced Sidebar */}
-        <aside className="hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm z-40">
+        <aside
+          className={`
+            hidden lg:block fixed top-16 left-0 h-[calc(100vh-4rem)] z-40
+            ${sidebarCollapsed ? "w-20" : "w-72"}
+            flex-shrink-0 bg-gradient-to-b from-white to-gray-50 border-r shadow-sm transition-all duration-300
+          `}
+        >
           <div className="h-full flex flex-col">
             {/* Sidebar Header */}
-            <div className="p-6 border-b bg-gradient-to-r from-green-600 to-green-700">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
-                  <Users className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold text-lg">Staff</h3>
-                  <p className="text-green-100 text-xs">Management Portal</p>
-                </div>
+            <div
+              className={`p-6 border-b bg-gradient-to-r from-green-600 to-green-700 ${
+                sidebarCollapsed ? "px-3" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                {!sidebarCollapsed && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Users className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg">Staff</h3>
+                      <p className="text-green-100 text-xs">
+                        Management Portal
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {sidebarCollapsed && (
+                  <div className="w-full flex justify-center">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                      <Users className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/20 p-1.5"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  title={
+                    sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                  }
+                >
+                  {sidebarCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronLeft className="w-4 h-4" />
+                  )}
+                </Button>
               </div>
             </div>
 
             {/* Navigation Menu */}
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <nav
+              className={`flex-1 space-y-1 overflow-y-auto ${
+                sidebarCollapsed ? "p-2" : "p-4"
+              }`}
+            >
               {[
                 {
                   key: "dashboard",
@@ -1058,6 +1132,24 @@ const StaffPanel = () => {
                   label: "Eligible Students",
                   icon: GraduationCap,
                   color: "blue",
+                },
+                {
+                  key: "event-management",
+                  label: "Event Management",
+                  icon: Calendar,
+                  color: "amber",
+                },
+                {
+                  key: "job-management",
+                  label: "Job Management",
+                  icon: Briefcase,
+                  color: "blue",
+                },
+                {
+                  key: "rewards-management",
+                  label: "Rewards Management",
+                  icon: Award,
+                  color: "amber",
                 },
               ].map((item) => {
                 const Icon = item.icon;
@@ -1106,49 +1198,86 @@ const StaffPanel = () => {
 
                 const activeColors = colorMap[item.color] || colorMap.blue;
 
-                return (
+                const buttonContent = (
                   <button
                     key={item.key}
-                    onClick={() => setActiveTab(item.key)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    onClick={() => handleTabChange(item.key)}
+                    className={`w-full flex items-center ${
+                      sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
+                    } py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
                         ? `${activeColors.bg} ${activeColors.border} ${activeColors.text} border-l-4 shadow-sm`
                         : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent"
                     }`}
                   >
                     <Icon
-                      className={`h-5 w-5 ${isActive ? "" : "text-gray-500"}`}
+                      className={`h-5 w-5 flex-shrink-0 ${
+                        isActive ? "" : "text-gray-500"
+                      }`}
                     />
-                    <span className="flex-1">{item.label}</span>
-                    {isActive && (
-                      <div
-                        className={`w-2 h-2 rounded-full ${activeColors.dot}`}
-                      />
+                    {!sidebarCollapsed && (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {isActive && (
+                          <div
+                            className={`w-2 h-2 rounded-full ${activeColors.dot}`}
+                          />
+                        )}
+                      </>
                     )}
                   </button>
+                );
+
+                return sidebarCollapsed ? (
+                  <TooltipProvider key={item.key}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>{item.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  buttonContent
                 );
               })}
             </nav>
 
             {/* Sidebar Footer */}
-            <div className="p-4 border-t bg-gray-50">
-              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                  <Users className="h-5 w-5 text-white" />
+            <div
+              className={`border-t bg-gray-50 ${
+                sidebarCollapsed ? "p-2" : "p-4"
+              }`}
+            >
+              {sidebarCollapsed ? (
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {user?.email}
-                  </p>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {user?.firstName} {user?.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user?.email}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </aside>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 ml-72">
+        <div
+          className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-all duration-300 ${
+            sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+          }`}
+        >
           {/* Header - only on Dashboard tab */}
           {activeTab === "dashboard" && (
             <div className="flex items-center justify-between">
@@ -1169,7 +1298,7 @@ const StaffPanel = () => {
           {activeTab === "dashboard" && collegeBanner && (
             <div className="relative overflow-hidden rounded-lg shadow-lg mt-6">
               <img
-                src={collegeBanner}
+                src={collegeBanner ? getImageUrl(collegeBanner) : ""}
                 alt="College Banner"
                 className="w-full h-80 object-cover"
               />
@@ -1191,7 +1320,7 @@ const StaffPanel = () => {
           {/* Main Content controlled by sidebar */}
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-6 mt-6"
           >
             {/* Dashboard Overview */}
@@ -2049,133 +2178,7 @@ const StaffPanel = () => {
 
             {/* Analytics */}
             <TabsContent value="analytics" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold">Analytics & Reports</h2>
-                <Button variant="outline">
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  Export Report
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Verification Stats</CardTitle>
-                    <CardDescription>
-                      Alumni verification performance
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Total Verified</span>
-                        <span className="font-medium">
-                          {stats.alumniVerified}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Pending Review</span>
-                        <span className="font-medium">
-                          {stats.pendingAlumni}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Rejected</span>
-                        <span className="font-medium">3</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Success Rate</span>
-                        <span className="font-medium text-green-600">94%</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Content Stats</CardTitle>
-                    <CardDescription>
-                      Posts and moderation activity
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Posts Created</span>
-                        <span className="font-medium">{stats.postsMade}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Events Posted</span>
-                        <span className="font-medium">
-                          {stats.eventsPosted}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Posts Moderated</span>
-                        <span className="font-medium">
-                          {stats.postsModerated}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Avg. Engagement</span>
-                        <span className="font-medium text-blue-600">67%</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>
-                    Your recent actions and activities
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
-                          Verified alumni: John Smith
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Computer Science, Class of 2020
-                        </p>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        2 hours ago
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
-                          Created post: Career Workshop
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Event announcement
-                        </p>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        4 hours ago
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
-                          Moderated post: Removed spam
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Inappropriate content
-                        </p>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        1 day ago
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <AnalyticsDashboard />
             </TabsContent>
 
             {/* Alumni Management */}
@@ -2561,12 +2564,10 @@ const StaffPanel = () => {
                                         "http"
                                       )
                                       ? alumniItem.userId.profilePicture
-                                      : `${(
-                                          import.meta.env.VITE_API_BASE_URL ||
-                                          "http://localhost:3000/api/v1"
-                                        ).replace("/api/v1", "")}${
-                                          alumniItem.userId.profilePicture
-                                        }`
+                                      : `${API_BASE_URL.replace(
+                                          "/api/v1",
+                                          ""
+                                        )}${alumniItem.userId.profilePicture}`
                                     : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                                         `${
                                           alumniItem.userId?.firstName || ""
@@ -2638,6 +2639,47 @@ const StaffPanel = () => {
                   ))
                 )}
               </div>
+            </TabsContent>
+            <TabsContent value="event-management" className="space-y-6">
+              <EventManagement />
+            </TabsContent>
+
+            {/* Job Management */}
+            <TabsContent value="job-management" className="space-y-6">
+              <JobManagement />
+            </TabsContent>
+
+            {/* Rewards Management */}
+            <TabsContent value="rewards-management" className="space-y-6">
+              <Tabs
+                value={subTab || "rewards"}
+                onValueChange={handleSubTabChange}
+                className="w-full"
+              >
+                <TabsList className="mb-6">
+                  <TabsTrigger
+                    value="rewards"
+                    className="flex items-center gap-2"
+                  >
+                    <Award className="w-4 h-4" />
+                    Manage Rewards
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="verifications"
+                    className="flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Task Verifications
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="rewards">
+                  <RewardsAdminDashboard />
+                </TabsContent>
+                <TabsContent value="verifications">
+                  <StaffVerificationDashboard />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

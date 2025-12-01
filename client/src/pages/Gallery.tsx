@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { galleryAPI, categoryAPI } from "@/lib/api";
+import { galleryAPI, categoryAPI, API_BASE_URL } from "@/lib/api";
+import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/ui/pagination";
@@ -84,6 +85,15 @@ interface GalleryItem {
   viewCount?: number;
 }
 
+interface College {
+  _id: string;
+  name: string;
+  location: string;
+  establishedYear: number;
+  website?: string;
+  description?: string;
+}
+
 const Gallery: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -107,6 +117,37 @@ const Gallery: React.FC = () => {
     pages: number;
     total: number;
   } | null>(null);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeFilter, setCollegeFilter] = useState("all");
+
+  // Fetch colleges on component mount (only for Super Admin)
+  useEffect(() => {
+    const fetchColleges = async () => {
+      // Only fetch colleges if user is Super Admin
+      if (user?.role !== "super_admin") {
+        return;
+      }
+
+      try {
+        const token = getAuthTokenOrNull();
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/tenants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setColleges(data.data?.tenants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+      }
+    };
+
+    fetchColleges();
+  }, [user]);
 
   // Note: Backend already handles: search, category, dateRange, sortBy
   // No client-side filtering or sorting needed
@@ -175,7 +216,10 @@ const Gallery: React.FC = () => {
       const params: Record<string, unknown> = {
         page: currentPage,
         limit: itemsPerPage,
-        tenantId: user?.tenantId,
+        tenantId:
+          user?.role === "super_admin" && collegeFilter !== "all"
+            ? collegeFilter
+            : user?.tenantId,
       };
 
       if (selectedCategory !== "all") {
@@ -226,6 +270,7 @@ const Gallery: React.FC = () => {
     selectedDateRange,
     selectedSortBy,
     toast,
+    collegeFilter,
   ]);
 
   useEffect(() => {
@@ -242,7 +287,13 @@ const Gallery: React.FC = () => {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedDateRange, selectedSortBy]);
+  }, [
+    searchQuery,
+    selectedCategory,
+    selectedDateRange,
+    selectedSortBy,
+    collegeFilter,
+  ]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -529,6 +580,29 @@ const Gallery: React.FC = () => {
                 {/* Filters */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold">Filters</h3>
+
+                  {/* College Filter (Super Admin Only) */}
+                  {user?.role === "super_admin" && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">College</label>
+                      <Select
+                        value={collegeFilter}
+                        onValueChange={setCollegeFilter}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by College" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Colleges</SelectItem>
+                          {colleges.map((college) => (
+                            <SelectItem key={college._id} value={college._id}>
+                              {college.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* Category */}
                   <div className="space-y-2">

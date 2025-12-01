@@ -50,10 +50,10 @@ class SocketService {
       auth: { token },
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: this.reconnectDelay,
+      reconnectionAttempts: 10, // Increased from 5
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000, // Add max delay
       transports: ["polling"], // Start with polling only
-      forceNew: true,
       timeout: 20000,
     });
 
@@ -96,9 +96,20 @@ class SocketService {
 
   // Connection management
   public connectSocket() {
-    if (!this.socket || !this.isConnected) {
-      this.connect();
+    // Prevent duplicate connections - disconnect if already connected
+    if (this.socket?.connected) {
+      console.log('✅ Socket already connected');
+      return;
     }
+    
+    // Disconnect old socket if exists but not connected
+    if (this.socket) {
+      console.log('🔄 Disconnecting stale socket before reconnecting');
+      this.socket.disconnect();
+      this.socket = null;
+    }
+    
+    this.connect();
   }
 
   public disconnectSocket() {

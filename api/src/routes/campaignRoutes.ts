@@ -111,4 +111,24 @@ router.post(
   asyncHandler(campaignController.uploadCampaignImage)
 );
 
+// @route   POST /api/v1/campaigns/preview-audience
+// @desc    Preview target audience for campaign
+// @access  Private/Admin
+router.post(
+  "/preview-audience",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(campaignController.previewTargetAudience)
+);
+
+// @route   POST /api/v1/campaigns/targeted-alumni
+// @desc    Get targeted alumni list for campaign
+// @access  Private/Admin
+router.post(
+  "/targeted-alumni",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(campaignController.getTargetedAlumni)
+);
+
 export default router;

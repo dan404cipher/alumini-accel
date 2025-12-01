@@ -392,6 +392,15 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       alumniProfile = await AlumniProfile.findOne({ userId: user._id });
     }
 
+    // Build student profile data if user is a student
+    const studentProfile = user.role === UserRole.STUDENT ? {
+      department: user.department,
+      currentYear: user.currentYear,
+      currentCGPA: user.currentCGPA,
+      currentGPA: user.currentGPA,
+      graduationYear: user.graduationYear,
+    } : null;
+
     return res.json({
       success: true,
       data: {
@@ -418,8 +427,16 @@ export const getCurrentUser = async (req: Request, res: Response) => {
           preferences: user.preferences,
           createdAt: user.createdAt,
           lastLoginAt: user.lastLoginAt,
+          // Include student-specific fields in user object for easier access
+          currentYear: user.currentYear,
+          currentCGPA: user.currentCGPA,
+          currentGPA: user.currentGPA,
+          // Include profile completion percentage
+          profileCompletionPercentage: user.profileCompletionPercentage ?? 0,
+          isProfileComplete: user.isProfileComplete ?? false,
         },
         alumniProfile,
+        studentProfile,
       },
     });
   } catch (error) {

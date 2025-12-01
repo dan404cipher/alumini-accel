@@ -166,6 +166,9 @@ export interface IUser extends Document {
   currentCompany?: string;
   currentPosition?: string;
   graduationYear?: number;
+  currentYear?: string;
+  currentCGPA?: number;
+  currentGPA?: number;
   eligibleForAlumni?: boolean;
   timezone?: string;
   preferences: {
@@ -179,6 +182,20 @@ export interface IUser extends Document {
   profileCompletionPercentage: number;
   savedEvents?: string[];
   savedJobs?: string[];
+  rewards?: {
+    totalPoints: number;
+    currentTier: "bronze" | "silver" | "gold" | "platinum";
+    tierPoints: number;
+    badges: string[];
+    lastPointsUpdate?: Date;
+  };
+  privacy?: {
+    profileVisibility: "public" | "alumni" | "private";
+    showEmail: boolean;
+    showPhone: boolean;
+    showLocation: boolean;
+    showCompany: boolean;
+  };
 
   // Instance methods
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -189,7 +206,6 @@ export interface IUser extends Document {
 export interface IAlumniProfile extends Document {
   _id: string;
   userId: string;
-  university: string;
   program: string;
   batchYear: number;
   graduationYear: number;
@@ -293,6 +309,13 @@ export interface IAlumniProfile extends Document {
     }>;
   }>;
   careerInterests: string[];
+  donationHistory?: {
+    totalDonated: number;
+    totalDonations: number;
+    lastDonationDate?: Date;
+    lifetimeGiving: number;
+  };
+  updateDonationHistory(amount: number): Promise<void>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -410,7 +433,7 @@ export interface IEvent extends Document {
   attendees: Array<{
     userId: string;
     registeredAt: Date;
-    status: "registered" | "attended" | "cancelled" | "pending_payment";
+    status: "registered" | "attended" | "cancelled" | "pending_payment" | "pending_approval";
     // Additional registration details
     phone?: string;
     dietaryRequirements?: string;
@@ -419,6 +442,13 @@ export interface IEvent extends Document {
     amountPaid?: number;
     paymentStatus?: "free" | "pending" | "successful" | "failed";
     reminderSent?: boolean;
+    // Approval fields for free events
+    approvalStatus?: "pending" | "approved" | "rejected";
+    approvedBy?: string;
+    approvedAt?: Date;
+    rejectedBy?: string;
+    rejectedAt?: Date;
+    rejectionReason?: string;
   }>;
   photos: string[];
   feedback: Array<{

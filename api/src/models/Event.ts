@@ -140,7 +140,7 @@ const eventSchema = new Schema<IEvent>(
         },
         status: {
           type: String,
-          enum: ["registered", "attended", "cancelled", "pending_payment"],
+          enum: ["registered", "attended", "cancelled", "pending_payment", "pending_approval"],
           default: "registered",
         },
         // Additional registration details
@@ -172,6 +172,30 @@ const eventSchema = new Schema<IEvent>(
         reminderSent: {
           type: Boolean,
           default: false,
+        },
+        // Approval fields for free events
+        approvalStatus: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: "pending",
+        },
+        approvedBy: {
+          type: mongoose.Types.ObjectId as any,
+          ref: "User",
+        },
+        approvedAt: {
+          type: Date,
+        },
+        rejectedBy: {
+          type: mongoose.Types.ObjectId as any,
+          ref: "User",
+        },
+        rejectedAt: {
+          type: Date,
+        },
+        rejectionReason: {
+          type: String,
+          trim: true,
         },
       },
     ],
@@ -250,12 +274,12 @@ eventSchema.virtual("organizerDetails", {
 
 // Virtual for attendees count
 eventSchema.virtual("totalAttendees").get(function () {
-  return this.attendees.length;
+  return this.attendees && Array.isArray(this.attendees) ? this.attendees.length : 0;
 });
 
 // Virtual for average rating
 eventSchema.virtual("averageRating").get(function () {
-  if (this.feedback.length === 0) return 0;
+  if (!this.feedback || !Array.isArray(this.feedback) || this.feedback.length === 0) return 0;
   const totalRating = this.feedback.reduce(
     (sum, feedback) => sum + feedback.rating,
     0

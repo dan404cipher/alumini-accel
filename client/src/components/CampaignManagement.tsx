@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -75,6 +76,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CampaignAnalyticsDashboard from "./campaign/CampaignAnalyticsDashboard";
 
 const campaignSchema = z.object({
   title: z.string().min(1, "Campaign title is required"),
@@ -156,6 +159,7 @@ const CampaignManagement: React.FC = () => {
   const [campaignLimit] = useState(6);
   const { toast } = useToast();
   const { user } = useAuth();
+
 
   // Donor management state
   const [selectedCampaignForDonors, setSelectedCampaignForDonors] =
@@ -985,16 +989,38 @@ const CampaignManagement: React.FC = () => {
     setCampaignPage(1);
   }, [searchTerm, categoryFilter, statusFilter]);
 
+  // URL-based navigation for internal tabs
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Use 'subtab' if available (when nested in HOD/Staff panel), otherwise default to 'management'
+  // If this component is used standalone, we might want a different param, but 'subtab' fits the nested context
+  const activeTab = searchParams.get("subtab") || "management";
+
+  const handleTabChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("subtab", value);
+    setSearchParams(newParams);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Enhanced Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-semibold">Campaign Management</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage and track fundraising campaigns for your college
-          </p>
-        </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="space-y-6"
+      >
+        <TabsList className="w-full max-w-2xl">
+          <TabsTrigger value="management" className="flex-1">
+            Campaign Management
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex-1">
+            Analytics & Reports
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="management" className="space-y-6">
+          {/* Enhanced Header */}
+          <div className="flex justify-between items-center">
+        
         <div className="flex items-center gap-3">
           {!loading && campaigns.length > 0 && (
             <>
@@ -1698,6 +1724,17 @@ const CampaignManagement: React.FC = () => {
           )}
         </>
       )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <CampaignAnalyticsDashboard
+            campaigns={campaigns}
+            loading={loading}
+            totalAmount={totalAmount}
+            totalTarget={totalTarget}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Donors Dialog */}
       <Dialog open={isDonorsDialogOpen} onOpenChange={setIsDonorsDialogOpen}>

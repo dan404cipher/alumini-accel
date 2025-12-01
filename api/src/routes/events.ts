@@ -245,4 +245,41 @@ router.delete(
   asyncHandler(eventController.unsaveEvent)
 );
 
+// @route   GET /api/v1/events/pending-registrations/all
+// @desc    Get all events with pending registrations
+// @access  Private/College Admin, HOD, Staff
+router.get(
+  "/pending-registrations/all",
+  authenticateToken,
+  asyncHandler(eventController.getEventsWithPendingRegistrations)
+);
+
+// @route   GET /api/v1/events/:id/pending-registrations
+// @desc    Get pending registrations for a specific event
+// @access  Private/College Admin, HOD, Staff
+router.get(
+  "/:id/pending-registrations",
+  authenticateToken,
+  ...validateRequest(validateId),
+  asyncHandler(eventController.getPendingRegistrations)
+);
+
+// @route   POST /api/v1/events/:eventId/registrations/:attendeeId/approve
+// @desc    Approve an event registration
+// @access  Private/College Admin, HOD, Staff
+router.post(
+  "/:eventId/registrations/:attendeeId/approve",
+  authenticateToken,
+  asyncHandler(eventController.approveEventRegistration)
+);
+
+// @route   POST /api/v1/events/:eventId/registrations/:attendeeId/reject
+// @desc    Reject an event registration
+// @access  Private/College Admin, HOD, Staff
+router.post(
+  "/:eventId/registrations/:attendeeId/reject",
+  authenticateToken,
+  asyncHandler(eventController.rejectEventRegistration)
+);
+
 export default router;

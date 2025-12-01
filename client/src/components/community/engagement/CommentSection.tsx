@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Comment } from "./types";
 import { cn } from "@/lib/utils";
 import { ActionMenu } from "../ActionMenu";
-import { reportAPI } from "@/lib/api";
+import { reportAPI , API_BASE_URL} from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommentSectionProps {
@@ -148,8 +148,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                   ? comment.user.profilePicture.startsWith("http")
                     ? comment.user.profilePicture
                     : `${(
-                        import.meta.env.VITE_API_BASE_URL ||
-                        "http://localhost:3000/api/v1"
+                        API_BASE_URL
                       ).replace("/api/v1", "")}${comment.user.profilePicture}`
                   : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                       `${comment.user.firstName || ""} ${
@@ -373,8 +372,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                       ? user.profilePicture.startsWith("http")
                         ? user.profilePicture
                         : `${(
-                            import.meta.env.VITE_API_BASE_URL ||
-                            "http://localhost:3000/api/v1"
+                            API_BASE_URL
                           ).replace("/api/v1", "")}${user.profilePicture}`
                       : `https://ui-avatars.com/api/?name=${encodeURIComponent(
                           `${user.firstName || ""} ${user.lastName || ""}`

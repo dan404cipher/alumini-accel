@@ -86,6 +86,8 @@ const notificationSchema = new Schema<INotification>(
         "system",
         "announcement",
         "reminder",
+        "reward",
+        "community",
       ],
       default: "system",
       index: true,
@@ -103,7 +105,7 @@ const notificationSchema = new Schema<INotification>(
     relatedEntity: {
       type: {
         type: String,
-        enum: ["user", "job", "event", "message", "connection", "donation"],
+        enum: ["user", "job", "event", "message", "connection", "donation", "reward"],
       },
       id: {
         type: Schema.Types.ObjectId,
@@ -194,12 +196,16 @@ notificationSchema.statics.getUserNotifications = async function (
 }> {
   const { page = 1, limit = 20, category, type, isRead } = options;
 
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
   const query: any = {
     userId,
     $or: [
       { expiresAt: { $exists: false } },
       { expiresAt: { $gt: new Date() } },
     ],
+    createdAt: { $gte: ninetyDaysAgo },
   };
 
   if (category) query.category = category;

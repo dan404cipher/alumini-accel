@@ -5,6 +5,7 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -29,6 +30,7 @@ interface SkillsInterestsFormProps {
   userRole: string;
   isEditing: boolean;
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
 export const SkillsInterestsForm = ({
@@ -36,6 +38,7 @@ export const SkillsInterestsForm = ({
   userRole,
   isEditing,
   onUpdate,
+  userId,
 }: SkillsInterestsFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -108,15 +111,15 @@ export const SkillsInterestsForm = ({
       }
 
       const isStudent = userRole === "student";
-      const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const apiUrl = API_BASE_URL;
       const endpoint = isStudent
-        ? `${apiUrl}/students/profile`
+        ? `${apiUrl}/users/students/profile`
         : `${apiUrl}/alumni/profile/skills-interests`;
 
       const requestData = {
         skills: skills,
         careerInterests: interests, // Now send careerInterests for both students and alumni
+        ...(userId ? { userId } : {}),
       };
 
       console.log("📤 Sending skills/interests data:", requestData);

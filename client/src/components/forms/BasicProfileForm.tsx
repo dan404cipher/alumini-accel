@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -35,12 +36,42 @@ const basicProfileSchema = z.object({
       (val) => {
         // Allow empty string or undefined
         if (!val || val.trim() === "") return true;
-        // Validate phone format if provided
-        return /^\+?[\d\s-()]+$/.test(val.trim());
+
+        const trimmed = val.trim();
+
+        // Remove common formatting characters to count digits
+        const digitsOnly = trimmed.replace(/[\s\-().]/g, "");
+
+        // Check if it contains only valid characters (digits, spaces, hyphens, parentheses, plus, dots)
+        if (!/^\+?[\d\s\-().]+$/.test(trimmed)) {
+          return false;
+        }
+
+        // Must have at least 7 digits (minimum for a valid phone number)
+        if (digitsOnly.length < 7) {
+          return false;
+        }
+
+        // Must not exceed 15 digits (E.164 international format max)
+        if (digitsOnly.length > 15) {
+          return false;
+        }
+
+        // If starts with +, must have at least 8 digits (country code + number)
+        if (trimmed.startsWith("+") && digitsOnly.length < 8) {
+          return false;
+        }
+
+        // Must start with a digit or +
+        if (!/^\+?\d/.test(trimmed)) {
+          return false;
+        }
+
+        return true;
       },
       {
         message:
-          "Please provide a valid phone number (e.g., +1 636-962-1215 or (636) 962-1215)",
+          "Please provide a valid phone number (7-15 digits). Examples: +1 636-962-1215, (636) 962-1215, or 6369621215",
       }
     ),
   dateOfBirth: z.string().optional(),
@@ -49,10 +80,6 @@ const basicProfileSchema = z.object({
   location: z
     .string()
     .max(100, "Location cannot exceed 100 characters")
-    .optional(),
-  university: z
-    .string()
-    .max(200, "University name cannot exceed 200 characters")
     .optional(),
 });
 
@@ -68,12 +95,12 @@ interface BasicProfileFormProps {
     gender?: string;
     bio?: string;
     location?: string;
-    university?: string;
   };
   onUpdate: () => void;
+  userId?: string; // Optional: for College Admin editing other users
 }
 
-export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
+export const BasicProfileForm = ({ user, onUpdate, userId }: BasicProfileFormProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -94,7 +121,6 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
       gender: user.gender as "male" | "female" | "other" | undefined,
       bio: user.bio || "",
       location: user.location || "",
-      university: user.university || "",
     },
   });
 
@@ -119,10 +145,11 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
           data.phone && data.phone.trim() !== ""
             ? data.phone.trim()
             : undefined,
+        // Include userId if editing another user (College Admin mode)
+        ...(userId ? { userId } : {}),
       };
 
-      const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+      const apiUrl = API_BASE_URL;
       const response = await fetch(`${apiUrl}/users/profile`, {
         method: "PUT",
         headers: {
@@ -205,8 +232,14 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
                 {...register("email")}
                 placeholder="Enter your email address"
                 className="pl-10"
+                disabled
+                readOnly
               />
             </div>
+            <p className="text-xs text-gray-500">
+              Email address cannot be changed. Please contact support if you
+              need to update it.
+            </p>
             {errors.email && (
               <p className="text-sm text-red-600">{errors.email.message}</p>
             )}
@@ -287,24 +320,6 @@ export const BasicProfileForm = ({ user, onUpdate }: BasicProfileFormProps) => {
             </div>
             {errors.location && (
               <p className="text-sm text-red-600">{errors.location.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="university">University/College</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="university"
-                {...register("university")}
-                placeholder="Enter your university or college name"
-                className="pl-10"
-              />
-            </div>
-            {errors.university && (
-              <p className="text-sm text-red-600">
-                {errors.university.message}
-              </p>
             )}
           </div>
 

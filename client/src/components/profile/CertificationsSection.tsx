@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -74,7 +75,7 @@ export const CertificationsSection = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const response = await fetch(
         `${apiUrl}/students/profile/certifications/${certificationId}`,
         {
@@ -224,8 +225,7 @@ export const CertificationsSection = ({
                             size="sm"
                             onClick={() => {
                               const apiUrl =
-                                import.meta.env.VITE_API_BASE_URL ||
-                                "http://localhost:3000/api/v1";
+                                API_BASE_URL;
                               const baseUrl = apiUrl.replace("/api/v1", "");
                               const fullUrl = `${baseUrl}${cert.credentialFile}`;
                               window.open(fullUrl, "_blank");

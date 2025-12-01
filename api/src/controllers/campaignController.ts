@@ -1,8 +1,11 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import Campaign from "../models/Campaign";
 import Donation from "../models/Donation";
 import { asyncHandler } from "../middleware/errorHandler";
 import { logger } from "../utils/logger";
+import { AuthenticatedRequest, UserRole } from "../types";
+import notificationService from "../services/notificationService";
 
 // Get all campaigns
 export const getAllCampaigns = asyncHandler(
@@ -190,6 +193,24 @@ export const createCampaign = asyncHandler(
       await campaign.populate("createdBy", "firstName lastName email");
       await campaign.populate("tenantId", "name");
 
+      if (campaign.status === "active") {
+        try {
+          const campaignId = (campaign._id as Types.ObjectId).toString();
+          await notificationService.sendToRoles({
+            event: "donation.campaign",
+            roles: [UserRole.ALUMNI, UserRole.STUDENT],
+            tenantId: campaign.tenantId,
+            data: {
+              campaignId,
+              title: campaign.title,
+              organizer: (campaign as any).tenantId?.name,
+            },
+          });
+        } catch (notifyError) {
+          logger.warn("Failed to send campaign notification:", notifyError);
+        }
+      }
+
       return res.status(201).json({
         success: true,
         message: "Campaign created successfully",
@@ -271,6 +292,32 @@ export const updateCampaign = asyncHandler(
       )
         .populate("createdBy", "firstName lastName email")
         .populate("tenantId", "name");
+
+      const becameActive =
+        campaign.status !== "active" && updatedCampaign?.status === "active";
+
+      if (becameActive && updatedCampaign) {
+        try {
+          const updatedCampaignId = (
+            updatedCampaign._id as Types.ObjectId
+          ).toString();
+          await notificationService.sendToRoles({
+            event: "donation.campaign",
+            roles: [UserRole.ALUMNI, UserRole.STUDENT],
+            tenantId: updatedCampaign.tenantId,
+            data: {
+              campaignId: updatedCampaignId,
+              title: updatedCampaign.title,
+              organizer: (updatedCampaign as any).tenantId?.name,
+            },
+          });
+        } catch (notifyError) {
+          logger.warn(
+            "Failed to send campaign activation notification:",
+            notifyError
+          );
+        }
+      }
 
       return res.status(200).json({
         success: true,
@@ -588,11 +635,13 @@ export const getCampaignDonors = asyncHandler(
         _id: donation._id,
         donorName: donation.anonymous
           ? "Anonymous"
-          : donation.donor
-          ? `${donation.donor.firstName} ${donation.donor.lastName}`
-          : donation.donorName || "Anonymous",
-        donorEmail: donation.anonymous ? null : donation.donor?.email || donation.donorEmail || null,
-        donorPhone: donation.anonymous ? null : donation.donor?.phone || donation.donorPhone || null,
+          : donation.donorName || 
+            (donation.donor ? `${donation.donor.firstName} ${donation.donor.lastName}` : null) ||
+            "Anonymous",
+        // Prioritize email from donation form over user profile email
+        donorEmail: donation.anonymous ? null : donation.donorEmail || donation.donor?.email || null,
+        // Prioritize phone from donation form over user profile phone
+        donorPhone: donation.anonymous ? null : donation.donorPhone || donation.donor?.phone || null,
         donorProfile: donation.anonymous ? null : donation.donor || null,
         amount: donation.amount,
         currency: donation.currency,
@@ -784,11 +833,13 @@ export const exportCampaignDonors = asyncHandler(
       // Format for CSV
       const format = req.query.format || "csv";
       const csvData = donations.map((donation: any) => ({
-        "Donor Name": donation.donor
-          ? `${donation.donor.firstName} ${donation.donor.lastName}`
-          : donation.donorName || "Unknown",
-        "Email": donation.donor?.email || donation.donorEmail || "",
-        "Phone": donation.donor?.phone || donation.donorPhone || "",
+        "Donor Name": donation.donorName || 
+          (donation.donor ? `${donation.donor.firstName} ${donation.donor.lastName}` : null) ||
+          "Unknown",
+        // Prioritize email from donation form over user profile email
+        "Email": donation.donorEmail || donation.donor?.email || "",
+        // Prioritize phone from donation form over user profile phone
+        "Phone": donation.donorPhone || donation.donor?.phone || "",
         "Amount": donation.amount,
         "Currency": donation.currency,
         "Payment Method": donation.paymentMethod,
@@ -835,6 +886,71 @@ export const exportCampaignDonors = asyncHandler(
   }
 );
 
+// Preview target audience for campaign
+export const previewTargetAudience = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { filters } = req.body;
+
+    if (!filters) {
+      return res.status(400).json({
+        success: false,
+        message: "Targeting filters are required",
+      });
+    }
+
+    const { previewAudience } = require("../services/campaignTargetingService");
+
+    try {
+      const result = await previewAudience(filters, req.user?.tenantId?.toString());
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      logger.error("Error previewing target audience:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error previewing target audience",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Get targeted alumni
+export const getTargetedAlumni = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { filters } = req.body;
+
+    if (!filters) {
+      return res.status(400).json({
+        success: false,
+        message: "Targeting filters are required",
+      });
+    }
+
+    const { getTargetedAlumni } = require("../services/campaignTargetingService");
+
+    try {
+      const alumni = await getTargetedAlumni(filters, req.user?.tenantId?.toString());
+
+      return res.status(200).json({
+        success: true,
+        data: alumni,
+        count: alumni.length,
+      });
+    } catch (error) {
+      logger.error("Error getting targeted alumni:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error getting targeted alumni",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 export default {
   getAllCampaigns,
   getCampaignById,
@@ -847,4 +963,6 @@ export default {
   getCampaignDonors,
   getCampaignDonorStats,
   exportCampaignDonors,
+  previewTargetAudience,
+  getTargetedAlumni,
 };

@@ -151,6 +151,21 @@ const userSchema = new Schema<IUser>(
         "Graduation year cannot be in the future",
       ],
     },
+    currentYear: {
+      type: String,
+      enum: ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "Final Year", "Graduate"],
+      trim: true,
+    },
+    currentCGPA: {
+      type: Number,
+      min: [0, "CGPA cannot be negative"],
+      max: [10, "CGPA cannot exceed 10"],
+    },
+    currentGPA: {
+      type: Number,
+      min: [0, "GPA cannot be negative"],
+      max: [4, "GPA cannot exceed 4"],
+    },
     eligibleForAlumni: {
       type: Boolean,
       default: false,
@@ -173,6 +188,29 @@ const userSchema = new Schema<IUser>(
         default: true,
       },
       newsletterSubscription: {
+        type: Boolean,
+        default: true,
+      },
+    },
+    privacy: {
+      profileVisibility: {
+        type: String,
+        enum: ["public", "alumni", "private"],
+        default: "alumni",
+      },
+      showEmail: {
+        type: Boolean,
+        default: true,
+      },
+      showPhone: {
+        type: Boolean,
+        default: false,
+      },
+      showLocation: {
+        type: Boolean,
+        default: true,
+      },
+      showCompany: {
         type: Boolean,
         default: true,
       },
@@ -207,6 +245,33 @@ const userSchema = new Schema<IUser>(
         ref: "JobPost",
       },
     ],
+    // Rewards system fields
+    rewards: {
+      totalPoints: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      currentTier: {
+        type: String,
+        enum: ["bronze", "silver", "gold", "platinum"],
+        default: "bronze",
+      },
+      tierPoints: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      badges: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: "Badge",
+        },
+      ],
+      lastPointsUpdate: {
+        type: Date,
+      },
+    },
   },
   {
     timestamps: true,

@@ -79,7 +79,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { useAuth } from "@/contexts/AuthContext";
-import { communityAPI, categoryAPI, getImageUrl } from "@/lib/api";
+import { communityAPI, categoryAPI, getImageUrl , API_BASE_URL} from "@/lib/api";
 
 // Helper function to get auth token
 const getAuthToken = (): string => {
@@ -91,6 +91,14 @@ const getAuthToken = (): string => {
 };
 
 // Interfaces for Community features
+interface College {
+  _id: string;
+  name: string;
+  location: string;
+  establishedYear: number;
+  website?: string;
+  description?: string;
+}
 interface Community {
   _id: string;
   name: string;
@@ -572,6 +580,18 @@ const CommunityNew = () => {
     color: string;
   }
 
+  interface College {
+    _id: string;
+    name: string;
+    slug: string;
+    logo?: string;
+    coverImage?: string;
+    description?: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }
+
   const [topCommunities, setTopCommunities] = useState<TopCommunity[]>([]);
   const [popularTags, setPopularTags] = useState<PopularTag[]>([]);
   const [loadingSidebar, setLoadingSidebar] = useState(false);
@@ -579,6 +599,37 @@ const CommunityNew = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(12);
   const [categoryOptions, setCategoryOptions] = useState<{ id: string; name: string }[]>([]);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeFilter, setCollegeFilter] = useState("all");
+
+  // Fetch colleges on component mount (only for Super Admin)
+  useEffect(() => {
+    const fetchColleges = async () => {
+      // Only fetch colleges if user is Super Admin
+      if (user?.role !== "super_admin") {
+        return;
+      }
+
+      try {
+        const token = getAuthTokenOrNull();
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/tenants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setColleges(data.data?.tenants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+      }
+    };
+
+    fetchColleges();
+  }, [user]);
 
   const categories = [
     { id: "all", name: "All Categories", icon: Globe },
@@ -652,12 +703,16 @@ const CommunityNew = () => {
       if (selectedCategory !== "all")
         params.append("category", selectedCategory);
       if (searchQuery) params.append("search", searchQuery);
+      if (searchQuery) params.append("search", searchQuery);
+      if (user?.role === "super_admin" && collegeFilter !== "all") {
+        params.append("tenantId", collegeFilter);
+      }
       params.append("page", currentPage.toString());
       params.append("limit", itemsPerPage.toString());
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities?${params}`,
         {
           headers: {
@@ -698,7 +753,7 @@ const CommunityNew = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, searchQuery, currentPage, itemsPerPage]);
+  }, [selectedCategory, searchQuery, currentPage, itemsPerPage, collegeFilter]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -710,7 +765,7 @@ const CommunityNew = () => {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, collegeFilter]);
 
   const fetchCommunityPosts = useCallback(async (communityId: string) => {
     try {
@@ -719,7 +774,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/community/${communityId}`,
         {
           headers: {
@@ -750,7 +805,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${communityId}`,
         {
           headers: {
@@ -880,7 +935,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/upload/community/${type}`,
         {
           method: "POST",
@@ -920,7 +975,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/users/search?q=${encodeURIComponent(query)}`,
         {
           headers: {
@@ -1112,7 +1167,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities`,
         {
           method: "POST",
@@ -1176,7 +1231,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${communityId}/join`,
         {
           method: "POST",
@@ -1215,7 +1270,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${communityId}/leave`,
         {
           method: "DELETE",
@@ -1354,7 +1409,7 @@ const CommunityNew = () => {
 
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts`,
         {
           method: "POST",
@@ -1423,7 +1478,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-memberships/approve`,
         {
           method: "POST",
@@ -1465,7 +1520,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-memberships/remove`,
         {
           method: "POST",
@@ -1507,7 +1562,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-memberships/promote`,
         {
           method: "POST",
@@ -1547,7 +1602,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/${postId}/pin`,
         {
           method: "POST",
@@ -1587,7 +1642,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/${postId}/announcement`,
         {
           method: "POST",
@@ -1635,7 +1690,7 @@ const CommunityNew = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/community-posts/${postId}`,
         {
           method: "DELETE",
@@ -1804,6 +1859,29 @@ const CommunityNew = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* College Filter (Super Admin Only) */}
+                  {user?.role === "super_admin" && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">College</label>
+                      <Select
+                        value={collegeFilter}
+                        onValueChange={setCollegeFilter}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by College" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Colleges</SelectItem>
+                          {colleges.map((college) => (
+                            <SelectItem key={college._id} value={college._id}>
+                              {college.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* Categories */}
                   <div className="space-y-3 mb-4">

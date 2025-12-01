@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { MessagesProvider } from "@/contexts/MessagesContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedRoute, StudentBlockedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -28,8 +28,10 @@ import Recognition from "./components/Recognition";
 import Layout from "./components/Layout";
 import NewsDetail from "./pages/NewsDetail";
 import AlumniProfile from "./components/AlumniProfile";
+import Alumni360View from "./components/alumni-360/Alumni360View";
 import AboutUs from "./pages/AboutUs";
 import Gallery from "./pages/Gallery";
+import GalleryDetailPage from "./pages/GalleryDetail";
 import Connections from "./pages/Connections";
 import Messages from "./pages/Messages";
 import CommunityDetailNew from "./pages/CommunityDetailNew";
@@ -47,6 +49,11 @@ import { RegisteredProgramDetail } from "./pages/RegisteredProgramDetail";
 import SocketTest from "./pages/SocketTest";
 import SocketDebug from "./pages/SocketDebug";
 import TestWelcomeEmail from "./pages/TestWelcomeEmail";
+import RewardsPage from "./pages/Rewards";
+import AdminRewardsPage from "./pages/AdminRewards";
+import RewardsAnalyticsPage from "./pages/RewardsAnalytics";
+import RewardsLeaderboardPage from "./pages/RewardsLeaderboard";
+import CampaignDetail from "./pages/CampaignDetail";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +83,7 @@ const App = () => {
                   <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/about" element={<AboutUs />} />
                   <Route path="/gallery" element={<Gallery />} />
+                  <Route path="/gallery/:id" element={<GalleryDetailPage />} />
                   <Route path="/connections" element={<Connections />} />
                   <Route
                     path="/connections/my-connections"
@@ -167,6 +175,15 @@ const App = () => {
                   <Route path="/alumni/:id" element={<AlumniProfile />} />
 
                   <Route
+                    path="/alumni-360/:id"
+                    element={
+                      <ProtectedRoute>
+                        <Alumni360View />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
                     path="/settings"
                     element={
                       <ProtectedRoute>
@@ -227,6 +244,22 @@ const App = () => {
                       </ProtectedRoute>
                     }
                   />
+                <Route
+                  path="/jobs/:id/applications"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/jobs/myapplications/:jobId"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                />
 
                   <Route
                     path="/jobs"
@@ -263,6 +296,44 @@ const App = () => {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/rewards"
+                    element={
+                      <ProtectedRoute>
+                        <StudentBlockedRoute>
+                          <RewardsPage />
+                        </StudentBlockedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/rewards/leaderboard"
+                    element={
+                      <ProtectedRoute>
+                        <StudentBlockedRoute>
+                          <RewardsLeaderboardPage />
+                        </StudentBlockedRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/rewards"
+                    element={
+                      <ProtectedRoute>
+                        <AdminRewardsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/admin/rewards/analytics"
+                    element={
+                      <ProtectedRoute>
+                        <RewardsAnalyticsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   <Route
                     path="/community"
@@ -287,6 +358,15 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <Layout />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/donations/campaigns/:id"
+                    element={
+                      <ProtectedRoute>
+                        <CampaignDetail />
                       </ProtectedRoute>
                     }
                   />

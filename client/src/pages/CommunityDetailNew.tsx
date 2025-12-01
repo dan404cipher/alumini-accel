@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import CreateDiscussionModal from "@/components/CreateDiscussionModal";
 
+import { API_BASE_URL } from "@/lib/api";
 // Import the new components and types
 import {
   CommunityDetailHeader,
@@ -83,7 +84,7 @@ const CommunityDetailNew: React.FC = () => {
       // Try to fetch community details - this will tell us if user is a member
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${id}`,
         {
           headers: {
@@ -122,7 +123,7 @@ const CommunityDetailNew: React.FC = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${id}/membership-status`,
         {
           method: "GET",
@@ -152,7 +153,7 @@ const CommunityDetailNew: React.FC = () => {
     }
 
     const url = `${
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+      API_BASE_URL
     }/communities/${id}`;
 
     try {
@@ -239,7 +240,7 @@ const CommunityDetailNew: React.FC = () => {
 
       const queryString = params.toString();
       const url = `${
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+        API_BASE_URL
       }/community-posts/community/${id}${queryString ? `?${queryString}` : ""}`;
 
       const response = await fetch(url, {
@@ -365,7 +366,7 @@ const CommunityDetailNew: React.FC = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${communityIdString}/join`,
         {
           method: "POST",
@@ -439,7 +440,7 @@ const CommunityDetailNew: React.FC = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/communities/${id}/leave`,
         {
           method: "DELETE",

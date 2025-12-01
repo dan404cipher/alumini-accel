@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, {
   AxiosInstance,
   AxiosRequestConfig,
@@ -6,15 +7,20 @@ import axios, {
 } from "axios";
 import { getAuthTokenOrNull } from "@/utils/auth";
 
-// API base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+// API base URL - must be set in environment variables
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+if (!API_BASE_URL) {
+  throw new Error(
+    "VITE_API_BASE_URL is not set. Please configure it in your .env file."
+  );
+}
 
 // Utility function to get full image URL
 // Handles both absolute URLs (for backward compatibility) and relative URLs
 export const getImageUrl = (url: string | null | undefined): string => {
   if (!url) return "";
-  
+
   // If it's an absolute URL, check if it's an old localhost URL that needs to be converted
   if (url.startsWith("http://") || url.startsWith("https://")) {
     // Check if it's a localhost URL pointing to uploads (old format)
@@ -30,7 +36,7 @@ export const getImageUrl = (url: string | null | undefined): string => {
     // For external URLs (not localhost), return as-is
     return url;
   }
-  
+
   // For relative URLs, construct full URL
   // Remove /api/v1 from base URL since static files are served at root /uploads
   const baseUrl = API_BASE_URL.replace("/api/v1", "");
@@ -49,6 +55,22 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token and check rate limits
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Validate tenantId in URL for tenant routes (prevent invalid API calls)
+    if (config.url?.includes("/tenants/")) {
+      const match = config.url.match(/\/tenants\/([^/]+)/);
+      if (match && match[1]) {
+        const tenantId = match[1];
+        // MongoDB ObjectId is 24 hex characters - validate format
+        if (!/^[0-9a-fA-F]{24}$/.test(tenantId)) {
+          // Reject invalid tenantId before making the request
+          const error = new Error("Invalid tenant ID format");
+          (error as any).isValidationError = true;
+          (error as any).skipLogging = true;
+          return Promise.reject(error);
+        }
+      }
+    }
+
     // Check client-side rate limiting for auth endpoints (excluding /auth/me)
     if (config.url?.includes("/auth/") && !config.url?.includes("/auth/me")) {
       const rateLimitKey = `auth-${config.url}`;
@@ -145,6 +167,31 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // Suppress 404 errors for logo/banner endpoints (expected when not set)
+    if (
+      error.response?.status === 404 &&
+      (originalRequest?.url?.includes("/logo") ||
+        originalRequest?.url?.includes("/banner"))
+    ) {
+      // Mark as handled to prevent console logging
+      error._isHandled = true;
+      error._skipLogging = true;
+      // Return a silent rejection that won't be logged
+      return Promise.reject({
+        ...error,
+        silent: true,
+        config: {
+          ...originalRequest,
+          _skipErrorLog: true,
+        },
+      });
+    }
+
+    // Suppress validation errors (invalid tenantId format)
+    if ((error as any).isValidationError || (error as any).skipLogging) {
+      error._skipLogging = true;
+    }
 
     // Handle 429 errors (rate limited) with exponential backoff
     if (error.response?.status === 429) {
@@ -257,7 +304,27 @@ export const apiRequest = async <T>(
     return response.data;
   } catch (error: unknown) {
     if (error && typeof error === "object" && "response" in error) {
-      const axiosError = error as { response?: { data?: ApiResponse<T> } };
+      const axiosError = error as {
+        response?: {
+          status?: number;
+          data?: ApiResponse<T>;
+        };
+        config?: { url?: string };
+      };
+
+      // Handle 404 for logo/banner endpoints gracefully (suppress error)
+      if (
+        axiosError.response?.status === 404 &&
+        (axiosError.config?.url?.includes("/logo") ||
+          axiosError.config?.url?.includes("/banner"))
+      ) {
+        return {
+          success: false,
+          message: "Not found",
+          data: null as any,
+        };
+      }
+
       if (axiosError.response?.data) {
         return axiosError.response.data;
       }
@@ -359,6 +426,19 @@ export const authAPI = {
 };
 
 // User API functions
+type PendingUserRequest = {
+  requestId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  tenantId?: string;
+  department?: string;
+  password: string;
+  status: string;
+  requestedAt: string;
+};
+
 export const userAPI = {
   // Get all users (admin only)
   getAllUsers: async (params?: {
@@ -470,10 +550,7 @@ export const userAPI = {
   },
 
   // Get eligible students for alumni promotion (admin only)
-  getEligibleStudents: async (params?: {
-    page?: number;
-    limit?: number;
-  }) => {
+  getEligibleStudents: async (params?: { page?: number; limit?: number }) => {
     return apiRequest({
       method: "GET",
       url: "/users/eligible-students",
@@ -510,10 +587,11 @@ export const userAPI = {
           params: { status: "pending" },
         });
 
-        if (response.success && response.data?.users) {
+        const responseData = response.data as { users?: unknown[] } | undefined;
+        if (response.success && responseData?.users) {
           return {
             success: true,
-            data: response.data.users,
+            data: responseData.users,
           };
         }
         return response;
@@ -587,7 +665,7 @@ export const userAPI = {
       // We'll store the request data in localStorage temporarily and use a different endpoint
       // This ensures NO user account is created until approval
 
-      const requestData = {
+      const requestData: PendingUserRequest = {
         ...userData,
         status: "pending_request", // This is NOT a user status
         requestedAt: new Date().toISOString(),
@@ -599,7 +677,7 @@ export const userAPI = {
       // Store in localStorage as a temporary solution
       const existingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
       existingRequests.push(requestData);
       localStorage.setItem(
         "pendingUserRequests",
@@ -625,7 +703,7 @@ export const userAPI = {
       // Read from localStorage since we're storing requests there
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
 
       return {
         success: true,
@@ -643,10 +721,10 @@ export const userAPI = {
       // Get the request from localStorage
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
 
       const request = pendingRequests.find(
-        (req: any) => req.requestId === requestId
+        (req: PendingUserRequest) => req.requestId === requestId
       );
 
       if (!request) {
@@ -674,7 +752,7 @@ export const userAPI = {
       if (createUserResponse.success) {
         // Remove the request from localStorage
         const updatedRequests = pendingRequests.filter(
-          (req: any) => req.requestId !== requestId
+          (req: PendingUserRequest) => req.requestId !== requestId
         );
         localStorage.setItem(
           "pendingUserRequests",
@@ -692,7 +770,7 @@ export const userAPI = {
       } else {
         const errorMessage =
           createUserResponse.message || "Failed to create user account";
-        const errors = createUserResponse.errors || [];
+        const errors = (createUserResponse as any).errors || [];
         console.error("Validation errors:", errors);
         throw new Error(`${errorMessage}: ${errors.join(", ")}`);
       }
@@ -708,9 +786,9 @@ export const userAPI = {
       // Get the request from localStorage
       const pendingRequests = JSON.parse(
         localStorage.getItem("pendingUserRequests") || "[]"
-      );
+      ) as PendingUserRequest[];
       const request = pendingRequests.find(
-        (req: any) => req.requestId === requestId
+        (req: PendingUserRequest) => req.requestId === requestId
       );
 
       if (!request) {
@@ -719,7 +797,7 @@ export const userAPI = {
 
       // Remove the request from localStorage (no user account was created)
       const updatedRequests = pendingRequests.filter(
-        (req: any) => req.requestId !== requestId
+        (req: PendingUserRequest) => req.requestId !== requestId
       );
       localStorage.setItem(
         "pendingUserRequests",
@@ -801,6 +879,14 @@ export const userAPI = {
     window.URL.revokeObjectURL(url);
 
     return { success: true, filename };
+  },
+
+  // Get user statistics (admin only)
+  getUserStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/users/stats",
+    });
   },
 };
 
@@ -943,6 +1029,189 @@ export const alumniAPI = {
       method: "GET",
       url: "/alumni/mentors",
       params,
+    });
+  },
+};
+
+// Alumni 360 API functions
+export const alumni360API = {
+  // Get complete 360 view data
+  getAlumni360Data: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}`,
+    });
+  },
+
+  // Notes
+  addNote: async (
+    id: string,
+    data: { content: string; category?: string; isPrivate?: boolean }
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/alumni-360/${id}/notes`,
+      data,
+    });
+  },
+
+  getNotes: async (id: string, params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/notes`,
+      params,
+    });
+  },
+
+  updateNote: async (
+    id: string,
+    noteId: string,
+    data: { content: string; category?: string; isPrivate?: boolean }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/alumni-360/${id}/notes/${noteId}`,
+      data,
+    });
+  },
+
+  deleteNote: async (id: string, noteId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/alumni-360/${id}/notes/${noteId}`,
+    });
+  },
+
+  // Issues
+  createIssue: async (
+    id: string,
+    data: {
+      title: string;
+      description: string;
+      priority?: string;
+      assignedTo?: string;
+      tags?: string[];
+    }
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/alumni-360/${id}/issues`,
+      data,
+    });
+  },
+
+  updateIssue: async (
+    id: string,
+    issueId: string,
+    data: {
+      title?: string;
+      description?: string;
+      status?: string;
+      priority?: string;
+      assignedTo?: string;
+      response?: string;
+      responseId?: string;
+      responseIdToDelete?: string;
+      tags?: string[];
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/alumni-360/${id}/issues/${issueId}`,
+      data,
+    });
+  },
+
+  deleteIssue: async (id: string, issueId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/alumni-360/${id}/issues/${issueId}`,
+    });
+  },
+
+  getIssues: async (id: string, params?: { status?: string }) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/issues`,
+      params,
+    });
+  },
+
+  // Flags
+  addFlag: async (
+    id: string,
+    data: { flagType: string; flagValue: string; description?: string }
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/alumni-360/${id}/flags`,
+      data,
+    });
+  },
+
+  removeFlag: async (id: string, flagType: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/alumni-360/${id}/flags/${flagType}`,
+    });
+  },
+
+  getFlags: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/flags`,
+    });
+  },
+
+  // Communication
+  getCommunicationHistory: async (
+    id: string,
+    params?: { type?: string; page?: number; limit?: number; search?: string }
+  ) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/communication`,
+      params,
+    });
+  },
+
+  // Engagement
+  getEngagementMetrics: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/engagement`,
+    });
+  },
+
+  // Get analytics data for reports dashboard
+  getAlumniAnalytics: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/alumni-360/${id}/analytics`,
+    });
+  },
+};
+
+// Settings API
+export const settingsAPI = {
+  getPrivacy: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/users/privacy",
+    });
+  },
+
+  updatePrivacy: async (privacy: {
+    profileVisibility?: "public" | "alumni" | "private";
+    showEmail?: boolean;
+    showPhone?: boolean;
+    showLocation?: boolean;
+    showCompany?: boolean;
+  }) => {
+    return apiRequest({
+      method: "PUT",
+      url: "/users/privacy",
+      data: privacy,
     });
   },
 };
@@ -1177,6 +1446,31 @@ export const jobAPI = {
       method: "GET",
       url: "/jobs/search",
       params,
+    });
+  },
+
+  // Get pending jobs for admin approval
+  getPendingJobs: async (params?: { page?: number; limit?: number }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/jobs/pending",
+      params,
+    });
+  },
+
+  // Approve a job post
+  approveJob: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/jobs/${id}/approve`,
+    });
+  },
+
+  // Reject a job post
+  rejectJob: async (id: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/jobs/${id}/reject`,
     });
   },
 
@@ -1658,6 +1952,44 @@ export const eventAPI = {
     return apiRequest({
       method: "GET",
       url: "/events/saved",
+    });
+  },
+
+  // Approve event registration
+  approveRegistration: async (eventId: string, attendeeId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${eventId}/registrations/${attendeeId}/approve`,
+    });
+  },
+
+  // Reject event registration
+  rejectRegistration: async (
+    eventId: string,
+    attendeeId: string,
+    rejectionReason?: string
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/events/${eventId}/registrations/${attendeeId}/reject`,
+      data: { rejectionReason },
+    });
+  },
+
+  // Get pending registrations for an event
+  getPendingRegistrations: async (eventId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/events/${eventId}/pending-registrations`,
+    });
+  },
+
+  // Get all events with pending registrations
+  getEventsWithPendingRegistrations: async (params?: { tenantId?: string }) => {
+    return apiRequest({
+      method: "GET",
+      url: "/events/pending-registrations/all",
+      params,
     });
   },
 };
@@ -2393,6 +2725,56 @@ export const messageAPI = {
   },
 };
 
+// Tenant Interface
+export interface Tenant {
+  _id: string;
+  name: string;
+  domain: string;
+  about?: string;
+  logo?: string;
+  banner?: string;
+  superAdminId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  };
+  contactInfo: {
+    email: string;
+    phone?: string;
+    address?: string;
+    website?: string;
+  };
+  settings: {
+    allowAlumniRegistration: boolean;
+    requireApproval: boolean;
+    allowJobPosting: boolean;
+    allowFundraising: boolean;
+    allowMentorship: boolean;
+    allowEvents: boolean;
+    emailNotifications: boolean;
+    whatsappNotifications: boolean;
+    customBranding: boolean;
+  };
+  subscription: {
+    plan: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    maxUsers: number;
+  };
+  isActive: boolean;
+  createdAt: string;
+  stats?: {
+    totalUsers: number;
+    totalAlumni: number;
+    activeUsers: number;
+    inactiveUsers: number;
+    events: number;
+  };
+}
+
 // Tenant API functions
 export const tenantAPI = {
   // Get all tenants (Super Admin only)
@@ -2408,7 +2790,7 @@ export const tenantAPI = {
     if (params?.search) queryParams.append("search", params.search);
     if (params?.status) queryParams.append("status", params.status);
 
-    return apiRequest({
+    return apiRequest<{ tenants: Tenant[] }>({
       method: "GET",
       url: `/tenants?${queryParams.toString()}`,
     });
@@ -2416,10 +2798,23 @@ export const tenantAPI = {
 
   // Get tenant by ID
   getTenantById: async (id: string) => {
-    return apiRequest({
-      method: "GET",
-      url: `/tenants/${id}`,
-    });
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (!id || typeof id !== "string" || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return { success: false, message: "Invalid tenant ID format" };
+    }
+
+    try {
+      return await apiRequest({
+        method: "GET",
+        url: `/tenants/${id}`,
+      });
+    } catch (error: any) {
+      // Handle 404 gracefully
+      if (error?.response?.status === 404) {
+        return { success: false, message: "Tenant not found" };
+      }
+      throw error;
+    }
   },
 
   // Create new tenant
@@ -2504,6 +2899,19 @@ export const tenantAPI = {
 
   // Upload college logo
   uploadLogo: async (tenantId: string, logoFile: File) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return {
+        success: false,
+        message:
+          "Invalid tenant ID format. Please ensure you are properly linked to a college.",
+      };
+    }
+
     const formData = new FormData();
     formData.append("logo", logoFile);
 
@@ -2519,21 +2927,32 @@ export const tenantAPI = {
 
   // Get college logo
   getLogo: async (tenantId: string) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return null;
+    }
+
     try {
       const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/logo`,
-      });
+        _skipErrorLog: true, // Suppress error logging for 404s
+      } as any);
 
       // Handle both JSON response (external URL) and direct image response
       if (response.success && (response.data as any)?.logo) {
         return (response.data as any).logo; // Return the URL string directly
       }
 
+      // 404 or no logo - return null silently
       return null;
-    } catch (error) {
-      console.error("Error fetching logo:", error);
-      throw error;
+    } catch (error: any) {
+      // Silently handle all errors (404 is expected when logo doesn't exist)
+      return null;
     }
   },
 
@@ -2547,6 +2966,19 @@ export const tenantAPI = {
 
   // Upload college banner
   uploadBanner: async (tenantId: string, bannerFile: File) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return {
+        success: false,
+        message:
+          "Invalid tenant ID format. Please ensure you are properly linked to a college.",
+      };
+    }
+
     const formData = new FormData();
     formData.append("banner", bannerFile);
 
@@ -2562,21 +2994,32 @@ export const tenantAPI = {
 
   // Get college banner
   getBanner: async (tenantId: string) => {
+    // Validate tenantId format (MongoDB ObjectId is 24 hex characters)
+    if (
+      !tenantId ||
+      typeof tenantId !== "string" ||
+      !/^[0-9a-fA-F]{24}$/.test(tenantId)
+    ) {
+      return null;
+    }
+
     try {
       const response = await apiRequest({
         method: "GET",
         url: `/tenants/${tenantId}/banner`,
-      });
+        _skipErrorLog: true, // Suppress error logging for 404s
+      } as any);
 
       // Handle both JSON response (external URL) and direct image response
       if (response.success && (response.data as any)?.banner) {
         return (response.data as any).banner; // Return the URL string directly
       }
 
+      // 404 or no banner - return null silently
       return null;
-    } catch (error) {
-      console.error("Error fetching banner:", error);
-      throw error;
+    } catch (error: any) {
+      // Silently handle all errors (404 is expected when banner doesn't exist)
+      return null;
     }
   },
 
@@ -2758,9 +3201,12 @@ export const campaignAPI = {
   // Export campaign donors
   exportCampaignDonors: async (id: string, format: "csv" | "json" = "csv") => {
     if (format === "csv") {
-      const response = await api.get(`/campaigns/${id}/donors/export?format=csv`, {
-        responseType: "blob",
-      });
+      const response = await api.get(
+        `/campaigns/${id}/donors/export?format=csv`,
+        {
+          responseType: "blob",
+        }
+      );
       return response.data;
     } else {
       return apiRequest({
@@ -3004,6 +3450,476 @@ export const notificationAPI = {
   },
 };
 
+// Fund API
+export const fundAPI = {
+  // Get all funds
+  getAllFunds: async (params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/funds?${queryString}` : "/funds",
+    });
+  },
+
+  // Get fund by ID
+  getFundById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/funds/${id}`,
+    });
+  },
+
+  // Create fund
+  createFund: async (data: {
+    name: string;
+    description: string;
+    status?: "active" | "archived" | "suspended";
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/funds",
+      data,
+    });
+  },
+
+  // Update fund
+  updateFund: async (
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      status?: "active" | "archived" | "suspended";
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/funds/${id}`,
+      data,
+    });
+  },
+
+  // Delete fund
+  deleteFund: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/funds/${id}`,
+    });
+  },
+
+  // Get fund statistics
+  getFundStats: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/funds/${id}/stats`,
+    });
+  },
+};
+
+// Rewards API
+export const rewardsAPI = {
+  getRewards: async (params?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards",
+      params,
+    });
+  },
+
+  getRewardById: async (id: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/rewards/${id}`,
+    });
+  },
+
+  createReward: async (reward: Record<string, unknown>) => {
+    return apiRequest({
+      method: "POST",
+      url: "/rewards",
+      data: reward,
+    });
+  },
+
+  updateReward: async (id: string, reward: Record<string, unknown>) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/rewards/${id}`,
+      data: reward,
+    });
+  },
+
+  deleteReward: async (id: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/rewards/${id}`,
+    });
+  },
+
+  logTaskProgress: async (
+    rewardId: string,
+    taskId: string,
+    payload: { amount?: number; context?: Record<string, unknown> }
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/${rewardId}/tasks/${taskId}/progress`,
+      data: payload,
+    });
+  },
+
+  claimReward: async (rewardId: string, payload?: Record<string, unknown>) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/${rewardId}/claim`,
+      data: payload,
+    });
+  },
+
+  getSummary: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/summary",
+    });
+  },
+
+  getActivities: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/activities",
+    });
+  },
+
+  getUserTier: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/tier",
+    });
+  },
+
+  getUserBadges: async (userId?: string) => {
+    const queryParams = new URLSearchParams();
+    if (userId) queryParams.append("userId", userId);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/rewards/badges?${queryString}` : "/rewards/badges",
+    });
+  },
+
+  getUserRewardProfile: async (userId: string) => {
+    return apiRequest({
+      method: "GET",
+      url: `/rewards/profile/${userId}`,
+    });
+  },
+
+  getBadges: async (params?: { isActive?: boolean; category?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (typeof params?.isActive === "boolean") {
+      queryParams.append("isActive", String(params.isActive));
+    }
+    if (params?.category) {
+      queryParams.append("category", params.category);
+    }
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/badges?${queryString}` : "/badges",
+    });
+  },
+
+  createBadge: async (payload: {
+    name: string;
+    description: string;
+    category: string;
+    icon: string;
+    color?: string;
+    points?: number;
+    isActive?: boolean;
+    isRare?: boolean;
+    criteria?: {
+      type?: string;
+      value?: number;
+      description?: string;
+    };
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/badges",
+      data: payload,
+    });
+  },
+
+  updateBadge: async (
+    badgeId: string,
+    payload: {
+      name?: string;
+      description?: string;
+      category?: string;
+      icon?: string;
+      color?: string;
+      points?: number;
+      isActive?: boolean;
+      isRare?: boolean;
+      criteria?: {
+        type?: string;
+        value?: number;
+        description?: string;
+      };
+    }
+  ) => {
+    return apiRequest({
+      method: "PUT",
+      url: `/badges/${badgeId}`,
+      data: payload,
+    });
+  },
+
+  deleteBadge: async (badgeId: string) => {
+    return apiRequest({
+      method: "DELETE",
+      url: `/badges/${badgeId}`,
+    });
+  },
+
+  getPendingVerifications: async (params?: {
+    status?: "pending" | "approved" | "rejected";
+    category?: string;
+    userId?: string;
+    rewardId?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append("status", params.status);
+    if (params?.category) queryParams.append("category", params.category);
+    if (params?.userId) queryParams.append("userId", params.userId);
+    if (params?.rewardId) queryParams.append("rewardId", params.rewardId);
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/verifications/pending?${queryString}`
+        : "/rewards/verifications/pending",
+    });
+  },
+
+  verifyTask: async (
+    activityId: string,
+    action: "approve" | "reject",
+    reason?: string
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/verifications/${activityId}/verify`,
+      data: { action, reason },
+    });
+  },
+
+  getVerificationStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/rewards/verifications/stats",
+    });
+  },
+
+  resubmitTask: async (activityId: string) => {
+    return apiRequest({
+      method: "POST",
+      url: `/rewards/verifications/${activityId}/resubmit`,
+    });
+  },
+
+  getPointsDistribution: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.category) queryParams.append("category", params.category);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/analytics/points-distribution?${queryString}`
+        : "/rewards/analytics/points-distribution",
+    });
+  },
+
+  getTaskCompletion: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.category) queryParams.append("category", params.category);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/analytics/tasks?${queryString}`
+        : "/rewards/analytics/tasks",
+    });
+  },
+
+  getRewardClaims: async (params?: {
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/analytics/claims?${queryString}`
+        : "/rewards/analytics/claims",
+    });
+  },
+
+  getRewardStatistics: async (params?: {
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/analytics/statistics?${queryString}`
+        : "/rewards/analytics/statistics",
+    });
+  },
+
+  getDepartmentAnalytics: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    department?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+    if (params?.department) queryParams.append("department", params.department);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/analytics/departments?${queryString}`
+        : "/rewards/analytics/departments",
+    });
+  },
+
+  getAlumniActivity: async (
+    userId: string,
+    params?: {
+      startDate?: string;
+      endDate?: string;
+    }
+  ) => {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append("startDate", params.startDate);
+    if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString
+        ? `/rewards/analytics/activity/${userId}?${queryString}`
+        : `/rewards/analytics/activity/${userId}`,
+    });
+  },
+
+  getLeaderboard: async (params?: {
+    type?: "points" | "mentors" | "donors" | "volunteers" | "departments";
+    department?: string;
+    limit?: number;
+    period?: "all" | "month" | "year";
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.type) queryParams.append("type", params.type);
+    if (params?.department) queryParams.append("department", params.department);
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.period) queryParams.append("period", params.period);
+
+    const queryString = queryParams.toString();
+    return apiRequest({
+      method: "GET",
+      url: queryString ? `/leaderboard?${queryString}` : "/leaderboard",
+    });
+  },
+};
+
+// Campaign Targeting API
+export const campaignTargetingAPI = {
+  // Preview target audience
+  previewAudience: async (filters: {
+    batchYears?: number[];
+    locations?: string[];
+    professions?: string[];
+    interests?: string[];
+    departments?: string[];
+    graduationYears?: number[];
+    donationHistory?: {
+      minAmount?: number;
+      minDonations?: number;
+    };
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/campaigns/preview-audience",
+      data: { filters },
+    });
+  },
+
+  // Get targeted alumni
+  getTargetedAlumni: async (filters: {
+    batchYears?: number[];
+    locations?: string[];
+    professions?: string[];
+    interests?: string[];
+    departments?: string[];
+    graduationYears?: number[];
+    donationHistory?: {
+      minAmount?: number;
+      minDonations?: number;
+    };
+  }) => {
+    return apiRequest({
+      method: "POST",
+      url: "/campaigns/targeted-alumni",
+      data: { filters },
+    });
+  },
+};
+
 // Report API functions
 export const reportAPI = {
   // Create a report
@@ -3067,6 +3983,24 @@ export const reportAPI = {
       method: "PUT",
       url: `/reports/${reportId}`,
       data,
+    });
+  },
+};
+
+// Admin Analytics API
+export const adminAnalyticsAPI = {
+  // Get comprehensive admin analytics
+  getAdminAnalytics: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/admin/analytics",
+    });
+  },
+  // Get department-wise HOD and Staff analytics
+  getDepartmentAnalytics: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/admin/analytics/department-analytics",
     });
   },
 };

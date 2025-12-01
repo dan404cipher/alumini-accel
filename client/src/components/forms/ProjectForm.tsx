@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import { Plus, X } from "lucide-react";
 
+import { API_BASE_URL } from "@/lib/api";
 const projectSchema = z.object({
   title: z.string().min(1, "Project title is required"),
   description: z.string().min(1, "Project description is required"),
@@ -166,7 +167,7 @@ export const ProjectForm = ({
       console.log("📤 Sending project data:", projectData);
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const baseEndpoint =
         userRole === "student"
           ? `${apiUrl}/students/profile/projects`

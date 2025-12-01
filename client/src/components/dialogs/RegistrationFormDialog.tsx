@@ -95,6 +95,17 @@ export const RegistrationFormDialog = ({
           currency?: string;
         };
 
+        if (data.status === "pending_approval") {
+          // For free events requiring approval
+          toast({
+            title: "Registration Submitted",
+            description: "Your registration is pending approval. You will receive an email once it's approved.",
+          });
+          onRegistrationSuccess();
+          onClose();
+          return;
+        }
+
         if (data.paymentRequired) {
           // For paid events, create Razorpay order and open checkout
           const paymentAmount = data.amount || 0; // rupees

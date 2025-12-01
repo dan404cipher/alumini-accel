@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -89,7 +90,7 @@ export const InternshipsSection = ({
       }
 
       const apiUrl =
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+        API_BASE_URL;
       const response = await fetch(
         `${apiUrl}/students/profile/internships/${internshipId}`,
         {
@@ -273,8 +274,7 @@ export const InternshipsSection = ({
                           size="sm"
                           onClick={() => {
                             const apiUrl =
-                              import.meta.env.VITE_API_BASE_URL ||
-                              "http://localhost:3000/api/v1";
+                              API_BASE_URL;
                             const baseUrl = apiUrl.replace("/api/v1", "");
                             const fullUrl = `${baseUrl}${internship.certificateFile}`;
                             window.open(fullUrl, "_blank");

@@ -323,44 +323,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             alt="Current profile"
             className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
           />
-          <Button
-            variant="destructive"
-            size="sm"
-            className="absolute -top-2 -right-2 rounded-full w-6 h-6 p-0"
-            onClick={resetImage}
-          >
-            <X className="w-3 h-3" />
-          </Button>
+         
         </div>
       )}
 
       {/* Upload Area */}
-      {!showCrop && !showPadding && (
-        <Card>
-          <CardContent className="p-6">
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragActive
-                  ? "border-primary bg-primary/5"
-                  : "border-gray-300 hover:border-gray-400"
-              }`}
-            >
-              <input {...getInputProps()} type="file" />
-              <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-lg font-medium mb-2">
-                {isDragActive ? "Drop the image here" : "Upload Profile Image"}
-              </p>
-              <p className="text-sm text-gray-500 mb-4">
-                Drag & drop an image, or click to select
-              </p>
-              <p className="text-xs text-gray-400">
-                Max size: {maxSize}MB • Supported: JPG, PNG, GIF, WebP
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      
 
       {/* Image Cropping */}
       {showCrop && imgSrc && (

@@ -20,15 +20,9 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
       required: true,
       min: [1950, "Graduation year must be after 1950"],
       max: [
-        new Date().getFullYear() + 1,
-        "Graduation year cannot be in the future",
+        new Date().getFullYear() + 5,
+        "Graduation year cannot be more than 5 years in the future",
       ],
-    },
-    university: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: [100, "University cannot exceed 100 characters"],
     },
     program: {
       type: String,
@@ -491,6 +485,26 @@ const alumniProfileSchema = new Schema<IAlumniProfile>(
         maxlength: [50, "Career interest cannot exceed 50 characters"],
       },
     ],
+    donationHistory: {
+      totalDonated: {
+        type: Number,
+        default: 0,
+        min: [0, "Total donated cannot be negative"],
+      },
+      totalDonations: {
+        type: Number,
+        default: 0,
+        min: [0, "Total donations cannot be negative"],
+      },
+      lastDonationDate: {
+        type: Date,
+      },
+      lifetimeGiving: {
+        type: Number,
+        default: 0,
+        min: [0, "Lifetime giving cannot be negative"],
+      },
+    },
   },
   {
     timestamps: true,
@@ -508,6 +522,7 @@ alumniProfileSchema.index({ isHiring: 1 });
 alumniProfileSchema.index({ availableForMentorship: 1 });
 alumniProfileSchema.index({ skills: 1 });
 alumniProfileSchema.index({ createdAt: -1 });
+alumniProfileSchema.index({ "donationHistory.totalDonated": -1 });
 
 // Virtual for full name (populated from User)
 alumniProfileSchema.virtual("user", {
@@ -564,6 +579,24 @@ alumniProfileSchema.statics.findMentors = function () {
     "user",
     "firstName lastName email profilePicture"
   );
+};
+
+// Instance method to update donation history
+alumniProfileSchema.methods.updateDonationHistory = async function (amount: number) {
+  if (!this.donationHistory) {
+    this.donationHistory = {
+      totalDonated: 0,
+      totalDonations: 0,
+      lifetimeGiving: 0,
+    };
+  }
+
+  this.donationHistory.totalDonated += amount;
+  this.donationHistory.totalDonations += 1;
+  this.donationHistory.lastDonationDate = new Date();
+  this.donationHistory.lifetimeGiving += amount;
+
+  return this.save();
 };
 
 // Ensure virtual fields are populated

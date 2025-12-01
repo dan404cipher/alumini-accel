@@ -5,7 +5,9 @@ import User from "../models/User";
 import { logger } from "../utils/logger";
 import { emailService } from "../services/emailService";
 import Tenant from "../models/Tenant";
-import { EventType } from "../types";
+import { EventType, UserRole } from "../types";
+import rewardIntegrationService from "../services/rewardIntegrationService";
+import notificationService from "../services/notificationService";
 
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {
@@ -307,6 +309,24 @@ export const createEventWithImage = async (req: Request, res: Response) => {
       throw saveError;
     }
 
+    try {
+      await notificationService.sendToRoles({
+        event: "event.published",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: req.user?.tenantId,
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toLocaleDateString(),
+          organizer: req.user?.firstName
+            ? `${req.user.firstName} ${req.user.lastName ?? ""}`.trim()
+            : undefined,
+        },
+      });
+    } catch (notifyError) {
+      logger.error("Failed to send event publish notification:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Event created successfully",
@@ -394,6 +414,24 @@ export const createEvent = async (req: Request, res: Response) => {
       organizer: event.organizer,
     });
 
+    try {
+      await notificationService.sendToRoles({
+        event: "event.published",
+        roles: [UserRole.ALUMNI, UserRole.STUDENT],
+        tenantId: req.user?.tenantId,
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toLocaleDateString(),
+          organizer: req.user?.firstName
+            ? `${req.user.firstName} ${req.user.lastName ?? ""}`.trim()
+            : undefined,
+        },
+      });
+    } catch (notifyError) {
+      logger.error("Failed to send event publish notification:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Event created successfully",
@@ -477,6 +515,20 @@ export const updateEvent = async (req: Request, res: Response) => {
     if (organizerNotes !== undefined) event.organizerNotes = organizerNotes;
 
     await event.save();
+
+    try {
+      await notificationService.send({
+        recipients: [req.user.id],
+        event: "event.registered",
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toISOString(),
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send confirmed registration notification:", notifyError);
+    }
 
     return res.json({
       success: true,
@@ -701,22 +753,41 @@ export const registerForEvent = async (req: Request, res: Response) => {
 
     // Free vs Paid flow (new registration)
     if (!event.price || event.price === 0) {
-      // Free event: register immediately
+      // Free event: require approval
       const attendee = {
         userId: req.user.id,
         registeredAt: new Date(),
-        status: "registered" as const,
+        status: "pending_approval" as const,
         phone: phone || "",
         dietaryRequirements: dietaryRequirements || "",
         emergencyContact: emergencyContact || "",
         additionalNotes: additionalNotes || "",
         amountPaid: 0,
         paymentStatus: "free" as const,
+        approvalStatus: "pending" as const,
       };
       event.attendees.push(attendee as any);
       await event.save();
 
-      // Send registration email for free events
+      try {
+        await notificationService.send({
+          recipients: [req.user.id],
+          event: "event.registered",
+          overrides: {
+            message: () =>
+              `Your registration for "${event.title}" was received and awaits approval.`,
+          },
+          data: {
+            eventId: event._id.toString(),
+            title: event.title,
+            startDateFormatted: event.startDate?.toISOString(),
+          },
+        });
+      } catch (notifyError) {
+        logger.warn("Failed to send event registration notification:", notifyError);
+      }
+
+      // Send pending approval email for free events
       try {
         const organizerDoc = await (Event as any)
           .findById(req.params.id)
@@ -724,7 +795,7 @@ export const registerForEvent = async (req: Request, res: Response) => {
         const tenant = event.tenantId
           ? await Tenant.findById(event.tenantId)
           : null;
-        await emailService.sendEventRegistrationEmail({
+        await emailService.sendEventRegistrationPendingEmail({
           to: req.user.email,
           attendeeName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email,
           eventTitle: event.title,
@@ -734,22 +805,18 @@ export const registerForEvent = async (req: Request, res: Response) => {
           location: event.location,
           isOnline: event.isOnline,
           meetingLink: event.meetingLink,
-          price: event.price,
-          image: event.image,
           collegeName: tenant?.name,
           organizerName: organizerDoc?.organizer ? `${(organizerDoc as any).organizer.firstName || ""} ${(organizerDoc as any).organizer.lastName || ""}`.trim() : undefined,
-          speakers: Array.isArray(event.speakers) ? (event.speakers as any) : undefined,
-          agenda: Array.isArray(event.agenda) ? (event.agenda as any) : undefined,
         });
       } catch (e) {
-        logger.warn("Failed to send free-event registration email", e);
+        logger.warn("Failed to send pending approval email", e);
       }
 
       return res.json({
         success: true,
-        message: "Successfully registered for event",
+        message: "Registration submitted. Awaiting approval.",
         data: {
-          status: "registered",
+          status: "pending_approval",
           paymentRequired: false,
           attendee,
         },
@@ -770,6 +837,24 @@ export const registerForEvent = async (req: Request, res: Response) => {
     };
     event.attendees.push(attendee as any);
     await event.save();
+
+    try {
+      await notificationService.send({
+        recipients: [req.user.id],
+        event: "event.registered",
+        overrides: {
+          message: () =>
+            `Payment pending for "${event.title}". Complete it to confirm your spot.`,
+        },
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toISOString(),
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send event registration notification:", notifyError);
+    }
 
     // Paid event - pending payment; do not send email yet
     return res.json({
@@ -829,6 +914,17 @@ export const confirmPaidRegistration = async (req: Request, res: Response) => {
     existingRegistration.paymentStatus = "successful";
     existingRegistration.amountPaid = event.price;
     await event.save();
+
+    // Track reward progress for event attendance
+    rewardIntegrationService
+      .trackEventRSVP(
+        req.user.id,
+        id,
+        (req.user as any).tenantId?.toString()
+      )
+      .catch((error) => {
+        logger.warn("Error tracking reward for event RSVP:", error);
+      });
 
     // Send registration confirmation email for paid events after success
     try {
@@ -1399,6 +1495,337 @@ export const getSavedEvents = async (req: Request, res: Response) => {
   }
 };
 
+// Approve event registration
+export const approveEventRegistration = async (req: Request, res: Response) => {
+  try {
+    const { eventId, attendeeId } = req.params;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check permissions (College Admin, HOD, Staff only)
+    const userRole = (req as any).user?.role;
+    if (!["college_admin", "hod", "staff"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized. Only College Admin, HOD, and Staff can approve registrations.",
+      });
+    }
+
+    // Find attendee by _id
+    const attendee = event.attendees.find(
+      (a: any) => a._id && a._id.toString() === attendeeId
+    );
+    if (!attendee) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration not found",
+      });
+    }
+
+    // Check if already approved/rejected
+    if (attendee.approvalStatus === "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Registration already approved",
+      });
+    }
+    if (attendee.approvalStatus === "rejected") {
+      return res.status(400).json({
+        success: false,
+        message: "Registration was rejected. Cannot approve.",
+      });
+    }
+
+    // Update attendee
+    (attendee as any).status = "registered";
+    (attendee as any).approvalStatus = "approved";
+    (attendee as any).approvedBy = (req as any).user.id;
+    (attendee as any).approvedAt = new Date();
+    
+    // Track reward progress for event attendance
+    rewardIntegrationService
+      .trackEventRSVP(
+        (attendee as any).userId.toString(),
+        eventId,
+        (req as any).user?.tenantId?.toString()
+      )
+      .catch((error) => {
+        logger.warn("Error tracking reward for event RSVP:", error);
+      });
+    await event.save();
+
+    // Get user details for email
+    const attendeeUser = await User.findById(attendee.userId);
+    if (!attendeeUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Send approval email
+    try {
+      const organizerDoc = await Event.findById(eventId)
+        .populate("organizer", "firstName lastName");
+      const tenant = event.tenantId
+        ? await Tenant.findById(event.tenantId)
+        : null;
+      await emailService.sendEventRegistrationApprovedEmail({
+        to: attendeeUser.email,
+        attendeeName: `${attendeeUser.firstName || ""} ${attendeeUser.lastName || ""}`.trim() || attendeeUser.email,
+        eventTitle: event.title,
+        eventDescription: event.description,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        location: event.location,
+        isOnline: event.isOnline,
+        meetingLink: event.meetingLink,
+        collegeName: tenant?.name,
+        organizerName: (organizerDoc as any)?.organizer ? `${(organizerDoc as any).organizer.firstName || ""} ${(organizerDoc as any).organizer.lastName || ""}`.trim() : undefined,
+        speakers: Array.isArray(event.speakers) ? (event.speakers as any) : undefined,
+        agenda: Array.isArray(event.agenda) ? (event.agenda as any) : undefined,
+      });
+    } catch (e) {
+      logger.warn("Failed to send approval email", e);
+    }
+
+    try {
+      await notificationService.send({
+        recipients: [attendee.userId.toString()],
+        event: "event.registered",
+        data: {
+          eventId: event._id.toString(),
+          title: event.title,
+          startDateFormatted: event.startDate?.toISOString(),
+        },
+      });
+    } catch (notifyError) {
+      logger.warn("Failed to send approval notification:", notifyError);
+    }
+
+    return res.json({
+      success: true,
+      message: "Registration approved successfully",
+      data: { attendee },
+    });
+  } catch (error) {
+    logger.error("Approve registration error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to approve registration",
+    });
+  }
+};
+
+// Reject event registration
+export const rejectEventRegistration = async (req: Request, res: Response) => {
+  try {
+    const { eventId, attendeeId } = req.params;
+    const { rejectionReason } = req.body;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Check permissions
+    const userRole = (req as any).user?.role;
+    if (!["college_admin", "hod", "staff"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized. Only College Admin, HOD, and Staff can reject registrations.",
+      });
+    }
+
+    // Find attendee by _id
+    const attendee = event.attendees.find(
+      (a: any) => a._id && a._id.toString() === attendeeId
+    );
+    if (!attendee) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration not found",
+      });
+    }
+
+    // Check if already approved/rejected
+    if (attendee.approvalStatus === "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Registration already approved. Cannot reject.",
+      });
+    }
+    if (attendee.approvalStatus === "rejected") {
+      return res.status(400).json({
+        success: false,
+        message: "Registration already rejected",
+      });
+    }
+
+    // Store previous approval status before updating
+    const wasPending = (attendee as any).approvalStatus === "pending" || (attendee as any).status === "pending_approval";
+    
+    // Update attendee
+    (attendee as any).status = "cancelled";
+    (attendee as any).approvalStatus = "rejected";
+    (attendee as any).rejectedBy = (req as any).user.id;
+    (attendee as any).rejectedAt = new Date();
+    (attendee as any).rejectionReason = rejectionReason || "Registration rejected by administrator";
+    
+    // Note: We don't decrease currentAttendees because pending approvals were never counted
+    await event.save();
+
+    // Get user details for email
+    const attendeeUser = await User.findById(attendee.userId);
+    if (!attendeeUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Send rejection email
+    try {
+      const organizerDoc = await Event.findById(eventId)
+        .populate("organizer", "firstName lastName");
+      const tenant = event.tenantId
+        ? await Tenant.findById(event.tenantId)
+        : null;
+      await emailService.sendEventRegistrationRejectedEmail({
+        to: attendeeUser.email,
+        attendeeName: `${attendeeUser.firstName || ""} ${attendeeUser.lastName || ""}`.trim() || attendeeUser.email,
+        eventTitle: event.title,
+        rejectionReason: (attendee as any).rejectionReason,
+        collegeName: tenant?.name,
+        organizerName: (organizerDoc as any)?.organizer ? `${(organizerDoc as any).organizer.firstName || ""} ${(organizerDoc as any).organizer.lastName || ""}`.trim() : undefined,
+      });
+    } catch (e) {
+      logger.warn("Failed to send rejection email", e);
+    }
+
+    return res.json({
+      success: true,
+      message: "Registration rejected successfully",
+      data: { attendee },
+    });
+  } catch (error) {
+    logger.error("Reject registration error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reject registration",
+    });
+  }
+};
+
+// Get pending registrations for an event
+export const getPendingRegistrations = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params; // event id
+
+    const event = await Event.findById(id)
+      .populate("attendees.userId", "firstName lastName email profilePicture")
+      .populate("attendees.approvedBy", "firstName lastName")
+      .populate("attendees.rejectedBy", "firstName lastName");
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    // Filter pending registrations
+    const pendingRegistrations = event.attendees.filter(
+      (attendee: any) => (attendee.approvalStatus === "pending" || attendee.status === "pending_approval")
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        event: {
+          _id: event._id,
+          title: event.title,
+          startDate: event.startDate,
+        },
+        pendingRegistrations,
+        totalPending: pendingRegistrations.length,
+      },
+    });
+  } catch (error) {
+    logger.error("Get pending registrations error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch pending registrations",
+    });
+  }
+};
+
+// Get all events with pending registrations (for dashboard)
+export const getEventsWithPendingRegistrations = async (req: Request, res: Response) => {
+  try {
+    // Check permissions
+    const userRole = (req as any).user?.role;
+    if (!["college_admin", "hod", "staff", "super_admin"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // Build filter
+    const filter: any = {};
+    if ((req as any).user?.role !== "super_admin" && (req as any).user?.tenantId) {
+      filter.tenantId = (req as any).user.tenantId;
+    }
+
+    // Find events with pending registrations
+    const events = await Event.find(filter)
+      .populate("organizer", "firstName lastName email")
+      .select("title startDate endDate location image attendees tenantId")
+      .lean();
+
+    // Filter events that have pending registrations
+    const eventsWithPending = events
+      .map((event: any) => {
+        const pendingCount = event.attendees.filter(
+          (attendee: any) => attendee.approvalStatus === "pending" || attendee.status === "pending_approval"
+        ).length;
+        return {
+          ...event,
+          pendingRegistrationsCount: pendingCount,
+        };
+      })
+      .filter((event: any) => event.pendingRegistrationsCount > 0)
+      .sort((a: any, b: any) => b.pendingRegistrationsCount - a.pendingRegistrationsCount);
+
+    return res.json({
+      success: true,
+      data: {
+        events: eventsWithPending,
+        totalPending: eventsWithPending.reduce(
+          (sum: number, event: any) => sum + event.pendingRegistrationsCount,
+          0
+        ),
+      },
+    });
+  } catch (error) {
+    logger.error("Get events with pending registrations error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch events with pending registrations",
+    });
+  }
+};
+
 export default {
   getAllEvents,
   getEventById,
@@ -1420,4 +1847,8 @@ export default {
   getSavedEvents,
   confirmPaidRegistration,
   getEventParticipants,
+  approveEventRegistration,
+  rejectEventRegistration,
+  getPendingRegistrations,
+  getEventsWithPendingRegistrations,
 };

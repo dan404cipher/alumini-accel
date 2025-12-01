@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -93,7 +94,7 @@ const ResetPassword = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1"
+          API_BASE_URL
         }/auth/reset-password`,
         {
           method: "POST",

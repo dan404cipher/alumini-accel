@@ -12,6 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Building,
   MapPin,
@@ -31,6 +41,7 @@ import {
   X,
   ChevronRight,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { jobAPI } from "@/lib/api";
@@ -79,6 +90,7 @@ const JobDetail = () => {
   const [isShareJobOpen, setIsShareJobOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch job data
   const {
@@ -147,16 +159,27 @@ const JobDetail = () => {
     }
   }, []);
 
-  // Check if user can edit jobs
+  // Permission helpers
   const canEditAllJobs = user?.role
     ? hasPermission(user.role, "canEditAllJobs")
+    : false;
+  const canDeleteAllJobs = user?.role
+    ? hasPermission(user.role, "canDeleteAllJobs")
     : false;
 
   // Helper function to check if user can edit this specific job
   const canEditJob = () => {
     if (!user || !job) return false;
-    // Can edit if they have permission to edit all jobs OR if they own the job
-    return canEditAllJobs || job.postedBy === user._id;
+    const jobOwnerId =
+      typeof job.postedBy === "string" ? job.postedBy : job.postedBy?._id;
+    return canEditAllJobs || jobOwnerId === user._id;
+  };
+
+  const canDeleteJob = () => {
+    if (!user || !job) return false;
+    const jobOwnerId =
+      typeof job.postedBy === "string" ? job.postedBy : job.postedBy?._id;
+    return canDeleteAllJobs || jobOwnerId === user._id;
   };
 
   // Handle save/unsave job
@@ -204,6 +227,31 @@ const JobDetail = () => {
   // Handle share job
   const handleShareJob = () => {
     setIsShareJobOpen(true);
+  };
+
+  const handleDeleteJob = async () => {
+    if (!job) return;
+
+    try {
+      const response = await jobAPI.deleteJob(job._id);
+      if (!response.success) {
+        throw new Error(response.message || "Failed to delete job");
+      }
+      toast({
+        title: "Job deleted",
+        description: "The job post has been removed.",
+      });
+      setShowDeleteDialog(false);
+      navigate("/jobs");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete job";
+      toast({
+        title: "Delete failed",
+        description: message,
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle job updated
@@ -562,6 +610,16 @@ const JobDetail = () => {
                       Edit
                     </Button>
                   )}
+                  {canDeleteJob() && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowDeleteDialog(true)}
+                          className="w-full sm:w-auto border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -794,6 +852,27 @@ const JobDetail = () => {
             job={job as any}
           />
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Job Post</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this job post? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteJob}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

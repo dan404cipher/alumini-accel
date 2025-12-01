@@ -68,6 +68,24 @@ export const errorHandler = (
     error = new AppError(message, 401);
   }
 
+  // Multer errors (file upload)
+  if (err.name === "MulterError") {
+    const multerError = err as any;
+    let message = "File upload error";
+    
+    if (multerError.code === "LIMIT_FILE_SIZE") {
+      message = `File too large. Maximum file size is 10MB for certificates/documents.`;
+    } else if (multerError.code === "LIMIT_FILE_COUNT") {
+      message = "Too many files uploaded";
+    } else if (multerError.code === "LIMIT_UNEXPECTED_FILE") {
+      message = "Unexpected file field";
+    } else {
+      message = multerError.message || "File upload error";
+    }
+    
+    error = new AppError(message, 400);
+  }
+
   // Default error
   const statusCode = (error as AppError).statusCode || 500;
   const message = (error as AppError).message || "Server Error";
@@ -129,19 +147,17 @@ export const sendErrorResponse = (
 ) => {
   const statusCode = err.statusCode || 500;
 
-  // API errors
-  if (req.originalUrl.startsWith("/api")) {
-    return res.status(statusCode).json({
-      success: false,
-      message: err.message,
-      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-    });
+  // Always return JSON response (no view engine configured)
+  // For static file 404s, return a simple 404 without JSON
+  if (req.originalUrl.startsWith("/uploads/") && statusCode === 404) {
+    return res.status(404).send("File not found");
   }
 
-  // Rendered error page
-  return res.status(statusCode).render("error", {
-    title: "Something went wrong!",
+  // API errors and all other errors return JSON
+  return res.status(statusCode).json({
+    success: false,
     message: err.message,
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };
 
@@ -174,6 +190,24 @@ export const globalErrorHandler = (
     params: req.params,
     query: req.query,
   });
+
+  // Handle Multer errors (file upload)
+  if ((err as any).name === "MulterError") {
+    const multerError = err as any;
+    let message = "File upload error";
+    
+    if (multerError.code === "LIMIT_FILE_SIZE") {
+      message = `File too large. Maximum file size is 10MB for certificates/documents.`;
+    } else if (multerError.code === "LIMIT_FILE_COUNT") {
+      message = "Too many files uploaded";
+    } else if (multerError.code === "LIMIT_UNEXPECTED_FILE") {
+      message = "Unexpected file field";
+    } else {
+      message = multerError.message || "File upload error";
+    }
+    
+    error = new AppError(message, 400);
+  }
 
   // Handle specific error types
   if (err instanceof mongoose.Error.CastError) {

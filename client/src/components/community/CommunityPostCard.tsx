@@ -25,7 +25,7 @@ import { LikeButton, ShareButton, CommentSection } from "./engagement";
 import { ActionMenu } from "./ActionMenu";
 import EditPostModal from "./EditPostModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { reportAPI } from "@/lib/api";
+import { reportAPI , API_BASE_URL} from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 
@@ -277,8 +277,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                       post.author.profilePicture.startsWith("http")
                         ? post.author.profilePicture
                         : `${(
-                            import.meta.env.VITE_API_BASE_URL ||
-                            "http://localhost:3000/api/v1"
+                            API_BASE_URL
                           ).replace("/api/v1", "")}${
                             post.author.profilePicture
                           }`

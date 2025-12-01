@@ -52,6 +52,34 @@ router.get(
   asyncHandler(donationController.getDonationStats)
 );
 
+// @route   GET /api/v1/donations/donor/:donorId
+// @desc    Get donations by donor
+// @access  Private
+router.get(
+  "/donor/:donorId",
+  authenticateToken,
+  asyncHandler(donationController.getDonationsByDonor)
+);
+
+// @route   GET /api/v1/donations/recipient/:recipientId
+// @desc    Get donations by recipient
+// @access  Private
+router.get(
+  "/recipient/:recipientId",
+  authenticateToken,
+  asyncHandler(donationController.getDonationsByRecipient)
+);
+
+// @route   GET /api/v1/donations/:id/receipt
+// @desc    Download donation receipt PDF
+// @access  Private
+// NOTE: This route must come BEFORE /:id route to avoid route conflicts
+router.get(
+  "/:id/receipt",
+  authenticateToken,
+  asyncHandler(donationController.downloadReceipt)
+);
+
 // @route   GET /api/v1/donations/:id
 // @desc    Get donation by ID
 // @access  Private
@@ -77,24 +105,6 @@ router.delete(
   "/:id",
   authenticateToken,
   asyncHandler(donationController.deleteDonation)
-);
-
-// @route   GET /api/v1/donations/donor/:donorId
-// @desc    Get donations by donor
-// @access  Private
-router.get(
-  "/donor/:donorId",
-  authenticateToken,
-  asyncHandler(donationController.getDonationsByDonor)
-);
-
-// @route   GET /api/v1/donations/recipient/:recipientId
-// @desc    Get donations by recipient
-// @access  Private
-router.get(
-  "/recipient/:recipientId",
-  authenticateToken,
-  asyncHandler(donationController.getDonationsByRecipient)
 );
 
 export default router;

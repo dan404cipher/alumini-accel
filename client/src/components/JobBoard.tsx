@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -46,6 +56,7 @@ import {
   Edit,
   Share2,
   Menu,
+  Trash2,
 } from "lucide-react";
 import { PostJobDialog } from "./dialogs/PostJobDialog";
 import { EditJobDialog } from "./dialogs/EditJobDialog";
@@ -55,9 +66,19 @@ import ApplicationManagementDashboard from "./ApplicationManagementDashboard";
 import ApplicationStatusTracking from "./ApplicationStatusTracking";
 import { jobAPI, jobApplicationAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { categoryAPI } from "@/lib/api";
+import { categoryAPI, API_BASE_URL } from "@/lib/api";
 import { hasPermission } from "@/utils/rolePermissions";
 import Footer from "./Footer";
+import { getAuthTokenOrNull } from "@/utils/auth";
+
+interface College {
+  _id: string;
+  name: string;
+  location: string;
+  establishedYear: number;
+  website?: string;
+  description?: string;
+}
 
 interface Job {
   _id: string;
@@ -102,6 +123,8 @@ const JobBoard = () => {
   const [isShareJobOpen, setIsShareJobOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [sharingJob, setSharingJob] = useState<Job | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +139,8 @@ const JobBoard = () => {
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [experienceOptions, setExperienceOptions] = useState<string[]>([]);
   const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeFilter, setCollegeFilter] = useState("all");
 
   useEffect(() => {
     let mounted = true;
@@ -149,6 +174,35 @@ const JobBoard = () => {
       mounted = false;
     };
   }, []);
+
+  // Fetch colleges on component mount (only for Super Admin)
+  useEffect(() => {
+    const fetchColleges = async () => {
+      // Only fetch colleges if user is Super Admin
+      if (user?.role !== "super_admin") {
+        return;
+      }
+
+      try {
+        const token = getAuthTokenOrNull();
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/tenants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setColleges(data.data?.tenants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+      }
+    };
+
+    fetchColleges();
+  }, [user]);
   const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
   const [selectedRemoteWork, setSelectedRemoteWork] = useState("all");
   const [selectedVacancies, setSelectedVacancies] = useState("all");
@@ -191,7 +245,7 @@ const JobBoard = () => {
     useState<Job | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const postedJobsCount = useMemo(
-    () => jobs.filter((j) => j.postedBy._id === user?._id).length,
+    () => jobs.filter((j) => j.postedBy && j.postedBy._id === user?._id).length,
     [jobs, user?._id]
   );
   const [activeTab, setActiveTab] = useState("jobs");
@@ -208,14 +262,14 @@ const JobBoard = () => {
 
   // Helper function to check if user can edit a specific job
   const canEditJob = (job: Job) => {
-    if (!user) return false;
+    if (!user || !job.postedBy) return false;
     // Can edit if they have permission to edit all jobs OR if they own the job
     return canEditAllJobs || job.postedBy._id === user._id;
   };
 
   // Helper function to check if user can delete a specific job
   const canDeleteJob = (job: Job) => {
-    if (!user) return false;
+    if (!user || !job.postedBy) return false;
     // Can delete if they have permission to delete all jobs OR if they own the job
     return canDeleteJobs || job.postedBy._id === user._id;
   };
@@ -303,6 +357,11 @@ const JobBoard = () => {
         // For "hybrid", we don't set remote param, let backend handle location-based filtering
       }
 
+      // Add tenantId filter for super admin
+      if (user?.role === "super_admin" && collegeFilter !== "all") {
+        (params as any).tenantId = collegeFilter;
+      }
+
       const response = await jobAPI.getAllJobs(params);
 
       // Reset retry count on successful request
@@ -357,6 +416,8 @@ const JobBoard = () => {
     selectedExperience,
     selectedIndustry,
     selectedRemoteWork,
+    collegeFilter,
+    user?.role,
   ]);
 
   // Store the latest fetchJobs function in ref
@@ -380,7 +441,9 @@ const JobBoard = () => {
     selectedIndustry,
     selectedRemoteWork,
     selectedSalaryRange,
+    selectedSalaryRange,
     selectedVacancies,
+    collegeFilter,
   ]);
 
   // Load jobs when user is authenticated or filters change
@@ -478,6 +541,35 @@ const JobBoard = () => {
     setEditingJob(job);
     setIsEditJobOpen(true);
   }, []);
+
+  // Handle delete job confirmation
+  const handleDeleteClick = useCallback((job: Job) => {
+    setJobToDelete(job);
+    setShowDeleteDialog(true);
+  }, []);
+
+  // Handle delete job
+  const handleDeleteJob = useCallback(async () => {
+    if (!jobToDelete) return;
+
+    try {
+      const response = await jobAPI.deleteJob(jobToDelete._id);
+      if (response.success) {
+        // Remove job from local state
+        setJobs((prevJobs) => prevJobs.filter((j) => j._id !== jobToDelete._id));
+        // Refresh the jobs list
+        fetchJobs();
+        setShowDeleteDialog(false);
+        setJobToDelete(null);
+      } else {
+        throw new Error(response.message || "Failed to delete job");
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete job";
+      alert(errorMessage);
+    }
+  }, [jobToDelete, fetchJobs]);
 
   // Handle job updated
   const handleJobUpdated = useCallback(() => {
@@ -713,6 +805,29 @@ const JobBoard = () => {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Filters</h3>
 
+                {/* College Filter (Super Admin Only) */}
+                {user?.role === "super_admin" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">College</label>
+                    <Select
+                      value={collegeFilter}
+                      onValueChange={setCollegeFilter}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filter by College" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Colleges</SelectItem>
+                        {colleges.map((college) => (
+                          <SelectItem key={college._id} value={college._id}>
+                            {college.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {/* Job Type */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Job Type</label>
@@ -727,8 +842,8 @@ const JobBoard = () => {
                         No saved types
                       </SelectItem>
                     ) : (
-                      typeOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
+                      typeOptions.map((name, index) => (
+                        <SelectItem key={`type-${index}-${name}`} value={name}>
                           {name}
                         </SelectItem>
                       ))
@@ -756,8 +871,8 @@ const JobBoard = () => {
                         No saved levels
                       </SelectItem>
                     ) : (
-                      experienceOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
+                      experienceOptions.map((name, index) => (
+                        <SelectItem key={`exp-${index}-${name}`} value={name}>
                           {name}
                         </SelectItem>
                       ))
@@ -783,8 +898,8 @@ const JobBoard = () => {
                         No saved industries
                       </SelectItem>
                     ) : (
-                      industryOptions.map((name) => (
-                        <SelectItem key={name} value={name}>
+                      industryOptions.map((name, index) => (
+                        <SelectItem key={`industry-${index}-${name}`} value={name}>
                           {name}
                         </SelectItem>
                       ))
@@ -1156,6 +1271,16 @@ const JobBoard = () => {
                                         <Edit className="w-4 h-4" />
                                       </Button>
                                     )}
+                                    {canDeleteJob(job) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteClick(job)}
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -1449,13 +1574,15 @@ const JobBoard = () => {
                                 </div>
 
                                 <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">
-                                  <div className="text-xs lg:text-sm text-muted-foreground">
-                                    Posted by{" "}
-                                    <span className="text-primary font-medium">
-                                      {job.postedBy.firstName}{" "}
-                                      {job.postedBy.lastName}
-                                    </span>
-                                  </div>
+                                  {job.postedBy && (
+                                    <div className="text-xs lg:text-sm text-muted-foreground">
+                                      Posted by{" "}
+                                      <span className="text-primary font-medium">
+                                        {job.postedBy.firstName}{" "}
+                                        {job.postedBy.lastName}
+                                      </span>
+                                    </div>
+                                  )}
                                   <div className="flex flex-wrap gap-2">
                                     <Button
                                       variant="ghost"
@@ -1483,6 +1610,16 @@ const JobBoard = () => {
                                         className="text-blue-600 hover:text-blue-700 p-2"
                                       >
                                         <Edit className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                    {canDeleteJob(job) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteClick(job)}
+                                        className="text-red-600 hover:text-red-700 p-2"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
                                       </Button>
                                     )}
                                     <Button
@@ -1578,7 +1715,7 @@ const JobBoard = () => {
                 </div>
 
                 {/* Show jobs posted by current user */}
-                {jobs.filter((job) => job.postedBy._id === user?._id).length ===
+                {jobs.filter((job) => job.postedBy && job.postedBy._id === user?._id).length ===
                 0 ? (
                   <div className="text-center py-8">
                     <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -1604,7 +1741,7 @@ const JobBoard = () => {
                     {/* Job Selection */}
                     <div className="grid gap-4">
                       {jobs
-                        .filter((job) => job.postedBy._id === user?._id)
+                        .filter((job) => job.postedBy && job.postedBy._id === user?._id)
                         .map((job) => (
                           <Card
                             key={job._id}
@@ -1765,6 +1902,29 @@ const JobBoard = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Job Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this job post? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setJobToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteJob}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

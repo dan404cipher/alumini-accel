@@ -2,6 +2,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+// Log immediately to verify file is executing
+console.log("🔵 index.ts: File started loading...");
+
 import express from "express";
 import { createServer } from "http";
 import cors from "cors";
@@ -59,16 +62,32 @@ import emailTemplateRoutes from "./routes/emailTemplate";
 import matchingRoutes from "./routes/matching";
 import mentorshipCommunicationRoutes from "./routes/mentorshipCommunication";
 import programChatRoutes from "./routes/programChat";
+import alumni360Routes from "./routes/alumni360";
+import adminAnalyticsRoutes from "./routes/adminAnalytics";
 
 // Load environment variables
 dotenv.config();
 import paymentRoutes from "./routes/payment";
 import reportRoutes from "./routes/reports";
 import categoryRoutes from "./routes/category";
+import fundRoutes from "./routes/funds";
+import rewardsRoutes from "./routes/rewards";
+import rewardVerificationsRoutes from "./routes/rewardVerifications";
+console.log("✅ rewardVerificationsRoutes imported");
+import rewardAnalyticsRoutes from "./routes/rewardAnalytics";
+console.log("✅ rewardAnalyticsRoutes imported");
+import leaderboardRoutes from "./routes/leaderboard";
+console.log("✅ leaderboardRoutes imported");
+import badgeRoutes from "./routes/badges";
+console.log("✅ badgeRoutes imported");
 import cron from "node-cron";
 import Event from "./models/Event";
 import Tenant from "./models/Tenant";
+console.log("✅ Models imported");
 import { emailService } from "./services/emailService";
+console.log("✅ emailService imported");
+
+console.log("🟢 index.ts: All imports completed, creating Express app...");
 
 const app = express();
 const server = createServer(app);
@@ -79,46 +98,66 @@ server.headersTimeout = 66000; // 66 seconds
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
+
 // Initialize Socket.IO service
-let socketService: SocketService;
+import { initializeSocketService } from './services/socketServiceInstance';
 
 // Connect to database
 const startServer = async () => {
   try {
-    // Try to connect to database, but don't block server startup if it fails
-    connectDB().catch((error) => {
-      logger.error("MongoDB connection failed, but continuing server startup:", error);
-      logger.warn("Server will start without database connection. Some features may not work.");
-    });
-
-    // Initialize Socket.IO
-    socketService = new SocketService(server);
-
-    // Start server
-    server.listen(PORT, () => {
-      logger.info(
-        `🚀 AlumniAccel API server running on port ${PORT} in ${NODE_ENV} mode`
-      );
-      logger.info(
-        `📊 Health check available at http://localhost:${PORT}/health`
-      );
-      logger.info(
-        `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
-      );
-    }).on("error", (error: NodeJS.ErrnoException) => {
-      if (error.code === "EADDRINUSE") {
-        logger.error(`Port ${PORT} is already in use. Please kill the process using this port or use a different port.`);
-        logger.info(`To find and kill the process: lsof -ti:${PORT} | xargs kill -9`);
-        process.exit(1);
-      } else {
-        logger.error("Failed to start server:", error);
-        process.exit(1);
-      }
-    });
-
+    logger.info("Initializing AlumniAccel API bootstrap sequence");
     logger.info(
-      `🔌 Socket.IO server initialized for real-time communication`
+      `MongoDB URI configured: ${process.env.MONGODB_URI ? "YES" : "NO"}`
     );
+    logger.info(`Server will start on port: ${PORT}`);
+
+    // Initialize Socket.IO FIRST (before database connection)
+    logger.info("Initializing Socket.IO service...");
+    initializeSocketService(server);
+    logger.info("Socket.IO service initialized");
+
+    // Start server FIRST (don't wait for database)
+    logger.info(`Starting HTTP server on port ${PORT}...`);
+    server
+      .listen(PORT, () => {
+        logger.info(
+          `🚀 AlumniAccel API server running on port ${PORT} in ${NODE_ENV} mode`
+        );
+        logger.info(
+          `📊 Health check available at http://localhost:${PORT}/health`
+        );
+        logger.info(
+          `🔗 API documentation available at http://localhost:${PORT}/api/v1/docs`
+        );
+      })
+      .on("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "EADDRINUSE") {
+          logger.error(
+            `Port ${PORT} is already in use. Please kill the process using this port or use a different port.`
+          );
+          logger.info(
+            `To find and kill the process: lsof -ti:${PORT} | xargs kill -9`
+          );
+          process.exit(1);
+        } else {
+          logger.error("Failed to start server:", error);
+          process.exit(1);
+        }
+      });
+
+    // Try to connect to database AFTER server starts (non-blocking)
+    logger.info("Attempting to connect to MongoDB (non-blocking)...");
+    connectDB().catch((error) => {
+      logger.error(
+        "MongoDB connection failed, but continuing server startup:",
+        error
+      );
+      logger.warn(
+        "Server will start without database connection. Some features may not work."
+      );
+    });
+
+    logger.info(`🔌 Socket.IO server initialized for real-time communication`);
 
     // Schedule daily event reminder emails at 9:00 AM server time
     try {
@@ -148,7 +187,9 @@ const startServer = async () => {
                 : null;
               await emailService.sendEventReminderEmail({
                 to: user.email,
-                attendeeName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+                attendeeName:
+                  `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+                  user.email,
                 eventTitle: (evt as any).title,
                 eventDescription: (evt as any).description,
                 startDate: (evt as any).startDate,
@@ -159,9 +200,15 @@ const startServer = async () => {
                 price: (evt as any).price,
                 image: (evt as any).image,
                 collegeName: tenant?.name,
-                organizerName: (evt as any).organizer ? `${(evt as any).organizer.firstName || ""} ${(evt as any).organizer.lastName || ""}`.trim() : undefined,
-                speakers: Array.isArray((evt as any).speakers) ? ((evt as any).speakers as any) : undefined,
-                agenda: Array.isArray((evt as any).agenda) ? ((evt as any).agenda as any) : undefined,
+                organizerName: (evt as any).organizer
+                  ? `${(evt as any).organizer.firstName || ""} ${(evt as any).organizer.lastName || ""}`.trim()
+                  : undefined,
+                speakers: Array.isArray((evt as any).speakers)
+                  ? ((evt as any).speakers as any)
+                  : undefined,
+                agenda: Array.isArray((evt as any).agenda)
+                  ? ((evt as any).agenda as any)
+                  : undefined,
               });
               a.reminderSent = true;
             }
@@ -538,6 +585,8 @@ app.post("/test-send-welcome-email", async (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/alumni", alumniRoutes);
+app.use("/api/v1/alumni-360", alumni360Routes);
+app.use("/api/v1/admin/analytics", adminAnalyticsRoutes);
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/job-applications", jobApplicationRoutes);
 app.use("/api/v1/events", eventRoutes);
@@ -574,6 +623,12 @@ app.use("/api/v1", sharesRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/funds", fundRoutes);
+app.use("/api/v1/rewards", rewardsRoutes);
+app.use("/api/v1/rewards/verifications", rewardVerificationsRoutes);
+app.use("/api/v1/rewards/analytics", rewardAnalyticsRoutes);
+app.use("/api/v1/leaderboard", leaderboardRoutes);
+app.use("/api/v1/badges", badgeRoutes);
 
 // Serve static files with CORS headers
 app.use(
@@ -597,7 +652,21 @@ app.use(
 
     next();
   },
-  express.static(uploadsPath)
+  express.static(uploadsPath, {
+    // Don't call next() on 404 - just send 404 response
+    fallthrough: false,
+    setHeaders: (res, path) => {
+      // Set cache headers for static files
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+    },
+  }),
+  // Handle 404 for static files gracefully
+  (req, res) => {
+    res.status(404).json({
+      success: false,
+      message: "File not found",
+    });
+  }
 );
 
 // 404 handler
@@ -627,7 +696,10 @@ process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
   });
   // Don't exit immediately - log and continue
   // Only exit if it's a critical error
-  if (err.message?.includes("ECONNREFUSED") || err.message?.includes("EADDRINUSE")) {
+  if (
+    err.message?.includes("ECONNREFUSED") ||
+    err.message?.includes("EADDRINUSE")
+  ) {
     logger.error("Critical error detected, exiting...");
     process.exit(1);
   }
@@ -640,7 +712,10 @@ process.on("uncaughtException", (err: Error) => {
     stack: err.stack,
   });
   // Only exit for critical errors
-  if (err.message?.includes("ECONNREFUSED") || err.message?.includes("EADDRINUSE")) {
+  if (
+    err.message?.includes("ECONNREFUSED") ||
+    err.message?.includes("EADDRINUSE")
+  ) {
     logger.error("Critical error detected, exiting...");
     process.exit(1);
   }
@@ -651,17 +726,22 @@ process.on("uncaughtException", (err: Error) => {
 // Setup cron job for auto-rejecting expired matches
 const setupMatchingCronJob = () => {
   // Run every hour to check for expired matches
-  setInterval(async () => {
-    try {
-      const { autoRejectExpiredMatches } = await import("./controllers/matchingController");
-      const count = await autoRejectExpiredMatches();
-      if (count > 0) {
-        logger.info(`Auto-rejected ${count} expired match requests`);
+  setInterval(
+    async () => {
+      try {
+        const { autoRejectExpiredMatches } = await import(
+          "./controllers/matchingController"
+        );
+        const count = await autoRejectExpiredMatches();
+        if (count > 0) {
+          logger.info(`Auto-rejected ${count} expired match requests`);
+        }
+      } catch (error) {
+        logger.error("Cron job error:", error);
       }
-    } catch (error) {
-      logger.error("Cron job error:", error);
-    }
-  }, 60 * 60 * 1000); // Every hour
+    },
+    60 * 60 * 1000
+  ); // Every hour
 
   logger.info("Matching cron job scheduled (runs every hour)");
 };
@@ -669,32 +749,57 @@ const setupMatchingCronJob = () => {
 // Setup cron job for auto-sending mentee selection emails
 const setupMenteeSelectionEmailCronJob = () => {
   // Run every 6 hours to check for programs where registration end dates have passed
-  setInterval(async () => {
-    try {
-      const { autoSendMenteeSelectionEmails } = await import("./controllers/matchingController");
-      const result = await autoSendMenteeSelectionEmails();
-      if (result.programsProcessed > 0) {
-        logger.info(
-          `Auto-sent mentee selection emails: ${result.programsProcessed} programs processed, ${result.emailsSent} emails sent, ${result.errors} errors`
+  setInterval(
+    async () => {
+      try {
+        const { autoSendMenteeSelectionEmails } = await import(
+          "./controllers/matchingController"
         );
+        const result = await autoSendMenteeSelectionEmails();
+        if (result.programsProcessed > 0) {
+          logger.info(
+            `Auto-sent mentee selection emails: ${result.programsProcessed} programs processed, ${result.emailsSent} emails sent, ${result.errors} errors`
+          );
+        }
+      } catch (error) {
+        logger.error("Mentee selection email cron job error:", error);
       }
-    } catch (error) {
-      logger.error("Mentee selection email cron job error:", error);
-    }
-  }, 6 * 60 * 60 * 1000); // Every 6 hours
+    },
+    6 * 60 * 60 * 1000
+  ); // Every 6 hours
 
   logger.info("Mentee selection email cron job scheduled (runs every 6 hours)");
 };
 
 // Start the server
-startServer().then(() => {
-  // Setup cron jobs after server starts (with delay to ensure DB is connected)
-  setTimeout(() => {
-    setupMatchingCronJob();
-    setupMenteeSelectionEmailCronJob();
-  }, 5000); // 5 second delay to ensure everything is initialized
-});
+console.log(
+  "🟡 index.ts: Reached bottom of file, about to call startServer()..."
+);
+try {
+  logger.info("📋 About to call startServer()...");
+  startServer()
+    .then(() => {
+      logger.info("✅ Server startup completed successfully");
+      // Setup cron jobs after server starts (with delay to ensure DB is connected)
+      setTimeout(() => {
+        setupMatchingCronJob();
+        setupMenteeSelectionEmailCronJob();
+      }, 5000); // 5 second delay to ensure everything is initialized
+    })
+    .catch((error) => {
+      logger.error("❌ Fatal error during server startup:", {
+        error: error?.message || error,
+        stack: error?.stack,
+      });
+      console.error("❌ Fatal error:", error);
+      process.exit(1);
+    });
+} catch (error) {
+  console.error("❌ Error calling startServer():", error);
+  logger.error("❌ Error calling startServer():", error);
+  process.exit(1);
+}
 
 // Export socket service for use in other modules
-export { socketService };
+
 export default app;

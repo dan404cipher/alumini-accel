@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Card,
@@ -32,6 +32,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import { settingsAPI } from "@/lib/api";
+
+type PrivacySettings = {
+  profileVisibility: "public" | "alumni" | "private";
+  showEmail: boolean;
+  showPhone: boolean;
+  showLocation: boolean;
+  showCompany: boolean;
+};
 
 const Settings = () => {
   const { user } = useAuth();
@@ -59,6 +68,8 @@ const Settings = () => {
     language: "en",
     timezone: "America/Los_Angeles",
   });
+  const [privacyLoading, setPrivacyLoading] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const handleSettingChange = (
     key: string,
@@ -70,13 +81,82 @@ const Settings = () => {
     }));
   };
 
-  const handleSaveSettings = () => {
-    // Here you would typically call an API to save settings
-    toast({
-      title: "Settings Saved",
-      description: "Your settings have been successfully updated.",
-    });
+  const handleSaveSettings = async () => {
+    try {
+      setSavingSettings(true);
+      const response = await settingsAPI.updatePrivacy({
+        profileVisibility: settings.profileVisibility as
+          | "public"
+          | "alumni"
+          | "private",
+        showEmail: settings.showEmail,
+        showPhone: settings.showPhone,
+        showLocation: settings.showLocation,
+        showCompany: settings.showCompany,
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || "Failed to save settings");
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: "Your privacy settings have been updated.",
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to save settings",
+        description:
+          error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingSettings(false);
+    }
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPrivacySettings = async () => {
+      try {
+        setPrivacyLoading(true);
+        const response = await settingsAPI.getPrivacy();
+        const privacyData = (
+          response.data as { privacy: PrivacySettings } | undefined
+        )?.privacy;
+        if (isMounted && response.success && privacyData) {
+          setSettings((prev) => ({
+            ...prev,
+            ...privacyData,
+          }));
+        }
+      } catch (error) {
+        if (isMounted) {
+          toast({
+            title: "Unable to load privacy settings",
+            description:
+              error instanceof Error
+                ? error.message
+                : "Please try again later.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setPrivacyLoading(false);
+        }
+      }
+    };
+
+    if (user) {
+      fetchPrivacySettings();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [toast, user]);
 
   if (!user) {
     return (
@@ -109,9 +189,12 @@ const Settings = () => {
                 Manage your account preferences and privacy settings
               </p>
             </div>
-            <Button onClick={handleSaveSettings}>
+            <Button
+              onClick={handleSaveSettings}
+              disabled={privacyLoading || savingSettings}
+            >
               <Save className="w-4 h-4 mr-2" />
-              Save Changes
+              {savingSettings ? "Saving..." : "Save Changes"}
             </Button>
           </div>
 
@@ -220,31 +303,7 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Profile Visibility</Label>
-                    <Select
-                      value={settings.profileVisibility}
-                      onValueChange={(value) =>
-                        handleSettingChange("profileVisibility", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="public">
-                          Public - Anyone can see
-                        </SelectItem>
-                        <SelectItem value="alumni">
-                          Alumni Only - Only registered alumni
-                        </SelectItem>
-                        <SelectItem value="private">
-                          Private - Only me
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
+                  
                   <Separator />
 
                   <div className="space-y-4">
@@ -257,6 +316,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showEmail}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showEmail", checked)
                         }
@@ -272,6 +332,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showPhone}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showPhone", checked)
                         }
@@ -287,6 +348,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showLocation}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showLocation", checked)
                         }
@@ -302,6 +364,7 @@ const Settings = () => {
                       </div>
                       <Switch
                         checked={settings.showCompany}
+                        disabled={privacyLoading}
                         onCheckedChange={(checked) =>
                           handleSettingChange("showCompany", checked)
                         }
@@ -312,116 +375,7 @@ const Settings = () => {
               </CardContent>
             </Card>
 
-            {/* Security Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Lock className="w-5 h-5 mr-2" />
-                  Security
-                </CardTitle>
-                <CardDescription>
-                  Manage your account security settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Two-Factor Authentication</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Add an extra layer of security to your account
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings.twoFactorAuth}
-                      onCheckedChange={(checked) =>
-                        handleSettingChange("twoFactorAuth", checked)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Login Alerts</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified when someone logs into your account
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings.loginAlerts}
-                      onCheckedChange={(checked) =>
-                        handleSettingChange("loginAlerts", checked)
-                      }
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Preferences */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Globe className="w-5 h-5 mr-2" />
-                  Preferences
-                </CardTitle>
-                <CardDescription>Customize your experience</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select
-                      value={settings.language}
-                      onValueChange={(value) =>
-                        handleSettingChange("language", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Timezone</Label>
-                    <Select
-                      value={settings.timezone}
-                      onValueChange={(value) =>
-                        handleSettingChange("timezone", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="America/Los_Angeles">
-                          Pacific Time
-                        </SelectItem>
-                        <SelectItem value="America/Denver">
-                          Mountain Time
-                        </SelectItem>
-                        <SelectItem value="America/Chicago">
-                          Central Time
-                        </SelectItem>
-                        <SelectItem value="America/New_York">
-                          Eastern Time
-                        </SelectItem>
-                        <SelectItem value="Europe/London">London</SelectItem>
-                        <SelectItem value="Europe/Paris">Paris</SelectItem>
-                        <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Prefer
 
             {/* Danger Zone */}
             <Card className="border-destructive">

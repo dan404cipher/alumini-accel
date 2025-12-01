@@ -4,6 +4,7 @@ import JobPost from "../models/JobPost";
 import User from "../models/User";
 import mongoose from "mongoose";
 import { AuthenticatedRequest } from "../types";
+import notificationService from "../services/notificationService";
 
 // Apply for a job
 export const applyForJob = async (req: AuthenticatedRequest, res: Response) => {
@@ -141,6 +142,34 @@ export const applyForJob = async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
+    try {
+      await notificationService.send({
+        recipients: [userId.toString()],
+        event: "job.applied",
+        data: {
+          jobId: jobId,
+          title: job.title,
+          company: job.company,
+        },
+      });
+
+      if (job.postedBy && job.postedBy.toString() !== userId.toString()) {
+        await notificationService.send({
+          recipients: [job.postedBy.toString()],
+          event: "job.application.received",
+          data: {
+            jobId: jobId,
+            title: job.title,
+            applicantName: `${req.user?.firstName ?? "An"} ${
+              req.user?.lastName ?? "applicant"
+            }`.trim(),
+          },
+        });
+      }
+    } catch (notifyError) {
+      console.error("Error sending job application notifications:", notifyError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Application submitted successfully",
@@ -262,21 +291,19 @@ export const getUserApplications = async (
       });
     }
 
-    if (!tenantId) {
-      return res.status(400).json({
-        success: false,
-        message: "Tenant ID is required",
-      });
-    }
-
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const applications = await JobApplication.find({
+    // Build query - tenantId is optional
+    const query: any = {
       applicantId: new mongoose.Types.ObjectId(userId),
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-    })
+    };
+    if (tenantId) {
+      query.tenantId = new mongoose.Types.ObjectId(tenantId);
+    }
+
+    const applications = await JobApplication.find(query)
       .populate({
         path: "jobId",
         select: "title company position location type",
@@ -289,10 +316,7 @@ export const getUserApplications = async (
       .skip(skip)
       .limit(limit);
 
-    const totalCount = await JobApplication.countDocuments({
-      applicantId: new mongoose.Types.ObjectId(userId),
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-    });
+    const totalCount = await JobApplication.countDocuments(query);
 
     return res.status(200).json({
       success: true,
@@ -397,6 +421,39 @@ export const updateApplicationStatus = async (
         select: "firstName lastName",
       },
     ]);
+
+    try {
+      const applicant =
+        (application.applicantId as any)?._id?.toString() ??
+        (application.applicantId as any)?.toString();
+
+      if (applicant) {
+        if (status === "Shortlisted" || status === "Hired") {
+          await notificationService.send({
+            recipients: [applicant],
+            event: "job.application.accepted",
+            data: {
+              jobId: (application.jobId as any)?._id ?? application.jobId,
+              title: (application.jobId as any)?.title ?? "Job opportunity",
+            },
+          });
+        } else if (status === "Rejected") {
+          await notificationService.send({
+            recipients: [applicant],
+            event: "job.application.rejected",
+            data: {
+              jobId: (application.jobId as any)?._id ?? application.jobId,
+              title: (application.jobId as any)?.title ?? "Job opportunity",
+            },
+          });
+        }
+      }
+    } catch (notifyError) {
+      console.error(
+        "Error sending job application status notification:",
+        notifyError
+      );
+    }
 
     return res.status(200).json({
       success: true,

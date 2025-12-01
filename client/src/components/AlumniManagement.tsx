@@ -113,6 +113,7 @@ const AlumniManagement = () => {
   });
 
   const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeFilter, setCollegeFilter] = useState("all");
   const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
   
   // URL-based navigation
@@ -295,7 +296,10 @@ const AlumniManagement = () => {
     try {
       setLoading(true);
       const alumniData = await alumniAPI.getAllAlumni({
-        tenantId: user?.tenantId,
+        tenantId:
+          user?.role === "super_admin" && collegeFilter !== "all"
+            ? collegeFilter
+            : user?.tenantId,
         page: alumniPage,
         limit: alumniLimit,
       });
@@ -330,7 +334,7 @@ const AlumniManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, user?.tenantId, alumniPage, alumniLimit]);
+  }, [toast, user?.tenantId, user?.role, collegeFilter, alumniPage, alumniLimit]);
 
   useEffect(() => {
     fetchAlumni();
@@ -763,6 +767,24 @@ const AlumniManagement = () => {
               className="pl-10"
             />
           </div>
+
+          {user?.role === "super_admin" && (
+            <div className="w-[200px]">
+              <Select value={collegeFilter} onValueChange={setCollegeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by College" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Colleges</SelectItem>
+                  {colleges.map((college) => (
+                    <SelectItem key={college._id} value={college._id}>
+                      {college.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Enhanced Alumni List */}

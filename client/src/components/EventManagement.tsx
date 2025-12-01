@@ -31,9 +31,27 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { eventAPI } from "@/lib/api";
+import { eventAPI, API_BASE_URL } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAuthTokenOrNull } from "@/utils/auth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface College {
+  _id: string;
+  name: string;
+  location: string;
+  establishedYear: number;
+  website?: string;
+  description?: string;
+}
 
 interface PendingRegistration {
   _id: string;
@@ -75,14 +93,50 @@ const EventManagement: React.FC = () => {
   const [selectedRegistration, setSelectedRegistration] = useState<PendingRegistration | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeFilter, setCollegeFilter] = useState("all");
+
+  // Fetch colleges on component mount (only for Super Admin)
+  useEffect(() => {
+    const fetchColleges = async () => {
+      // Only fetch colleges if user is Super Admin
+      if (user?.role !== "super_admin") {
+        return;
+      }
+
+      try {
+        const token = getAuthTokenOrNull();
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/tenants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setColleges(data.data?.tenants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+      }
+    };
+
+    fetchColleges();
+  }, [user]);
 
   // Fetch events with pending registrations
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await eventAPI.getEventsWithPendingRegistrations();
+      const params: any = {};
+      if (user?.role === "super_admin" && collegeFilter !== "all") {
+        params.tenantId = collegeFilter;
+      }
+      const response = await eventAPI.getEventsWithPendingRegistrations(params);
       if (response.success && response.data) {
-        setEvents(response.data.events || []);
+        setEvents((response.data as any).events || []);
       }
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -102,7 +156,9 @@ const EventManagement: React.FC = () => {
       setLoadingRegistrations(true);
       const response = await eventAPI.getPendingRegistrations(eventId);
       if (response.success && response.data) {
-        setPendingRegistrations(response.data.pendingRegistrations || []);
+        setPendingRegistrations(
+          (response.data as any).pendingRegistrations || []
+        );
       }
     } catch (error) {
       console.error("Error fetching pending registrations:", error);
@@ -189,7 +245,7 @@ const EventManagement: React.FC = () => {
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+  }, [collegeFilter]);
 
   if (loading) {
     return (
@@ -208,9 +264,28 @@ const EventManagement: React.FC = () => {
             Manage pending event registrations
           </p>
         </div>
-        <Button onClick={fetchEvents} variant="outline" size="sm">
-          Refresh
-        </Button>
+        <div className="flex items-center gap-4">
+          {user?.role === "super_admin" && (
+            <div className="w-[200px]">
+              <Select value={collegeFilter} onValueChange={setCollegeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by College" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Colleges</SelectItem>
+                  {colleges.map((college) => (
+                    <SelectItem key={college._id} value={college._id}>
+                      {college.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <Button onClick={fetchEvents} variant="outline" size="sm">
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {events.length === 0 ? (

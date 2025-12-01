@@ -66,9 +66,19 @@ import ApplicationManagementDashboard from "./ApplicationManagementDashboard";
 import ApplicationStatusTracking from "./ApplicationStatusTracking";
 import { jobAPI, jobApplicationAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { categoryAPI } from "@/lib/api";
+import { categoryAPI, API_BASE_URL } from "@/lib/api";
 import { hasPermission } from "@/utils/rolePermissions";
 import Footer from "./Footer";
+import { getAuthTokenOrNull } from "@/utils/auth";
+
+interface College {
+  _id: string;
+  name: string;
+  location: string;
+  establishedYear: number;
+  website?: string;
+  description?: string;
+}
 
 interface Job {
   _id: string;
@@ -129,6 +139,8 @@ const JobBoard = () => {
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [experienceOptions, setExperienceOptions] = useState<string[]>([]);
   const [industryOptions, setIndustryOptions] = useState<string[]>([]);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeFilter, setCollegeFilter] = useState("all");
 
   useEffect(() => {
     let mounted = true;
@@ -162,6 +174,35 @@ const JobBoard = () => {
       mounted = false;
     };
   }, []);
+
+  // Fetch colleges on component mount (only for Super Admin)
+  useEffect(() => {
+    const fetchColleges = async () => {
+      // Only fetch colleges if user is Super Admin
+      if (user?.role !== "super_admin") {
+        return;
+      }
+
+      try {
+        const token = getAuthTokenOrNull();
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/tenants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setColleges(data.data?.tenants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+      }
+    };
+
+    fetchColleges();
+  }, [user]);
   const [selectedSalaryRange, setSelectedSalaryRange] = useState("all");
   const [selectedRemoteWork, setSelectedRemoteWork] = useState("all");
   const [selectedVacancies, setSelectedVacancies] = useState("all");
@@ -316,6 +357,11 @@ const JobBoard = () => {
         // For "hybrid", we don't set remote param, let backend handle location-based filtering
       }
 
+      // Add tenantId filter for super admin
+      if (user?.role === "super_admin" && collegeFilter !== "all") {
+        (params as any).tenantId = collegeFilter;
+      }
+
       const response = await jobAPI.getAllJobs(params);
 
       // Reset retry count on successful request
@@ -370,6 +416,8 @@ const JobBoard = () => {
     selectedExperience,
     selectedIndustry,
     selectedRemoteWork,
+    collegeFilter,
+    user?.role,
   ]);
 
   // Store the latest fetchJobs function in ref
@@ -393,7 +441,9 @@ const JobBoard = () => {
     selectedIndustry,
     selectedRemoteWork,
     selectedSalaryRange,
+    selectedSalaryRange,
     selectedVacancies,
+    collegeFilter,
   ]);
 
   // Load jobs when user is authenticated or filters change
@@ -754,6 +804,29 @@ const JobBoard = () => {
               {/* Filters */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Filters</h3>
+
+                {/* College Filter (Super Admin Only) */}
+                {user?.role === "super_admin" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">College</label>
+                    <Select
+                      value={collegeFilter}
+                      onValueChange={setCollegeFilter}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filter by College" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Colleges</SelectItem>
+                        {colleges.map((college) => (
+                          <SelectItem key={college._id} value={college._id}>
+                            {college.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Job Type */}
                 <div className="space-y-2">

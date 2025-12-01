@@ -1985,10 +1985,11 @@ export const eventAPI = {
   },
 
   // Get all events with pending registrations
-  getEventsWithPendingRegistrations: async () => {
+  getEventsWithPendingRegistrations: async (params?: { tenantId?: string }) => {
     return apiRequest({
       method: "GET",
       url: "/events/pending-registrations/all",
+      params,
     });
   },
 };

@@ -59,6 +59,16 @@ router.post(
   asyncHandler(userController.bulkCreateAlumni)
 );
 
+// @route   POST /api/v1/users/bulk-students
+// @desc    Bulk create students from CSV/Excel data
+// @access  Private/Super Admin, College Admin, HOD, Staff
+router.post(
+  "/bulk-students",
+  authenticateToken,
+  requireUserCreation, // Super Admin, College Admin, HOD, and Staff can create users
+  asyncHandler(userController.bulkCreateStudents)
+);
+
 // @route   GET /api/v1/users/test-export
 // @desc    Test export functionality
 // @access  Private/Super Admin, College Admin, HOD, Staff
@@ -77,6 +87,16 @@ router.get(
   authenticateToken,
   requireUserCreation, // Super Admin, College Admin, HOD, and Staff can export
   asyncHandler(userController.exportAlumniData)
+);
+
+// @route   GET /api/v1/users/export-students
+// @desc    Export all students data as Excel/CSV
+// @access  Private/Super Admin, College Admin, HOD, Staff
+router.get(
+  "/export-students",
+  authenticateToken,
+  requireUserCreation, // Super Admin, College Admin, HOD, and Staff can export
+  asyncHandler(userController.exportStudentsData)
 );
 
 // @route   PUT /api/v1/users/profile

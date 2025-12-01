@@ -698,15 +698,7 @@ const EnhancedDonationTable: React.FC<EnhancedDonationTableProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm font-medium transition-all">
-            <Calendar className="w-4 h-4" />
-            Export Period
-            <ExternalLink className="w-3 h-3" />
-          </button>
-          <button className="inline-flex items-center gap-2 bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 px-3 rounded-lg text-sm font-medium transition-all">
-            <Share className="w-4 h-4" />
-            Share History
-          </button>
+          
         </div>
       </div>
 

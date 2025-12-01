@@ -32,6 +32,16 @@ import {
   Settings,
   GraduationCap,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { userAPI } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
@@ -66,6 +76,8 @@ const UserManagement: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -208,27 +220,35 @@ const UserManagement: React.FC = () => {
 
   const handleDeleteUser = async (userId: string) => {
     console.log("Delete user requested:", userId);
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      try {
-        const response = await userAPI.deleteUser(userId);
-        console.log("Delete user response:", response);
-        if (response.success) {
-          setUsers(users.filter((user) => user._id !== userId));
-          toast({
-            title: "Success",
-            description: "User deleted successfully",
-          });
-        } else {
-          throw new Error(response.message || "Failed to delete user");
-        }
-      } catch (error) {
-        console.error("Delete user error:", error);
+    setUserToDelete(userId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      const response = await userAPI.deleteUser(userToDelete);
+      console.log("Delete user response:", response);
+      if (response.success) {
+        setUsers(users.filter((user) => user._id !== userToDelete));
         toast({
-          title: "Error",
-          description: "Failed to delete user",
-          variant: "destructive",
+          title: "Success",
+          description: "User deleted successfully",
         });
+      } else {
+        throw new Error(response.message || "Failed to delete user");
       }
+    } catch (error) {
+      console.error("Delete user error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setUserToDelete(null);
     }
   };
 
@@ -338,7 +358,7 @@ const UserManagement: React.FC = () => {
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="pending">Pending</option>
-                <option value="suspended">Suspended</option>
+                {/* <option value="suspended">Suspended</option> */}
               </select>
             </div>
           </div>
@@ -518,6 +538,28 @@ const UserManagement: React.FC = () => {
         }}
         onUserUpdated={handleUserUpdated}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this
+              user and remove all associated data from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteUser}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

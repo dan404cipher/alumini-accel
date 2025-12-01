@@ -23,6 +23,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -44,7 +54,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { tenantAPI, getImageUrl } from "@/lib/api";
+import { tenantAPI, getImageUrl, Tenant } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -58,6 +68,7 @@ import {
   Settings,
   Eye,
   MoreHorizontal,
+  Activity,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -134,53 +145,7 @@ const editTenantSchema = z.object({
 type CreateTenantFormData = z.infer<typeof createTenantSchema>;
 type EditTenantFormData = z.infer<typeof editTenantSchema>;
 
-interface Tenant {
-  _id: string;
-  name: string;
-  domain: string;
-  about?: string;
-  logo?: string;
-  banner?: string;
-  superAdminId: {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-  };
-  contactInfo: {
-    email: string;
-    phone?: string;
-    address?: string;
-    website?: string;
-  };
-  settings: {
-    allowAlumniRegistration: boolean;
-    requireApproval: boolean;
-    allowJobPosting: boolean;
-    allowFundraising: boolean;
-    allowMentorship: boolean;
-    allowEvents: boolean;
-    emailNotifications: boolean;
-    whatsappNotifications: boolean;
-    customBranding: boolean;
-  };
-  subscription: {
-    plan: string;
-    status: string;
-    startDate: string;
-    endDate: string;
-    maxUsers: number;
-  };
-  isActive: boolean;
-  createdAt: string;
-  stats?: {
-    totalUsers: number;
-    totalAlumni: number;
-    activeUsers: number;
-    inactiveUsers: number;
-  };
-}
+
 
 const TenantManagement: React.FC = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -191,6 +156,10 @@ const TenantManagement: React.FC = () => {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [tenantStats, setTenantStats] = useState<Tenant['stats'] | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [tenantToDelete, setTenantToDelete] = useState<string | null>(null);
   const { toast } = useToast();
 
   const createForm = useForm<CreateTenantFormData>({
@@ -341,7 +310,7 @@ const TenantManagement: React.FC = () => {
     }
   };
 
-  const handleViewTenant = (tenantId: string) => {
+  const handleViewTenant = async (tenantId: string) => {
     console.log("View tenant:", tenantId);
 
     // Find the tenant data
@@ -350,6 +319,19 @@ const TenantManagement: React.FC = () => {
       // Set selected tenant and open view dialog
       setSelectedTenant(tenant);
       setIsViewDialogOpen(true);
+      
+      // Fetch tenant stats
+      setLoadingStats(true);
+      try {
+        const statsResponse = await tenantAPI.getTenantStats(tenantId);
+        if (statsResponse.success && statsResponse.data) {
+          setTenantStats(statsResponse.data as Tenant['stats']);
+        }
+      } catch (error) {
+        console.error("Error fetching tenant stats:", error);
+      } finally {
+        setLoadingStats(false);
+      }
     } else {
       toast({
         title: "Error",
@@ -390,10 +372,15 @@ const TenantManagement: React.FC = () => {
   };
 
   const handleDeleteTenant = async (tenantId: string) => {
-    if (!confirm("Are you sure you want to delete this tenant?")) return;
+    setTenantToDelete(tenantId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteTenant = async () => {
+    if (!tenantToDelete) return;
 
     try {
-      const response = await tenantAPI.deleteTenant(tenantId);
+      const response = await tenantAPI.deleteTenant(tenantToDelete);
 
       if (response.success) {
         toast({
@@ -415,6 +402,9 @@ const TenantManagement: React.FC = () => {
         description: "Failed to delete tenant",
         variant: "destructive",
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setTenantToDelete(null);
     }
   };
 
@@ -678,100 +668,6 @@ const TenantManagement: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={createForm.control}
-                      name="settings.allowAlumniRegistration"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Alumni Registration
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Allow alumni to register themselves
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="settings.requireApproval"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Require Approval
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Require admin approval for new registrations
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="settings.allowJobPosting"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Job Posting
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Allow alumni to post job opportunities
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="settings.allowFundraising"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Fundraising
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Allow fundraising campaigns
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
 
                 <div className="flex justify-end space-x-2">
                   <Button
@@ -825,12 +721,9 @@ const TenantManagement: React.FC = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Domain</TableHead>
-                <TableHead>College Admin</TableHead>
+                <TableHead className="hidden md:table-cell">Domain</TableHead>
+                <TableHead className="hidden lg:table-cell">College Admin</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Users</TableHead>
-                <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -860,12 +753,12 @@ const TenantManagement: React.FC = () => {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <code className="text-sm bg-gray-100 px-2 py-1 rounded">
                       {tenant.domain}
                     </code>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     <div>
                       <div className="font-medium">
                         {tenant.superAdminId
@@ -881,20 +774,6 @@ const TenantManagement: React.FC = () => {
                     <Badge variant={tenant.isActive ? "default" : "secondary"}>
                       {tenant.isActive ? "Active" : "Inactive"}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {tenant.subscription?.plan || "N/A"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-4 h-4 text-gray-400" />
-                      <span>{tenant.stats?.totalUsers || 0}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(tenant.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -937,327 +816,251 @@ const TenantManagement: React.FC = () => {
 
       {/* View Tenant Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Tenant Details</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">College Details</DialogTitle>
             <DialogDescription>
-              View detailed information about {selectedTenant?.name}
+              Comprehensive overview of {selectedTenant?.name}
             </DialogDescription>
           </DialogHeader>
 
           {selectedTenant && (
             <div className="space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Basic Information</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Name:
-                      </span>
-                      <span className="font-medium">{selectedTenant.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Domain:
-                      </span>
-                      <span className="font-medium">
-                        {selectedTenant.domain}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Status:
-                      </span>
-                      <Badge
-                        variant={
-                          selectedTenant.isActive ? "default" : "secondary"
-                        }
-                      >
-                        {selectedTenant.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Created:
-                      </span>
-                      <span className="font-medium">
-                        {new Date(
-                          selectedTenant.createdAt
-                        ).toLocaleDateString()}
-                      </span>
+              {/* Header with Logo and Basic Info */}
+              <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    {selectedTenant.logo ? (
+                      <img
+                        src={getImageUrl(selectedTenant.logo)}
+                        alt={selectedTenant.name}
+                        className="w-16 h-16 rounded-lg object-cover border-2 border-white shadow-lg"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-white/20 flex items-center justify-center">
+                        <Building2 className="w-8 h-8 text-white" />
+                      </div>
+                    )}
+                    <div>
+                      <h2 className="text-2xl font-bold">{selectedTenant.name}</h2>
+                      <p className="text-blue-100 text-sm">{selectedTenant.domain}</p>
+                      {selectedTenant.about && (
+                        <p className="text-blue-100 text-sm mt-2 max-w-2xl">
+                          {selectedTenant.about}
+                        </p>
+                      )}
                     </div>
                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Statistics</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Total Users:
-                      </span>
-                      <span className="font-medium">
-                        {selectedTenant.stats?.totalUsers || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Active Users:
-                      </span>
-                      <span className="font-medium">
-                        {selectedTenant.stats?.activeUsers || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Alumni:
-                      </span>
-                      <span className="font-medium">
-                        {selectedTenant.stats?.alumni || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Events:
-                      </span>
-                      <span className="font-medium">
-                        {selectedTenant.stats?.events || 0}
-                      </span>
-                    </div>
-                  </div>
+                  <Badge
+                    variant={selectedTenant.isActive ? "default" : "secondary"}
+                    className="bg-white text-blue-600"
+                  >
+                    {selectedTenant.isActive ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
               </div>
 
-              {/* Contact Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Contact Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Email:
-                      </span>
+              {/* Statistics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-blue-700">
+                        Total Users
+                      </CardTitle>
+                      <Users className="w-4 h-4 text-blue-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingStats ? (
+                      <div className="animate-pulse h-8 bg-blue-200 rounded w-16" />
+                    ) : (
+                      <div className="text-3xl font-bold text-blue-900">
+                        {tenantStats?.totalUsers || selectedTenant.stats?.totalUsers || 0}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-green-700">
+                        Active Users
+                      </CardTitle>
+                      <Activity className="w-4 h-4 text-green-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingStats ? (
+                      <div className="animate-pulse h-8 bg-green-200 rounded w-16" />
+                    ) : (
+                      <div className="text-3xl font-bold text-green-900">
+                        {tenantStats?.activeUsers || selectedTenant.stats?.activeUsers || 0}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-purple-700">
+                        Alumni
+                      </CardTitle>
+                      <Users className="w-4 h-4 text-purple-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingStats ? (
+                      <div className="animate-pulse h-8 bg-purple-200 rounded w-16" />
+                    ) : (
+                      <div className="text-3xl font-bold text-purple-900">
+                        {tenantStats?.totalAlumni || selectedTenant.stats?.totalAlumni || 0}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-orange-700">
+                        Events
+                      </CardTitle>
+                      <Building2 className="w-4 h-4 text-orange-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingStats ? (
+                      <div className="animate-pulse h-8 bg-orange-200 rounded w-16" />
+                    ) : (
+                      <div className="text-3xl font-bold text-orange-900">
+                        {tenantStats?.events || selectedTenant.stats?.events || 0}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* College Admin Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="w-5 h-5" />
+                      College Admin
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Name</span>
                       <span className="font-medium">
+                        {selectedTenant.superAdminId
+                          ? `${selectedTenant.superAdminId.firstName} ${selectedTenant.superAdminId.lastName}`
+                          : "No Admin Assigned"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Email</span>
+                      <span className="font-medium text-sm">
+                        {selectedTenant.superAdminId?.email || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Role</span>
+                      <Badge variant="outline">
+                        {selectedTenant.superAdminId?.role || "N/A"}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Contact Information Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="w-5 h-5" />
+                      Contact Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Email</span>
+                      <span className="font-medium text-sm">
                         {selectedTenant.contactInfo.email}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Phone:
-                      </span>
-                      <span className="font-medium">
-                        {selectedTenant.contactInfo.phone}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Website:
-                      </span>
-                      <span className="font-medium">
-                        {selectedTenant.contactInfo.website}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Address:
-                      </span>
-                      <span className="font-medium text-right">
-                        {selectedTenant.contactInfo.address}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                    {selectedTenant.contactInfo.phone && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Phone</span>
+                        <span className="font-medium text-sm">
+                          {selectedTenant.contactInfo.phone}
+                        </span>
+                      </div>
+                    )}
+                    {selectedTenant.contactInfo.website && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Website</span>
+                        <a
+                          href={selectedTenant.contactInfo.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-sm text-blue-600 hover:underline"
+                        >
+                          Visit Website
+                        </a>
+                      </div>
+                    )}
+                    {selectedTenant.contactInfo.address && (
+                      <div className="space-y-1">
+                        <span className="text-sm text-muted-foreground">Address</span>
+                        <p className="font-medium text-sm">
+                          {selectedTenant.contactInfo.address}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Subscription Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">
-                  Subscription Information
-                </h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Plan:</span>
-                    <Badge variant="outline">
-                      {selectedTenant.subscription.plan}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Status:
-                    </span>
-                    <Badge
-                      variant={
-                        selectedTenant.subscription.status === "active"
-                          ? "default"
-                          : "secondary"
-                      }
-                    >
-                      {selectedTenant.subscription.status}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Max Users:
-                    </span>
-                    <span className="font-medium">
-                      {selectedTenant.subscription.maxUsers}
-                    </span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Start Date:
-                    </span>
-                    <span className="font-medium">
-                      {new Date(
-                        selectedTenant.subscription.startDate
-                      ).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      End Date:
-                    </span>
-                    <span className="font-medium">
-                      {new Date(
-                        selectedTenant.subscription.endDate
-                      ).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {/* Additional Information if available */}
+              {selectedTenant.about && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Eye className="w-5 h-5" />
+                      About
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedTenant.about}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
-              {/* Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Settings</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Allow Alumni Registration:
-                      </span>
-                      <Badge
-                        variant={
-                          selectedTenant.settings.allowAlumniRegistration
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {selectedTenant.settings.allowAlumniRegistration
-                          ? "Yes"
-                          : "No"}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Require Approval:
-                      </span>
-                      <Badge
-                        variant={
-                          selectedTenant.settings.requireApproval
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {selectedTenant.settings.requireApproval ? "Yes" : "No"}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Allow Job Posting:
-                      </span>
-                      <Badge
-                        variant={
-                          selectedTenant.settings.allowJobPosting
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {selectedTenant.settings.allowJobPosting ? "Yes" : "No"}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Allow Fundraising:
-                      </span>
-                      <Badge
-                        variant={
-                          selectedTenant.settings.allowFundraising
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {selectedTenant.settings.allowFundraising
-                          ? "Yes"
-                          : "No"}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Allow Mentorship:
-                      </span>
-                      <Badge
-                        variant={
-                          selectedTenant.settings.allowMentorship
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {selectedTenant.settings.allowMentorship ? "Yes" : "No"}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Allow Events:
-                      </span>
-                      <Badge
-                        variant={
-                          selectedTenant.settings.allowEvents
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {selectedTenant.settings.allowEvents ? "Yes" : "No"}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* About */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">About</h3>
-                <p className="text-sm text-muted-foreground">
-                  {selectedTenant.about}
-                </p>
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsViewDialogOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsViewDialogOpen(false);
+                    setSelectedTenant(selectedTenant);
+                    setIsEditDialogOpen(true);
+                  }}
+                >
+                  Edit Tenant
+                </Button>
               </div>
             </div>
           )}
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsViewDialogOpen(false)}
-            >
-              Close
-            </Button>
-            <Button
-              onClick={() => {
-                setIsViewDialogOpen(false);
-                setSelectedTenant(selectedTenant);
-                setIsEditDialogOpen(true);
-              }}
-            >
-              Edit Tenant
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
 
@@ -1396,144 +1199,6 @@ const TenantManagement: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Settings</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={editForm.control}
-                      name="settings.allowAlumniRegistration"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Alumni Registration
-                            </FormLabel>
-                            <FormDescription>
-                              Allow alumni to register themselves
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="settings.requireApproval"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Require Approval
-                            </FormLabel>
-                            <FormDescription>
-                              Require admin approval for registrations
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="settings.allowJobPosting"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Job Posting
-                            </FormLabel>
-                            <FormDescription>
-                              Allow users to post job opportunities
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="settings.allowFundraising"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Fundraising
-                            </FormLabel>
-                            <FormDescription>
-                              Allow fundraising campaigns
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="settings.allowMentorship"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Mentorship
-                            </FormLabel>
-                            <FormDescription>
-                              Allow mentorship programs
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="settings.allowEvents"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Allow Events
-                            </FormLabel>
-                            <FormDescription>
-                              Allow event creation and management
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
 
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button
@@ -1550,6 +1215,28 @@ const TenantManagement: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this
+              tenant and remove all associated data from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteTenant}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

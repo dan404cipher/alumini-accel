@@ -31,7 +31,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { tenantAPI, userAPI } from "@/lib/api";
+import { tenantAPI, userAPI, Tenant } from "@/lib/api";
 import TenantManagement from "../TenantManagement";
 import UserManagement from "../UserManagement";
 import AlumniManagement from "../AlumniManagement";
@@ -54,12 +54,7 @@ import {
 } from "recharts";
 
 // Type definitions
-interface Tenant {
-  _id: string;
-  name: string;
-  domain?: string;
-  [key: string]: unknown;
-}
+
 
 interface User {
   _id: string;
@@ -150,6 +145,15 @@ interface CollegePerformance {
 }
 
 type TimePeriod = "daily" | "weekly" | "monthly";
+
+interface UserStats {
+  totalUsers: number;
+  activeUsers: number;
+  verifiedUsers: number;
+  pendingUsers: number;
+  roleStats: Array<{ _id: string; count: number }>;
+  monthlyStats: Array<{ _id: { year: number; month: number }; count: number }>;
+}
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
@@ -259,7 +263,9 @@ const SuperAdminDashboard = () => {
   });
 
   // Analytics state
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("weekly");
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("monthly");
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
 
   // Fetch colleges for dropdown
@@ -275,10 +281,8 @@ const SuperAdminDashboard = () => {
       setLoadingColleges(true);
       setLastFetchTime((prev) => ({ ...prev, colleges: now }));
       const response = await tenantAPI.getAllTenants();
-      const responseTyped = response as APIResponse<TenantResponse>;
-      const dataTyped = responseTyped.data as TenantResponse;
-      if (response.success && dataTyped) {
-        setColleges(dataTyped.tenants || []);
+      if (response.success && response.data) {
+        setColleges(response.data.tenants || []);
       }
     } catch (error) {
       console.error("Error fetching colleges:", error);
@@ -393,9 +397,25 @@ const SuperAdminDashboard = () => {
     } ago`;
   };
 
+  const fetchUserStats = async () => {
+    try {
+      setLoadingStats(true);
+      const response = await userAPI.getUserStats();
+      console.log("User Stats API Response:", response);
+      if (response.success && response.data) {
+        setUserStats(response.data as UserStats);
+      }
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   useEffect(() => {
     fetchColleges();
     fetchRecentUsers();
+    fetchUserStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -749,9 +769,9 @@ const SuperAdminDashboard = () => {
   // Calculate real stats from fetched data
   const stats = {
     totalColleges: colleges.length,
-    totalUsers: recentUsers.length > 0 ? recentUsers.length * 100 : 0, // Estimate based on recent users
+    totalUsers: userStats?.totalUsers ?? 0,
     totalFundsRaised: 2450000, // Keep as mock for now
-    activeUsers: Math.floor(recentUsers.length * 60), // Estimate 60% active
+    activeUsers: userStats?.activeUsers ?? 0,
     pendingApprovals:
       requestStats.alumni +
       requestStats.admin +
@@ -969,12 +989,6 @@ ${calculateCollegePerformance().slice(-3).reverse().map((c, i) =>
       description: "Manage administrators and staff",
     },
     {
-      id: "create-users",
-      label: "Create Users",
-      icon: UserPlus,
-      description: "Create new user accounts",
-    },
-    {
       id: "analytics",
       label: "Report & Analytics",
       icon: BarChart3,
@@ -1073,22 +1087,7 @@ ${calculateCollegePerformance().slice(-3).reverse().map((c, i) =>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Funds Raised
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${stats.totalFundsRaised.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  +8% from last month
-                </p>
-              </CardContent>
-            </Card>
+       
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

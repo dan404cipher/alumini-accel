@@ -390,19 +390,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                 </div>
               </div>
 
-              {user.tenantId && (
-                <div>
-                  <Label className="text-sm text-gray-500">College ID</Label>
-                  <p className="mt-1 text-sm font-medium">
-                    {typeof user.tenantId === "string"
-                      ? user.tenantId.slice(-6)
-                      : user.tenantId?._id?.slice(-6) ||
-                        user.tenantId?.name ||
-                        "N/A"}
-                  </p>
-                </div>
-              )}
-
+             
               {user.department && (
                 <div>
                   <Label className="text-sm text-gray-500">Department</Label>

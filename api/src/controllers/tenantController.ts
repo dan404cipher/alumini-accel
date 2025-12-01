@@ -463,9 +463,8 @@ export const deleteTenant = asyncHandler(
       });
     }
 
-    // Soft delete - mark as inactive
-    tenant.isActive = false;
-    await tenant.save();
+    // Hard delete - permanently remove tenant
+    await Tenant.findByIdAndDelete(req.params.id);
 
     return res.json({
       success: true,

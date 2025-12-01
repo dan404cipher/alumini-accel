@@ -198,21 +198,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 </Badge>
               </div>
 
-              {user.tenantId && (
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-4 h-4 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">College ID</p>
-                    <p className="font-medium">
-                      {typeof user.tenantId === "string"
-                        ? user.tenantId.slice(-6)
-                        : user.tenantId?._id?.slice(-6) ||
-                          user.tenantId?.name ||
-                          "N/A"}
-                    </p>
-                  </div>
-                </div>
-              )}
+           
 
               {user.department && (
                 <div className="flex items-center gap-3">

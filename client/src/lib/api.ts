@@ -880,6 +880,14 @@ export const userAPI = {
 
     return { success: true, filename };
   },
+
+  // Get user statistics (admin only)
+  getUserStats: async () => {
+    return apiRequest({
+      method: "GET",
+      url: "/users/stats",
+    });
+  },
 };
 
 // Alumni API functions
@@ -2716,6 +2724,56 @@ export const messageAPI = {
   },
 };
 
+// Tenant Interface
+export interface Tenant {
+  _id: string;
+  name: string;
+  domain: string;
+  about?: string;
+  logo?: string;
+  banner?: string;
+  superAdminId: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  };
+  contactInfo: {
+    email: string;
+    phone?: string;
+    address?: string;
+    website?: string;
+  };
+  settings: {
+    allowAlumniRegistration: boolean;
+    requireApproval: boolean;
+    allowJobPosting: boolean;
+    allowFundraising: boolean;
+    allowMentorship: boolean;
+    allowEvents: boolean;
+    emailNotifications: boolean;
+    whatsappNotifications: boolean;
+    customBranding: boolean;
+  };
+  subscription: {
+    plan: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    maxUsers: number;
+  };
+  isActive: boolean;
+  createdAt: string;
+  stats?: {
+    totalUsers: number;
+    totalAlumni: number;
+    activeUsers: number;
+    inactiveUsers: number;
+    events: number;
+  };
+}
+
 // Tenant API functions
 export const tenantAPI = {
   // Get all tenants (Super Admin only)
@@ -2731,7 +2789,7 @@ export const tenantAPI = {
     if (params?.search) queryParams.append("search", params.search);
     if (params?.status) queryParams.append("status", params.status);
 
-    return apiRequest({
+    return apiRequest<{ tenants: Tenant[] }>({
       method: "GET",
       url: `/tenants?${queryParams.toString()}`,
     });

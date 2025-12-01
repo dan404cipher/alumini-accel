@@ -110,6 +110,16 @@ router.put(
   asyncHandler(userController.updateStudentProfile)
 );
 
+// @route   GET /api/v1/users/stats
+// @desc    Get user statistics (admin only)
+// @access  Private/Admin
+router.get(
+  "/stats",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(userController.getUserStats)
+);
+
 // @route   GET /api/v1/users/eligible-students
 // @desc    Get eligible students for alumni promotion (admin only)
 // @access  Private/Admin

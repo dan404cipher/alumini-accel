@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
   CardContent,
@@ -20,7 +21,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  CheckCircle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EditEventDialog } from "./dialogs/EditEventDialog";
+import {
+ CheckCircle,
   XCircle,
   Clock,
   Calendar,
@@ -30,20 +45,22 @@ import {
   Phone,
   Loader2,
   AlertCircle,
+  Edit,
+  Trash2,
+  Eye,
+  Users,
+  Filter,
+  Search,
+  Download,
+  MoreHorizontal,
 } from "lucide-react";
-import { eventAPI, API_BASE_URL } from "@/lib/api";
+import { eventAPI, API_BASE_URL, getImageUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, isPast, isFuture, isToday } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAuthTokenOrNull } from "@/utils/auth";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
+// TypeScript Interfaces
 interface College {
   _id: string;
   name: string;
@@ -82,28 +99,99 @@ interface EventWithPending {
   attendees: PendingRegistration[];
 }
 
+interface Event {
+  _id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate?: string;
+  location: string;
+  type: string;
+  organizer?: {
+    _id?: string;
+    firstName: string;
+    lastName: string;
+  };
+  currentAttendees?: number;
+  maxAttendees?: number;
+  image?: string;
+  tags?: string[];
+  price?: number;
+  registrationDeadline?: string;
+  attendees?: Array<{
+    userId: string | { _id: string };
+    status: "registered" | "pending_payment" | "attended" | "cancelled";
+    paymentStatus?: string;
+  }>;
+  isOnline?: boolean;
+  onlineUrl?: string;
+  meetingLink?: string;
+  organizerNotes?: string;
+  speakers?: Array<{
+    name: string;
+    title: string;
+    company: string;
+    bio: string;
+  }>;
+  agenda?: Array<{
+    title: string;
+    speaker: string;
+    description: string;
+  }>;
+}
+
 const EventManagement: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState("all-events");
+  
+  // All Events state
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [loadingAllEvents, setLoadingAllEvents] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  
+  // Event details modal
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditEventOpen, setIsEditEventOpen] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  
+  // Pending Registrations state (existing)
   const [events, setEvents] = useState<EventWithPending[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<EventWithPending | null>(null);
+  const [selectedEventForPending, setSelectedEventForPending] = useState<EventWithPending | null>(null);
   const [pendingRegistrations, setPendingRegistrations] = useState<PendingRegistration[]>([]);
   const [loadingRegistrations, setLoadingRegistrations] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<PendingRegistration | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
-  const { user } = useAuth();
+  
+  // College filter
   const [colleges, setColleges] = useState<College[]>([]);
   const [collegeFilter, setCollegeFilter] = useState("all");
+
+  // Helper function to determine event status
+  const getEventStatus = (event: Event) => {
+    const now = new Date();
+    const start = new Date(event.startDate);
+    const end = event.endDate ? new Date(event.endDate) : start;
+    
+    if (isPast(end)) return "completed";
+    if (isToday(start) || (now >= start && now <= end)) return "ongoing";
+    if (isFuture(start)) return "upcoming";
+    return "upcoming";
+  };
 
   // Fetch colleges on component mount (only for Super Admin)
   useEffect(() => {
     const fetchColleges = async () => {
-      // Only fetch colleges if user is Super Admin
-      if (user?.role !== "super_admin") {
-        return;
-      }
+      if (user?.role !== "super_admin") return;
 
       try {
         const token = getAuthTokenOrNull();
@@ -125,6 +213,31 @@ const EventManagement: React.FC = () => {
 
     fetchColleges();
   }, [user]);
+
+  // Fetch all events for "All Events" tab
+  const fetchAllEvents = async () => {
+    try {
+      setLoadingAllEvents(true);
+      const params: any = { limit: 1000 };
+      if (user?.role === "super_admin" && collegeFilter !== "all") {
+        params.tenantId = collegeFilter;
+      }
+      
+      const response = await eventAPI.getAllEvents(params);
+      if (response.success && response.data) {
+        setAllEvents((response.data as any).events || []);
+      }
+    } catch (error) {
+      console.error("Error fetching all events:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load events",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingAllEvents(false);
+    }
+  };
 
   // Fetch events with pending registrations
   const fetchEvents = async () => {
@@ -172,9 +285,9 @@ const EventManagement: React.FC = () => {
     }
   };
 
-  // Handle event selection
+  // Handle event selection (for pending registrations tab)
   const handleEventSelect = (event: EventWithPending) => {
-    setSelectedEvent(event);
+    setSelectedEventForPending(event);
     fetchPendingRegistrations(event._id);
   };
 
@@ -188,9 +301,8 @@ const EventManagement: React.FC = () => {
           title: "Success",
           description: "Registration approved successfully",
         });
-        // Refresh data
-        if (selectedEvent) {
-          fetchPendingRegistrations(selectedEvent._id);
+        if (selectedEventForPending) {
+          fetchPendingRegistrations(selectedEventForPending._id);
           fetchEvents();
         }
       } else {
@@ -209,12 +321,12 @@ const EventManagement: React.FC = () => {
 
   // Reject registration
   const handleReject = async () => {
-    if (!selectedRegistration || !selectedEvent) return;
+    if (!selectedRegistration || !selectedEventForPending) return;
 
     try {
       setProcessing(selectedRegistration._id);
       const response = await eventAPI.rejectRegistration(
-        selectedEvent._id,
+        selectedEventForPending._id,
         selectedRegistration._id,
         rejectionReason || undefined
       );
@@ -223,8 +335,7 @@ const EventManagement: React.FC = () => {
           title: "Success",
           description: "Registration rejected successfully",
         });
-        // Refresh data
-        fetchPendingRegistrations(selectedEvent._id);
+        fetchPendingRegistrations(selectedEventForPending._id);
         fetchEvents();
         setRejectDialogOpen(false);
         setSelectedRegistration(null);
@@ -243,17 +354,75 @@ const EventManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, [collegeFilter]);
+  // Delete event
+  const handleDeleteEvent = async () => {
+    if (!eventToDelete) return;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
+    try {
+      const response = await eventAPI.deleteEvent(eventToDelete._id);
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Event deleted successfully",
+        });
+        setDeleteConfirmationOpen(false);
+        setEventToDelete(null);
+        fetchAllEvents();
+      } else {
+        throw new Error(response.message || "Failed to delete event");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // View event details
+  const handleViewEvent = (event: Event) => {
+    setSelectedEvent(event);
+    setIsViewModalOpen(true);
+  };
+
+  // Handle edit event
+  const handleEditEvent = (event: Event) => {
+    setSelectedEvent(event);
+    setIsEditEventOpen(true);
+  };
+
+  const handleEventUpdated = () => {
+    fetchAllEvents();
+    toast({
+      title: "Success",
+      description: "Event updated successfully",
+    });
+  };
+
+  // Filter events based on search and filters
+  const filteredEvents = allEvents.filter((event) => {
+    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const eventStatus = getEventStatus(event);
+    const matchesStatus = statusFilter === "all" || eventStatus === statusFilter;
+    
+    const matchesType = typeFilter === "all" || event.type === typeFilter;
+    
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  // Get unique event types for filter
+  const eventTypes = Array.from(new Set(allEvents.map(e => e.type))).filter(Boolean);
+
+  useEffect(() => {
+    if (activeTab === "all-events") {
+      fetchAllEvents();
+    } else if (activeTab === "pending-registrations") {
+      fetchEvents();
+    }
+  }, [activeTab, collegeFilter]);
 
   return (
     <div className="space-y-6">
@@ -261,7 +430,7 @@ const EventManagement: React.FC = () => {
         <div>
           <h2 className="text-2xl font-semibold">Event Management</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Manage pending event registrations
+            Manage events and registrations
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -282,216 +451,538 @@ const EventManagement: React.FC = () => {
               </Select>
             </div>
           )}
-          <Button onClick={fetchEvents} variant="outline" size="sm">
-            Refresh
-          </Button>
         </div>
       </div>
 
-      {events.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No events with pending registrations</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Events List */}
-          <div className="lg:col-span-1 space-y-4">
-            <h3 className="text-lg font-semibold">Events with Pending Registrations</h3>
-            <div className="space-y-3">
-              {events.map((event) => (
-                <Card
-                  key={event._id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    selectedEvent?._id === event._id
-                      ? "border-blue-500 border-2"
-                      : ""
-                  }`}
-                  onClick={() => handleEventSelect(event)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-base line-clamp-2">
-                        {event.title}
-                      </CardTitle>
-                      <Badge variant="secondary" className="ml-2">
-                        {event.pendingRegistrationsCount}
-                      </Badge>
-                    </div>
-                    <CardDescription className="flex items-center gap-2 mt-2">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-xs">
-                        {format(new Date(event.startDate), "MMM dd, yyyy")}
-                      </span>
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="all-events">All Events</TabsTrigger>
+          <TabsTrigger value="pending-registrations">
+            Pending Registrations
+            {events.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {events.reduce((sum, e) => sum + e.pendingRegistrationsCount, 0)}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Pending Registrations */}
-          <div className="lg:col-span-2">
-            {selectedEvent ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">{selectedEvent.title}</h3>
-                    <p className="text-sm text-gray-500">
-                      {pendingRegistrations.length} pending registration
-                      {pendingRegistrations.length !== 1 ? "s" : ""}
-                    </p>
+        {/* All Events Tab */}
+        <TabsContent value="all-events" className="space-y-4">
+          {/* Filters and Search */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Filters</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Search Events</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by title..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
                   </div>
                 </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="ongoing">Ongoing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Type</Label>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {eventTypes.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    onClick={fetchAllEvents}
+                    className="w-full"
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                {loadingRegistrations ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                  </div>
-                ) : pendingRegistrations.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                      <p className="text-gray-600">No pending registrations</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-4">
-                    {pendingRegistrations.map((registration) => (
-                      <Card key={registration._id}>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
+          {/* Events Table */}
+          {loadingAllEvents ? (
+            <div className="flex items-center justify-center min-h-[400px]">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          ) : filteredEvents.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No events found</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Event</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Date & Time</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Location</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Attendees</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredEvents.map((event) => {
+                      const status = getEventStatus(event);
+                      const attendeeCount = event.currentAttendees || event.attendees?.length || 0;
+                      const maxAttendees = event.maxAttendees || 0;
+                      
+                      return (
+                        <tr key={event._id} className="hover:bg-muted/50">
+                          <td className="px-4 py-3">
                             <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                {registration.userId.profilePicture ? (
-                                  <img
-                                    src={registration.userId.profilePicture}
-                                    alt={`${registration.userId.firstName} ${registration.userId.lastName}`}
-                                    className="w-full h-full rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <User className="w-5 h-5 text-gray-500" />
-                                )}
-                              </div>
+                              {event.image && (
+                                <img
+                                  src={getImageUrl(event.image)}
+                                  alt={event.title}
+                                  className="w-12 h-12 rounded object-cover"
+                                />
+                              )}
                               <div>
-                                <CardTitle className="text-base">
-                                  {registration.userId.firstName}{" "}
-                                  {registration.userId.lastName}
-                                </CardTitle>
-                                <CardDescription className="flex items-center gap-2 mt-1">
-                                  <Mail className="w-3 h-3" />
-                                  <span className="text-xs">
-                                    {registration.userId.email}
-                                  </span>
-                                </CardDescription>
-                                {registration.phone && (
-                                  <CardDescription className="flex items-center gap-2 mt-1">
-                                    <Phone className="w-3 h-3" />
-                                    <span className="text-xs">{registration.phone}</span>
-                                  </CardDescription>
-                                )}
+                                <p className="font-medium text-sm">{event.title}</p>
+                                <p className="text-xs text-gray-500 line-clamp-1">
+                                  {event.type}
+                                </p>
                               </div>
                             </div>
-                            <Badge variant="outline" className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              Pending
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-gray-400" />
+                              <span>{format(new Date(event.startDate), "MMM dd, yyyy")}</span>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {format(new Date(event.startDate), "h:mm a")}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-gray-400" />
+                              <span className="line-clamp-1">{event.location}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant={
+                                status === "ongoing" 
+                                  ? "default"
+                                  : status === "upcoming"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                            >
+                              {status}
                             </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="text-sm text-gray-600">
-                              <p>
-                                <strong>Registered:</strong>{" "}
-                                {format(
-                                  new Date(registration.registeredAt),
-                                  "MMM dd, yyyy 'at' h:mm a"
-                                )}
-                              </p>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3 text-gray-400" />
+                              <span>
+                                {attendeeCount}
+                                {maxAttendees > 0 && ` / ${maxAttendees}`}
+                              </span>
                             </div>
-                            {registration.dietaryRequirements && (
-                              <div className="text-sm">
-                                <strong>Dietary Requirements:</strong>{" "}
-                                <span className="text-gray-600">
-                                  {registration.dietaryRequirements}
-                                </span>
-                              </div>
-                            )}
-                            {registration.emergencyContact && (
-                              <div className="text-sm">
-                                <strong>Emergency Contact:</strong>{" "}
-                                <span className="text-gray-600">
-                                  {registration.emergencyContact}
-                                </span>
-                              </div>
-                            )}
-                            {registration.additionalNotes && (
-                              <div className="text-sm">
-                                <strong>Additional Notes:</strong>{" "}
-                                <span className="text-gray-600">
-                                  {registration.additionalNotes}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex gap-2 pt-2">
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
                               <Button
                                 size="sm"
-                                onClick={() =>
-                                  handleApprove(selectedEvent._id, registration._id)
-                                }
-                                disabled={processing === registration._id}
-                                className="flex-1"
+                                variant="ghost"
+                                onClick={() => handleViewEvent(event)}
                               >
-                                {processing === registration._id ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Processing...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Approve
-                                  </>
-                                )}
+                                <Eye className="w-4 h-4" />
                               </Button>
                               <Button
                                 size="sm"
-                                variant="destructive"
+                                variant="ghost"
+                                onClick={() => handleEditEvent(event)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 onClick={() => {
-                                  setSelectedRegistration(registration);
-                                  setRejectDialogOpen(true);
+                                  setEventToDelete(event);
+                                  setDeleteConfirmationOpen(true);
                                 }}
-                                disabled={processing === registration._id}
-                                className="flex-1"
                               >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Reject
+                                <Trash2 className="w-4 h-4 text-red-500" />
                               </Button>
                             </div>
-                          </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Pending Registrations Tab */}
+        <TabsContent value="pending-registrations">
+          {loading ? (
+            <div className="flex items-center justify-center min-h-[400px]">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          ) : events.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No events with pending registrations</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Events List */}
+              <div className="lg:col-span-1 space-y-4">
+                <h3 className="text-lg font-semibold">Events with Pending Registrations</h3>
+                <div className="space-y-3">
+                  {events.map((event) => (
+                    <Card
+                      key={event._id}
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        selectedEvent?._id === event._id
+                          ? "border-blue-500 border-2"
+                          : ""
+                      }`}
+                      onClick={() => handleEventSelect(event)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <CardTitle className="text-base line-clamp-2">
+                            {event.title}
+                          </CardTitle>
+                          <Badge variant="secondary" className="ml-2">
+                            {event.pendingRegistrationsCount}
+                          </Badge>
+                        </div>
+                        <CardDescription className="flex items-center gap-2 mt-2">
+                          <Calendar className="w-4 h-4" />
+                          <span className="text-xs">
+                            {format(new Date(event.startDate), "MMM dd, yyyy")}
+                          </span>
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pending Registrations */}
+              <div className="lg:col-span-2">
+                {selectedEvent ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold">{selectedEvent.title}</h3>
+                        <p className="text-sm text-gray-500">
+                          {pendingRegistrations.length} pending registration
+                          {pendingRegistrations.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    {loadingRegistrations ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                      </div>
+                    ) : pendingRegistrations.length === 0 ? (
+                      <Card>
+                        <CardContent className="py-12 text-center">
+                          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                          <p className="text-gray-600">No pending registrations</p>
                         </CardContent>
                       </Card>
-                    ))}
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingRegistrations.map((registration) => (
+                          <Card key={registration._id}>
+                            <CardHeader>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                    {registration.userId.profilePicture ? (
+                                      <img
+                                        src={registration.userId.profilePicture}
+                                        alt={`${registration.userId.firstName} ${registration.userId.lastName}`}
+                                        className="w-full h-full rounded-full object-cover"
+                                      />
+                                    ) : (
+                                      <User className="w-5 h-5 text-gray-500" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <CardTitle className="text-base">
+                                      {registration.userId.firstName}{" "}
+                                      {registration.userId.lastName}
+                                    </CardTitle>
+                                    <CardDescription className="flex items-center gap-2 mt-1">
+                                      <Mail className="w-3 h-3" />
+                                      <span className="text-xs">
+                                        {registration.userId.email}
+                                      </span>
+                                    </CardDescription>
+                                    {registration.phone && (
+                                      <CardDescription className="flex items-center gap-2 mt-1">
+                                        <Phone className="w-3 h-3" />
+                                        <span className="text-xs">{registration.phone}</span>
+                                      </CardDescription>
+                                    )}
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Pending
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-3">
+                                <div className="text-sm text-gray-600">
+                                  <p>
+                                    <strong>Registered:</strong>{" "}
+                                    {format(
+                                      new Date(registration.registeredAt),
+                                      "MMM dd, yyyy 'at' h:mm a"
+                                    )}
+                                  </p>
+                                </div>
+                                {registration.dietaryRequirements && (
+                                  <div className="text-sm">
+                                    <strong>Dietary Requirements:</strong>{" "}
+                                    <span className="text-gray-600">
+                                      {registration.dietaryRequirements}
+                                    </span>
+                                  </div>
+                                )}
+                                {registration.emergencyContact && (
+                                  <div className="text-sm">
+                                    <strong>Emergency Contact:</strong>{" "}
+                                    <span className="text-gray-600">
+                                      {registration.emergencyContact}
+                                    </span>
+                                  </div>
+                                )}
+                                {registration.additionalNotes && (
+                                  <div className="text-sm">
+                                    <strong>Additional Notes:</strong>{" "}
+                                    <span className="text-gray-600">
+                                      {registration.additionalNotes}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex gap-2 pt-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      handleApprove(selectedEvent._id, registration._id)
+                                    }
+                                    disabled={processing === registration._id}
+                                    className="flex-1"
+                                  >
+                                    {processing === registration._id ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Processing...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        Approve
+                                      </>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setSelectedRegistration(registration);
+                                      setRejectDialogOpen(true);
+                                    }}
+                                    disabled={processing === registration._id}
+                                    className="flex-1"
+                                  >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">
+                        Select an event to view pending registrations
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Event Details Modal */}
+      {/* Event Details Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Event Details</DialogTitle>
+          </DialogHeader>
+          {selectedEvent && (
+            <div className="space-y-4">
+              {selectedEvent.image && (
+                <img
+                  src={getImageUrl(selectedEvent.image)}
+                  alt={selectedEvent.title}
+                  className="w-full h-48 object-cover rounded-lg"
+                />
+              )}
+              <div>
+                <h3 className="text-xl font-semibold">{selectedEvent.title}</h3>
+                <Badge className="mt-2">{getEventStatus(selectedEvent)}</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500">Start Date</p>
+                  <p className="font-medium">
+                    {format(new Date(selectedEvent.startDate), "PPP p")}
+                  </p>
+                </div>
+                {selectedEvent.endDate && (
+                  <div>
+                    <p className="text-gray-500">End Date</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedEvent.endDate), "PPP p")}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-gray-500">Location</p>
+                  <p className="font-medium">{selectedEvent.location}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Type</p>
+                  <p className="font-medium">{selectedEvent.type}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Attendees</p>
+                  <p className="font-medium">
+                    {selectedEvent.currentAttendees || selectedEvent.attendees?.length || 0}
+                    {selectedEvent.maxAttendees && ` / ${selectedEvent.maxAttendees}`}
+                  </p>
+                </div>
+                {selectedEvent.price !== undefined && (
+                  <div>
+                    <p className="text-gray-500">Price</p>
+                    <p className="font-medium">
+                      {selectedEvent.price > 0 ? `₹${selectedEvent.price}` : "Free"}
+                    </p>
                   </div>
                 )}
               </div>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">
-                    Select an event to view pending registrations
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      )}
+              <div>
+                <p className="text-gray-500 text-sm mb-2">Description</p>
+                <p className="text-sm">{selectedEvent.description}</p>
+              </div>
+              {selectedEvent.tags && selectedEvent.tags.length > 0 && (
+                <div>
+                  <p className="text-gray-500 text-sm mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedEvent.tags.map((tag, index) => (
+                      <Badge key={index} variant="outline">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setIsViewModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Reject Dialog */}
+      {/* Delete Event Dialog */}
+      {/* Delete Event Dialog */}
+      <Dialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Event</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this event? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {eventToDelete && (
+            <div className="py-4">
+              <p className="text-sm">
+                <strong>Event:</strong> {eventToDelete.title}
+              </p>
+              <p className="text-sm">
+                <strong>Date:</strong> {format(new Date(eventToDelete.startDate), "PPP")}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmationOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteEvent}>
+              Delete Event
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Registration Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -552,9 +1043,15 @@ const EventManagement: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Edit Event Dialog */}
+      <EditEventDialog
+        open={isEditEventOpen}
+        onOpenChange={setIsEditEventOpen}
+        event={selectedEvent}
+        onEventUpdated={handleEventUpdated}
+      />
     </div>
   );
 };
 
 export default EventManagement;
-

@@ -28,13 +28,13 @@ interface Event {
   description: string;
   type: string;
   startDate: string;
-  endDate: string;
+  endDate?: string;
   location: string;
-  isOnline: boolean;
-  maxAttendees: number;
-  currentAttendees: number;
-  price: number;
-  tags: string[];
+  isOnline?: boolean;
+  maxAttendees?: number;
+  currentAttendees?: number;
+  price?: number;
+  tags?: string[];
   image?: string;
   registrationDeadline?: string;
   onlineUrl?: string;
@@ -51,8 +51,8 @@ interface Event {
     speaker: string;
     description: string;
   }>;
-  organizer: {
-    _id: string;
+  organizer?: {
+    _id?: string;
     firstName: string;
     lastName: string;
   };

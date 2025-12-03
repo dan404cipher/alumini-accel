@@ -60,8 +60,8 @@ export const RegisteredProgramDetail: React.FC = () => {
   const registrationType = searchParams.get("type") || "mentor"; // mentor or mentee
   const [navActiveTab, setNavActiveTab] = useState("mentoring-programs");
   
-  // Check if user is alumni
-  const isAlumni = user?.role === "alumni";
+  // Check if user is alumni or student (both should see the same mentorship view)
+  const isAlumni = user?.role === "alumni" || user?.role === "student";
   // Check if user is staff, HOD, or college_admin
   const isStaff = user?.role === "staff" || user?.role === "hod" || user?.role === "college_admin";
 
@@ -86,6 +86,14 @@ export const RegisteredProgramDetail: React.FC = () => {
       navigate("/mentoring-programs?view=registered");
     }
   }, [programId, registrationType]);
+
+  // Set active tab from URL parameter
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl === "chats" || tabFromUrl === "about") {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   // Refetch mentees when switching to mentees tab
   useEffect(() => {

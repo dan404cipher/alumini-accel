@@ -6,6 +6,8 @@ import {
   XCircle,
   Clock,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
@@ -104,8 +106,6 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
   const [programs, setPrograms] = useState<Program[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [statistics, setStatistics] = useState<Statistics | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDisapproveModal, setShowDisapproveModal] = useState(false);
   const [selectedRegistration, setSelectedRegistration] =
@@ -113,6 +113,12 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState(false);
   const isFetchingRef = useRef(false); // Prevent duplicate API calls
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRegistrations, setTotalRegistrations] = useState(0);
+  const registrationsPerPage = 12;
 
   // Fetch programs
   useEffect(() => {
@@ -170,8 +176,8 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
 
       const params: Record<string, string | number> = {
         status: stageFilter,
-        page,
-        limit: 20,
+        page: currentPage,
+        limit: registrationsPerPage,
       };
       if (selectedProgram) {
         params.programId = selectedProgram;
@@ -195,7 +201,12 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
         const dataTyped = responseTyped.data as RegistrationResponse;
         const registrationsData = dataTyped.registrations || [];
         setRegistrations(registrationsData);
-        setTotalPages(dataTyped.pagination?.totalPages || 1);
+
+        // Update pagination metadata
+        if (dataTyped.pagination) {
+          setTotalPages(dataTyped.pagination.totalPages || 1);
+          setTotalRegistrations(dataTyped.pagination.total || 0);
+        }
 
         // Log if no registrations found
         if (registrationsData.length === 0) {
@@ -210,11 +221,11 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
         );
         setRegistrations([]);
         setTotalPages(1);
+        setTotalRegistrations(0);
       }
     } catch (error) {
       console.error(`Fetch ${activeTab} registrations error:`, error);
       setRegistrations([]);
-      setTotalPages(1);
 
       // Handle authentication errors
       const axiosError = error as {
@@ -263,7 +274,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [activeTab, stageFilter, selectedProgram, page, searchTerm, toast, user]);
+  }, [activeTab, stageFilter, selectedProgram, searchTerm, currentPage, toast, user, registrationsPerPage]);
 
   // Fetch statistics
   const fetchStatistics = useCallback(async () => {
@@ -284,13 +295,11 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
     }
   }, [selectedProgram]);
 
-  // Fetch registrations when tab or filters change
+
+  // Reset to page 1 when filters, search, or tab changes
   useEffect(() => {
-    // Reset page when tab changes
-    if (activeTab) {
-      setPage(1);
-    }
-  }, [activeTab]);
+    setCurrentPage(1);
+  }, [activeTab, stageFilter, selectedProgram, searchTerm]);
 
   // Fetch data when dependencies change
   useEffect(() => {
@@ -573,7 +582,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
                   value={selectedProgram}
                   onChange={(e) => {
                     setSelectedProgram(e.target.value);
-                    setPage(1);
+                    setCurrentPage(1);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -598,7 +607,12 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
-                      setPage(1);
+                      setCurrentPage(1);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setCurrentPage(1);
+                      }
                     }}
                     placeholder="Search by name or email..."
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -616,7 +630,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
                   if (activeTab !== "mentors") {
                     setRegistrations([]); // Clear previous data immediately
                     setActiveTab("mentors");
-                    setPage(1);
+                    setCurrentPage(1);
                   }
                 }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -632,7 +646,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
                   if (activeTab !== "mentees") {
                     setRegistrations([]); // Clear previous data immediately
                     setActiveTab("mentees");
-                    setPage(1);
+                    setCurrentPage(1);
                   }
                 }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -651,7 +665,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
             <button
               onClick={() => {
                 setStageFilter("submitted");
-                setPage(1);
+                setCurrentPage(1);
               }}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
                 stageFilter === "submitted"
@@ -665,7 +679,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
             <button
               onClick={() => {
                 setStageFilter("approved");
-                setPage(1);
+                setCurrentPage(1);
               }}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
                 stageFilter === "approved"
@@ -679,7 +693,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
             <button
               onClick={() => {
                 setStageFilter("rejected");
-                setPage(1);
+                setCurrentPage(1);
               }}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
                 stageFilter === "rejected"
@@ -712,6 +726,19 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
             </div>
           ) : (
             <>
+              {/* Results count */}
+              <div className="mb-4 text-sm text-gray-600">
+                {totalRegistrations > 0 ? (
+                  <>
+                    Showing {((currentPage - 1) * registrationsPerPage) + 1}-
+                    {Math.min(currentPage * registrationsPerPage, totalRegistrations)} of {totalRegistrations} {activeTab === "mentors" ? "mentor" : "mentee"} registration
+                    {totalRegistrations !== 1 ? "s" : ""}
+                  </>
+                ) : (
+                  "No registrations found"
+                )}
+              </div>
+
               <div className="space-y-4">
                 {registrations.map((registration) => (
                   <RegistrationReviewCard
@@ -752,25 +779,47 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({
                 ))}
               </div>
 
-              {/* Pagination */}
+              {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="mt-6 flex justify-center space-x-2">
+                <div className="flex justify-center items-center gap-4 mt-6">
                   <button
-                    onClick={() => setPage(page - 1)}
-                    disabled={page === 1}
-                    className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      if (currentPage > 1) {
+                        setCurrentPage(currentPage - 1);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                    }}
+                    disabled={currentPage === 1 || loading}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+                      currentPage === 1 || loading
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
                   >
+                    <ChevronLeft className="w-4 h-4" />
                     Previous
                   </button>
-                  <span className="px-4 py-2 text-gray-700">
-                    Page {page} of {totalPages}
-                  </span>
+                  
+                  <div className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  
                   <button
-                    onClick={() => setPage(page + 1)}
-                    disabled={page >= totalPages}
-                    className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      if (currentPage < totalPages) {
+                        setCurrentPage(currentPage + 1);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                    }}
+                    disabled={currentPage === totalPages || loading}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+                      currentPage === totalPages || loading
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
                   >
                     Next
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               )}

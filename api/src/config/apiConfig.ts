@@ -142,6 +142,40 @@ export const API_CONFIG = {
     ENGAGEMENT: "/analytics/engagement",
   },
 
+  // Rewards System endpoints
+  REWARDS: {
+    BASE: "/rewards",
+    
+    // Reward Types Management (Admin only)
+    TYPES: {
+      BASE: "/rewards/types",
+      GET_ALL: "/rewards/types",
+      CREATE: "/rewards/types",
+      UPDATE: (id: string) => `/rewards/types/${id}`,
+      DELETE: (id: string) => `/rewards/types/${id}`,
+    },
+    
+    // Points Management
+    POINTS: {
+      BASE: "/rewards/points",
+      GET_BY_ALUMNI_ID: (alumniId: string) => `/rewards/points/${alumniId}`,
+      GET_ALL: "/rewards/points", // Admin only
+      GET_MY_POINTS: "/rewards/points/me", // Alumni only
+      ADD_MANUAL: "/rewards/points/manual", // Admin only
+      GET_HISTORY: (alumniId: string) => `/rewards/points/history/${alumniId}`,
+      GET_MY_HISTORY: "/rewards/points/history/me", // Alumni only
+    },
+    
+    // Redemption Management
+    REDEEM: {
+      BASE: "/rewards/redeem",
+      CREATE_REQUEST: "/rewards/redeem",
+      GET_REQUESTS: "/rewards/redeem/requests", // Admin only
+      APPROVE: (id: string) => `/rewards/redeem/${id}/approve`, // Admin only
+      REJECT: (id: string) => `/rewards/redeem/${id}/reject`, // Admin only
+    },
+  },
+
   // Documentation endpoint
   DOCS: "/docs",
 

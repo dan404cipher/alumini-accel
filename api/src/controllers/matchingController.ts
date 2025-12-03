@@ -1094,6 +1094,9 @@ export const getUnmatchedMentees = async (
   try {
     const { programId } = req.params;
     const tenantId = req.tenantId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
 
     // Get all approved mentee registrations
     const menteeRegs = await MenteeRegistration.find({
@@ -1117,9 +1120,15 @@ export const getUnmatchedMentees = async (
       (reg) => !matchedRegIds.includes(reg._id.toString())
     );
 
+    // Get total count for pagination
+    const total = unmatchedMentees.length;
+
+    // Apply pagination
+    const paginatedMentees = unmatchedMentees.slice(skip, skip + limit);
+
     // Populate mentee details
     const unmatchedWithDetails = await Promise.all(
-      unmatchedMentees.map(async (reg) => {
+      paginatedMentees.map(async (reg) => {
         const mentee = await User.findOne({ email: reg.personalEmail });
         return {
           registration: reg,
@@ -1139,7 +1148,15 @@ export const getUnmatchedMentees = async (
 
     return res.json({
       success: true,
-      data: { unmatchedMentees: unmatchedWithDetails },
+      data: {
+        unmatchedMentees: unmatchedWithDetails,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     logger.error("Get unmatched mentees error:", error);
@@ -1209,12 +1226,26 @@ export const getAllMatches = async (
   try {
     const { programId } = req.params;
     const tenantId = req.tenantId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+    const status = req.query.status as string;
 
-    // Get all matches for program with populated data
-    const matches = await MentorMenteeMatching.find({
+    const filter: any = {
       programId,
       tenantId,
-    })
+    };
+
+    // Filter by status if provided
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+
+    // Get total count for pagination
+    const total = await MentorMenteeMatching.countDocuments(filter);
+
+    // Get matches for program with populated data
+    const matches = await MentorMenteeMatching.find(filter)
       .populate("mentorId", "firstName lastName email profilePicture")
       .populate("menteeId", "firstName lastName email profilePicture")
       .populate({
@@ -1228,11 +1259,21 @@ export const getAllMatches = async (
         select: "preferredName areasOfMentoring skills",
       })
       .populate("programId", "name category")
-      .sort({ matchedAt: -1 });
+      .sort({ matchedAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     return res.json({
       success: true,
-      data: { matches },
+      data: {
+        matches,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     logger.error("Get all matches error:", error);

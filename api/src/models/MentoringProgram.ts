@@ -176,35 +176,57 @@ const mentoringProgramSchema = new Schema<IMentoringProgram>(
 // Pre-save validation hook
 mentoringProgramSchema.pre("save", function (next) {
   const doc = this as any;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
   
   // Validate program end date is after start date
   if (doc.programDuration && doc.programDuration.endDate <= doc.programDuration.startDate) {
     return next(new Error("Program end date must be after start date"));
   }
 
-  // Validate registration dates are after program start date
+  // Validate dates if program duration exists
   if (doc.programDuration?.startDate) {
     const programStart = new Date(doc.programDuration.startDate);
+    programStart.setHours(0, 0, 0, 0);
+    const programEnd = new Date(doc.programDuration.endDate);
+    programEnd.setHours(0, 0, 0, 0);
     
-    if (doc.registrationEndDateMentee && doc.registrationEndDateMentee <= programStart) {
-      return next(new Error("Mentee registration end date must be after program start date"));
+    // Validate that start date is in the future
+    if (programStart <= now) {
+      return next(new Error("Program start date must be in the future"));
     }
-    if (doc.registrationEndDateMentor && doc.registrationEndDateMentor <= programStart) {
-      return next(new Error("Mentor registration end date must be after program start date"));
+    
+    // Validate that end date is in the future
+    if (programEnd <= now) {
+      return next(new Error("Program end date must be in the future"));
     }
+    
+    // Validate matching end date is before start date
+    if (doc.matchingEndDate) {
+      const matchEnd = new Date(doc.matchingEndDate);
+      matchEnd.setHours(0, 0, 0, 0);
+      
+      if (matchEnd >= programStart) {
+        return next(new Error("Matching end date must be before program start date"));
   }
 
-  // Validate matching end date is after both registration end dates
-  if (
-    doc.matchingEndDate &&
-    (doc.matchingEndDate <= doc.registrationEndDateMentee ||
-      doc.matchingEndDate <= doc.registrationEndDateMentor)
-  ) {
-    return next(
-      new Error(
-        "Matching end date must be after both registration end dates"
-      )
-    );
+      // Validate registration dates are before matching end date
+      if (doc.registrationEndDateMentee) {
+        const menteeRegEnd = new Date(doc.registrationEndDateMentee);
+        menteeRegEnd.setHours(0, 0, 0, 0);
+        if (menteeRegEnd >= matchEnd) {
+          return next(new Error("Mentee registration end date must be before matching end date"));
+        }
+      }
+      
+      if (doc.registrationEndDateMentor) {
+        const mentorRegEnd = new Date(doc.registrationEndDateMentor);
+        mentorRegEnd.setHours(0, 0, 0, 0);
+        if (mentorRegEnd >= matchEnd) {
+          return next(new Error("Mentor registration end date must be before matching end date"));
+        }
+      }
+    }
   }
 
   next();

@@ -15,7 +15,6 @@ import {
   Users,
   Briefcase,
   Calendar,
-  Award,
   BarChart3,
   Settings,
   LogOut,

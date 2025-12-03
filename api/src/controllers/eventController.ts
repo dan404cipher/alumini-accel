@@ -5,7 +5,8 @@ import User from "../models/User";
 import { logger } from "../utils/logger";
 import { emailService } from "../services/emailService";
 import Tenant from "../models/Tenant";
-import { EventType } from "../types";
+import { EventType, RewardTriggerEvent } from "../types";
+import { awardPointsForTrigger } from "../services/pointsService";
 
 // Get all events
 export const getAllEvents = async (req: Request, res: Response) => {
@@ -715,6 +716,24 @@ export const registerForEvent = async (req: Request, res: Response) => {
       };
       event.attendees.push(attendee as any);
       await event.save();
+
+      // Award points for event participation (only for alumni users)
+      try {
+        if (req.user?.role === "alumni") {
+          await awardPointsForTrigger(
+            req.user.id,
+            RewardTriggerEvent.EVENT_PARTICIPATION,
+            {
+              eventId: event._id.toString(),
+              eventName: event.title,
+            },
+            req.user.tenantId
+          );
+        }
+      } catch (pointsError) {
+        logger.error("Failed to award points for event participation:", pointsError);
+        // Don't fail registration if points award fails
+      }
 
       // Send registration email for free events
       try {

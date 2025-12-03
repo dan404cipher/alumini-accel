@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -8,6 +8,8 @@ import {
   List,
   Calendar,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,12 @@ export const MentoringPrograms: React.FC = () => {
   const [showMatchingDashboard, setShowMatchingDashboard] = useState(false);
   const [showRegistered, setShowRegistered] = useState(false);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPrograms, setTotalPrograms] = useState(0);
+  const programsPerPage = 12;
+  
   // Check URL parameter for view state on mount and when searchParams change
   useEffect(() => {
     const viewParam = searchParams.get("view");
@@ -69,14 +77,12 @@ export const MentoringPrograms: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>(
     searchParams.get("search") || ""
   );
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
   const programId = searchParams.get("id");
   // STAFF, HOD, and College Admin can create, edit, delete, publish, and unpublish programs
   const isStaff = user?.role === "staff" || user?.role === "hod" || user?.role === "college_admin";
-  // Check if user is alumni
-  const isAlumni = user?.role === "alumni";
+  // Check if user is alumni or student (both should see the same mentorship view)
+  const isAlumni = user?.role === "alumni" || user?.role === "student";
 
   useEffect(() => {
     if (programId) {
@@ -84,22 +90,30 @@ export const MentoringPrograms: React.FC = () => {
     } else {
       setSelectedProgram(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programId]);
 
+  // Reset to page 1 when filters or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, categoryFilter, searchTerm]);
+
+  // Fetch programs when filters, search, or page changes
   useEffect(() => {
     fetchPrograms();
-  }, [statusFilter, categoryFilter, searchTerm, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, categoryFilter, searchTerm, currentPage]);
 
   const fetchPrograms = async () => {
     setLoading(true);
     try {
       const filters: ProgramFilters = {
-        page,
-        limit: 12,
+        page: currentPage,
+        limit: programsPerPage,
       };
 
       if (statusFilter !== "all") {
-        filters.status = statusFilter as any;
+        filters.status = statusFilter as "draft" | "published" | "archived";
       }
       if (categoryFilter !== "all") {
         filters.category = categoryFilter;
@@ -111,12 +125,20 @@ export const MentoringPrograms: React.FC = () => {
       const response = await mentoringProgramAPI.getAllPrograms(filters);
       if (response.success && response.data) {
         setPrograms(response.data.programs || []);
-        setTotalPages(response.data.pagination?.totalPages || 1);
+        
+        // Update pagination metadata
+        if (response.data.pagination) {
+          setTotalPages(response.data.pagination.totalPages || 1);
+          setTotalPrograms(response.data.pagination.total || 0);
+        }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to fetch programs";
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to fetch programs",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -130,10 +152,13 @@ export const MentoringPrograms: React.FC = () => {
       if (response.success && response.data) {
         setSelectedProgram(response.data.program);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Failed to fetch program details";
       toast({
         title: "Error",
-        description: "Failed to fetch program details",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -147,12 +172,18 @@ export const MentoringPrograms: React.FC = () => {
   const handleBackToList = () => {
     setSearchParams({});
     setSelectedProgram(null);
+    // Refresh the programs list when navigating back
+    fetchPrograms();
   };
 
   const handleCreateSuccess = () => {
     setShowCreateModal(false);
     setEditingProgram(null);
     fetchPrograms();
+    // If viewing a program detail, refresh it
+    if (selectedProgram && programId) {
+      fetchProgramDetail(programId);
+    }
   };
 
   const handleEdit = () => {
@@ -169,17 +200,60 @@ export const MentoringPrograms: React.FC = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setPage(1);
-    fetchPrograms();
+    // Update URL params with current search and filters
+    const params: Record<string, string> = {};
+    if (searchTerm.trim()) params.search = searchTerm.trim();
+    if (statusFilter !== "all") params.status = statusFilter;
+    if (categoryFilter !== "all") params.category = categoryFilter;
+    setSearchParams(params);
+    // fetchPrograms will be triggered by useEffect when searchTerm changes
   };
 
   const clearFilters = () => {
     setStatusFilter("all");
     setCategoryFilter("all");
     setSearchTerm("");
-    setPage(1);
+    setCurrentPage(1);
     setSearchParams({});
   };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+      // Scroll to top when changing pages
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+      // Scroll to top when changing pages
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  // Update URL params when filters or search change
+  useEffect(() => {
+      const params: Record<string, string> = {};
+    if (searchTerm.trim()) params.search = searchTerm.trim();
+      if (statusFilter !== "all") params.status = statusFilter;
+      if (categoryFilter !== "all") params.category = categoryFilter;
+    
+    // Only update URL if params have changed to avoid infinite loops
+    const currentSearch = searchParams.get("search") || "";
+    const currentStatus = searchParams.get("status") || "all";
+    const currentCategory = searchParams.get("category") || "all";
+    
+    if (
+      (searchTerm.trim() || "") !== currentSearch ||
+      statusFilter !== currentStatus ||
+      categoryFilter !== currentCategory
+    ) {
+      setSearchParams(params, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, categoryFilter, searchTerm]);
 
   const categories = Array.from(
     new Set(programs.map((p) => p.category).filter(Boolean))
@@ -199,10 +273,21 @@ export const MentoringPrograms: React.FC = () => {
               programId={programId}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onStatusChange={fetchPrograms}
               userRole={user?.role}
             />
           </div>
         </main>
+        {/* Create/Edit Modal - Also render in detail view */}
+        <CreateProgramModal
+          open={showCreateModal}
+          onOpenChange={(open) => {
+            setShowCreateModal(open);
+            if (!open) setEditingProgram(null);
+          }}
+          program={editingProgram || undefined}
+          onSuccess={handleCreateSuccess}
+        />
       </div>
     );
   }
@@ -222,7 +307,7 @@ export const MentoringPrograms: React.FC = () => {
                 setSearchParams({});
               }}
               variant={!showMatchingDashboard && !showRegistered ? "default" : "outline"}
-              className={!showMatchingDashboard && !showRegistered ? "bg-blue-600 hover:bg-blue-700" : "border-blue-600 text-blue-600 hover:bg-blue-50"}
+              className={!showMatchingDashboard && !showRegistered ? "bg-blue-600 hover:bg-blue-700" : "border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-800"}
             >
               Mentor Programs
             </Button>
@@ -254,7 +339,7 @@ export const MentoringPrograms: React.FC = () => {
                     setShowRegistered(false);
                   }}
                   variant="outline"
-                  className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                  className="border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-800"
                 >
                   Mentoring Approvals
                 </Button>
@@ -264,7 +349,7 @@ export const MentoringPrograms: React.FC = () => {
                     setShowRegistered(false);
                   }}
                   variant={showMatchingDashboard ? "default" : "outline"}
-                  className={showMatchingDashboard ? "bg-blue-600 hover:bg-blue-700" : "border-blue-600 text-blue-600 hover:bg-blue-50"}
+                  className={showMatchingDashboard ? "bg-blue-600 hover:bg-blue-700" : "border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-800" }
                 >
                   Mentor & Mentee Matching
                 </Button>
@@ -305,7 +390,7 @@ export const MentoringPrograms: React.FC = () => {
           {/* Filters */}
           <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
             <form onSubmit={handleSearch} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`grid grid-cols-1 gap-4 ${isAlumni ? "md:grid-cols-3" : "md:grid-cols-4"}`}>
                 {/* Search */}
                 <div className="md:col-span-2">
                   <div className="relative">
@@ -314,14 +399,26 @@ export const MentoringPrograms: React.FC = () => {
                       type="text"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSearch(e);
+                        }
+                      }}
                       placeholder="Search programs..."
                       className="pl-10"
                     />
                   </div>
                 </div>
 
-                {/* Status Filter */}
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                {/* Status Filter - Only show for staff/admin roles */}
+                {!isAlumni && (
+                <Select 
+                  value={statusFilter} 
+                  onValueChange={(value) => {
+                    setStatusFilter(value);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
@@ -332,9 +429,15 @@ export const MentoringPrograms: React.FC = () => {
                     <SelectItem value="archived">Archived</SelectItem>
                   </SelectContent>
                 </Select>
+                )}
 
                 {/* Category Filter */}
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <Select 
+                  value={categoryFilter} 
+                  onValueChange={(value) => {
+                    setCategoryFilter(value);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
@@ -350,11 +453,7 @@ export const MentoringPrograms: React.FC = () => {
               </div>
 
               {/* Filter Actions */}
-              <div className="flex justify-between items-center">
-                <Button type="submit" variant="default">
-                  <Search className="w-4 h-4 mr-2" />
-                  Search
-                </Button>
+              <div className="flex justify-end items-center">
                 {(statusFilter !== "all" ||
                   categoryFilter !== "all" ||
                   searchTerm) && (
@@ -375,7 +474,15 @@ export const MentoringPrograms: React.FC = () => {
           {/* View Mode Toggle */}
           <div className="flex justify-between items-center mb-4">
             <div className="text-sm text-gray-600">
-              Showing {programs.length} program{programs.length !== 1 ? "s" : ""}
+              {totalPrograms > 0 ? (
+                <>
+                  Showing {((currentPage - 1) * programsPerPage) + 1}-
+                  {Math.min(currentPage * programsPerPage, totalPrograms)} of {totalPrograms} program
+                  {totalPrograms !== 1 ? "s" : ""}
+                </>
+              ) : (
+                "No programs found"
+              )}
             </div>
             <div className="flex gap-2">
               <Button
@@ -405,25 +512,31 @@ export const MentoringPrograms: React.FC = () => {
             userRole={user?.role}
           />
 
-          {/* Pagination */}
+          {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="mt-6 flex justify-center items-center gap-2">
+            <div className="flex justify-center items-center gap-4 mt-6">
               <Button
                 variant="outline"
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1 || loading}
+                className="flex items-center gap-2"
               >
+                <ChevronLeft className="w-4 h-4" />
                 Previous
               </Button>
-              <span className="text-sm text-gray-600">
-                Page {page} of {totalPages}
-              </span>
+              
+              <div className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </div>
+              
               <Button
                 variant="outline"
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages || loading}
+                className="flex items-center gap-2"
               >
                 Next
+                <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           )}

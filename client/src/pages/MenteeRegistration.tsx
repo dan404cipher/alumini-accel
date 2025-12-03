@@ -5,6 +5,8 @@ import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { MenteeRegistrationForm } from "@/components/mentorship-system/MenteeRegistrationForm";
+import { ProgramDetail } from "@/components/mentorship-system/ProgramDetail";
+import Navigation from "@/components/Navigation";
 
 export const MenteeRegistration: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -242,77 +244,105 @@ export const MenteeRegistration: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Navigation */}
+      <Navigation activeTab="mentorship" onTabChange={() => {}} />
+      
+      {/* Program Detail Background */}
+      <div className="pt-16 pb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {program && programId && (
+            <div className="opacity-25 pointer-events-none">
+              <ProgramDetail 
+                programId={programId} 
+                userRole={user?.role}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Registration Form Overlay */}
+      <div className="fixed inset-0 flex items-start justify-center z-50 overflow-y-auto pt-20 pb-4 px-4">
+        <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full my-4 max-h-[80vh] flex flex-col border-2 border-blue-200">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold mb-2">
-                  {isEditMode && isStaff ? "Edit Registration on Behalf" : "Mentee Registration"}
-                </h1>
-                <p className="text-blue-100">
-                  {program?.name || "Mentoring Program"}
-                </p>
-              </div>
+          <div className="flex items-center justify-between p-3 border-b flex-shrink-0">
+            <h2 className="text-base font-semibold">
+              {isEditMode && isStaff ? "Edit Registration on Behalf" : "Mentee Registration"} {program?.name ? `- ${program.name}` : ""}
+            </h2>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate("/")}
-                className="text-white hover:text-blue-200 transition"
+                onClick={() => {
+                  if (programId) {
+                    navigate(`/mentoring-programs?id=${programId}`, { replace: true });
+                  } else {
+                    navigate("/mentoring-programs", { replace: true });
+                  }
+                }}
+                className="text-gray-500 hover:text-gray-700"
+                title="Close"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
           </div>
 
-          {/* Form */}
-          <div className="p-6">
-            {registrationSuccess ? (
-              <div className="text-center py-12">
-                <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Registration Submitted Successfully!
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  Your mentee registration has been submitted successfully. You will receive a confirmation email shortly.
-                </p>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => {
-                      setRegistrationSuccess(false);
-                      window.location.reload();
-                    }}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-                  >
-                    Submit Another Registration
-                  </button>
-                  <div>
+          {/* Form - Scrollable */}
+          <div className="overflow-y-auto flex-1">
+            <div className="p-3">
+              {registrationSuccess ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-3" />
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    Registration Submitted Successfully!
+                  </h2>
+                  <p className="text-gray-600 mb-4 text-sm">
+                    Your mentee registration has been submitted successfully. You will receive a confirmation email shortly.
+                  </p>
+                  <div className="space-y-2">
                     <button
-                      onClick={() => navigate("/")}
-                      className="text-blue-600 hover:text-blue-700 underline"
+                      onClick={() => {
+                        setRegistrationSuccess(false);
+                        window.location.reload();
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition text-sm"
                     >
-                      Return to Home
+                      Submit Another Registration
                     </button>
+                    <div>
+                      <button
+                        onClick={() => {
+                          if (programId) {
+                            navigate(`/mentoring-programs?id=${programId}`, { replace: true });
+                          } else {
+                            navigate("/mentoring-programs", { replace: true });
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-700 underline text-sm"
+                      >
+                        Return to Program
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              program && programId ? (
-                <MenteeRegistrationForm
-                  programId={programId}
-                  token={token || ""} // Token is optional for authenticated users
-                  validatedStudentId={validatedStudentId}
-                  editId={isEditMode ? editId : undefined}
-                  onSuccess={() => {
-                    setRegistrationSuccess(true);
-                  }}
-                />
               ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-600">Loading form...</p>
-                </div>
-              )
-            )}
+                program && programId ? (
+                  <MenteeRegistrationForm
+                    programId={programId}
+                    token={token || ""} // Token is optional for authenticated users
+                    validatedStudentId={validatedStudentId}
+                    editId={isEditMode ? editId : undefined}
+                    onSuccess={() => {
+                      setRegistrationSuccess(true);
+                    }}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600 text-sm">Loading form...</p>
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -1165,6 +1165,154 @@ Copyright © ${new Date().getFullYear()} ${collegeName}. All rights reserved.
     const subject = `Reminder: ${data.eventTitle} is tomorrow`;
     return this.sendEmail({ to: data.to, subject, html, text });
   }
+
+  // Reward System Email Templates
+
+  /**
+   * Send email when points are earned
+   */
+  async sendRewardEarnedEmail(
+    alumniEmail: string,
+    points: number,
+    activity: string
+  ): Promise<boolean> {
+    const subject = "Points Earned - Alumni Rewards";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Points Earned!</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Congratulations!</p>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            You have earned <strong style="color: #667eea; font-size: 20px;">${points} points</strong> for:
+          </p>
+          <div style="background: #f7f9fc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
+            <p style="font-size: 18px; color: #333; margin: 0; font-weight: 600;">${activity}</p>
+          </div>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            Keep participating in alumni activities to earn more points and redeem exciting rewards!
+          </p>
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="font-size: 14px; color: #9ca3af; margin: 0;">
+              Thank you for being an active member of our alumni community!
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+    const text = `Points Earned!\n\nYou have earned ${points} points for: ${activity}\n\nKeep participating to earn more points and redeem rewards!`;
+    return this.sendEmail({ to: alumniEmail, subject, html, text });
+  }
+
+  /**
+   * Send email when redemption request is submitted
+   */
+  async sendRedeemRequestSubmittedEmail(
+    alumniEmail: string,
+    rewardType: string,
+    points: number
+  ): Promise<boolean> {
+    const subject = "Redemption Request Submitted";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">✓ Request Submitted</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Dear Alumni,</p>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            Your redemption request has been successfully submitted and is now under review.
+          </p>
+          <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <p style="font-size: 16px; color: #333; margin: 5px 0;"><strong>Reward:</strong> ${rewardType}</p>
+            <p style="font-size: 16px; color: #333; margin: 5px 0;"><strong>Points Used:</strong> ${points}</p>
+          </div>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            You will receive an email notification once your request has been reviewed and processed.
+          </p>
+          <p style="font-size: 16px; color: #666; line-height: 1.6; margin-top: 20px;">
+            Thank you for your patience!
+          </p>
+        </div>
+      </div>
+    `;
+    const text = `Redemption Request Submitted\n\nYour request for ${rewardType} (${points} points) has been submitted and is under review.\n\nYou will be notified once it's processed.`;
+    return this.sendEmail({ to: alumniEmail, subject, html, text });
+  }
+
+  /**
+   * Send email when redemption request is approved
+   */
+  async sendRedeemRequestApprovedEmail(
+    alumniEmail: string,
+    rewardType: string,
+    points: number
+  ): Promise<boolean> {
+    const subject = "Redemption Request Approved";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">✓ Request Approved!</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Dear Alumni,</p>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            Great news! Your redemption request has been approved!
+          </p>
+          <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <p style="font-size: 16px; color: #333; margin: 5px 0;"><strong>Reward:</strong> ${rewardType}</p>
+            <p style="font-size: 16px; color: #333; margin: 5px 0;"><strong>Points Used:</strong> ${points}</p>
+          </div>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            You will receive your reward via the email address you provided during the redemption process.
+          </p>
+          <p style="font-size: 16px; color: #666; line-height: 1.6; margin-top: 20px;">
+            Thank you for being an active member of our alumni community!
+          </p>
+        </div>
+      </div>
+    `;
+    const text = `Redemption Request Approved\n\nYour request for ${rewardType} (${points} points) has been approved!\n\nYou will receive your reward via email shortly.`;
+    return this.sendEmail({ to: alumniEmail, subject, html, text });
+  }
+
+  /**
+   * Send email when redemption request is rejected
+   */
+  async sendRedeemRequestRejectedEmail(
+    alumniEmail: string,
+    rewardType: string,
+    reason: string
+  ): Promise<boolean> {
+    const subject = "Redemption Request Update";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">Request Update</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Dear Alumni,</p>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            Unfortunately, your redemption request has been rejected.
+          </p>
+          <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+            <p style="font-size: 16px; color: #333; margin: 5px 0;"><strong>Reward:</strong> ${rewardType}</p>
+            <p style="font-size: 16px; color: #333; margin: 5px 0;"><strong>Reason:</strong></p>
+            <p style="font-size: 14px; color: #666; margin: 10px 0 0 0; line-height: 1.6;">${reason}</p>
+          </div>
+          <p style="font-size: 16px; color: #666; line-height: 1.6;">
+            The points have been refunded to your account and are available for future redemptions.
+          </p>
+          <p style="font-size: 16px; color: #666; line-height: 1.6; margin-top: 20px;">
+            If you have any questions, please contact our support team.
+          </p>
+        </div>
+      </div>
+    `;
+    const text = `Redemption Request Rejected\n\nYour request for ${rewardType} has been rejected.\n\nReason: ${reason}\n\nThe points have been refunded to your account.`;
+    return this.sendEmail({ to: alumniEmail, subject, html, text });
+  }
 }
 
 export const emailService = new EmailService();

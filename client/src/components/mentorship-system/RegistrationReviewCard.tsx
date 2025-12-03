@@ -131,7 +131,7 @@ export const RegistrationReviewCard: React.FC<RegistrationReviewCardProps> = ({
             </div>
             <div className="flex items-center text-gray-600">
               <Mail className="w-4 h-4 mr-2" />
-              <span className="font-medium">SIT Email:</span>
+              <span className="font-medium">Institutional Email:</span>
               <span className="ml-2">{registration.sitEmail}</span>
             </div>
             {registration.mobileNumber && (
@@ -153,13 +153,13 @@ export const RegistrationReviewCard: React.FC<RegistrationReviewCardProps> = ({
             </div>
             {registration.sitStudentId && (
               <div className="flex items-center text-gray-600">
-                <span className="font-medium">SIT Student ID:</span>
+                <span className="font-medium">Student ID:</span>
                 <span className="ml-2">{registration.sitStudentId}</span>
               </div>
             )}
             {registration.sitMatricNumber && (
               <div className="flex items-center text-gray-600">
-                <span className="font-medium">SIT Matric Number:</span>
+                <span className="font-medium">Matric Number:</span>
                 <span className="ml-2">{registration.sitMatricNumber}</span>
               </div>
             )}

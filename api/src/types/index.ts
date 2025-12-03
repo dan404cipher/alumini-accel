@@ -1078,3 +1078,87 @@ export interface ICommunityComment extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Reward System Enums
+export enum RewardTriggerEvent {
+  MENTOR_REGISTRATION = "MENTOR_REGISTRATION",
+  MENTEE_REGISTRATION = "MENTEE_REGISTRATION",
+  MENTOR_APPROVAL = "MENTOR_APPROVAL",
+  MENTEE_APPROVAL = "MENTEE_APPROVAL",
+  SESSION_COMPLETED = "SESSION_COMPLETED",
+  EVENT_PARTICIPATION = "EVENT_PARTICIPATION",
+  REFERRAL_SUCCESS = "REFERRAL_SUCCESS",
+  MANUAL_ADJUSTMENT = "MANUAL_ADJUSTMENT",
+}
+
+export enum RewardTypeStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+}
+
+export enum RedeemRequestStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
+export enum PointsEntryStatus {
+  AWARDED = "awarded",
+  REDEEMED = "redeemed",
+  CANCELLED = "cancelled",
+}
+
+// Reward System Interfaces
+export interface IRewardType extends Document {
+  _id: string;
+  name: string;
+  description?: string;
+  points: number;
+  triggerEvent: RewardTriggerEvent;
+  status: RewardTypeStatus;
+  tenantId?: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IPointsEntry extends Document {
+  _id: string;
+  alumniId: mongoose.Types.ObjectId; // Reference to User
+  points: number;
+  activity: string;
+  date: Date;
+  source: string; // e.g., "Mentor Registration", "Event Participation"
+  status: PointsEntryStatus;
+  notes?: string;
+  rewardTypeId?: mongoose.Types.ObjectId; // Reference to RewardType
+  tenantId?: mongoose.Types.ObjectId;
+  createdAt: Date;
+}
+
+export interface IRedeemRequest extends Document {
+  _id: string;
+  alumniId: mongoose.Types.ObjectId; // Reference to User
+  rewardOption: string; // e.g., "Digital Certificate", "Gift Card"
+  pointsUsed: number;
+  status: RedeemRequestStatus;
+  deliveryEmail: string;
+  notes?: string;
+  rejectionReason?: string;
+  approvedBy?: mongoose.Types.ObjectId; // Reference to User
+  rejectedBy?: mongoose.Types.ObjectId; // Reference to User
+  approvedAt?: Date;
+  rejectedAt?: Date;
+  tenantId?: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IAlumniPoints extends Document {
+  _id: string;
+  alumniId: mongoose.Types.ObjectId; // Reference to User (unique)
+  totalPoints: number;
+  redeemedPoints: number;
+  availablePoints: number;
+  tenantId?: mongoose.Types.ObjectId;
+  updatedAt: Date;
+}

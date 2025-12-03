@@ -633,13 +633,26 @@ export const validateMentoringProgram = [
     .withMessage("Mentee registration end date must be a valid date")
     .custom((value, { req }) => {
       const date = new Date(value);
-      const programStart = req.body.programDuration?.startDate 
-        ? new Date(req.body.programDuration.startDate)
+      date.setHours(0, 0, 0, 0);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const matchingEnd = req.body.matchingEndDate 
+        ? (() => {
+            const d = new Date(req.body.matchingEndDate);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
         : null;
       
-      if (programStart && date <= programStart) {
+      // Validate date is in the future
+      if (date <= now) {
+        throw new Error("Mentee registration end date must be in the future");
+      }
+      
+      // Validate date is before matching end date
+      if (matchingEnd && date >= matchingEnd) {
         throw new Error(
-          "Mentee registration end date must be after program start date"
+          "Mentee registration end date must be before matching end date"
         );
       }
       return true;
@@ -649,13 +662,26 @@ export const validateMentoringProgram = [
     .withMessage("Mentor registration end date must be a valid date")
     .custom((value, { req }) => {
       const date = new Date(value);
-      const programStart = req.body.programDuration?.startDate 
-        ? new Date(req.body.programDuration.startDate)
+      date.setHours(0, 0, 0, 0);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const matchingEnd = req.body.matchingEndDate 
+        ? (() => {
+            const d = new Date(req.body.matchingEndDate);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
         : null;
       
-      if (programStart && date <= programStart) {
+      // Validate date is in the future
+      if (date <= now) {
+        throw new Error("Mentor registration end date must be in the future");
+      }
+      
+      // Validate date is before matching end date
+      if (matchingEnd && date >= matchingEnd) {
         throw new Error(
-          "Mentor registration end date must be after program start date"
+          "Mentor registration end date must be before matching end date"
         );
       }
       return true;
@@ -664,14 +690,58 @@ export const validateMentoringProgram = [
     .isISO8601()
     .withMessage("Matching end date must be a valid date")
     .custom((value, { req }) => {
-      const menteeRegEnd = new Date(req.body.registrationEndDateMentee);
-      const mentorRegEnd = new Date(req.body.registrationEndDateMentor);
       const matchEnd = new Date(value);
-      if (matchEnd <= menteeRegEnd || matchEnd <= mentorRegEnd) {
+      matchEnd.setHours(0, 0, 0, 0);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const programStart = req.body.programDuration?.startDate 
+        ? (() => {
+            const d = new Date(req.body.programDuration.startDate);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
+        : null;
+      
+      // Validate date is in the future
+      if (matchEnd <= now) {
+        throw new Error("Matching end date must be in the future");
+      }
+      
+      // Validate matching end date is before program start date
+      if (programStart && matchEnd >= programStart) {
         throw new Error(
-          "Matching end date must be after both registration end dates"
+          "Matching end date must be before program start date"
         );
       }
+      
+      // Validate matching end date is after registration end dates
+      const menteeRegEnd = req.body.registrationEndDateMentee
+        ? (() => {
+            const d = new Date(req.body.registrationEndDateMentee);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
+        : null;
+      const mentorRegEnd = req.body.registrationEndDateMentor
+        ? (() => {
+            const d = new Date(req.body.registrationEndDateMentor);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
+        : null;
+      
+      if (menteeRegEnd && matchEnd <= menteeRegEnd) {
+        throw new Error(
+          "Matching end date must be after mentee registration end date"
+        );
+      }
+      
+      if (mentorRegEnd && matchEnd <= mentorRegEnd) {
+        throw new Error(
+          "Matching end date must be after mentor registration end date"
+        );
+      }
+      
       return true;
     }),
   body("manager")
@@ -1065,6 +1135,12 @@ export const validateSearch = [
 // ID parameter validation
 export const validateId = [
   param("id").isMongoId().withMessage("Invalid ID format"),
+  handleValidationErrors,
+];
+
+// Alumni ID parameter validation
+export const validateAlumniId = [
+  param("alumniId").isMongoId().withMessage("Invalid alumni ID format"),
   handleValidationErrors,
 ];
 
@@ -1513,6 +1589,74 @@ export const validatePollVote = [
   handleValidationErrors,
 ];
 
+// Reward Type validation
+export const validateRewardType = [
+  body("name")
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage("Reward name is required and must be between 1 and 200 characters"),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("Description cannot exceed 1000 characters"),
+  body("points")
+    .isInt({ min: 1 })
+    .withMessage("Points must be at least 1"),
+  body("triggerEvent")
+    .isIn([
+      "MENTOR_REGISTRATION",
+      "MENTEE_REGISTRATION",
+      "MENTOR_APPROVAL",
+      "MENTEE_APPROVAL",
+      "SESSION_COMPLETED",
+      "EVENT_PARTICIPATION",
+      "REFERRAL_SUCCESS",
+      "MANUAL_ADJUSTMENT",
+    ])
+    .withMessage("Invalid trigger event"),
+  body("status")
+    .isIn(["active", "inactive"])
+    .withMessage("Status must be either 'active' or 'inactive'"),
+  handleValidationErrors,
+];
+
+// Reward Type update validation (all fields optional)
+export const validateRewardTypeUpdate = [
+  body("name")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage("Reward name must be between 1 and 200 characters"),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("Description cannot exceed 1000 characters"),
+  body("points")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Points must be at least 1"),
+  body("triggerEvent")
+    .optional()
+    .isIn([
+      "MENTOR_REGISTRATION",
+      "MENTEE_REGISTRATION",
+      "MENTOR_APPROVAL",
+      "MENTEE_APPROVAL",
+      "SESSION_COMPLETED",
+      "EVENT_PARTICIPATION",
+      "REFERRAL_SUCCESS",
+      "MANUAL_ADJUSTMENT",
+    ])
+    .withMessage("Invalid trigger event"),
+  body("status")
+    .optional()
+    .isIn(["active", "inactive"])
+    .withMessage("Status must be either 'active' or 'inactive'"),
+  handleValidationErrors,
+];
+
 export default {
   handleValidationErrors,
   validateUserRegistration,
@@ -1544,4 +1688,6 @@ export default {
   validateCommunityMembershipSuspension,
   validateCommunitySearch,
   validatePollVote,
+  validateRewardType,
+  validateRewardTypeUpdate,
 };

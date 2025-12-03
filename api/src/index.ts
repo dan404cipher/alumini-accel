@@ -59,6 +59,7 @@ import emailTemplateRoutes from "./routes/emailTemplate";
 import matchingRoutes from "./routes/matching";
 import mentorshipCommunicationRoutes from "./routes/mentorshipCommunication";
 import programChatRoutes from "./routes/programChat";
+import rewardRoutes from "./routes/rewardRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -574,6 +575,7 @@ app.use("/api/v1", sharesRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/rewards", rewardRoutes);
 
 // Serve static files with CORS headers
 app.use(

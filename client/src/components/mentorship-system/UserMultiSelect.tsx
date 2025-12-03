@@ -17,6 +17,7 @@ interface UserMultiSelectProps {
   placeholder?: string;
   required?: boolean;
   roles?: string[]; // Filter by roles if provided
+  tenantId?: string; // Filter by college/tenant if provided
 }
 
 export const UserMultiSelect: React.FC<UserMultiSelectProps> = ({
@@ -26,6 +27,7 @@ export const UserMultiSelect: React.FC<UserMultiSelectProps> = ({
   placeholder = "Search and select users...",
   required = false,
   roles,
+  tenantId,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState<User[]>([]);
@@ -48,6 +50,7 @@ export const UserMultiSelect: React.FC<UserMultiSelectProps> = ({
           limit: 100,
           status: "active",
           ...(roles && roles.length > 0 ? { roles: roles.join(",") } : {}),
+          ...(tenantId ? { tenantId } : {}),
         },
       });
 
@@ -84,6 +87,9 @@ export const UserMultiSelect: React.FC<UserMultiSelectProps> = ({
       };
       if (roles && roles.length > 0) {
         params.roles = roles.join(",");
+      }
+      if (tenantId) {
+        params.tenantId = tenantId;
       }
 
       const response = await api.get("/users", { params });

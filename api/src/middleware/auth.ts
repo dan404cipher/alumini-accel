@@ -163,6 +163,44 @@ export const requireAdmin = authorize(
 // Require STAFF role only (for approve/disapprove actions)
 export const requireStaff = authorize(UserRole.STAFF);
 
+// Require admin but exclude superadmin (for write operations where superadmin should be view-only)
+export const requireAdminButNotSuperAdmin = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required",
+    });
+  }
+
+  // Superadmin is not allowed for write operations
+  if (req.user.role === UserRole.SUPER_ADMIN) {
+    return res.status(403).json({
+      success: false,
+      message: "Superadmin has view-only access for this resource",
+    });
+  }
+
+  // Allow other admin roles
+  const allowedRoles = [
+    UserRole.COLLEGE_ADMIN,
+    UserRole.HOD,
+    UserRole.STAFF
+  ];
+
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({
+      success: false,
+      message: "Insufficient permissions",
+    });
+  }
+
+  return next();
+};
+
 // Optional authentication middleware (doesn't fail if no token)
 export const optionalAuth = async (
   req: AuthenticatedRequest,
@@ -347,6 +385,7 @@ export default {
   requireCollegeAdmin,
   requireHOD,
   requireAdmin,
+  requireAdminButNotSuperAdmin,
   requireStaff,
   requireAlumni,
   requireCoordinator,

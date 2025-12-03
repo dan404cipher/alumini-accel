@@ -3083,6 +3083,7 @@ const CollegeAdminDashboard = () => {
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
+
                       <DialogHeader>
                         <DialogTitle>Create New Staff Member</DialogTitle>
                         <DialogDescription>
@@ -3218,6 +3219,14 @@ const CollegeAdminDashboard = () => {
                       </form>
                     </DialogContent>
                   </Dialog>
+
+                  <Button 
+                    variant="outline"
+                    onClick={handleOpenManageStaff}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Manage Staff
+                  </Button>
                 </div>
               </div>
 
@@ -3292,19 +3301,7 @@ const CollegeAdminDashboard = () => {
                                       </Tooltip>
                                     </TooltipProvider>
 
-                                    <Select
-                                      value={member.role}
-                                      onValueChange={(value) => handleChangeRole(member._id, value)}
-                                    >
-                                      <SelectTrigger className="h-9 w-[130px] text-xs">
-                                        <SelectValue placeholder="Change Role" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="college_admin">College Admin</SelectItem>
-                                        <SelectItem value="hod">HOD</SelectItem>
-                                        <SelectItem value="staff">Staff</SelectItem>
-                                      </SelectContent>
-                                    </Select>
+                                   
 
                                     <Select
                                       value={member.status || "active"}
@@ -3491,16 +3488,6 @@ const CollegeAdminDashboard = () => {
                         <div className="flex items-center justify-between">
                           <div className="text-sm text-muted-foreground">
                             Department: {member.department || "N/A"}
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={handleOpenManageStaff}
-                            >
-                              <Settings className="w-4 h-4 mr-2" />
-                              Manage
-                            </Button>
                           </div>
                         </div>
                       </CardContent>

@@ -34,6 +34,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getAuthTokenOrNull } from "@/utils/auth";
 import BulkUploadAlumni from "./BulkUploadAlumni";
 import ExportAlumniData from "./ExportAlumniData";
+import BulkUploadStudents from "./BulkUploadStudents";
+import ExportStudentsData from "./ExportStudentsData";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus,
@@ -485,6 +487,8 @@ const AlumniManagement = () => {
             <div className="flex space-x-2">
               <BulkUploadAlumni />
               <ExportAlumniData />
+              <BulkUploadStudents />
+              <ExportStudentsData />
               <Dialog
                 open={isCreateDialogOpen}
                 onOpenChange={setIsCreateDialogOpen}

@@ -1289,6 +1289,228 @@ export const bulkCreateAlumni = async (req: Request, res: Response) => {
   }
 };
 
+// Bulk create students from CSV/Excel data
+export const bulkCreateStudents = async (req: Request, res: Response) => {
+  try {
+    const { studentData } = req.body;
+    const currentUser = req.user;
+
+    if (!studentData || !Array.isArray(studentData)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid student data format",
+      });
+    }
+
+    if (studentData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No student data provided",
+      });
+    }
+
+    if (studentData.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot create more than 1000 students at once",
+      });
+    }
+
+    // Validate user permissions
+    if (
+      !currentUser ||
+      !["super_admin", "college_admin", "hod", "staff"].includes(
+        currentUser.role
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions to create students",
+      });
+    }
+
+    const results = {
+      successful: [] as Array<{
+        row: number;
+        email: string;
+        name: string;
+        password: string;
+      }>,
+      failed: [] as Array<{
+        row: number;
+        email: string;
+        error: string;
+      }>,
+      total: studentData.length,
+    };
+
+    // Process each student record
+    for (let i = 0; i < studentData.length; i++) {
+      const studentRecord = studentData[i];
+      const rowNumber = i + 1;
+
+      try {
+        // Validate required fields: name, email, department
+        if (
+          !studentRecord.firstName ||
+          !studentRecord.lastName ||
+          !studentRecord.email ||
+          !studentRecord.department
+        ) {
+          results.failed.push({
+            row: rowNumber,
+            email: studentRecord.email || "N/A",
+            error: "Missing required fields: firstName, lastName, email, or department",
+          });
+          continue;
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({
+          email: studentRecord.email.toLowerCase(),
+        });
+        if (existingUser) {
+          results.failed.push({
+            row: rowNumber,
+            email: studentRecord.email,
+            error: "User with this email already exists",
+          });
+          continue;
+        }
+
+        // Use provided password or default to "Student@123"
+        const password = studentRecord.password || "Student@123";
+
+        // Determine tenantId based on user role
+        let tenantId = studentRecord.collegeId;
+        if (currentUser.role !== "super_admin" && currentUser.tenantId) {
+          tenantId = currentUser.tenantId;
+        }
+
+        // Normalize gender field to match enum values
+        let normalizedGender: string | undefined = undefined;
+        if (studentRecord.gender) {
+          const genderLower = studentRecord.gender.toLowerCase().trim();
+          // Map common gender values to enum values
+          const genderMap: Record<string, string> = {
+            male: "male",
+            female: "female",
+            m: "male",
+            f: "female",
+            other: "other",
+            o: "other",
+            "prefer not to say": "other",
+            "not specified": "other",
+            unspecified: "other",
+          };
+          normalizedGender = genderMap[genderLower];
+          if (!normalizedGender) {
+            // If no mapping found, try to match enum values directly
+            if (["male", "female", "other"].includes(genderLower)) {
+              normalizedGender = genderLower;
+            }
+          }
+        }
+
+        // Create user data
+        const userData = {
+          firstName: studentRecord.firstName.trim(),
+          lastName: studentRecord.lastName.trim(),
+          email: studentRecord.email.toLowerCase().trim(),
+          password: await bcrypt.hash(password, 12),
+          role: UserRole.STUDENT,
+          status: UserStatus.ACTIVE,
+          tenantId: tenantId,
+          phone: studentRecord.phoneNumber || studentRecord.phone || "",
+          department: studentRecord.department.trim(),
+          currentYear: studentRecord.currentYear,
+          currentCGPA: studentRecord.currentCGPA,
+          currentGPA: studentRecord.currentGPA,
+          graduationYear: studentRecord.graduationYear || new Date().getFullYear() + 4,
+          location: studentRecord.address || studentRecord.location || "",
+          dateOfBirth: studentRecord.dateOfBirth
+            ? new Date(studentRecord.dateOfBirth)
+            : undefined,
+          gender: normalizedGender,
+        };
+
+        // Create the user
+        const newUser = new User(userData);
+        await newUser.save();
+
+        // Send welcome email for bulk created students
+        try {
+          const tenant = await Tenant.findById(tenantId);
+          const collegeName = tenant?.name || "College";
+          const frontendUrl =
+            process.env.FRONTEND_URL || "http://localhost:8080";
+          const activationToken = crypto.randomBytes(32).toString("hex");
+
+          // Update user with activation token
+          await User.findByIdAndUpdate(newUser._id, {
+            emailVerificationToken: activationToken,
+          });
+
+          const activationLink = `${frontendUrl}/verify-email?token=${activationToken}`;
+          const portalUrl = frontendUrl;
+
+          await emailService.sendAlumniWelcomeEmail({
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            email: newUser.email,
+            collegeName: collegeName,
+            activationLink: activationLink,
+            portalUrl: portalUrl,
+            password: password, // Send generated or provided password
+            senderName: "Student Relations Team",
+            senderTitle: "Student Relations Manager",
+            senderEmail: tenant?.contactInfo?.email || "students@college.edu",
+            senderPhone: tenant?.contactInfo?.phone,
+          });
+
+          logger.info(`Welcome email sent to ${newUser.email}`);
+        } catch (emailError) {
+          logger.error(
+            `Failed to send welcome email to ${newUser.email}:`,
+            emailError
+          );
+          // Don't fail the user creation if email fails
+        }
+
+        results.successful.push({
+          row: rowNumber,
+          email: newUser.email,
+          name: `${newUser.firstName} ${newUser.lastName}`,
+          password: studentRecord.password ? "User provided" : password, // Only show default password
+        });
+
+        logger.info(
+          `Bulk student creation: Created user ${newUser.email} by ${currentUser.email}`
+        );
+      } catch (error: any) {
+        results.failed.push({
+          row: rowNumber,
+          email: studentRecord.email || "N/A",
+          error: error.message || "Unknown error occurred",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Bulk student creation completed. ${results.successful.length} successful, ${results.failed.length} failed.`,
+      data: results,
+    });
+  } catch (error: any) {
+    logger.error("Bulk student creation error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to process bulk student creation",
+      error: error.message,
+    });
+  }
+};
+
 // Simple test endpoint to check alumni data (no auth for testing)
 export const testAlumniDataNoAuth = async (req: Request, res: Response) => {
   try {
@@ -1587,6 +1809,183 @@ export const exportAlumniData = async (req: Request, res: Response) => {
   }
 };
 
+// Export all students data as Excel/CSV
+export const exportStudentsData = async (req: Request, res: Response) => {
+  try {
+    const { format = "excel" } = req.query;
+
+    // Debug logging
+    console.log("Export students request - User:", req.user);
+    console.log("Export students request - Format:", format);
+
+    // 🔒 MULTI-TENANT FILTERING: Only export students from same college (unless super admin)
+    const filter: any = { role: "student" };
+
+    if (req.user?.role !== "super_admin" && req.user?.tenantId) {
+      filter.tenantId = req.user.tenantId;
+    }
+
+    console.log("Export students filter:", filter);
+
+    // Get all students with only basic fields
+    const students = await User.find(filter)
+      .select(
+        "firstName lastName email phone department currentYear currentCGPA currentGPA graduationYear location dateOfBirth gender status createdAt"
+      )
+      .lean();
+
+    console.log("Found students count:", students?.length || 0);
+
+    if (!students || students.length === 0) {
+      // Return empty file for blob requests
+      if (format === "csv") {
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="students_data_${new Date().toISOString().split("T")[0]}.csv"`
+        );
+        return res.send("No students data found");
+      } else {
+        // Create empty Excel file
+        const worksheet = XLSX.utils.json_to_sheet([
+          { Message: "No students data found" },
+        ]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Students Data");
+
+        const excelBuffer = XLSX.write(workbook, {
+          type: "buffer",
+          bookType: "xlsx",
+        });
+
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="students_data_${new Date().toISOString().split("T")[0]}.xlsx"`
+        );
+        return res.send(excelBuffer);
+      }
+    }
+
+    // Prepare data for export - only basic text fields
+    const exportData = students.map((student) => ({
+      "First Name": student.firstName || "",
+      "Last Name": student.lastName || "",
+      Email: student.email || "",
+      Phone: student.phone || "",
+      Department: student.department || "",
+      "Current Year": student.currentYear || "",
+      "Current CGPA": student.currentCGPA || "",
+      "Current GPA": student.currentGPA || "",
+      "Graduation Year": student.graduationYear || "",
+      Location: student.location || "",
+      "Date of Birth": student.dateOfBirth
+        ? new Date(student.dateOfBirth).toLocaleDateString()
+        : "",
+      Gender: student.gender || "",
+      Status: student.status || "",
+      "Created At": student.createdAt
+        ? new Date(student.createdAt).toLocaleDateString()
+        : "",
+    }));
+
+    if (format === "csv") {
+      // Convert to CSV - simplified
+      const csvHeaders = Object.keys(exportData[0]).join(",");
+      const csvRows = exportData.map((row) =>
+        Object.values(row)
+          .map((value) => {
+            const stringValue = String(value || "");
+            // Escape quotes and wrap in quotes if contains comma
+            if (
+              stringValue.includes(",") ||
+              stringValue.includes('"') ||
+              stringValue.includes("\n")
+            ) {
+              return `"${stringValue.replace(/"/g, '""')}"`;
+            }
+            return stringValue;
+          })
+          .join(",")
+      );
+      const csvContent = [csvHeaders, ...csvRows].join("\n");
+
+      console.log("CSV Content length:", csvContent.length);
+      console.log("CSV Headers:", csvHeaders);
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="students_data_${new Date().toISOString().split("T")[0]}.csv"`
+      );
+      return res.send(csvContent);
+    } else {
+      // Default to Excel format
+      console.log("Generating Excel with", exportData.length, "records");
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Students Data");
+
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      console.log("Excel buffer size:", excelBuffer.length);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="students_data_${new Date().toISOString().split("T")[0]}.xlsx"`
+      );
+      return res.send(excelBuffer);
+    }
+  } catch (error) {
+    logger.error("Error exporting students data:", error);
+    console.error("Export error details:", error);
+
+    // Return proper error response for blob requests
+    if (req.query.format === "csv") {
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="error_${new Date().toISOString().split("T")[0]}.csv"`
+      );
+      return res.send(
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } else {
+      // Create error Excel file
+      const worksheet = XLSX.utils.json_to_sheet([
+        { Error: error instanceof Error ? error.message : "Unknown error" },
+      ]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Error");
+
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
+      });
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="error_${new Date().toISOString().split("T")[0]}.xlsx"`
+      );
+      return res.send(excelBuffer);
+    }
+  }
+};
+
 export default {
   getAllUsers,
   createUser,
@@ -1600,7 +1999,9 @@ export default {
   bulkUpdateUsers,
   uploadProfileImage,
   bulkCreateAlumni,
+  bulkCreateStudents,
   exportAlumniData,
+  exportStudentsData,
   testExport,
   getEligibleStudents,
   promoteStudentToAlumni,

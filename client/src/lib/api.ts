@@ -851,6 +851,34 @@ export const userAPI = {
     });
   },
 
+  // Bulk create students from CSV/Excel data
+  bulkCreateStudents: async (
+    studentData: Array<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      password?: string;
+      department: string;
+      currentYear?: number;
+      currentCGPA?: number;
+      currentGPA?: number;
+      graduationYear?: number;
+      phoneNumber?: string;
+      phone?: string;
+      address?: string;
+      location?: string;
+      dateOfBirth?: string;
+      gender?: string;
+    }>
+  ) => {
+    return apiRequest({
+      method: "POST",
+      url: "/users/bulk-students",
+      data: { studentData },
+      timeout: 600000, // 10 minutes for bulk uploads (can handle up to 1000 records)
+    });
+  },
+
   exportAlumniData: async (format: "excel" | "csv" = "excel") => {
     const response = await api.get(`/users/export-alumni?format=${format}`, {
       responseType: "blob",
@@ -869,6 +897,36 @@ export const userAPI = {
     link.href = url;
 
     const filename = `alumni_data_${new Date().toISOString().split("T")[0]}.${
+      format === "csv" ? "csv" : "xlsx"
+    }`;
+    link.download = filename;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true, filename };
+  },
+
+  exportStudentsData: async (format: "excel" | "csv" = "excel") => {
+    const response = await api.get(`/users/export-students?format=${format}`, {
+      responseType: "blob",
+    });
+
+    // Create download link
+    const blob = new Blob([response.data], {
+      type:
+        format === "csv"
+          ? "text/csv"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    const filename = `students_data_${new Date().toISOString().split("T")[0]}.${
       format === "csv" ? "csv" : "xlsx"
     }`;
     link.download = filename;

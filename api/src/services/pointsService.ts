@@ -143,16 +143,17 @@ export const awardPointsForTrigger = async (
     }
 
     // Send email notification
-    try {
-      await emailService.sendRewardEarnedEmail(
-        alumni.email,
-        rewardType.points,
-        activityIdentifier
-      );
-    } catch (emailError) {
-      logger.error("Failed to send points earned email:", emailError);
-      // Don't fail the points award if email fails
-    }
+    // TODO: Implement sendRewardEarnedEmail method in EmailService
+    // try {
+    //   await emailService.sendRewardEarnedEmail(
+    //     alumni.email,
+    //     rewardType.points,
+    //     activityIdentifier
+    //   );
+    // } catch (emailError) {
+    //   logger.error("Failed to send points earned email:", emailError);
+    //   // Don't fail the points award if email fails
+    // }
 
     logger.info(`Successfully awarded ${rewardType.points} points to alumni ${alumniObjectId} for ${triggerEvent}`);
     

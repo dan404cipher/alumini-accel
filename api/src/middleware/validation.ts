@@ -647,14 +647,16 @@ export const validateMentoringProgram = [
     .withMessage("Mentor registration end date must be a valid date")
     .custom((value, { req }) => {
       const date = new Date(value);
-      const programStart = req.body.programDuration?.startDate
-        ? new Date(req.body.programDuration.startDate)
-        : null;
-
-      if (programStart && date <= programStart) {
       date.setHours(0, 0, 0, 0);
       const now = new Date();
       now.setHours(0, 0, 0, 0);
+      const programStart = req.body.programDuration?.startDate
+        ? (() => {
+            const d = new Date(req.body.programDuration.startDate);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
+        : null;
       const matchingEnd = req.body.matchingEndDate 
         ? (() => {
             const d = new Date(req.body.matchingEndDate);
@@ -666,6 +668,13 @@ export const validateMentoringProgram = [
       // Validate date is in the future
       if (date <= now) {
         throw new Error("Mentor registration end date must be in the future");
+      }
+      
+      // Validate date is before program start
+      if (programStart && date >= programStart) {
+        throw new Error(
+          "Mentor registration end date must be before program start date"
+        );
       }
       
       // Validate date is before matching end date

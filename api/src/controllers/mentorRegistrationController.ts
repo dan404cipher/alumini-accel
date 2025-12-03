@@ -3,8 +3,9 @@ import MentorRegistration from "../models/MentorRegistration";
 import MentoringProgram from "../models/MentoringProgram";
 import User from "../models/User";
 import { logger } from "../utils/logger";
-import { MentorRegistrationStatus, UserRole } from "../types";
+import { MentorRegistrationStatus, UserRole, RewardTriggerEvent } from "../types";
 import { emailService } from "../services/emailService";
+import { awardPointsForTrigger } from "../services/pointsService";
 
 // Submit mentor registration
 export const submitRegistration = async (req: Request, res: Response) => {
@@ -58,12 +59,18 @@ export const submitRegistration = async (req: Request, res: Response) => {
     // Normalize role for comparison - handle all possible formats (enum, string, case variations)
     const normalizedRole = String(userRole || "").toLowerCase().trim();
     const expectedAlumniRole = UserRole.ALUMNI.toLowerCase(); // "alumni"
+    const expectedStudentRole = "student";
     
-    // Check if user role is alumni - handle enum, string, and case variations
+    // Check if user role is alumni or student - handle enum, string, and case variations
     const isAlumni = 
       userRole === UserRole.ALUMNI || 
       normalizedRole === "alumni" ||
       normalizedRole === expectedAlumniRole;
+    
+    const isStudent = 
+      userRole === UserRole.STUDENT || 
+      normalizedRole === "student" ||
+      normalizedRole === expectedStudentRole;
     
     // Debug logging
     logger.info("Mentor registration role check", {
@@ -75,6 +82,7 @@ export const submitRegistration = async (req: Request, res: Response) => {
       UserRoleEnum: UserRole.ALUMNI,
       expectedAlumniRole: expectedAlumniRole,
       isAlumni: isAlumni,
+      isStudent: isStudent,
       roleComparison: {
         enumMatch: userRole === UserRole.ALUMNI,
         stringMatch: normalizedRole === "alumni",
@@ -82,19 +90,19 @@ export const submitRegistration = async (req: Request, res: Response) => {
       },
     });
     
-    if (!isAlumni) {
-      logger.error("Mentor registration rejected - user is not alumni", {
+    if (!isAlumni && !isStudent) {
+      logger.error("Mentor registration rejected - user is not alumni or student", {
         userId: userId,
         userEmail: dbUser.email,
         actualRole: userRole,
         normalizedRole: normalizedRole,
         roleType: typeof userRole,
-        expectedRole: UserRole.ALUMNI,
+        expectedRole: "alumni or student",
         reqUserRole: (req as any).user?.role,
       });
       return res.status(403).json({
         success: false,
-        message: `Only alumni can register as mentors. Your current role is: ${userRole || "unknown"}`,
+        message: `Only alumni and students can register as mentors. Your current role is: ${userRole || "unknown"}`,
       });
     }
 
@@ -219,11 +227,11 @@ export const submitRegistration = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate personal email and SIT email are different (if SIT email is provided)
+    // Validate personal email and institutional email are different (if institutional email is provided)
     if (sitEmail && personalEmail.toLowerCase() === sitEmail.toLowerCase()) {
       return res.status(400).json({
         success: false,
-        message: "Personal email and SIT email must be different",
+        message: "Personal email and institutional email must be different",
       });
     }
 
@@ -287,6 +295,22 @@ export const submitRegistration = async (req: Request, res: Response) => {
 
     await registration.save();
 
+    // Award points for mentor registration
+    try {
+      await awardPointsForTrigger(
+        req.user.id,
+        RewardTriggerEvent.MENTOR_REGISTRATION,
+        {
+          programId: program._id.toString(),
+          programName: program.name,
+        },
+        req.user.tenantId
+      );
+    } catch (pointsError) {
+      logger.error("Failed to award points for mentor registration:", pointsError);
+      // Don't fail registration if points award fails
+    }
+
     // Send acknowledgement email to mentor
     try {
       await emailService.sendEmail({
@@ -330,7 +354,7 @@ export const submitRegistration = async (req: Request, res: Response) => {
                 <ul>
                   <li>Name: ${preferredName} (${title} ${firstName} ${lastName})</li>
                   <li>Email: ${personalEmail}</li>
-                  <li>SIT Email: ${sitEmail}</li>
+                  <li>Institutional Email: ${sitEmail}</li>
                   <li>Class Of: ${classOf}</li>
                 </ul>
                 <p>Please review and approve the registration.</p>
@@ -755,7 +779,7 @@ export const updateRegistrationOnBehalf = async (
       "firstName",
       "lastName",
       "personalEmail",
-      "sitEmail",
+      // sitEmail is optional - removed from form
       "classOf",
       "dateOfBirth",
     ];
@@ -838,19 +862,19 @@ export const updateRegistrationOnBehalf = async (
         message: "Invalid personal email format",
       });
     }
-    // Only validate SIT email if provided (now optional)
+    // Only validate institutional email if provided (now optional)
     if (sitEmail && !emailRegex.test(sitEmail)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid SIT email format",
+        message: "Invalid institutional email format",
       });
     }
 
-    // Validate personal email and SIT email are different (if SIT email is provided)
+    // Validate personal email and institutional email are different (if institutional email is provided)
     if (sitEmail && personalEmail.toLowerCase() === sitEmail.toLowerCase()) {
       return res.status(400).json({
         success: false,
-        message: "Personal email and SIT email must be different",
+        message: "Personal email and institutional email must be different",
       });
     }
 

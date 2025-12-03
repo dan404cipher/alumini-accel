@@ -24,6 +24,7 @@ import { mentoringProgramAPI, CreateProgramData } from "@/services/mentoringProg
 import { UserSelect } from "./UserSelect";
 import { UserMultiSelect } from "./UserMultiSelect";
 import { getCharactersRemaining } from "@/utils/mentoringValidation";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CreateProgramModalProps {
   open: boolean;
@@ -39,6 +40,7 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
   onSuccess,
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<CreateProgramData>>({
     category: "",
@@ -161,6 +163,8 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
 
     if (!formData.category) newErrors.category = "Category is required";
     if (!formData.name || formData.name.trim().length === 0) {
@@ -176,49 +180,79 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
     } else if (formData.shortDescription.length > 250) {
       newErrors.shortDescription = "Short description cannot exceed 250 characters";
     }
+    
+    // Start Date validation
     if (!formData.programDuration?.startDate) {
       newErrors.startDate = "Start date is required";
+    } else {
+      const startDate = new Date(formData.programDuration.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      if (startDate <= today) {
+        newErrors.startDate = "Start date must be in the future";
     }
+    }
+    
+    // End Date validation
     if (!formData.programDuration?.endDate) {
       newErrors.endDate = "End date is required";
-    }
-    if (
+    } else {
+      const endDate = new Date(formData.programDuration.endDate);
+      endDate.setHours(0, 0, 0, 0);
+      if (endDate <= today) {
+        newErrors.endDate = "End date must be in the future";
+      } else if (
       formData.programDuration?.startDate &&
-      formData.programDuration?.endDate &&
-      new Date(formData.programDuration.endDate) <
-        new Date(formData.programDuration.startDate)
+        endDate <= new Date(formData.programDuration.startDate)
     ) {
       newErrors.endDate = "End date must be after start date";
     }
-    if (!formData.registrationEndDateMentee) {
-      newErrors.registrationEndDateMentee = "Mentee registration end date is required";
     }
-    if (!formData.registrationEndDateMentor) {
-      newErrors.registrationEndDateMentor = "Mentor registration end date is required";
-    }
+    
+    // Matching End Date validation
     if (!formData.matchingEndDate) {
       newErrors.matchingEndDate = "Matching end date is required";
+    } else {
+      const matchingEndDate = new Date(formData.matchingEndDate);
+      matchingEndDate.setHours(0, 0, 0, 0);
+      if (formData.programDuration?.startDate) {
+        const startDate = new Date(formData.programDuration.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        if (matchingEndDate >= startDate) {
+          newErrors.matchingEndDate = "Matching end date must be before start date";
+        }
+      }
     }
-    if (
-      formData.registrationEndDateMentee &&
-      formData.matchingEndDate &&
-      new Date(formData.matchingEndDate) <= new Date(formData.registrationEndDateMentee)
-    ) {
-      newErrors.matchingEndDate =
-        "Matching end date must be after mentee registration end date";
+    
+    // Mentor Registration End Date validation
+    if (!formData.registrationEndDateMentor) {
+      newErrors.registrationEndDateMentor = "Mentor registration end date is required";
+    } else {
+      const mentorRegEndDate = new Date(formData.registrationEndDateMentor);
+      mentorRegEndDate.setHours(0, 0, 0, 0);
+      if (formData.matchingEndDate) {
+        const matchingEndDate = new Date(formData.matchingEndDate);
+        matchingEndDate.setHours(0, 0, 0, 0);
+        if (mentorRegEndDate >= matchingEndDate) {
+          newErrors.registrationEndDateMentor = "Mentor registration end date must be before matching end date";
+        }
+      }
     }
-    if (
-      formData.registrationEndDateMentor &&
-      formData.matchingEndDate &&
-      new Date(formData.matchingEndDate) <= new Date(formData.registrationEndDateMentor)
-    ) {
-      newErrors.matchingEndDate =
-        "Matching end date must be after mentor registration end date";
+    
+    // Mentee Registration End Date validation
+    if (!formData.registrationEndDateMentee) {
+      newErrors.registrationEndDateMentee = "Mentee registration end date is required";
+    } else {
+      const menteeRegEndDate = new Date(formData.registrationEndDateMentee);
+      menteeRegEndDate.setHours(0, 0, 0, 0);
+      if (formData.matchingEndDate) {
+        const matchingEndDate = new Date(formData.matchingEndDate);
+        matchingEndDate.setHours(0, 0, 0, 0);
+        if (menteeRegEndDate >= matchingEndDate) {
+          newErrors.registrationEndDateMentee = "Mentee registration end date must be before matching end date";
     }
-    if (!formData.manager) newErrors.manager = "Manager is required";
-    if (!formData.registrationApprovalBy) {
-      newErrors.registrationApprovalBy = "Registration approval by is required";
+      }
     }
+    
     if (
       formData.areasOfMentoring?.mentor.length === 0 &&
       formData.areasOfMentoring?.mentee.length === 0
@@ -378,7 +412,10 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-4xl max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? "Edit Program" : "Create New Mentoring Program"}
@@ -498,6 +535,7 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
               <Input
                 type="date"
                 value={formData.programDuration?.startDate}
+                min={new Date().toISOString().split("T")[0]}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -520,6 +558,16 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
               <Input
                 type="date"
                 value={formData.programDuration?.endDate}
+                min={
+                  formData.programDuration?.startDate
+                    ? new Date(
+                        new Date(formData.programDuration.startDate).getTime() +
+                          86400000
+                      )
+                        .toISOString()
+                        .split("T")[0]
+                    : new Date().toISOString().split("T")[0]
+                }
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -678,7 +726,7 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
                   setFormData({ ...formData, entryCriteriaRules: value });
                 }
               }}
-              placeholder="Enter entry criteria rules that mentors and mentees must meet to participate in this program. For example:&#10;&#10;1. Must be a SIT alumni or current student&#10;2. Minimum 2 years of work experience (for mentors)&#10;3. Must commit to at least 6 months of mentoring&#10;4. Must attend orientation session"
+              placeholder="Enter entry criteria rules that mentors and mentees must meet to participate in this program. For example:&#10;&#10;1. Must be an alumni or current student&#10;2. Minimum 2 years of work experience (for mentors)&#10;3. Must commit to at least 6 months of mentoring&#10;4. Must attend orientation session"
               rows={5}
               className={errors.entryCriteriaRules ? "border-red-500" : ""}
             />
@@ -709,6 +757,16 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
               <Input
                 type="date"
                 value={formData.registrationEndDateMentee}
+                min={new Date().toISOString().split("T")[0]}
+                max={
+                  formData.matchingEndDate
+                    ? new Date(
+                        new Date(formData.matchingEndDate).getTime() - 86400000
+                      )
+                        .toISOString()
+                        .split("T")[0]
+                    : undefined
+                }
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -730,6 +788,16 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
               <Input
                 type="date"
                 value={formData.registrationEndDateMentor}
+                min={new Date().toISOString().split("T")[0]}
+                max={
+                  formData.matchingEndDate
+                    ? new Date(
+                        new Date(formData.matchingEndDate).getTime() - 86400000
+                      )
+                        .toISOString()
+                        .split("T")[0]
+                    : undefined
+                }
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -754,6 +822,17 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
             <Input
               type="date"
               value={formData.matchingEndDate}
+              min={new Date().toISOString().split("T")[0]}
+              max={
+                formData.programDuration?.startDate
+                  ? new Date(
+                      new Date(formData.programDuration.startDate).getTime() -
+                        86400000
+                    )
+                      .toISOString()
+                      .split("T")[0]
+                  : undefined
+              }
               onChange={(e) =>
                 setFormData({ ...formData, matchingEndDate: e.target.value })
               }
@@ -784,54 +863,6 @@ export const CreateProgramModal: React.FC<CreateProgramModalProps> = ({
               )}
             </div>
           </div>
-
-          {/* Manager */}
-          <UserSelect
-            selectedUserId={formData.manager || ""}
-            onUserChange={(userId) => setFormData({ ...formData, manager: userId })}
-            label="Manager"
-            required
-            roles={["staff", "hod"]}
-          />
-          {errors.manager && (
-            <p className="text-sm text-red-500 mt-1">{errors.manager}</p>
-          )}
-
-          {/* Coordinators */}
-          <UserMultiSelect
-            selectedUsers={formData.coordinators || []}
-            onUsersChange={(userIds) =>
-              setFormData({ ...formData, coordinators: userIds })
-            }
-            label="Coordinators"
-            roles={["staff", "hod"]}
-          />
-
-          {/* Reports/Escalations To */}
-          <UserMultiSelect
-            selectedUsers={formData.reportsEscalationsTo || []}
-            onUsersChange={(userIds) =>
-              setFormData({ ...formData, reportsEscalationsTo: userIds })
-            }
-            label="Reports/Escalations To"
-            roles={["staff", "hod"]}
-          />
-
-          {/* Registration Approval By */}
-          <UserSelect
-            selectedUserId={formData.registrationApprovalBy || ""}
-            onUserChange={(userId) =>
-              setFormData({ ...formData, registrationApprovalBy: userId })
-            }
-            label="Registration Approval By"
-            required
-            roles={["staff", "hod"]}
-          />
-          {errors.registrationApprovalBy && (
-            <p className="text-sm text-red-500 mt-1">
-              {errors.registrationApprovalBy}
-            </p>
-          )}
 
           {/* Email Templates - TODO: Implement template selection */}
         </div>

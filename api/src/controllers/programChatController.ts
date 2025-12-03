@@ -21,47 +21,124 @@ const verifyUserInProgram = async (
       return { isAuthorized: true, isMentor: false, isStaff: true };
     }
 
-    // Check if user is a mentor for this program
-    const mentorReg = await MentorRegistration.findOne({
-      programId,
+    // Get user email for checks
+    const User = (await import("../models/User")).default;
+    const user = await User.findById(userId).select("email");
+    const userEmail = user?.email?.toLowerCase();
+
+    // Build base query for tenant filtering
+    const baseQuery: any = { programId };
+    if (tenantId) {
+      baseQuery.tenantId = tenantId;
+    }
+
+    // Check if user is a mentor for this program (allow both submitted and approved)
+    const mentorRegQuery = {
+      ...baseQuery,
       userId,
-      status: "approved",
-      tenantId,
-    });
+      status: { $in: ["submitted", "approved"] },
+    };
+    const mentorReg = await MentorRegistration.findOne(mentorRegQuery);
 
     if (mentorReg) {
       return { isAuthorized: true, isMentor: true, isStaff: false };
     }
 
-    // Check if user is an assigned mentee for this program
-    const match = await MentorMenteeMatching.findOne({
+    // Also check mentor registration by email (in case userId doesn't match)
+    if (userEmail) {
+      const mentorRegByEmail = await MentorRegistration.findOne({
+        ...baseQuery,
+        $or: [
+          { userId },
+          { personalEmail: userEmail },
+          { preferredMailingAddress: userEmail },
+        ],
+        status: { $in: ["submitted", "approved"] },
+      });
+
+      if (mentorRegByEmail) {
+        return { isAuthorized: true, isMentor: true, isStaff: false };
+      }
+    }
+
+    // Check if user is an assigned mentee for this program (by menteeId)
+    const matchQuery: any = {
       programId,
       menteeId: userId,
       status: {
         $in: [MatchingStatus.ACCEPTED, MatchingStatus.PENDING_MENTOR_ACCEPTANCE],
       },
-      tenantId,
-    });
+    };
+    if (tenantId) {
+      matchQuery.tenantId = tenantId;
+    }
+    const match = await MentorMenteeMatching.findOne(matchQuery);
 
     if (match) {
       return { isAuthorized: true, isMentor: false, isStaff: false };
     }
 
-    // Also check mentee registration (in case they're registered but not yet matched)
-    const User = (await import("../models/User")).default;
-    const user = await User.findById(userId).select("email");
-    if (user?.email) {
+    // Also check matches by menteeRegistrationId (in case menteeId doesn't match)
+    if (userEmail) {
+      // First, find mentee registrations for this user (allow both submitted and approved)
+      const menteeRegs = await MenteeRegistration.find({
+        ...baseQuery,
+        $or: [
+          { userId },
+          { personalEmail: userEmail },
+          { preferredMailingAddress: userEmail },
+        ],
+        status: { $in: ["submitted", "approved"] },
+      });
+
+      if (menteeRegs.length > 0) {
+        // Check if any of these registrations are matched
+        const menteeRegIds = menteeRegs.map((reg) => reg._id);
+        const matchByRegIdQuery: any = {
+          programId,
+          menteeRegistrationId: { $in: menteeRegIds },
+          status: {
+            $in: [MatchingStatus.ACCEPTED, MatchingStatus.PENDING_MENTOR_ACCEPTANCE],
+          },
+        };
+        if (tenantId) {
+          matchByRegIdQuery.tenantId = tenantId;
+        }
+        const matchByRegId = await MentorMenteeMatching.findOne(matchByRegIdQuery);
+
+        if (matchByRegId) {
+          return { isAuthorized: true, isMentor: false, isStaff: false };
+        }
+
+        // If registered but not matched, still allow access (they're registered mentees)
+        return { isAuthorized: true, isMentor: false, isStaff: false };
+      }
+    }
+
+    // Final check: look for any mentee registration by email (even without userId)
+    if (userEmail) {
       const menteeReg = await MenteeRegistration.findOne({
-        programId,
-        $or: [{ userId }, { personalEmail: user.email.toLowerCase() }],
-        status: "approved",
-        tenantId,
+        ...baseQuery,
+        $or: [
+          { userId },
+          { personalEmail: userEmail },
+          { preferredMailingAddress: userEmail },
+        ],
+        status: { $in: ["submitted", "approved"] },
       });
 
       if (menteeReg) {
         return { isAuthorized: true, isMentor: false, isStaff: false };
       }
     }
+
+    logger.warn(`User ${userId} not authorized for program ${programId}`, {
+      userId,
+      programId,
+      tenantId,
+      userRole,
+      userEmail,
+    });
 
     return { isAuthorized: false, isMentor: false, isStaff: false };
   } catch (error) {
@@ -388,12 +465,18 @@ export const getProgramChatMembers = asyncHandler(
 
     try {
       const members: any[] = [];
+      const memberIds = new Set<string>(); // Track unique member IDs
 
-      // Get all approved mentors for this program
+      // Build base query for tenant filtering
+      const baseQuery: any = { programId };
+      if (tenantId) {
+        baseQuery.tenantId = tenantId;
+      }
+
+      // Get all mentors for this program (both submitted and approved)
       const mentorRegs = await MentorRegistration.find({
-        programId,
-        status: "approved",
-        tenantId,
+        ...baseQuery,
+        status: { $in: ["submitted", "approved"] },
       })
         .populate("userId", "firstName lastName email profilePicture role")
         .select("userId preferredName");
@@ -401,6 +484,11 @@ export const getProgramChatMembers = asyncHandler(
       mentorRegs.forEach((reg: any) => {
         if (reg.userId) {
           const mentorUser = reg.userId;
+          const userId = mentorUser._id.toString();
+          
+          // Skip if already added
+          if (memberIds.has(userId)) return;
+          
           // If requester is alumni, exclude staff/admin members
           if (isAlumni) {
             const mentorRole = mentorUser.role;
@@ -408,8 +496,10 @@ export const getProgramChatMembers = asyncHandler(
               return; // Skip this member
             }
           }
+          
+          memberIds.add(userId);
           members.push({
-            id: mentorUser._id,
+            id: userId,
             firstName: mentorUser.firstName,
             lastName: mentorUser.lastName,
             email: mentorUser.email,
@@ -422,11 +512,10 @@ export const getProgramChatMembers = asyncHandler(
 
       // Get all matched mentees for this program
       const matches = await MentorMenteeMatching.find({
-        programId,
+        ...baseQuery,
         status: {
           $in: [MatchingStatus.ACCEPTED, MatchingStatus.PENDING_MENTOR_ACCEPTANCE],
         },
-        tenantId,
       })
         .populate("menteeId", "firstName lastName email profilePicture role")
         .populate({
@@ -435,12 +524,11 @@ export const getProgramChatMembers = asyncHandler(
           select: "firstName lastName personalEmail",
         });
 
-      // Add unique mentees (avoid duplicates)
-      const menteeIds = new Set();
+      // Add unique mentees from matches
       matches.forEach((match: any) => {
         const menteeId = match.menteeId?._id?.toString() || match.menteeId?.toString();
-        if (menteeId && !menteeIds.has(menteeId)) {
-          menteeIds.add(menteeId);
+        if (menteeId && !memberIds.has(menteeId)) {
+          memberIds.add(menteeId);
           const mentee = match.menteeId || match.menteeRegistrationId;
           if (mentee) {
             // If requester is alumni, exclude staff/admin members
@@ -462,11 +550,10 @@ export const getProgramChatMembers = asyncHandler(
         }
       });
 
-      // Also check approved mentee registrations (in case they're not matched yet)
+      // Also check mentee registrations (both submitted and approved, in case they're not matched yet)
       const menteeRegs = await MenteeRegistration.find({
-        programId,
-        status: "approved",
-        tenantId,
+        ...baseQuery,
+        status: { $in: ["submitted", "approved"] },
       });
 
       for (const reg of menteeRegs) {
@@ -482,6 +569,10 @@ export const getProgramChatMembers = asyncHandler(
         }
 
         if (user) {
+          const userId = user._id.toString();
+          // Skip if already added
+          if (memberIds.has(userId)) continue;
+          
           // If requester is alumni, exclude staff/admin members
           if (isAlumni) {
             const menteeUserRole = user.role;
@@ -489,9 +580,8 @@ export const getProgramChatMembers = asyncHandler(
               continue; // Skip this member
             }
           }
-          const userId = user._id.toString();
-          if (!menteeIds.has(userId)) {
-            menteeIds.add(userId);
+          
+          memberIds.add(userId);
             members.push({
               id: userId,
               firstName: user.firstName,
@@ -501,21 +591,70 @@ export const getProgramChatMembers = asyncHandler(
               role: "Mentee",
             });
           }
-        } else {
-          // If no user account, use registration data
-          const regId = reg._id.toString();
-          if (!menteeIds.has(regId)) {
-            menteeIds.add(regId);
-            members.push({
-              id: regId,
-              firstName: reg.firstName,
-              lastName: reg.lastName,
-              email: reg.personalEmail,
-              profilePicture: undefined,
-              role: "Mentee",
-            });
+      }
+
+      // Also get members from actual chat messages (people who have sent messages)
+      const uniqueSenderIds = await ProgramChat.distinct("sender", baseQuery);
+      
+      // Get user details for all unique senders
+      const senderUsers = await User.find({
+        _id: { $in: uniqueSenderIds },
+      }).select("firstName lastName email profilePicture role");
+
+      // Add members from chat messages who aren't already in the list
+      for (const senderUser of senderUsers) {
+        const senderId = senderUser._id.toString();
+        if (memberIds.has(senderId)) continue;
+        
+        // If requester is alumni, exclude staff/admin members
+        if (isAlumni) {
+          const senderRole = senderUser.role;
+          if (senderRole === UserRole.STAFF || senderRole === UserRole.HOD || senderRole === UserRole.COLLEGE_ADMIN) {
+            continue; // Skip this member
           }
         }
+
+        // Determine role
+        let role = "Mentee"; // Default
+        if (senderUser.role === UserRole.STAFF) {
+          role = "Staff";
+        } else if (senderUser.role === UserRole.HOD || senderUser.role === UserRole.COLLEGE_ADMIN) {
+          role = "Admin";
+        } else {
+          // Check if they're a mentor
+          const mentorCheck = await MentorRegistration.findOne({
+            ...baseQuery,
+            userId: senderId,
+            status: { $in: ["submitted", "approved"] },
+          });
+          if (mentorCheck) {
+            role = "Mentor";
+          } else {
+            // Check if they're a mentee
+            const menteeCheck = await MenteeRegistration.findOne({
+              ...baseQuery,
+              $or: [
+                { userId: senderId },
+                { personalEmail: senderUser.email?.toLowerCase() },
+                { preferredMailingAddress: senderUser.email?.toLowerCase() },
+              ],
+              status: { $in: ["submitted", "approved"] },
+            });
+            if (menteeCheck) {
+              role = "Mentee";
+            }
+          }
+        }
+
+        memberIds.add(senderId);
+            members.push({
+          id: senderId,
+          firstName: senderUser.firstName,
+          lastName: senderUser.lastName,
+          email: senderUser.email,
+          profilePicture: senderUser.profilePicture,
+          role: role,
+            });
       }
 
       return res.status(200).json({

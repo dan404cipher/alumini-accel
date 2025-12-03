@@ -26,7 +26,6 @@ import { format } from "date-fns";
 import { mentoringProgramAPI, MentoringProgram } from "@/services/mentoringProgramApi";
 import api from "@/lib/api";
 import { ViewPublishedMentorsLink } from "./ViewPublishedMentorsLink";
-import { SendMenteeSelectionEmailsModal } from "./SendMenteeSelectionEmailsModal";
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +38,7 @@ interface ProgramDetailProps {
   programId: string;
   onEdit?: () => void;
   onDelete?: () => void;
+  onStatusChange?: () => void; // Callback when program status changes (publish/unpublish)
   userRole?: string;
 }
 
@@ -46,6 +46,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
   programId,
   onEdit,
   onDelete,
+  onStatusChange,
   userRole,
 }) => {
   const { toast } = useToast();
@@ -55,7 +56,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
   const [statistics, setStatistics] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [showSendEmailsModal, setShowSendEmailsModal] = useState(false);
   const [menteeRegistrationLink, setMenteeRegistrationLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [hasMentorRegistration, setHasMentorRegistration] = useState(false);
@@ -64,7 +64,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
 
   // STAFF, HOD, and College Admin can create, edit, delete, publish, unpublish, and send invitations
   const isStaff = userRole === "staff" || userRole === "hod" || userRole === "college_admin";
-  const isAlumni = user?.role === "alumni";
+  // Check if user is alumni or student (both should see the same mentorship view)
+  const isAlumni = user?.role === "alumni" || user?.role === "student";
 
   useEffect(() => {
     fetchProgram();
@@ -192,6 +193,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
           description: "Program published successfully",
         });
         fetchProgram();
+        // Notify parent component to refresh the programs list
+        if (onStatusChange) {
+          onStatusChange();
+        }
       }
     } catch (error: any) {
       toast({
@@ -215,6 +220,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
           description: "Program unpublished successfully",
         });
         fetchProgram();
+        // Notify parent component to refresh the programs list
+        if (onStatusChange) {
+          onStatusChange();
+        }
       }
     } catch (error: any) {
       toast({
@@ -522,7 +531,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
         )}
 
         {/* Registration Buttons - At the bottom of program information */}
-        {program.status === "published" && !isStaff && (
+        {program.status === "published" && !isStaff && userRole !== "super_admin" && (
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-2">
@@ -530,6 +539,8 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                 <ArrowRight className="w-5 h-5 text-gray-600" />
               </div>
               <div className="flex flex-wrap gap-4">
+                {/* Mentor Registration Button - Hidden for students */}
+                {user?.role !== "student" && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -539,7 +550,7 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                           className="bg-blue-600 hover:bg-blue-700"
                           size="lg"
                           disabled={
-                            (isAlumni && hasMenteeRegistration) ||
+                            (isAlumni && (hasMentorRegistration || hasMenteeRegistration)) ||
                             !isRegistrationOpen(program.registrationEndDateMentor)
                           }
                         >
@@ -548,18 +559,28 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                         </Button>
                       </span>
                     </TooltipTrigger>
-                    {isAlumni && hasMenteeRegistration && (
-                      <TooltipContent>
-                        <p>You have already registered as a mentee for this program</p>
+                    {isAlumni && hasMentorRegistration && (
+                      <TooltipContent className="bg-red-50 border border-red-200">
+                        <p className="text-red-600 font-medium">
+                          You are already registered as a mentor for this program, so you cannot register again.
+                        </p>
                       </TooltipContent>
                     )}
-                    {!isRegistrationOpen(program.registrationEndDateMentor) && (
+                    {isAlumni && hasMenteeRegistration && !hasMentorRegistration && (
+                      <TooltipContent className="bg-red-50 border border-red-200">
+                        <p className="text-red-600 font-medium">
+                          You are already registered as a mentee for this program, so you cannot register as a mentor.
+                        </p>
+                      </TooltipContent>
+                    )}
+                    {!isRegistrationOpen(program.registrationEndDateMentor) && !hasMentorRegistration && !hasMenteeRegistration && (
                       <TooltipContent>
                         <p>Mentor registration has ended for this program</p>
                       </TooltipContent>
                     )}
                   </Tooltip>
                 </TooltipProvider>
+                )}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -567,10 +588,10 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                         <Button
                           onClick={() => navigate(`/mentee-registration?programId=${programId}`)}
                           variant="outline"
-                          className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                          className="border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-800"
                           size="lg"
                           disabled={
-                            (isAlumni && hasMentorRegistration) ||
+                            (isAlumni && (hasMenteeRegistration || hasMentorRegistration)) ||
                             !isRegistrationOpen(program.registrationEndDateMentee)
                           }
                         >
@@ -579,12 +600,21 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
                         </Button>
                       </span>
                     </TooltipTrigger>
-                    {isAlumni && hasMentorRegistration && (
-                      <TooltipContent>
-                        <p>You have already registered as a mentor for this program</p>
+                    {isAlumni && hasMenteeRegistration && (
+                      <TooltipContent className="bg-red-50 border border-red-200">
+                        <p className="text-red-600 font-medium">
+                          You are already registered as a mentee for this program, so you cannot register again.
+                        </p>
                       </TooltipContent>
                     )}
-                    {!isRegistrationOpen(program.registrationEndDateMentee) && (
+                    {isAlumni && hasMentorRegistration && !hasMenteeRegistration && (
+                      <TooltipContent className="bg-red-50 border border-red-200">
+                        <p className="text-red-600 font-medium">
+                          You are already registered as a mentor for this program, so you cannot register as a mentee.
+                        </p>
+                      </TooltipContent>
+                    )}
+                    {!isRegistrationOpen(program.registrationEndDateMentee) && !hasMenteeRegistration && !hasMentorRegistration && (
                       <TooltipContent>
                         <p>Mentee registration has ended for this program</p>
                       </TooltipContent>
@@ -710,39 +740,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
               <Mail className="w-4 h-4 mr-2" />
               Send Invitations
             </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowSendEmailsModal(true)}
-                    disabled={
-                      !statistics?.approvedMentees ||
-                      statistics.approvedMentees === 0 ||
-                      program.status !== "published"
-                    }
-                    className="justify-start"
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Send Mentor Selection Emails
-                    {statistics?.approvedMentees > 0 && (
-                      <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                        {statistics.approvedMentees}
-                      </span>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">
-                    {program.status !== "published"
-                      ? "Program must be published to send selection emails"
-                      : !statistics?.approvedMentees || statistics.approvedMentees === 0
-                      ? "No approved mentees available to send emails"
-                      : `Send emails to ${statistics.approvedMentees} approved mentee${statistics.approvedMentees !== 1 ? "s" : ""} with a link to select their preferred mentors`}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             {program.mentorsPublished && (
               <Button
                 variant="outline"
@@ -776,19 +773,6 @@ export const ProgramDetail: React.FC<ProgramDetailProps> = ({
         </div>
       )}
 
-      {/* Send Mentee Selection Emails Modal */}
-      {isStaff && (
-        <SendMenteeSelectionEmailsModal
-          open={showSendEmailsModal}
-          onOpenChange={setShowSendEmailsModal}
-          programId={programId}
-          programName={program?.name}
-          onSuccess={() => {
-            // Refresh statistics after sending emails
-            fetchStatistics();
-          }}
-        />
-      )}
     </div>
   );
 };

@@ -27,22 +27,22 @@ router.use(authenticateToken);
 // IMPORTANT: Specific routes must come BEFORE parameterized routes like /:id
 // Otherwise Express will match /programs/:programId as /:id with id="programs"
 
-// Send invitations (Staff only) - MUST come before /:id routes
+// Send invitations (Staff, HOD, College Admin) - MUST come before /:id routes
 router.post(
   "/programs/:programId/send-mentor-invitations",
-  authorize(UserRole.STAFF),
+  authorize(UserRole.STAFF, UserRole.HOD, UserRole.COLLEGE_ADMIN),
   sendMentorInvitations
 );
 router.post(
   "/programs/:programId/generate-mentee-links",
-  authorize(UserRole.STAFF),
+  authorize(UserRole.STAFF, UserRole.HOD, UserRole.COLLEGE_ADMIN),
   generateMenteeInvitations
 );
 
-// Alumni selection and export (Staff only) - MUST come before /:id routes
-router.get("/alumni/select", authorize(UserRole.STAFF), selectAlumniForInvitation);
-router.post("/alumni/bulk-invite", authorize(UserRole.STAFF), sendBulkMentorInvitations);
-router.get("/alumni/export", authorize(UserRole.STAFF), exportInvitationList);
+// Alumni selection and export (Staff, HOD, College Admin) - MUST come before /:id routes
+router.get("/alumni/select", authorize(UserRole.STAFF, UserRole.HOD, UserRole.COLLEGE_ADMIN), selectAlumniForInvitation);
+router.post("/alumni/bulk-invite", authorize(UserRole.STAFF, UserRole.HOD, UserRole.COLLEGE_ADMIN), sendBulkMentorInvitations);
+router.get("/alumni/export", authorize(UserRole.STAFF, UserRole.HOD, UserRole.COLLEGE_ADMIN), exportInvitationList);
 
 // Other specific routes
 router.post("/send-acknowledgement", requireAdmin, sendAcknowledgementEmail);

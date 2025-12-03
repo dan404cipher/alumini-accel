@@ -10,6 +10,7 @@ import AlumniProfile from "../models/AlumniProfile";
 import MentorRegistration from "../models/MentorRegistration";
 import MenteeRegistration from "../models/MenteeRegistration";
 import { generateRegistrationToken } from "../models/MenteeRegistration";
+
 // Format date helper
 const formatDate = (date: Date | string, formatStr: string = "MMM dd, yyyy"): string => {
   try {
@@ -363,19 +364,140 @@ export const sendMentorInvitations = async (
       template = await EmailTemplate.findOne(templateQuery);
     }
 
-    // If no template found, return error instead of creating default
-    // User should create template manually via UI
+    // If no template found, auto-create a default template
     if (!template) {
-      logger.error("No active mentor invitation template found", {
+      logger.info("No active mentor invitation template found, creating default template", {
         tenantId,
         userTenantId: req.user?.tenantId,
         programId,
       });
       
-      return res.status(404).json({
-        success: false,
-        message: "No active mentor invitation template found. Please create a mentor invitation template first in the Email Templates section.",
-      });
+      // Check if a default template exists but is inactive
+      const defaultTemplateQuery: any = {
+        name: "Default Mentor Invitation Template",
+        templateType: "mentor_invitation",
+        tenantId: tenantId as any,
+      };
+      
+      let existingTemplate = await EmailTemplate.findOne(defaultTemplateQuery);
+      
+      if (existingTemplate) {
+        // If template exists but is inactive, activate it
+        existingTemplate.isActive = true;
+        await existingTemplate.save();
+        template = existingTemplate;
+        logger.info("Reactivated existing default mentor invitation template", {
+          templateId: template._id,
+          tenantId,
+        });
+      } else {
+        // Create default mentor invitation template
+        const defaultSubject = "Invitation to Join {{programName}} as a Mentor";
+        const defaultBody = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+    .content { background-color: #f9fafb; padding: 30px; border-radius: 0 0 5px 5px; }
+    .button { display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Mentor Invitation</h1>
+    </div>
+    <div class="content">
+      <p>Dear {{preferredName}},</p>
+      
+      <p>We are excited to invite you to participate as a mentor in the <strong>{{programName}}</strong> program.</p>
+      
+      <h3>Program Details:</h3>
+      <ul>
+        <li><strong>Category:</strong> {{programCategory}}</li>
+        <li><strong>Registration Deadline:</strong> {{mentorRegistrationDeadline}}</li>
+        <li><strong>Matching End Date:</strong> {{matchingEndDate}}</li>
+      </ul>
+      
+      <p>As a mentor, you will have the opportunity to share your knowledge and experience with mentees, helping them grow both personally and professionally.</p>
+      
+      <p style="text-align: center;">
+        <a href="{{registrationLink}}" class="button">Register as Mentor</a>
+      </p>
+      
+      <p>If you have any questions or need assistance, please don't hesitate to contact us:</p>
+      <ul>
+        <li><strong>Coordinator:</strong> {{coordinatorName}}</li>
+        <li><strong>Program Manager:</strong> {{programManagerName}}</li>
+      </ul>
+      
+      <p>We look forward to your participation in this program.</p>
+      
+      <p>Best regards,<br>Mentorship Team</p>
+    </div>
+    <div class="footer">
+      <p>This is an automated email. Please do not reply to this message.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+        try {
+          const userId = req.user?._id || req.userId;
+          const variables = extractVariables(defaultSubject + " " + defaultBody);
+          
+          template = new EmailTemplate({
+            name: "Default Mentor Invitation Template",
+            templateType: "mentor_invitation",
+            subject: defaultSubject,
+            body: defaultBody,
+            variables,
+            createdBy: userId,
+            isActive: true,
+            tenantId: tenantId as any,
+          });
+
+          await template.save();
+          logger.info("Default mentor invitation template created successfully", {
+            templateId: template._id,
+            tenantId,
+          });
+        } catch (error: any) {
+          logger.error("Failed to create default mentor invitation template", {
+            error: error.message,
+            tenantId,
+          });
+          
+          // If template creation fails due to duplicate, try to find and activate it
+          if (error.code === 11000) {
+            existingTemplate = await EmailTemplate.findOne(defaultTemplateQuery);
+            if (existingTemplate) {
+              existingTemplate.isActive = true;
+              await existingTemplate.save();
+              template = existingTemplate;
+              logger.info("Found and reactivated existing default template after duplicate error", {
+                templateId: template._id,
+                tenantId,
+              });
+            } else {
+              return res.status(500).json({
+                success: false,
+                message: "Failed to create default email template. Please contact your administrator or create a mentor invitation template manually in the Email Templates section.",
+              });
+            }
+          } else {
+            // If template creation fails, return helpful error
+            return res.status(500).json({
+              success: false,
+              message: "Failed to create default email template. Please contact your administrator or create a mentor invitation template manually in the Email Templates section.",
+            });
+          }
+        }
+      }
     }
 
     // Get alumni users

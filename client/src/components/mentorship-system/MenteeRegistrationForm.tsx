@@ -79,6 +79,7 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
   const [newArea, setNewArea] = useState("");
   const [isMailingAddressManuallyEdited, setIsMailingAddressManuallyEdited] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Get reCAPTCHA site key from environment variables
   const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
@@ -161,6 +162,97 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
+  // Validate individual field
+  const validateField = (field: keyof RegistrationFormData, value: string | string[] | boolean | undefined): string => {
+    switch (field) {
+      case "title":
+        if (!value || (typeof value === "string" && !value.trim())) return "Title is required";
+        return "";
+      
+      case "firstName": {
+        if (!value || (typeof value === "string" && !value.trim())) return "First name is required";
+        if (typeof value === "string" && value.length > 30) return "First name cannot exceed 30 characters";
+        if (typeof value === "string" && !/^[a-zA-Z\s]+$/.test(value)) return "First name can only contain letters (a-z, A-Z) and spaces";
+        return "";
+      }
+      
+      case "lastName": {
+        if (!value || (typeof value === "string" && !value.trim())) return "Last name is required";
+        if (typeof value === "string" && value.length > 30) return "Last name cannot exceed 30 characters";
+        if (typeof value === "string" && !/^[a-zA-Z\s]+$/.test(value)) return "Last name can only contain letters (a-z, A-Z) and spaces";
+        return "";
+      }
+      
+      case "mobileNumber": {
+        if (value && typeof value === "string" && value.trim()) {
+          const digitsOnly = value.replace(/\D/g, "");
+          if (digitsOnly.length !== 10) return "Mobile number must be exactly 10 digits";
+        }
+        return "";
+      }
+      
+      case "dateOfBirth": {
+        if (!value || typeof value !== "string") return "Date of birth is required";
+        const dob = new Date(value);
+        const today = new Date();
+        const minDate = new Date(
+          today.getFullYear() - 16,
+          today.getMonth(),
+          today.getDate()
+        );
+        if (dob > minDate) return "You must be at least 16 years old";
+        return "";
+      }
+      
+      case "personalEmail": {
+        if (!value || typeof value !== "string") return "Personal email is required";
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) return "Please enter a valid email address";
+        return "";
+      }
+      
+      case "preferredMailingAddress": {
+        if (!value || typeof value !== "string") return "Preferred mailing address is required";
+        const mailingEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!mailingEmailRegex.test(value)) return "Please enter a valid email address";
+        return "";
+      }
+      
+      case "classOf":
+        if (!value || (typeof value === "string" && !value.trim())) return "Class of year is required";
+        return "";
+      
+      case "sitMatricNumber": {
+        const classOfYear = parseInt(formData.classOf);
+        if (classOfYear < 2017 && (!value || (typeof value === "string" && !value.trim()))) {
+          return "Matric Number is required for pre-2017";
+        }
+        return "";
+      }
+      
+      case "areasOfMentoring":
+        if (!value || (Array.isArray(value) && value.length === 0)) {
+          return "At least one area of mentoring is required";
+        }
+        return "";
+      
+      case "eventSlotPreference":
+        if (!value || (typeof value === "string" && !value.trim())) return "Event slot preference is required";
+        return "";
+      
+      case "eventMeetupPreference":
+        if (!value || (typeof value === "string" && !value.trim())) return "Event meetup preference is required";
+        return "";
+      
+      case "pdpaConsent":
+        if (!value || value !== true) return "PDPA consent must be accepted";
+        return "";
+      
+      default:
+        return "";
+    }
+  };
+
   const handleInputChange = (
     field: keyof RegistrationFormData,
     value: any
@@ -169,10 +261,17 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
     if (field === "firstName" || field === "lastName") {
       // Remove any characters that are not letters or spaces
       value = value.replace(/[^a-zA-Z\s]/g, "");
-      
-      // Show error if user tried to enter invalid characters (check if original value had invalid chars)
-      // This is handled by checking if the filtered value is different from what was attempted
-      // We'll validate in the validateForm function instead for clearer error messages
+    }
+
+    // For mobile number, restrict to digits only and max 10 digits
+    if (field === "mobileNumber" && typeof value === "string") {
+      // Remove all non-digit characters
+      const digitsOnly = value.replace(/\D/g, "");
+      if (digitsOnly.length > 10) {
+        // Don't update if it exceeds 10 digits
+        return;
+      }
+      value = digitsOnly;
     }
 
     setFormData((prev) => {
@@ -208,54 +307,12 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
       return updated;
     });
 
-    // Validate mobile number in real-time if provided - Indian mobile numbers only
-    if (field === "mobileNumber" && value && value.trim()) {
-      // Remove all spaces, dashes, and parentheses for validation
-      const cleanedNumber = value.replace(/[\s\-\(\)]/g, "");
-      
-      // Indian mobile number validation: 10 digits starting with 9, 8, 7, or 6
-      let digits = cleanedNumber;
-      
-      // Remove country code if present (+91 or 91)
-      if (cleanedNumber.startsWith("+91")) {
-        digits = cleanedNumber.substring(3);
-      } else if (cleanedNumber.startsWith("91") && cleanedNumber.length === 12) {
-        digits = cleanedNumber.substring(2);
-      }
-      
-      // Validate: exactly 10 digits starting with 9, 8, 7, or 6
-      const indianMobileRegex = /^[6789]\d{9}$/;
-      
-      if (!indianMobileRegex.test(digits)) {
+    // Validate field in real-time
+    const error = validateField(field, value);
       setErrors((prev) => ({
         ...prev,
-          mobileNumber: "Please enter a valid Indian mobile number (10 digits starting with 9, 8, 7, or 6)",
+      [field]: error,
         }));
-      } else {
-        // Clear error if valid
-        setErrors((prev) => {
-          const newErrors = { ...prev };
-          delete newErrors.mobileNumber;
-          return newErrors;
-        });
-      }
-    } else if (field === "mobileNumber" && (!value || !value.trim())) {
-      // Clear error if field is empty (since it's optional)
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.mobileNumber;
-        return newErrors;
-      });
-    }
-
-    // Clear error when user starts typing (for name fields, error will be shown in validateForm)
-    if (errors[field] && field !== "firstName" && field !== "lastName" && field !== "mobileNumber") {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
   };
 
   const handleClassOfChange = (value: string) => {
@@ -264,7 +321,26 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
     // Clear matric when class changes
     if (year >= 2017) {
       handleInputChange("sitMatricNumber", "");
+      // Clear error for matric number if class is >= 2017
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.sitMatricNumber;
+        return newErrors;
+      });
+    } else {
+      // Validate matric number if class is < 2017
+      const error = validateField("sitMatricNumber", formData.sitMatricNumber);
+      setErrors((prev) => ({
+        ...prev,
+        sitMatricNumber: error,
+      }));
     }
+    // Validate classOf field
+    const error = validateField("classOf", value);
+    setErrors((prev) => ({
+      ...prev,
+      classOf: error,
+    }));
   };
 
   const addArea = () => {
@@ -357,31 +433,18 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
     if (!formData.personalEmail) newErrors.personalEmail = "Personal email is required";
     if (!formData.classOf) newErrors.classOf = "Class of year is required";
 
-    const classOfYear = parseInt(formData.classOf);
-    if (classOfYear < 2017 && !formData.sitMatricNumber)
-      newErrors.sitMatricNumber = "SIT Matric Number is required for pre-2017";
+      const classOfYear = parseInt(formData.classOf);
+      if (classOfYear < 2017 && !formData.sitMatricNumber)
+        newErrors.sitMatricNumber = "Matric Number is required for pre-2017";
 
-    // Validate mobile number if provided (optional field) - Indian mobile numbers only
+    // Validate mobile number if provided (optional field) - exactly 10 digits
     if (formData.mobileNumber && formData.mobileNumber.trim()) {
-      // Remove all spaces, dashes, and parentheses for validation
-      const cleanedNumber = formData.mobileNumber.replace(/[\s\-\(\)]/g, "");
+      // Remove all non-digit characters for validation
+      const digitsOnly = formData.mobileNumber.replace(/\D/g, "");
       
-      // Indian mobile number validation: 10 digits starting with 9, 8, 7, or 6
-      // Accept formats: 9876543210, +91 9876543210, 91 9876543210
-      let digits = cleanedNumber;
-      
-      // Remove country code if present (+91 or 91)
-      if (cleanedNumber.startsWith("+91")) {
-        digits = cleanedNumber.substring(3);
-      } else if (cleanedNumber.startsWith("91") && cleanedNumber.length === 12) {
-        digits = cleanedNumber.substring(2);
-      }
-      
-      // Validate: exactly 10 digits starting with 9, 8, 7, or 6
-      const indianMobileRegex = /^[6789]\d{9}$/;
-      
-      if (!indianMobileRegex.test(digits)) {
-        newErrors.mobileNumber = "Please enter a valid Indian mobile number (10 digits starting with 9, 8, 7, or 6). Example: 9876543210 or +91 9876543210";
+      // Validate: exactly 10 digits
+      if (digitsOnly.length !== 10) {
+        newErrors.mobileNumber = "Mobile number must be exactly 10 digits";
       }
     }
 
@@ -597,14 +660,14 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-3" noValidate>
       {/* Personal Information */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <User className="w-5 h-5" />
+        <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
+          <User className="w-4 h-4" />
           Personal Information
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1">
               Title <span className="text-red-500">*</span>
@@ -614,6 +677,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
               onChange={(e) =>
                 handleInputChange("title", e.target.value as any)
               }
+              onBlur={() => {
+                const error = validateField("title", formData.title);
+                setErrors((prev) => ({ ...prev, title: error }));
+              }}
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.title ? "border-red-500" : "border-gray-300"
               }`}
@@ -639,6 +706,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
               type="text"
               value={formData.firstName}
               onChange={(e) => handleInputChange("firstName", e.target.value)}
+              onBlur={() => {
+                const error = validateField("firstName", formData.firstName);
+                setErrors((prev) => ({ ...prev, firstName: error }));
+              }}
               maxLength={30}
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.firstName ? "border-red-500" : "border-gray-300"
@@ -661,6 +732,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
               type="text"
               value={formData.lastName}
               onChange={(e) => handleInputChange("lastName", e.target.value)}
+              onBlur={() => {
+                const error = validateField("lastName", formData.lastName);
+                setErrors((prev) => ({ ...prev, lastName: error }));
+              }}
               maxLength={30}
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.lastName ? "border-red-500" : "border-gray-300"
@@ -686,7 +761,24 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
               onChange={(e) =>
                 handleInputChange("mobileNumber", e.target.value)
               }
-              placeholder="9876543210 or +91 9876543210"
+              onBlur={() => {
+                if (formData.mobileNumber && formData.mobileNumber.trim()) {
+                  const digitsOnly = formData.mobileNumber.replace(/\D/g, "");
+                  if (digitsOnly.length !== 10) {
+                    setErrors((prev) => ({
+                      ...prev,
+                      mobileNumber: "Mobile number must be exactly 10 digits",
+                    }));
+                  } else {
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.mobileNumber;
+                      return newErrors;
+                    });
+                  }
+                }
+              }}
+              placeholder="Enter 10 digits"
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.mobileNumber ? "border-red-500" : "border-gray-300"
               }`}
@@ -698,7 +790,7 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
             )}
             {!errors.mobileNumber && (
               <p className="text-gray-500 text-xs mt-1">
-                Optional. Enter a valid Indian mobile number (10 digits starting with 9, 8, 7, or 6). Examples: 9876543210, +91 9876543210
+                Optional. Enter exactly 10 digits.
               </p>
             )}
           </div>
@@ -712,6 +804,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
               type="date"
               value={formData.dateOfBirth}
               onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+              onBlur={() => {
+                const error = validateField("dateOfBirth", formData.dateOfBirth);
+                setErrors((prev) => ({ ...prev, dateOfBirth: error }));
+              }}
               max={new Date(
                 new Date().getFullYear() - 16,
                 new Date().getMonth(),
@@ -735,11 +831,11 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
 
       {/* Email Information */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Mail className="w-5 h-5" />
+        <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
+          <Mail className="w-4 h-4" />
           Email Information
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1">
               Personal Email <span className="text-red-500">*</span>
@@ -750,6 +846,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
               onChange={(e) =>
                 handleInputChange("personalEmail", e.target.value)
               }
+              onBlur={() => {
+                const error = validateField("personalEmail", formData.personalEmail);
+                setErrors((prev) => ({ ...prev, personalEmail: error }));
+              }}
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.personalEmail ? "border-red-500" : "border-gray-300"
               }`}
@@ -765,12 +865,7 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
           <div>
             <label className="block text-sm font-medium mb-1 flex items-center gap-2">
               Preferred Mailing Address <span className="text-red-500">*</span>
-              {!isMailingAddressManuallyEdited && formData.preferredMailingAddress === formData.personalEmail && formData.personalEmail && (
-                <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                  <Info className="w-3 h-3" />
-                  Auto-filled from personal email
-                </span>
-              )}
+              
             </label>
             <input
               type="email"
@@ -778,6 +873,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
               onChange={(e) =>
                 handleInputChange("preferredMailingAddress", e.target.value)
               }
+              onBlur={() => {
+                const error = validateField("preferredMailingAddress", formData.preferredMailingAddress);
+                setErrors((prev) => ({ ...prev, preferredMailingAddress: error }));
+              }}
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.preferredMailingAddress
                   ? "border-red-500"
@@ -803,11 +902,11 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
 
       {/* Academic Information */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <FileText className="w-5 h-5" />
+        <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
+          <FileText className="w-4 h-4" />
           Academic Information
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1">
               Class Of <span className="text-red-500">*</span>
@@ -872,9 +971,9 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
 
           {parseInt(formData.classOf) < 2017 && formData.classOf && (
             <div>
-              <label className="block text-sm font-medium mb-1">
-                SIT Matric Number <span className="text-red-500">*</span>
-              </label>
+                <label className="block text-sm font-medium mb-1">
+                  Matric Number <span className="text-red-500">*</span>
+                </label>
               <input
                 type="text"
                 value={formData.sitMatricNumber}
@@ -909,13 +1008,41 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
           Mentee CV (PDF, DOC, DOCX - Max 10MB)
         </label>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".pdf,.doc,.docx"
           onChange={handleFileChange}
           className="w-full px-3 py-2 border border-gray-300 rounded-md"
         />
         {cvFile && (
-          <p className="text-sm text-gray-600 mt-1">Selected: {cvFile.name}</p>
+          <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-600" />
+              <span className="text-sm text-gray-700 font-medium">{cvFile.name}</span>
+              <span className="text-xs text-gray-500">
+                ({(cvFile.size / 1024 / 1024).toFixed(2)} MB)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCvFile(null);
+                // Clear file input
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+                // Clear error if any
+                setErrors((prev) => {
+                  const newErrors = { ...prev };
+                  delete newErrors.cvFile;
+                  return newErrors;
+                });
+              }}
+              className="text-red-600 hover:text-red-800 text-sm font-medium"
+            >
+              Remove
+            </button>
+          </div>
         )}
         {errors.cvFile && (
           <p className="text-red-600 text-xs mt-1">{errors.cvFile}</p>
@@ -927,7 +1054,7 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
         <label className="block text-sm font-medium mb-1">
           Areas of Mentoring <span className="text-red-500">*</span>
         </label>
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-2 mb-1.5">
           <input
             type="text"
             value={newArea}
@@ -945,13 +1072,13 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
           <button
             type="button"
             onClick={addArea}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
             Add
           </button>
         </div>
         {formData.areasOfMentoring.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-1.5">
             {formData.areasOfMentoring.map((area, index) => (
               <span
                 key={index}
@@ -1018,8 +1145,8 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
 
       {/* Event Preferences */}
       <div>
-        <h3 className="text-lg font-semibold mb-4">Event Preferences</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h3 className="text-base font-semibold mb-2"></h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1">
               Event Slot Preference <span className="text-red-500">*</span>
@@ -1032,6 +1159,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
                   e.target.value as "Weekend afternoon" | "Weekday evenings"
                 )
               }
+              onBlur={() => {
+                const error = validateField("eventSlotPreference", formData.eventSlotPreference);
+                setErrors((prev) => ({ ...prev, eventSlotPreference: error }));
+              }}
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.eventSlotPreference
                   ? "border-red-500"
@@ -1065,6 +1196,10 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
                   e.target.value as "Virtual" | "Physical"
                 )
               }
+              onBlur={() => {
+                const error = validateField("eventMeetupPreference", formData.eventMeetupPreference);
+                setErrors((prev) => ({ ...prev, eventMeetupPreference: error }));
+              }}
               className={`w-full px-3 py-2 border rounded-md ${
                 errors.eventMeetupPreference
                   ? "border-red-500"
@@ -1146,11 +1281,11 @@ export const MenteeRegistrationForm: React.FC<MenteeRegistrationFormProps> = ({
       </div>
 
       {/* Submit Button */}
-      <div className="flex gap-4 pt-4 border-t">
+      <div className="flex gap-3 pt-3 border-t">
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
         >
           {loading ? "Submitting..." : "Submit Registration"}
         </button>

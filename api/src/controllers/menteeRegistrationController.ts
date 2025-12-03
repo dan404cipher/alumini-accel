@@ -6,8 +6,9 @@ import MenteeRegistration, {
 import MentoringProgram from "../models/MentoringProgram";
 import User from "../models/User";
 import { logger } from "../utils/logger";
-import { MenteeRegistrationStatus } from "../types";
+import { MenteeRegistrationStatus, RewardTriggerEvent } from "../types";
 import { emailService } from "../services/emailService";
+import { awardPointsForTrigger } from "../services/pointsService";
 import { verifyRecaptcha } from "../utils/recaptcha";
 
 // Generate registration link for a program
@@ -399,6 +400,32 @@ export const submitRegistration = async (req: Request, res: Response) => {
     });
 
     await registration.save();
+
+    // Award points for mentee registration (if user exists with this email)
+    // Note: Mentee registrations are public, so we check if a user account exists
+    try {
+      const existingUser = await User.findOne({ 
+        email: preferredMailingAddress.toLowerCase(),
+        role: "alumni" 
+      });
+      
+      if (existingUser) {
+        await awardPointsForTrigger(
+          existingUser._id,
+          RewardTriggerEvent.MENTEE_REGISTRATION,
+          {
+            programId: program._id.toString(),
+            programName: program.name,
+          },
+          program.tenantId
+        );
+      } else {
+        logger.info(`No alumni user found for mentee registration email: ${preferredMailingAddress}. Points will be awarded when user account is created.`);
+      }
+    } catch (pointsError) {
+      logger.error("Failed to award points for mentee registration:", pointsError);
+      // Don't fail registration if points award fails
+    }
 
     // Send confirmation email to mentee
     try {
@@ -1124,7 +1151,7 @@ export const updateRegistrationOnBehalf = async (
     if (!studentId || studentId.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Student ID, SIT Student ID, or SIT Matric Number is required",
+        message: "Student ID or Matric Number is required",
       });
     }
 

@@ -64,6 +64,7 @@ import mentorshipCommunicationRoutes from "./routes/mentorshipCommunication";
 import programChatRoutes from "./routes/programChat";
 import alumni360Routes from "./routes/alumni360";
 import adminAnalyticsRoutes from "./routes/adminAnalytics";
+import rewardRoutes from "./routes/rewardRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -629,6 +630,7 @@ app.use("/api/v1/rewards/verifications", rewardVerificationsRoutes);
 app.use("/api/v1/rewards/analytics", rewardAnalyticsRoutes);
 app.use("/api/v1/leaderboard", leaderboardRoutes);
 app.use("/api/v1/badges", badgeRoutes);
+app.use("/api/v1/rewards", rewardRoutes);
 
 // Serve static files with CORS headers
 app.use(

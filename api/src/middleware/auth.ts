@@ -160,6 +160,13 @@ export const requireAdmin = authorize(
   UserRole.STAFF
 );
 
+// Admin level access excluding Super Admin (College Admin, HOD, Staff only)
+export const requireAdminButNotSuperAdmin = authorize(
+  UserRole.COLLEGE_ADMIN,
+  UserRole.HOD,
+  UserRole.STAFF
+);
+
 // Require STAFF role only (for approve/disapprove actions)
 export const requireStaff = authorize(UserRole.STAFF);
 

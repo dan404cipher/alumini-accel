@@ -30,12 +30,22 @@ export interface Campaign {
   description: string;
   category: string;
   amount: string; // store as string from input, cast on use
+  startDate: string; // ISO date
   endDate: string; // ISO date
   imageUrl: string;
   raised: number;
   donors: number;
   fundId?: string;
   targetAudience?: TargetAudience;
+  featured?: boolean;
+  allowAnonymous?: boolean;
+  taxDeductible?: boolean;
+  tags?: string[];
+  contactInfo?: {
+    email: string;
+    phone: string;
+    address?: string;
+  };
 }
 
 export interface CampaignForm
@@ -48,6 +58,16 @@ export interface CampaignForm
   campaignId?: string; // For editing existing campaigns
   fundId?: string;
   targetAudience?: TargetAudience;
+  startDate?: string;
+  featured?: boolean;
+  allowAnonymous?: boolean;
+  taxDeductible?: boolean;
+  tags?: string[];
+  contactInfo?: {
+    email: string;
+    phone: string;
+    address?: string;
+  };
 }
 
 export interface ErrorState {
@@ -116,6 +136,7 @@ export interface DonationReceipt {
 export interface DonationHistoryItem {
   id: string;
   campaignTitle: string;
+  campaignIndex: number; // Index in the campaigns array
   receiptId?: string; // present when completed
   amount: number;
   dateISO: string;

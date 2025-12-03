@@ -3,9 +3,6 @@ import {
   Receipt,
   Download,
   Filter,
-  Calendar,
-  ExternalLink,
-  Share,
 } from "lucide-react";
 import { DonationHistoryItem, Campaign } from "../types";
 import {

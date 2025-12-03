@@ -2,16 +2,12 @@ import React, { useState } from "react";
 import {
   Receipt,
   Download,
-  Filter,
-  Calendar,
   ExternalLink,
   Share,
   Eye,
-  ChevronRight,
   Search,
   SortAsc,
   SortDesc,
-  MoreVertical,
   CheckCircle,
   Clock,
   XCircle,
@@ -926,7 +922,9 @@ const EnhancedDonationTable: React.FC<EnhancedDonationTableProps> = ({
         onClose={() => setDetailsModalOpen(false)}
         donation={selectedDonation}
         campaign={
-          selectedDonation ? campaigns[selectedDonation.campaignIndex] : null
+          selectedDonation
+            ? campaigns[selectedDonation.campaignIndex] || null
+            : null
         }
       />
     </div>

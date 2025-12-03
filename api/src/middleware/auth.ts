@@ -371,6 +371,7 @@ export default {
   requireCollegeAdmin,
   requireHOD,
   requireAdmin,
+  requireAdminButNotSuperAdmin,
   requireStaff,
   requireAlumni,
   requireCoordinator,

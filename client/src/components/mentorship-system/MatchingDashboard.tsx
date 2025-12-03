@@ -11,6 +11,8 @@ import {
   Search,
   Filter,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +44,18 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
   const [availableMentors, setAvailableMentors] = useState<any[]>([]);
   const [creatingMatch, setCreatingMatch] = useState(false);
 
+  // Pagination state for matches
+  const [matchesCurrentPage, setMatchesCurrentPage] = useState(1);
+  const [matchesTotalPages, setMatchesTotalPages] = useState(1);
+  const [matchesTotal, setMatchesTotal] = useState(0);
+  const matchesPerPage = 12;
+
+  // Pagination state for unmatched mentees
+  const [unmatchedCurrentPage, setUnmatchedCurrentPage] = useState(1);
+  const [unmatchedTotalPages, setUnmatchedTotalPages] = useState(1);
+  const [unmatchedTotal, setUnmatchedTotal] = useState(0);
+  const unmatchedPerPage = 12;
+
   useEffect(() => {
     fetchPrograms();
   }, []);
@@ -50,13 +64,28 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
     if (selectedProgram) {
       fetchStatistics();
       fetchMatches();
-      fetchUnmatchedMentees();
+      // fetchUnmatchedMentees is called by separate useEffect
     } else {
       setMatches([]);
       setStatistics(null);
       setUnmatchedMentees([]);
     }
+    // Reset pagination when program changes
+    setMatchesCurrentPage(1);
+    setUnmatchedCurrentPage(1);
   }, [selectedProgram]);
+
+  // Reset to page 1 when status filter changes
+  useEffect(() => {
+    setMatchesCurrentPage(1);
+  }, [statusFilter]);
+
+  // Fetch matches when status filter or page changes
+  useEffect(() => {
+    if (selectedProgram) {
+      fetchMatches();
+    }
+  }, [statusFilter, matchesCurrentPage]);
 
   const fetchPrograms = async () => {
     try {
@@ -90,9 +119,29 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
     
     setLoading(true);
     try {
-      const response = await api.get(`/matching/${selectedProgram}/matches`);
+      const params: Record<string, string | number> = {
+        page: matchesCurrentPage,
+        limit: matchesPerPage,
+      };
+      // Map UI filter values to API status values
+      if (statusFilter !== "all") {
+        const statusMap: Record<string, string> = {
+          pending: "pending_mentor_acceptance",
+          accepted: "accepted",
+          rejected: "rejected",
+        };
+        params.status = statusMap[statusFilter] || statusFilter;
+      }
+      
+      const response = await api.get(`/matching/${selectedProgram}/matches`, { params });
       if (response.data.success) {
         setMatches(response.data.data.matches || []);
+        
+        // Update pagination metadata
+        if (response.data.data.pagination) {
+          setMatchesTotalPages(response.data.data.pagination.totalPages || 1);
+          setMatchesTotal(response.data.data.pagination.total || 0);
+        }
       }
     } catch (error: any) {
       console.error("Failed to fetch matches:", error);
@@ -102,21 +151,47 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
         variant: "destructive",
       });
       setMatches([]);
+      setMatchesTotalPages(1);
+      setMatchesTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchUnmatchedMentees = async () => {
+    if (!selectedProgram) {
+      setUnmatchedMentees([]);
+      return;
+    }
+    
     try {
-      const response = await api.get(`/matching/${selectedProgram}/unmatched`);
+      const response = await api.get(`/matching/${selectedProgram}/unmatched`, {
+        params: {
+          page: unmatchedCurrentPage,
+          limit: unmatchedPerPage,
+        },
+      });
       if (response.data.success) {
         setUnmatchedMentees(response.data.data.unmatchedMentees || []);
+        
+        // Update pagination metadata
+        if (response.data.data.pagination) {
+          setUnmatchedTotalPages(response.data.data.pagination.totalPages || 1);
+          setUnmatchedTotal(response.data.data.pagination.total || 0);
+        }
       }
     } catch (error: any) {
       console.error("Failed to fetch unmatched mentees:", error);
     }
   };
+
+  // Fetch unmatched mentees when page or program changes
+  useEffect(() => {
+    if (selectedProgram) {
+      fetchUnmatchedMentees();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unmatchedCurrentPage, selectedProgram]);
 
   const handleRunMatching = async () => {
     if (!selectedProgram) {
@@ -264,19 +339,8 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
   };
 
   // Filter matches based on status
-  const filteredMatches = matches.filter((match: any) => {
-    if (statusFilter === "all") return true;
-    if (statusFilter === "pending") {
-      return match.status === "pending_mentor_acceptance";
-    }
-    if (statusFilter === "accepted") {
-      return match.status === "accepted";
-    }
-    if (statusFilter === "rejected") {
-      return match.status === "rejected" || match.status === "auto_rejected";
-    }
-    return true;
-  });
+  // No need for client-side filtering since API handles it
+  const filteredMatches = matches;
 
   // Calculate days remaining for pending matches
   const getDaysRemaining = (autoRejectAt: Date | string | null | undefined) => {
@@ -325,6 +389,8 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
           onChange={(e) => {
             setSelectedProgram(e.target.value);
             setStatusFilter("all");
+            setMatchesCurrentPage(1);
+            setUnmatchedCurrentPage(1);
           }}
           className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -390,7 +456,10 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
           {/* Status Filter */}
           <div className="mb-4 flex space-x-2">
             <button
-              onClick={() => setStatusFilter("all")}
+              onClick={() => {
+                setStatusFilter("all");
+                setMatchesCurrentPage(1);
+              }}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
                 statusFilter === "all"
                   ? "bg-blue-100 text-blue-800 border-2 border-blue-500"
@@ -400,7 +469,10 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
               All
             </button>
             <button
-              onClick={() => setStatusFilter("pending")}
+              onClick={() => {
+                setStatusFilter("pending");
+                setMatchesCurrentPage(1);
+              }}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
                 statusFilter === "pending"
                   ? "bg-yellow-100 text-yellow-800 border-2 border-yellow-500"
@@ -411,7 +483,10 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
               Pending
             </button>
             <button
-              onClick={() => setStatusFilter("accepted")}
+              onClick={() => {
+                setStatusFilter("accepted");
+                setMatchesCurrentPage(1);
+              }}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
                 statusFilter === "accepted"
                   ? "bg-green-100 text-green-800 border-2 border-green-500"
@@ -422,7 +497,10 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
               Accepted
             </button>
             <button
-              onClick={() => setStatusFilter("rejected")}
+              onClick={() => {
+                setStatusFilter("rejected");
+                setMatchesCurrentPage(1);
+              }}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
                 statusFilter === "rejected"
                   ? "bg-red-100 text-red-800 border-2 border-red-500"
@@ -435,13 +513,21 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
           </div>
 
           {/* Unmatched Mentees */}
-          {unmatchedMentees.length > 0 && (
+          {unmatchedTotal > 0 && (
             <div className="mb-6 bg-white rounded-lg shadow border border-gray-200 p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Unmatched Mentees ({unmatchedMentees.length})
+                  Unmatched Mentees ({unmatchedTotal})
                 </h2>
               </div>
+              
+              {/* Results count */}
+              <div className="mb-4 text-sm text-gray-600">
+                Showing {((unmatchedCurrentPage - 1) * unmatchedPerPage) + 1}-
+                {Math.min(unmatchedCurrentPage * unmatchedPerPage, unmatchedTotal)} of {unmatchedTotal} unmatched mentee
+                {unmatchedTotal !== 1 ? "s" : ""}
+              </div>
+
               <div className="space-y-2">
                 {unmatchedMentees.map((item: any) => {
                   const mentee = item.mentee || {};
@@ -499,13 +585,58 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
                   );
                 })}
               </div>
+
+              {/* Pagination Controls for Unmatched Mentees */}
+              {unmatchedTotalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-6">
+                  <button
+                    onClick={() => {
+                      if (unmatchedCurrentPage > 1) {
+                        setUnmatchedCurrentPage(unmatchedCurrentPage - 1);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                    }}
+                    disabled={unmatchedCurrentPage === 1}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+                      unmatchedCurrentPage === 1
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </button>
+                  
+                  <div className="text-sm text-gray-600">
+                    Page {unmatchedCurrentPage} of {unmatchedTotalPages}
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      if (unmatchedCurrentPage < unmatchedTotalPages) {
+                        setUnmatchedCurrentPage(unmatchedCurrentPage + 1);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                    }}
+                    disabled={unmatchedCurrentPage === unmatchedTotalPages}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+                      unmatchedCurrentPage === unmatchedTotalPages
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* Matches List */}
           <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              All Matches ({filteredMatches.length})
+              All Matches ({matchesTotal})
             </h2>
             {loading ? (
               <div className="text-center py-12">
@@ -522,6 +653,20 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
                 </p>
               </div>
             ) : (
+              <>
+                {/* Results count */}
+                <div className="mb-4 text-sm text-gray-600">
+                  {matchesTotal > 0 ? (
+                    <>
+                      Showing {((matchesCurrentPage - 1) * matchesPerPage) + 1}-
+                      {Math.min(matchesCurrentPage * matchesPerPage, matchesTotal)} of {matchesTotal} match
+                      {matchesTotal !== 1 ? "es" : ""}
+                    </>
+                  ) : (
+                    "No matches found"
+                  )}
+                </div>
+
               <div className="space-y-4">
                 {filteredMatches.map((match: any) => {
                   const StatusIcon = getStatusIcon(match.status);
@@ -663,6 +808,52 @@ export const MatchingDashboard: React.FC<MatchingDashboardProps> = ({ onClose, h
                   );
                 })}
               </div>
+
+                {/* Pagination Controls for Matches */}
+                {matchesTotalPages > 1 && (
+                  <div className="flex justify-center items-center gap-4 mt-6">
+                    <button
+                      onClick={() => {
+                        if (matchesCurrentPage > 1) {
+                          setMatchesCurrentPage(matchesCurrentPage - 1);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }
+                      }}
+                      disabled={matchesCurrentPage === 1 || loading}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+                        matchesCurrentPage === 1 || loading
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </button>
+                    
+                    <div className="text-sm text-gray-600">
+                      Page {matchesCurrentPage} of {matchesTotalPages}
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        if (matchesCurrentPage < matchesTotalPages) {
+                          setMatchesCurrentPage(matchesCurrentPage + 1);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }
+                      }}
+                      disabled={matchesCurrentPage === matchesTotalPages || loading}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+                        matchesCurrentPage === matchesTotalPages || loading
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>

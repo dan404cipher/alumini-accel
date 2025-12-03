@@ -4,9 +4,10 @@ import MentorRegistration from "../models/MentorRegistration";
 import MenteeRegistration from "../models/MenteeRegistration";
 import MentoringProgram from "../models/MentoringProgram";
 import User from "../models/User";
-import { MentorRegistrationStatus, MenteeRegistrationStatus } from "../types";
+import { MentorRegistrationStatus, MenteeRegistrationStatus, RewardTriggerEvent } from "../types";
 import { logger } from "../utils/logger";
 import { emailService } from "../services/emailService";
+import { awardPointsForTrigger } from "../services/pointsService";
 
 // Get approval queue with filters (Submitted/Approved/Rejected)
 export const getApprovalQueue = async (
@@ -16,13 +17,17 @@ export const getApprovalQueue = async (
   try {
     const { stage, type, programId, page = 1, limit = 20, search } = req.query;
     const tenantId = req.tenantId;
+    const isSuperAdmin = req.user?.role === "super_admin";
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
-    // Build query
-    const query: any = { tenantId };
+    // Build query - super admin can see all, others filtered by tenant
+    const query: any = {};
+    if (!isSuperAdmin && tenantId) {
+      query.tenantId = tenantId;
+    }
 
     if (stage) {
       query.status = stage;
@@ -107,12 +112,17 @@ export const getMentorApprovals = async (
   try {
     const { status, programId, page = 1, limit = 20, search } = req.query;
     const tenantId = req.tenantId;
+    const isSuperAdmin = req.user?.role === "super_admin";
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
-    const query: any = { tenantId };
+    // Build query - super admin can see all, others filtered by tenant
+    const query: any = {};
+    if (!isSuperAdmin && tenantId) {
+      query.tenantId = tenantId;
+    }
 
     if (status) {
       query.status = status;
@@ -173,12 +183,17 @@ export const getMenteeApprovals = async (
   try {
     const { status, programId, page = 1, limit = 20, search } = req.query;
     const tenantId = req.tenantId;
+    const isSuperAdmin = req.user?.role === "super_admin";
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
-    const query: any = { tenantId };
+    // Build query - super admin can see all, others filtered by tenant
+    const query: any = {};
+    if (!isSuperAdmin && tenantId) {
+      query.tenantId = tenantId;
+    }
 
     if (status) {
       query.status = status;
@@ -292,6 +307,24 @@ export const approveMentorRegistration = async (
     });
 
     await registration.save();
+
+    // Award points for mentor approval
+    try {
+      if (registration.userId) {
+        await awardPointsForTrigger(
+          registration.userId,
+          RewardTriggerEvent.MENTOR_APPROVAL,
+          {
+            programId: program?._id?.toString(),
+            programName: program?.name,
+          },
+          registration.tenantId
+        );
+      }
+    } catch (pointsError) {
+      logger.error("Failed to award points for mentor approval:", pointsError);
+      // Don't fail approval if points award fails
+    }
 
     // Send approval email
     try {
@@ -503,6 +536,31 @@ export const approveMenteeRegistration = async (
     });
 
     await registration.save();
+
+    // Award points for mentee approval (if user exists with this email)
+    try {
+      const existingUser = await User.findOne({ 
+        email: registration.preferredMailingAddress.toLowerCase(),
+        role: "alumni" 
+      });
+      
+      if (existingUser) {
+        await awardPointsForTrigger(
+          existingUser._id,
+          RewardTriggerEvent.MENTEE_APPROVAL,
+          {
+            programId: program?._id?.toString(),
+            programName: program?.name,
+          },
+          registration.tenantId
+        );
+      } else {
+        logger.info(`No alumni user found for mentee approval email: ${registration.preferredMailingAddress}. Points will be awarded when user account is created.`);
+      }
+    } catch (pointsError) {
+      logger.error("Failed to award points for mentee approval:", pointsError);
+      // Don't fail approval if points award fails
+    }
 
     // Send approval email
     try {
@@ -931,8 +989,13 @@ export const getApprovalStatistics = async (
   try {
     const { programId } = req.query;
     const tenantId = req.tenantId;
+    const isSuperAdmin = req.user?.role === "super_admin";
 
-    const query: any = { tenantId };
+    // Build query - super admin can see all, others filtered by tenant
+    const query: any = {};
+    if (!isSuperAdmin && tenantId) {
+      query.tenantId = tenantId;
+    }
     if (programId) {
       query.programId = programId;
     }

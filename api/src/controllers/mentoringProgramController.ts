@@ -3,8 +3,10 @@ import mongoose from "mongoose";
 import { AuthenticatedRequest } from "../types";
 import MentoringProgram from "../models/MentoringProgram";
 import MentorRegistration from "../models/MentorRegistration";
+import MenteeRegistration from "../models/MenteeRegistration";
+import MentorMenteeMatching from "../models/MentorMenteeMatching";
 import { logger } from "../utils/logger";
-import { MentoringProgramStatus } from "../types";
+import { MentoringProgramStatus, MatchingStatus } from "../types";
 import { sanitizeHtml } from "../utils/sanitize";
 import { generateRegistrationToken } from "../models/MenteeRegistration";
 
@@ -34,26 +36,35 @@ export const createProgram = async (req: Request, res: Response) => {
 
     // Validate dates
     const now = new Date();
+    now.setHours(0, 0, 0, 0);
     const menteeRegEnd = new Date(registrationEndDateMentee);
+    menteeRegEnd.setHours(0, 0, 0, 0);
     const mentorRegEnd = new Date(registrationEndDateMentor);
+    mentorRegEnd.setHours(0, 0, 0, 0);
     const matchEnd = new Date(matchingEndDate);
+    matchEnd.setHours(0, 0, 0, 0);
     const progStart = new Date(programDuration.startDate);
+    progStart.setHours(0, 0, 0, 0);
     const progEnd = new Date(programDuration.endDate);
+    progEnd.setHours(0, 0, 0, 0);
 
-    if (menteeRegEnd <= progStart) {
+    // Validate that start date is in the future
+    if (progStart <= now) {
       return res.status(400).json({
         success: false,
-        message: "Mentee registration end date must be after program start date",
+        message: "Program start date must be in the future",
       });
     }
 
-    if (mentorRegEnd <= progStart) {
+    // Validate that end date is in the future
+    if (progEnd <= now) {
       return res.status(400).json({
         success: false,
-        message: "Mentor registration end date must be after program start date",
+        message: "Program end date must be in the future",
       });
     }
 
+    // Validate that end date is after start date
     if (progEnd <= progStart) {
       return res.status(400).json({
         success: false,
@@ -61,11 +72,27 @@ export const createProgram = async (req: Request, res: Response) => {
       });
     }
 
-    if (matchEnd <= menteeRegEnd || matchEnd <= mentorRegEnd) {
+    // Validate that matching end date is before start date
+    if (matchEnd >= progStart) {
       return res.status(400).json({
         success: false,
-        message:
-          "Matching end date must be after both registration end dates",
+        message: "Matching end date must be before program start date",
+      });
+    }
+
+    // Validate that mentor registration end date is before matching end date
+    if (mentorRegEnd >= matchEnd) {
+      return res.status(400).json({
+        success: false,
+        message: "Mentor registration end date must be before matching end date",
+      });
+    }
+
+    // Validate that mentee registration end date is before matching end date
+    if (menteeRegEnd >= matchEnd) {
+      return res.status(400).json({
+        success: false,
+        message: "Mentee registration end date must be before matching end date",
       });
     }
 
@@ -165,6 +192,17 @@ export const getAllPrograms = async (req: Request, res: Response) => {
     }
     if (req.query.category) {
       filter.category = { $regex: req.query.category, $options: "i" };
+    }
+
+    // Apply search filter - search in name, shortDescription, and longDescription
+    if (req.query.search) {
+      const searchTerm = req.query.search as string;
+      filter.$or = [
+        { name: { $regex: searchTerm, $options: "i" } },
+        { shortDescription: { $regex: searchTerm, $options: "i" } },
+        { longDescription: { $regex: searchTerm, $options: "i" } },
+        { category: { $regex: searchTerm, $options: "i" } },
+      ];
     }
 
     const programs = await MentoringProgram.find(filter)
@@ -306,51 +344,117 @@ export const updateProgram = async (req: Request, res: Response) => {
     } = req.body;
 
     // Validate dates if provided
-    if (registrationEndDateMentee || registrationEndDateMentor || matchingEndDate) {
+    if (registrationEndDateMentee || registrationEndDateMentor || matchingEndDate || programDuration) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      
       const menteeRegEnd = registrationEndDateMentee
-        ? new Date(registrationEndDateMentee)
-        : program.registrationEndDateMentee;
+        ? (() => {
+            const date = new Date(registrationEndDateMentee);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })()
+        : (() => {
+            const date = new Date(program.registrationEndDateMentee);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })();
+      
       const mentorRegEnd = registrationEndDateMentor
-        ? new Date(registrationEndDateMentor)
-        : program.registrationEndDateMentor;
+        ? (() => {
+            const date = new Date(registrationEndDateMentor);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })()
+        : (() => {
+            const date = new Date(program.registrationEndDateMentor);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })();
+      
       const matchEnd = matchingEndDate
-        ? new Date(matchingEndDate)
-        : program.matchingEndDate;
+        ? (() => {
+            const date = new Date(matchingEndDate);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })()
+        : (() => {
+            const date = new Date(program.matchingEndDate);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })();
       
       // Get program start date (from update or existing)
       const progStart = programDuration?.startDate
-        ? new Date(programDuration.startDate)
-        : program.programDuration.startDate;
+        ? (() => {
+            const date = new Date(programDuration.startDate);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })()
+        : (() => {
+            const date = new Date(program.programDuration.startDate);
+            date.setHours(0, 0, 0, 0);
+            return date;
+          })();
 
-      if (menteeRegEnd <= progStart && registrationEndDateMentee) {
+      // Validate that start date is in the future (if being updated)
+      if (programDuration?.startDate && progStart <= now) {
         return res.status(400).json({
           success: false,
-          message: "Mentee registration end date must be after program start date",
+          message: "Program start date must be in the future",
         });
       }
 
-      if (mentorRegEnd <= progStart && registrationEndDateMentor) {
+      // Validate that matching end date is before start date
+      if (matchingEndDate && matchEnd >= progStart) {
         return res.status(400).json({
           success: false,
-          message: "Mentor registration end date must be after program start date",
+          message: "Matching end date must be before program start date",
         });
       }
 
-      if (
-        (matchEnd <= menteeRegEnd || matchEnd <= mentorRegEnd) &&
-        matchingEndDate
-      ) {
+      // Validate that mentor registration end date is before matching end date
+      if (registrationEndDateMentor && mentorRegEnd >= matchEnd) {
         return res.status(400).json({
           success: false,
-          message:
-            "Matching end date must be after both registration end dates",
+          message: "Mentor registration end date must be before matching end date",
+        });
+      }
+
+      // Validate that mentee registration end date is before matching end date
+      if (registrationEndDateMentee && menteeRegEnd >= matchEnd) {
+        return res.status(400).json({
+          success: false,
+          message: "Mentee registration end date must be before matching end date",
         });
       }
     }
 
     if (programDuration) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
       const progStart = new Date(programDuration.startDate);
+      progStart.setHours(0, 0, 0, 0);
       const progEnd = new Date(programDuration.endDate);
+      progEnd.setHours(0, 0, 0, 0);
+      
+      // Validate that start date is in the future
+      if (progStart <= now) {
+        return res.status(400).json({
+          success: false,
+          message: "Program start date must be in the future",
+        });
+      }
+      
+      // Validate that end date is in the future
+      if (progEnd <= now) {
+        return res.status(400).json({
+          success: false,
+          message: "Program end date must be in the future",
+        });
+      }
+      
+      // Validate that end date is after start date
       if (progEnd <= progStart) {
         return res.status(400).json({
           success: false,
@@ -580,16 +684,65 @@ export const getProgramStatistics = async (req: Request, res: Response) => {
       });
     }
 
-    // TODO: Add actual statistics when mentor/mentee registration models are created
+    // Build base query for tenant filtering
+    const isSuperAdmin = req.user?.role === "super_admin";
+    const baseQuery: any = { programId: program._id };
+    if (!isSuperAdmin && program.tenantId) {
+      baseQuery.tenantId = program.tenantId;
+    }
+
+    // Calculate actual statistics
+    // Total mentors (all registrations regardless of status)
+    const totalMentors = await MentorRegistration.countDocuments(baseQuery);
+
+    // Total mentees (all registrations regardless of status)
+    const totalMentees = await MenteeRegistration.countDocuments(baseQuery);
+
+    // Approved mentors
+    const approvedMentors = await MentorRegistration.countDocuments({
+      ...baseQuery,
+      status: "approved",
+    });
+
+    // Approved mentees
+    const approvedMentees = await MenteeRegistration.countDocuments({
+      ...baseQuery,
+      status: "approved",
+    });
+
+    // Pending mentors (submitted status)
+    const pendingMentors = await MentorRegistration.countDocuments({
+      ...baseQuery,
+      status: "submitted",
+    });
+
+    // Pending mentees (submitted status)
+    const pendingMentees = await MenteeRegistration.countDocuments({
+      ...baseQuery,
+      status: "submitted",
+    });
+
+    // Matched pairs (accepted matches)
+    const matchedPairs = await MentorMenteeMatching.countDocuments({
+      ...baseQuery,
+      status: MatchingStatus.ACCEPTED,
+    });
+
+    // Pending matches (pending mentor acceptance)
+    const pendingMatches = await MentorMenteeMatching.countDocuments({
+      ...baseQuery,
+      status: MatchingStatus.PENDING_MENTOR_ACCEPTANCE,
+    });
+
     const statistics = {
-      totalMentors: 0,
-      totalMentees: 0,
-      approvedMentors: 0,
-      approvedMentees: 0,
-      pendingMentors: 0,
-      pendingMentees: 0,
-      matchedPairs: 0,
-      pendingMatches: 0,
+      totalMentors,
+      totalMentees,
+      approvedMentors,
+      approvedMentees,
+      pendingMentors,
+      pendingMentees,
+      matchedPairs,
+      pendingMatches,
     };
 
     return res.json({

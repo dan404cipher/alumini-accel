@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { X, Upload, Calendar, Mail, Phone, FileText, User, Info, LogOut } from "lucide-react";
+import { X, Upload, Calendar, Mail, Phone, FileText, User, Info } from "lucide-react";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { ProgramDetail } from "./ProgramDetail";
+import Navigation from "@/components/Navigation";
 
 interface ProgramMentorRegistrationProps {
   programId?: string;
@@ -23,19 +25,13 @@ interface RegistrationFormData {
   sitEmail?: string; // Optional - removed from form
   classOf: string;
   sitStudentId?: string; // Optional - removed from form
-  sitMatricNumber: string;
   areasOfMentoring: string[];
   fbPreference: string;
   dietaryRestrictions: string;
   optionToReceiveFB: boolean;
   preferredMailingAddress: string;
-  eventSlotPreference: {
-    startDate: string;
-    endDate: string;
-    startTime: string;
-    endTime: string;
-  } | null;
-  eventMeetupPreference: string;
+  eventSlotPreference: "Weekend afternoon" | "Weekday evenings" | "";
+  eventMeetupPreference: "Virtual" | "Physical" | "";
   pdpaConsent: boolean;
   recaptchaToken: string;
 }
@@ -52,13 +48,23 @@ const CLASS_OF_YEARS = Array.from(
   (_, i) => new Date().getFullYear() - i
 );
 
+const EVENT_SLOT_OPTIONS = [
+  { value: "Weekend afternoon", label: "Weekend afternoon" },
+  { value: "Weekday evenings", label: "Weekday evenings" },
+];
+
+const MEETUP_PREFERENCE_OPTIONS = [
+  { value: "Virtual", label: "Virtual" },
+  { value: "Physical", label: "Physical" },
+];
+
 export const ProgramMentorRegistration: React.FC<
   ProgramMentorRegistrationProps
 > = ({ programId: propProgramId, onClose, onSuccess }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
 
   const programIdFromUrl = searchParams.get("programId") || propProgramId || "";
   const editId = searchParams.get("editId") || "";
@@ -74,6 +80,17 @@ export const ProgramMentorRegistration: React.FC<
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [newArea, setNewArea] = useState("");
   const [editingRegistration, setEditingRegistration] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper function to convert old format (object) to new format (string)
+  const convertEventSlotPreference = (value: any): "Weekend afternoon" | "Weekday evenings" | "" => {
+    if (!value) return "";
+    if (typeof value === "string") {
+      return value === "Weekend afternoon" || value === "Weekday evenings" ? value : "";
+    }
+    // Old format was an object - we can't convert it, so return empty
+    return "";
+  };
 
   const [formData, setFormData] = useState<RegistrationFormData>({
     programId: programIdFromUrl,
@@ -87,13 +104,12 @@ export const ProgramMentorRegistration: React.FC<
     sitEmail: "",
     classOf: "",
     sitStudentId: "",
-    sitMatricNumber: "",
     areasOfMentoring: [],
     fbPreference: "",
     dietaryRestrictions: "",
     optionToReceiveFB: false,
     preferredMailingAddress: "",
-    eventSlotPreference: null,
+    eventSlotPreference: "",
     eventMeetupPreference: "",
     pdpaConsent: false,
     recaptchaToken: "",
@@ -145,14 +161,13 @@ export const ProgramMentorRegistration: React.FC<
               sitEmail: registration.sitEmail || "",
               classOf: registration.classOf?.toString() || "",
               sitStudentId: registration.sitStudentId || "",
-              sitMatricNumber: registration.sitMatricNumber || "",
               areasOfMentoring: registration.areasOfMentoring || [],
               fbPreference: registration.fbPreference || "",
               dietaryRestrictions: registration.dietaryRestrictions || "",
               optionToReceiveFB: registration.optionToReceiveFB || false,
               preferredMailingAddress: registration.preferredMailingAddress || registration.personalEmail || "",
-              eventSlotPreference: registration.eventSlotPreference || null,
-              eventMeetupPreference: registration.eventMeetupPreference || "",
+              eventSlotPreference: convertEventSlotPreference(registration.eventSlotPreference),
+              eventMeetupPreference: registration.eventMeetupPreference === "Virtual" || registration.eventMeetupPreference === "Physical" ? registration.eventMeetupPreference : "",
               pdpaConsent: true,
             }));
             
@@ -239,14 +254,13 @@ export const ProgramMentorRegistration: React.FC<
               sitEmail: existingRegistration.sitEmail || "",
               classOf: existingRegistration.classOf?.toString() || "",
               sitStudentId: existingRegistration.sitStudentId || "",
-              sitMatricNumber: existingRegistration.sitMatricNumber || "",
               areasOfMentoring: existingRegistration.areasOfMentoring || [],
               fbPreference: existingRegistration.fbPreference || "",
               dietaryRestrictions: existingRegistration.dietaryRestrictions || "",
               optionToReceiveFB: existingRegistration.optionToReceiveFB || false,
               preferredMailingAddress: existingRegistration.preferredMailingAddress || existingRegistration.personalEmail || "",
-              eventSlotPreference: existingRegistration.eventSlotPreference || null,
-              eventMeetupPreference: existingRegistration.eventMeetupPreference || "",
+              eventSlotPreference: convertEventSlotPreference(existingRegistration.eventSlotPreference),
+              eventMeetupPreference: existingRegistration.eventMeetupPreference === "Virtual" || existingRegistration.eventMeetupPreference === "Physical" ? existingRegistration.eventMeetupPreference : "",
               pdpaConsent: true, // Already consented
             }));
             
@@ -293,15 +307,14 @@ export const ProgramMentorRegistration: React.FC<
                 sitEmail: prevData.sitEmail || "",
                 classOf: prevData.classOf?.toString() || "",
                 sitStudentId: prevData.sitStudentId || "",
-                sitMatricNumber: prevData.sitMatricNumber || "",
                 areasOfMentoring: prevData.areasOfMentoring || [],
                 fbPreference: prevData.fbPreference || "",
                 dietaryRestrictions: prevData.dietaryRestrictions || "",
                 optionToReceiveFB: prevData.optionToReceiveFB || false,
                 preferredMailingAddress:
                   prevData.preferredMailingAddress || prevData.personalEmail || "",
-                eventSlotPreference: prevData.eventSlotPreference || null,
-                eventMeetupPreference: prevData.eventMeetupPreference || "",
+                eventSlotPreference: convertEventSlotPreference(prevData.eventSlotPreference),
+                eventMeetupPreference: prevData.eventMeetupPreference === "Virtual" || prevData.eventMeetupPreference === "Physical" ? prevData.eventMeetupPreference : "",
               }));
             }
           } catch (err) {
@@ -338,31 +351,120 @@ export const ProgramMentorRegistration: React.FC<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programIdFromUrl, editId]);
 
+  // Validate individual field
+  const validateField = (field: keyof RegistrationFormData, value: string | string[] | boolean | undefined): string => {
+    switch (field) {
+      case "title":
+        if (!value || (typeof value === "string" && !value.trim())) return "Title is required";
+        return "";
+      
+      case "firstName":
+        if (!value || (typeof value === "string" && !value.trim())) return "First name is required";
+        if (typeof value === "string" && value.length > 30) return "First name cannot exceed 30 characters";
+        return "";
+      
+      case "lastName":
+        if (!value || (typeof value === "string" && !value.trim())) return "Last name is required";
+        if (typeof value === "string" && value.length > 30) return "Last name cannot exceed 30 characters";
+        return "";
+      
+      case "preferredName":
+        if (!value || (typeof value === "string" && !value.trim())) return "Preferred name is required";
+        if (typeof value === "string" && value.length > 100) return "Preferred name cannot exceed 100 characters";
+        return "";
+      
+      case "mobileNumber": {
+        if (!value || typeof value !== "string") return "Mobile number is required";
+        // Remove all non-digit characters for validation
+        const digitsOnly = value.replace(/\D/g, "");
+        if (digitsOnly.length !== 10) return "Mobile number must be exactly 10 digits";
+        return "";
+      }
+      
+      case "dateOfBirth": {
+        if (!value || typeof value !== "string") return "Date of birth is required";
+        const dob = new Date(value);
+        const today = new Date();
+        const minDate = new Date(
+          today.getFullYear() - 16,
+          today.getMonth(),
+          today.getDate()
+        );
+        if (dob > minDate) return "You must be at least 16 years old";
+        return "";
+      }
+      
+      case "personalEmail": {
+        if (!value || typeof value !== "string") return "Personal email is required";
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) return "Please enter a valid email address";
+        return "";
+      }
+      
+      case "preferredMailingAddress": {
+        if (!value || typeof value !== "string") return "Preferred mailing address is required";
+        const mailingEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!mailingEmailRegex.test(value)) return "Please enter a valid email address";
+        return "";
+      }
+      
+      case "classOf":
+        if (!value || (typeof value === "string" && !value.trim())) return "Class of year is required";
+        return "";
+      
+      case "areasOfMentoring":
+        if (!value || (Array.isArray(value) && value.length === 0)) {
+          return "At least one area of mentoring is required";
+        }
+        return "";
+      
+      case "eventSlotPreference":
+        if (!value || (typeof value === "string" && !value.trim())) return "Event slot preference is required";
+        return "";
+      
+      case "eventMeetupPreference":
+        if (!value || (typeof value === "string" && !value.trim())) return "Event meetup preference is required";
+        return "";
+      
+      case "pdpaConsent":
+        if (!value || value !== true) return "PDPA consent must be accepted";
+        return "";
+      
+      default:
+        return "";
+    }
+  };
+
   const handleInputChange = (
     field: keyof RegistrationFormData,
-    value: any
+    value: string | string[] | boolean
   ) => {
+    // For mobile number, restrict to digits only and max 10 digits
+    if (field === "mobileNumber" && typeof value === "string") {
+      // Remove all non-digit characters
+      const digitsOnly = value.replace(/\D/g, "");
+      if (digitsOnly.length > 10) {
+        // Don't update if it exceeds 10 digits
+        return;
+      }
+      value = digitsOnly;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
 
-    // Clear error when user starts typing
-    if (errors[field]) {
+    // Validate field in real-time
+    const error = validateField(field, value);
       setErrors((prev) => ({
         ...prev,
-        [field]: "",
+      [field]: error,
       }));
-    }
   };
 
   const handleClassOfChange = (value: string) => {
-    const year = parseInt(value);
     handleInputChange("classOf", value);
-    // Clear matric number when class changes (sitStudentId removed from form)
-    if (year >= 2017) {
-      handleInputChange("sitMatricNumber", "");
-    }
   };
 
   const addArea = () => {
@@ -434,41 +536,29 @@ export const ProgramMentorRegistration: React.FC<
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!formData.title) newErrors.title = "Title is required";
-    if (!formData.firstName || formData.firstName.length > 30)
-      newErrors.firstName = "First name is required (max 30 characters)";
-    if (!formData.lastName || formData.lastName.length > 30)
-      newErrors.lastName = "Last name is required (max 30 characters)";
-    if (!formData.preferredName || formData.preferredName.length > 100)
-      newErrors.preferredName = "Preferred name is required (max 100 characters)";
-    if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
-    if (!formData.personalEmail) newErrors.personalEmail = "Personal email is required";
-    if (!formData.classOf) newErrors.classOf = "Class of year is required";
+    // Validate all fields using the validateField function
+    const fieldsToValidate: (keyof RegistrationFormData)[] = [
+      "title",
+      "firstName",
+      "lastName",
+      "preferredName",
+      "mobileNumber",
+      "dateOfBirth",
+      "personalEmail",
+      "preferredMailingAddress",
+      "classOf",
+      "areasOfMentoring",
+      "eventSlotPreference",
+      "eventMeetupPreference",
+      "pdpaConsent",
+    ];
 
-    const classOfYear = parseInt(formData.classOf);
-    if (classOfYear < 2017 && !formData.sitMatricNumber)
-      newErrors.sitMatricNumber = "SIT Matric Number is required for pre-2017";
-
-    if (formData.areasOfMentoring.length === 0)
-      newErrors.areasOfMentoring = "At least one area of mentoring is required";
-    if (!formData.preferredMailingAddress)
-      newErrors.preferredMailingAddress = "Preferred mailing address is required";
-    if (!formData.pdpaConsent)
-      newErrors.pdpaConsent = "PDPA consent must be accepted";
-
-    // Validate date of birth (min 16 years)
-    if (formData.dateOfBirth) {
-      const dob = new Date(formData.dateOfBirth);
-      const today = new Date();
-      const minDate = new Date(
-        today.getFullYear() - 16,
-        today.getMonth(),
-        today.getDate()
-      );
-      if (dob > minDate) {
-        newErrors.dateOfBirth = "You must be at least 16 years old";
+    fieldsToValidate.forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
       }
-    }
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -503,10 +593,12 @@ export const ProgramMentorRegistration: React.FC<
         formDataToSend.append("mobileNumber", formData.mobileNumber);
       formDataToSend.append("dateOfBirth", formData.dateOfBirth);
       formDataToSend.append("personalEmail", formData.personalEmail);
-      // sitEmail and sitStudentId removed from form - not sending them
+      // sitEmail is optional - only send if it exists (for edit mode)
+      if (formData.sitEmail && formData.sitEmail.trim()) {
+        formDataToSend.append("sitEmail", formData.sitEmail);
+      }
+      // sitStudentId removed from form - not sending it
       formDataToSend.append("classOf", formData.classOf);
-      if (formData.sitMatricNumber)
-        formDataToSend.append("sitMatricNumber", formData.sitMatricNumber);
       formData.areasOfMentoring.forEach((area) => {
         formDataToSend.append("areasOfMentoring[]", area);
       });
@@ -524,29 +616,16 @@ export const ProgramMentorRegistration: React.FC<
       );
       if (formData.eventSlotPreference) {
         formDataToSend.append(
-          "eventSlotPreference[startDate]",
-          formData.eventSlotPreference.startDate
+          "eventSlotPreference",
+          formData.eventSlotPreference
         );
-        formDataToSend.append(
-          "eventSlotPreference[endDate]",
-          formData.eventSlotPreference.endDate
-        );
-        if (formData.eventSlotPreference.startTime)
-          formDataToSend.append(
-            "eventSlotPreference[startTime]",
-            formData.eventSlotPreference.startTime
-          );
-        if (formData.eventSlotPreference.endTime)
-          formDataToSend.append(
-            "eventSlotPreference[endTime]",
-            formData.eventSlotPreference.endTime
-          );
       }
-      if (formData.eventMeetupPreference)
+      if (formData.eventMeetupPreference) {
         formDataToSend.append(
           "eventMeetupPreference",
           formData.eventMeetupPreference
         );
+      }
       formDataToSend.append("pdpaConsent", "true");
       formDataToSend.append("recaptchaToken", recaptchaToken);
 
@@ -594,12 +673,35 @@ export const ProgramMentorRegistration: React.FC<
               : "Your mentor registration has been updated successfully. You will be notified once it's reviewed."
             : "Your mentor registration has been submitted successfully. You will be notified once it's reviewed.",
         });
-        if (onSuccess) onSuccess();
-        if (onClose) onClose();
-        else navigate(-1);
+        
+        // Call success callback if provided
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        // If onClose is provided, use it
+        if (onClose) {
+          onClose();
+        } else {
+          // Navigate to a safe page - either program detail or mentorship dashboard
+          if (programIdFromUrl) {
+            // Navigate to the program detail page
+            navigate(`/mentoring-programs?id=${programIdFromUrl}`, { replace: true });
+          } else {
+            // Fallback to mentorship dashboard
+            navigate("/mentoring-programs", { replace: true });
+          }
+        }
       }
     } catch (error: any) {
       console.error("Registration error:", error);
+      
+      // Don't show error toast if it's a 401 - the interceptor will handle redirect
+      if (error.response?.status === 401) {
+        // Authentication error - interceptor will redirect to login
+        return;
+      }
+      
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.errors?.[0] ||
@@ -616,10 +718,15 @@ export const ProgramMentorRegistration: React.FC<
 
   if (checking) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-center">Checking registration status...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Navigation activeTab="mentorship" onTabChange={() => {}} />
+        <div className="pt-16">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="bg-white rounded-lg p-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-center">Checking registration status...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -627,18 +734,23 @@ export const ProgramMentorRegistration: React.FC<
 
   if (registrationStatus && !registrationStatus.isOpen) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg p-6 max-w-md w-full">
-          <div className="text-center">
-            <div className="text-red-600 text-4xl mb-4">⚠️</div>
-            <h2 className="text-xl font-bold mb-2">Registration Closed</h2>
-            <p className="text-gray-600 mb-4">{registrationStatus.message}</p>
-            <button
-              onClick={() => (onClose ? onClose() : navigate(-1))}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Close
-            </button>
+      <div className="min-h-screen bg-gray-50">
+        <Navigation activeTab="mentorship" onTabChange={() => {}} />
+        <div className="pt-16">
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <div className="text-center">
+                <div className="text-red-600 text-4xl mb-4">⚠️</div>
+                <h2 className="text-xl font-bold mb-2">Registration Closed</h2>
+                <p className="text-gray-600 mb-4">{registrationStatus.message}</p>
+                <button
+                  onClick={() => (onClose ? onClose() : navigate(-1))}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -648,30 +760,47 @@ export const ProgramMentorRegistration: React.FC<
   // Show notice if existing registration, but allow editing
   const existingRegistration = registrationStatus?.existingRegistration;
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
-  };
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-4 max-h-[90vh] flex flex-col">
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Navigation */}
+      <Navigation activeTab="mentorship" onTabChange={() => {}} />
+      
+      {/* Program Detail Background */}
+      <div className="pt-16 pb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {program && programIdFromUrl && (
+            <div className="opacity-25 pointer-events-none">
+              <ProgramDetail 
+                programId={programIdFromUrl} 
+                userRole={user?.role}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Registration Form Overlay */}
+      <div className="fixed inset-0 flex items-start justify-center z-50 overflow-y-auto pt-20 pb-4 px-4">
+        <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full my-4 max-h-[80vh] flex flex-col border-2 border-blue-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-          <h2 className="text-xl font-bold">
+        <div className="flex items-center justify-between p-3 border-b flex-shrink-0">
+          <h2 className="text-base font-semibold">
             {isEditMode && isStaff ? "Edit Registration on Behalf" : "Register as Mentor"} {program?.name ? `- ${program.name}` : ""}
           </h2>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md flex items-center gap-2 transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
-            <button
-              onClick={() => (onClose ? onClose() : navigate(-1))}
+              onClick={() => {
+                if (onClose) {
+                  onClose();
+                } else {
+                  // Navigate to program detail page
+                  if (programIdFromUrl) {
+                    navigate(`/mentoring-programs?id=${programIdFromUrl}`, { replace: true });
+                  } else {
+                    navigate("/mentoring-programs", { replace: true });
+                  }
+                }
+              }}
               className="text-gray-500 hover:text-gray-700"
               title="Close"
             >
@@ -682,9 +811,9 @@ export const ProgramMentorRegistration: React.FC<
 
         {/* Form - Scrollable */}
         <div className="overflow-y-auto flex-1">
-          <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <form onSubmit={handleSubmit} className="p-3 space-y-3" noValidate>
           {existingRegistration && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
@@ -715,7 +844,7 @@ export const ProgramMentorRegistration: React.FC<
 
           {/* Entry Criteria Rules */}
           {program?.entryCriteriaRules && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
               <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                 <Info className="w-4 h-4" />
                 Entry Criteria Rules
@@ -744,7 +873,7 @@ export const ProgramMentorRegistration: React.FC<
 
           {/* Personal Information */}
           <div>
-            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
               <User className="w-4 h-4" />
               Personal Information
             </h3>
@@ -758,6 +887,10 @@ export const ProgramMentorRegistration: React.FC<
                   onChange={(e) =>
                     handleInputChange("title", e.target.value as any)
                   }
+                  onBlur={() => {
+                    const error = validateField("title", formData.title);
+                    setErrors((prev) => ({ ...prev, title: error }));
+                  }}
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.title ? "border-red-500" : "border-gray-300"
                   }`}
@@ -783,6 +916,10 @@ export const ProgramMentorRegistration: React.FC<
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => handleInputChange("firstName", e.target.value)}
+                  onBlur={() => {
+                    const error = validateField("firstName", formData.firstName);
+                    setErrors((prev) => ({ ...prev, firstName: error }));
+                  }}
                   maxLength={30}
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.firstName ? "border-red-500" : "border-gray-300"
@@ -805,6 +942,10 @@ export const ProgramMentorRegistration: React.FC<
                   type="text"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange("lastName", e.target.value)}
+                  onBlur={() => {
+                    const error = validateField("lastName", formData.lastName);
+                    setErrors((prev) => ({ ...prev, lastName: error }));
+                  }}
                   maxLength={30}
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.lastName ? "border-red-500" : "border-gray-300"
@@ -829,6 +970,10 @@ export const ProgramMentorRegistration: React.FC<
                   onChange={(e) =>
                     handleInputChange("preferredName", e.target.value)
                   }
+                  onBlur={() => {
+                    const error = validateField("preferredName", formData.preferredName);
+                    setErrors((prev) => ({ ...prev, preferredName: error }));
+                  }}
                   maxLength={100}
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.preferredName ? "border-red-500" : "border-gray-300"
@@ -848,7 +993,7 @@ export const ProgramMentorRegistration: React.FC<
               <div>
                 <label className="block text-sm font-medium mb-1 flex items-center gap-2">
                   <Phone className="w-4 h-4" />
-                  Mobile Number
+                  Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -856,10 +1001,15 @@ export const ProgramMentorRegistration: React.FC<
                   onChange={(e) =>
                     handleInputChange("mobileNumber", e.target.value)
                   }
-                  placeholder="+65 1234 5678"
+                  onBlur={() => {
+                    const error = validateField("mobileNumber", formData.mobileNumber);
+                    setErrors((prev) => ({ ...prev, mobileNumber: error }));
+                  }}
+                  placeholder="Enter 10 digits"
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.mobileNumber ? "border-red-500" : "border-gray-300"
                   }`}
+                  required
                 />
                 {errors.mobileNumber && (
                   <p className="text-red-600 text-xs mt-1">
@@ -877,6 +1027,10 @@ export const ProgramMentorRegistration: React.FC<
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                  onBlur={() => {
+                    const error = validateField("dateOfBirth", formData.dateOfBirth);
+                    setErrors((prev) => ({ ...prev, dateOfBirth: error }));
+                  }}
                   max={new Date(
                     new Date().getFullYear() - 16,
                     new Date().getMonth(),
@@ -900,7 +1054,7 @@ export const ProgramMentorRegistration: React.FC<
 
           {/* Email Information */}
           <div>
-            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
               <Mail className="w-4 h-4" />
               Email Information
             </h3>
@@ -915,6 +1069,10 @@ export const ProgramMentorRegistration: React.FC<
                   onChange={(e) =>
                     handleInputChange("personalEmail", e.target.value)
                   }
+                  onBlur={() => {
+                    const error = validateField("personalEmail", formData.personalEmail);
+                    setErrors((prev) => ({ ...prev, personalEmail: error }));
+                  }}
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.personalEmail ? "border-red-500" : "border-gray-300"
                   }`}
@@ -937,6 +1095,10 @@ export const ProgramMentorRegistration: React.FC<
                   onChange={(e) =>
                     handleInputChange("preferredMailingAddress", e.target.value)
                   }
+                  onBlur={() => {
+                    const error = validateField("preferredMailingAddress", formData.preferredMailingAddress);
+                    setErrors((prev) => ({ ...prev, preferredMailingAddress: error }));
+                  }}
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.preferredMailingAddress
                       ? "border-red-500"
@@ -958,7 +1120,7 @@ export const ProgramMentorRegistration: React.FC<
 
           {/* Academic Information */}
           <div>
-            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Academic Information
             </h3>
@@ -970,6 +1132,10 @@ export const ProgramMentorRegistration: React.FC<
                 <select
                   value={formData.classOf}
                   onChange={(e) => handleClassOfChange(e.target.value)}
+                  onBlur={() => {
+                    const error = validateField("classOf", formData.classOf);
+                    setErrors((prev) => ({ ...prev, classOf: error }));
+                  }}
                   className={`w-full px-3 py-2 border rounded-md ${
                     errors.classOf ? "border-red-500" : "border-gray-300"
                   }`}
@@ -987,35 +1153,6 @@ export const ProgramMentorRegistration: React.FC<
                 )}
               </div>
 
-              {parseInt(formData.classOf) < 2017 && formData.classOf && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    SIT Matric Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.sitMatricNumber}
-                    onChange={(e) =>
-                      handleInputChange("sitMatricNumber", e.target.value)
-                    }
-                    maxLength={10}
-                    className={`w-full px-3 py-2 border rounded-md ${
-                      errors.sitMatricNumber
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                    required
-                  />
-                  {errors.sitMatricNumber && (
-                    <p className="text-red-600 text-xs mt-1">
-                      {errors.sitMatricNumber}
-                    </p>
-                  )}
-                  <p className="text-gray-500 text-xs mt-1">
-                    {formData.sitMatricNumber.length}/10
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1026,15 +1163,41 @@ export const ProgramMentorRegistration: React.FC<
               Mentor CV (PDF, DOC, DOCX - Max 10MB)
             </label>
             <input
+              ref={fileInputRef}
               type="file"
               accept=".pdf,.doc,.docx"
               onChange={handleFileChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
             />
             {cvFile && (
-              <p className="text-sm text-gray-600 mt-1">
-                Selected: {cvFile.name}
-              </p>
+              <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm text-gray-700 font-medium">{cvFile.name}</span>
+                  <span className="text-xs text-gray-500">
+                    ({(cvFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCvFile(null);
+                    // Clear file input
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                    // Clear error if any
+                    setErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.cvFile;
+                      return newErrors;
+                    });
+                  }}
+                  className="text-red-600 hover:text-red-800 text-sm font-medium"
+                >
+                  Remove
+                </button>
+              </div>
             )}
             {errors.cvFile && (
               <p className="text-red-600 text-xs mt-1">{errors.cvFile}</p>
@@ -1097,7 +1260,7 @@ export const ProgramMentorRegistration: React.FC<
 
           {/* F&B Preferences */}
           {/* <div>
-            <h3 className="text-base font-semibold mb-3">F&B Preferences</h3>
+            <h3 className="text-sm font-semibold mb-2">F&B Preferences</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -1152,63 +1315,80 @@ export const ProgramMentorRegistration: React.FC<
 
           {/* Event Preferences */}
           <div>
-            <h3 className="text-base font-semibold mb-3">Event Preferences</h3>
+            <h3 className="text-sm font-semibold mb-2"></h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Event Slot Preference
+                  Event Slot Preference <span className="text-red-500">*</span>
                 </label>
-                <div className="space-y-2">
-                  <input
-                    type="date"
-                    value={
-                      formData.eventSlotPreference?.startDate || ""
-                    }
+                <select
+                  value={formData.eventSlotPreference}
                     onChange={(e) =>
-                      handleInputChange("eventSlotPreference", {
-                        ...(formData.eventSlotPreference || {}),
-                        startDate: e.target.value,
-                        endDate: formData.eventSlotPreference?.endDate || "",
-                        startTime: formData.eventSlotPreference?.startTime || "",
-                        endTime: formData.eventSlotPreference?.endTime || "",
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  <input
-                    type="date"
-                    value={formData.eventSlotPreference?.endDate || ""}
-                    onChange={(e) =>
-                      handleInputChange("eventSlotPreference", {
-                        ...(formData.eventSlotPreference || {}),
-                        startDate: formData.eventSlotPreference?.startDate || "",
-                        endDate: e.target.value,
-                        startTime: formData.eventSlotPreference?.startTime || "",
-                        endTime: formData.eventSlotPreference?.endTime || "",
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
+                    handleInputChange(
+                      "eventSlotPreference",
+                      e.target.value as "Weekend afternoon" | "Weekday evenings"
+                    )
+                  }
+                  onBlur={() => {
+                    const error = validateField("eventSlotPreference", formData.eventSlotPreference);
+                    setErrors((prev) => ({ ...prev, eventSlotPreference: error }));
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md ${
+                    errors.eventSlotPreference
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                  required
+                >
+                  <option value="">Select Preference</option>
+                  {EVENT_SLOT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.eventSlotPreference && (
+                  <p className="text-red-600 text-xs mt-1">
+                    {errors.eventSlotPreference}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Event Meet up Preference
+                  Event Meet up Preference <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.eventMeetupPreference}
                   onChange={(e) =>
-                    handleInputChange("eventMeetupPreference", e.target.value)
+                    handleInputChange(
+                      "eventMeetupPreference",
+                      e.target.value as "Virtual" | "Physical"
+                    )
                   }
-                  maxLength={100}
-                  placeholder="e.g., Virtual, Physical"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-                <p className="text-gray-500 text-xs mt-1">
-                  {formData.eventMeetupPreference.length}/100
+                  onBlur={() => {
+                    const error = validateField("eventMeetupPreference", formData.eventMeetupPreference);
+                    setErrors((prev) => ({ ...prev, eventMeetupPreference: error }));
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md ${
+                    errors.eventMeetupPreference
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                  required
+                >
+                  <option value="">Select Preference</option>
+                  {MEETUP_PREFERENCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.eventMeetupPreference && (
+                  <p className="text-red-600 text-xs mt-1">
+                    {errors.eventMeetupPreference}
                 </p>
+                )}
               </div>
             </div>
           </div>
@@ -1243,7 +1423,7 @@ export const ProgramMentorRegistration: React.FC<
           </div>
 
           {/* Submit Button */}
-          <div className="flex gap-4 pt-4 border-t sticky bottom-0 bg-white pb-2">
+          <div className="flex gap-3 pt-3 border-t sticky bottom-0 bg-white pb-2">
             <button
               type="button"
               onClick={() => (onClose ? onClose() : navigate(-1))}
@@ -1263,6 +1443,7 @@ export const ProgramMentorRegistration: React.FC<
         </form>
         </div>
       </div>
+    </div>
     </div>
   );
 };

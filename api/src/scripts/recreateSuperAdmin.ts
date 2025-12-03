@@ -1,7 +1,9 @@
+import "dotenv/config";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
 import connectDB from "../config/database";
+import { UserRole, UserStatus } from "../types";
 
 const recreateSuperAdmin = async () => {
   try {
@@ -20,8 +22,8 @@ const recreateSuperAdmin = async () => {
       lastName: "Admin",
       email: "superadmin@alumni.com",
       password: hashedPassword,
-      role: "super_admin",
-      status: "active",
+      role: UserRole.SUPER_ADMIN,
+      status: UserStatus.ACTIVE,
       isEmailVerified: true,
       phone: "+1234567890",
       dateOfBirth: new Date("1990-01-01"),
@@ -53,7 +55,7 @@ const recreateSuperAdmin = async () => {
     console.log("📧 EMAIL:    superadmin@alumni.com");
     console.log("🔑 PASSWORD: SuperAdmin123!");
     console.log("👤 ROLE:     super_admin");
-    console.log("✅ STATUS:   active");
+    console.log("✅ STATUS:   active (ACTIVE)");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     // Test the password

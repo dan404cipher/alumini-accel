@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { Calendar, Clock, BookOpen, User, GraduationCap } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { Calendar, Clock, BookOpen, User, GraduationCap, MessageSquare } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 interface AlumniRegisteredProps {
   onClose?: () => void;
@@ -76,15 +77,67 @@ interface Mentee {
 export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<"mentor" | "mentee">("mentor");
   const [mentorRegistrations, setMentorRegistrations] = useState<MentorRegistration[]>([]);
   const [menteeRegistrations, setMenteeRegistrations] = useState<MenteeRegistration[]>([]);
   const [loading, setLoading] = useState(false);
+  const isInitialMount = useRef(true);
 
+  // Restore active tab from URL params when component mounts or URL changes
   useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl === "mentor" || tabFromUrl === "mentee") {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+
+  // Fetch both registrations on component mount
+  useEffect(() => {
+    fetchAllRegistrations();
+    isInitialMount.current = false;
+  }, []);
+
+  // Fetch active tab's registrations when tab changes (for refreshing, but skip on initial mount)
+  useEffect(() => {
+    if (!isInitialMount.current) {
     fetchRegistrations();
+    }
   }, [activeTab]);
 
+  // Fetch all registrations (both mentor and mentee) on initial load
+  const fetchAllRegistrations = async () => {
+    setLoading(true);
+    try {
+      // Fetch both mentor and mentee registrations in parallel
+      const [mentorResponse, menteeResponse] = await Promise.all([
+        api.get("/mentor-registrations/my", {
+          params: { limit: 100 },
+        }),
+        api.get("/mentee-registrations/my", {
+          params: { limit: 100 },
+        }),
+      ]);
+
+      if (mentorResponse.data?.success && mentorResponse.data?.data?.registrations) {
+        setMentorRegistrations(mentorResponse.data.data.registrations);
+      }
+
+      if (menteeResponse.data?.success && menteeResponse.data?.data?.registrations) {
+        setMenteeRegistrations(menteeResponse.data.data.registrations);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to fetch registrations",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch registrations for the active tab (used when switching tabs)
   const fetchRegistrations = async () => {
     setLoading(true);
     try {
@@ -133,6 +186,24 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
     navigate(
       `/registered-program-detail?programId=${programId}&type=${registrationType}&returnUrl=${encodeURIComponent(returnUrl)}`
     );
+  };
+
+  const handleChatClick = (e: React.MouseEvent, programId: string, registrationType: "mentor" | "mentee") => {
+    e.stopPropagation(); // Prevent triggering the card click
+    const currentPath = window.location.pathname;
+    // Preserve the active tab in the return URL
+    const returnUrl = `${currentPath}?view=registered&tab=${activeTab}`;
+    navigate(
+      `/registered-program-detail?programId=${programId}&type=${registrationType}&returnUrl=${encodeURIComponent(returnUrl)}&tab=chats`
+    );
+  };
+
+  const isProgramStarted = (startDate: string): boolean => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const programStart = new Date(startDate);
+    programStart.setHours(0, 0, 0, 0);
+    return today >= programStart;
   };
 
   return (
@@ -198,8 +269,7 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
             mentorRegistrations.map((registration) => (
               <div
                 key={registration._id}
-                onClick={() => registration.programId?._id && handleProgramClick(registration.programId._id, "mentor")}
-                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
+                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -275,6 +345,24 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
                       </div>
                     </div>
                   )}
+
+                {/* Program Group Chat Button - Only show if program has started */}
+                {registration.programId?.programDuration?.startDate &&
+                  isProgramStarted(registration.programId.programDuration.startDate) && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <Button
+                        onClick={(e) =>
+                          registration.programId?._id &&
+                          handleChatClick(e, registration.programId._id, "mentor")
+                        }
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        size="sm"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Program Group Chat
+                      </Button>
+                    </div>
+                  )}
               </div>
             ))
           )}
@@ -290,8 +378,7 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
             menteeRegistrations.map((registration) => (
               <div
                 key={registration._id}
-                onClick={() => registration.programId?._id && handleProgramClick(registration.programId._id, "mentee")}
-                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
+                className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -365,6 +452,24 @@ export const AlumniRegistered: React.FC<AlumniRegisteredProps> = ({ onClose }) =
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                {/* Program Group Chat Button - Only show if program has started */}
+                {registration.programId?.programDuration?.startDate &&
+                  isProgramStarted(registration.programId.programDuration.startDate) && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <Button
+                        onClick={(e) =>
+                          registration.programId?._id &&
+                          handleChatClick(e, registration.programId._id, "mentee")
+                        }
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        size="sm"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Program Group Chat
+                      </Button>
                     </div>
                   )}
               </div>
